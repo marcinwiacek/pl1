@@ -1,9 +1,10 @@
 # Why it was started
 
-In the market you can find many beautiful devices, for example 8cm x 8cm x 4,3cm
-big mini PC (Minisforum EM780), Mac mini, Macbook Air or powerfull Ryzen 9 /
-Thread Ripper systems with 16 or more cores (forget about Intel in this moment),
-we also hear about next revolutions waiting on the corner (Snapdragon X Elite).
+In the market you can find many beautiful and incredible devices, for example
+8cm x 8cm x 4,3cm big mini PC (Minisforum EM780), Mac mini, Macbook Air or powerfull
+Ryzen 9 / Thread Ripper systems with 16 or more cores (forget about Intel in this moment)
+or even 14" laptops with 73Wh battery and weight 1kg, we also hear about next revolutions
+waiting on the corner (Snapdragon X Elite).
 
 There are visible few incredible ISAs (Instruction Architecture Sets) in current
 mainstream, unfortunately there are some important issues with them:
@@ -57,9 +58,9 @@ managers and see 1-10% CPU usage even, when nothing is done, I know, that someth
 # Goals
 
 This project have in mind playing a little bit with different solutions abandomed in the most
-popular market solutions. I would like to prepare here free design of the CPU / hardware,
-which possibly could be much more effective than some popular generic solutions (they're very
-generic and because of it slower in various aspects).
+popular market solutions. I would like to prepare free design of the CPU / hardware, which possibly
+could be much more effective than some popular generic solutions (they're very generic and because of it 
+slower in various aspects).
 
 During some research I have found project [Antikernel](https://github.com/azonenberg/antikernel).
 My some targets are a little similar (for more detailed info please look into docs, 
@@ -86,6 +87,10 @@ I don't have plans for replacing the most popular ISAs (there are milions of peo
 and in the end the most important is not ISA, but software on it). It is possible, that stage 3
 will happen in very far future... but if project goals will be achieved,
 maybe it will be possible to create much more secure and effective embedded devices. Who knows?
+
+# This is wasting time
+
+Maybe
 
 # Formatting source (info for me in development)
 1. ```npm -g install js-beautify```
