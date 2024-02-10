@@ -1,9 +1,49 @@
+# Goals
+
+This project has in target preeparing free design of the CPU / hardware, which possibly
+could be much more effective than some popular generic solutions (they're very generic
+and because of it can be slower in different parts than specialized solutions).
+
+This project doesn't immediately reject elements abandomed by other designs, but rather look
+on profits and problems related to them in this concrete scenario.
+
+During some research I have found project [Antikernel](https://github.com/azonenberg/antikernel).
+First naive targets of this project were partially similar (for more detailed and mature version 
+please look into docs, which are/will be written in next stages):
+
+1. hardware (CPU) should make task switching as effective as possible - I don't want to
+have saving / restoring registers every time (is it possible with reasonable cost?),
+additionally I don't want to have scheduler in software, if possible (main argument for software based
+solution is flexibility, ability of measuring CPU usage,  etc., but we have a lot unnecessary
+instructions running)
+2. CPU should not give too many ways for communicating processes - memory sharing is
+enough and it will avoid unnecesary copying data and other things (in many documents you will find
+it the most efficient)
+3. (more generic version of previous) hardware should force such writing software, that this cannot
+be unoptimized
+4. CPU should cooperate on lowest level with DRAM, USB, etc. and fully disable it, when possible
+5. no kernel/user/hypervisor mode = no kernel and possibility of capturing somebody's data
+(which leads to question: how to protect again DoS and malicious behaviors?)
+
+In other words: I want to take best from Risc-V and others and prepare some (possibly) more secure
+and more simple thing, which probably will hardly going into realtime hardware/software solution.
+
+# This is wasting time, opening opened doors and author is dreaming
+
+Maybe. From the other hand, mainstream hardware will never be the best in everything...and special
+projects have always place and/or niche.
+
+# License
+
+Please have in mind, that author of this repo will be more than happy, if you could share
+with him device(s) using this ISA.
+
 # Why it was started
 
 In the market you can find many beautiful and incredible devices, for example
 8cm x 8cm x 4,3cm big mini PC (Minisforum EM780), Mac mini, Macbook Air or powerfull
-Ryzen 9 / Thread Ripper systems with 16 or more cores (forget about Intel in this moment)
-or even 14" laptops with 73Wh battery and weight 1kg, we also hear about next revolutions
+Ryzen 9 / Threadripper systems with 16 or more cores (forget about Intel in this moment)
+or even 14" laptops with 73Wh battery and weight 1kg, we also hear about next revolution
 waiting on the corner (Snapdragon X Elite).
 
 There are visible few incredible ISAs (Instruction Architecture Sets) in current
@@ -32,65 +72,58 @@ L14 11gen / Clevo L140MU, Lenovo, Acers, Asus and others), but:
     course need some energy (Intel ME or similar elements in AMD)
     * many devices are not optimized, because companies don't have interest in futher
     optimalization (current solutions are "good enough") - you have only initial UEFI/BIOS
-    without enabled important options, etc.
+    with disabled important options, etc.
 
-2. ARM - it's patented like x86 and currently we see powerfull chips from one company only (Apple),
-maybe Snapdragon X will change something here, but using this will still mean vendor lock. How
-big companies are working, it's visible for years. I will give just few examples:
+2. ARM - it's patented like x86 and currently we see powerfull chips from one company (Apple),
+maybe Snapdragon X will change it. Using this will mean vendor lock & how such companies are
+working and forcing their (maybe broken) vision, it's visible for years.
+I will give just few examples:
 
     * MacOS, although very nice, simply cannot scale screen elements like Windows (you can only
     change resolution, which in many cases gives strange results)
     * You cannot buy Macbooks with matte screen (and foil is just workaround)
     * Macbook Air M1 has got PWM (hardware screen blinking), in the same time Macbook Air M2 is faster,
     but better speed in many scenarios is achieved with bigger power limits
-    * you don't have Macbooks working 30h or more on battery, because it's not required in mainstream
+    * you don't have Macbooks working 30h or more on the battery, because it's not required in mainstream
     * planned obsolescence (please look on Rossmann channel in the Youtube)
 
-3. Risc-V - possible future, but please hand in mind, that it will need many years, before chips
-will be so good like ARM (second possible scenario is, that Risc-V will be concentrated more on
-Internet Things devices) + different chips can be not compatible with each other (it's because
-standard allows for implementing only some sets of instructions)
+3. Risc-V - possible future, but please have in mind:
 
-Additionally (regardless of hardware and ISA) often used operating systems are running many
-processes in background, which is not nice in terms of effectiviness - when I look in task
-managers and see 1-10% CPU usage even, when nothing is done, I know, that something is very wrong.
+    * it will need years, before chips will be so good like ARM (and companies will just try to make business
+    on it in every possible aspect - see price of first world Risc-V laptop)
+    * Risc-V will be concentrated on different classes of devices - once again, when something is
+    for everything can be not so good like specialized solution (I don't like having M, S and U
+    modes, removing N extension and some others)
+    * different chips will be not compatible with each other (it's because standard allows for implementing
+    some sets of instructions)
 
-# Goals
+Regardless of hardware and ISA: 
 
-This project have in mind playing a little bit with different solutions abandomed in the most
-popular market solutions. I would like to prepare free design of the CPU / hardware, which possibly
-could be much more effective than some popular generic solutions (they're very generic and because of it 
-slower in various aspects).
-
-During some research I have found project [Antikernel](https://github.com/azonenberg/antikernel).
-My some targets are a little similar (for more detailed info please look into docs, 
-which are/will be written in next stages):
-
-1. hardware (CPU) should make task switching as effective as possible - I don't want to
-have saving / restoring registers every time, additionally I don't want to have scheduler in software
-(main argument for software based solution is flexibility, ability of measuring CPU usage, etc.)
-2. hardware (CPU) should not give too many ways for communicating processes - memory sharing is
-enough and it will avoid unnecesary copying data and other things (process A cannot access process
-B, maybe only, when B was created by A)
-3. CPU should hardly cooperate with DRAM, USB, etc. and fully disable it, when possible
-4. hardware must protect again DoS
+* often used operating systems are running many processes in background, which is not nice
+in terms of effectiviness (when I look in task managers and see 1-10% CPU usage even,
+when nothing is done, I know, that something is very wrong).
+* backward compatibility (POSIX) and some other aspects make, that IT doesn't move forward
+(why we don't have for example Fuchsia yet?)
 
 # Targets and timeline
 
-This project is separated into stages:
+This project is initially separated into stages:
 
-1. Stage 1 - simulating things in software (HTML page)
-2. Stage 2 - simulating things in software (VHDL, maybe already with pipelines)
-3. Stage 3 - creating real hardware
+* Stage 1 - simulating things in software (HTML page, on the beginning primitive version, 
+later updates with memory protecting / MMU, virtual memory, etc.)
+* Stage 2 - simulating things in software (VHDL, maybe already pipelines, multicore and
+asynchronous design)
+* Stage 3 - creating real hardware
 
 I don't have plans for replacing the most popular ISAs (there are milions of people behind them
 and in the end the most important is not ISA, but software on it). It is possible, that stage 3
-will happen in very far future... but if project goals will be achieved,
-maybe it will be possible to create much more secure and effective embedded devices. Who knows?
+will happen in very far future... but if project goals will be achieved, maybe it will be possible to create
+much more secure and effective embedded devices. Who knows?
 
-# This is wasting time
+# About author
 
-Maybe
+Professionally tester and (partially) developer. Software related person with tendence into
+low-level work with hardware (when have time). Quite good in optimalizing things.
 
 # Formatting source (info for me in development)
 1. ```npm -g install js-beautify```

@@ -10,12 +10,25 @@
 <script>
     const bytesPerInstruction = 6;
     const maxProcess = 100;
-    const registerNum = 11;
+    const registerNum = 12;
+    const processTableEntrySize = 1+2+2+2+registerNum*2; // sleep=0/active=1, 16-bit pc, 16-bit start, 16-bit end, registers
+const REG1=0;
+const REG2=2;
+const REG3=4;
+const REG4=6;
+const REG5=8;
+const REG6=10;
+const REG7=12;
+const REG8=14;
+const REG9=16;
+const REG10=18;
+const REG11=20;
+const REG12=22;
 
     memory = new Uint8Array(1024 * 1024);
-    registers = new Uint32Array(2 * registerNum * maxProcess); // x processes, every with 16-bit program registers, first register is program counter
-    intHandlers = new Uint8Array(256);
-    processNum = 0;
+    intHandlers = new Uint8Array(256 * 4); // sleep=0/active =1, 16 bit addresses, calling process num
+    processTable = new Uint8Array(processTableEntrySize * maxProcess); 
+    currentProcess = 0;
 
     const REGINT = 1; //rint     register int support    int_number
     const INT = 2; //int      execute int             int_number, mem position, length
@@ -23,24 +36,28 @@
     const WINT = 4; //wint     wait for int
     const PROC = 5; //proc     separate and start process from memory  mem position, length
     const END = 6; //end      end process
-    const JUMP = 7; //jmp      jump                                    address
+    const JUMPBACK = 7; //jmp      jump                                    address
     const CMPRRTRUE = 8; //cmptrue      compare memory with memory, when not the same, jump to      address1, address2, jump
     const CMPFALSE = 9;
     const CMPTRUER = 10;
     const ADDRR = 11;
+    const PROCTABL = 12;
 
-    const NAMES=['REGINT','INT','INTRET','WINT','PROC','END','JUMP','CMPRRTRUE','CMPFALSE','CMPTRUER','ADDRR'];
+ processedInt = 0;
+ activeProcesses = 0;
+
+
+    const NAMES = ['REGINT', 'INT', 'INTRET', 'WINT', 'PROC', 'END', 'JUMPBACK', 'CMPRRTRUE', 'CMPFALSE', 'CMPTRUER', 'ADDRR', 'PROCTABL'];
 
     function bootloader() {
-	for (i=0;i<2*registerNum*maxProcess;i++) registers[i] = 256;
-
-        const screenProcessSize = 1024 * 1024 + 6*bytesPerInstruction;
-	const bootloaderCodeSize = 4*bytesPerInstruction+5;
+        const screenProcessSize = 1024 * 1024 + 6 * bytesPerInstruction;
+        const bootloaderCodeSize = 5 * bytesPerInstruction + 5;
 
         const bootloaderCode = [
-            PROC, 0, 0, bootloaderCodeSize, 0, 0, //  0,    bootloader_length
-            PROC, 0, 0, bootloaderCodeSize+1, screenProcessSize / 256, screenProcessSize % 256, //  screen_code_start,   screen_code_length
-            INT, 2, 0, 4*5+1, 0, 4*5+5, //
+	    0,0,0,0,0,0,
+            PROC, 0, 0, 0, 0, bootloaderCodeSize, //  0,    bootloader_length
+            PROC, 0, 0, bootloaderCodeSize, screenProcessSize / 256, screenProcessSize % 256, //  screen_code_start,   screen_code_length
+            INT,  2, 0, bytesPerInstruction * 5 + 1, 0, bytesPerInstruction * 5 + 5,
             END, 0, 0, 0, 0, 0,
             'h', 'a', 'l', 'l', 'o',
         ];
@@ -50,51 +67,124 @@
             CMPRRTRUE, 1, 2, 0, 0, 0, //if address from register 1 = address from register 2  RINT
             INTRET, 0, 0, 0, 0, 0,
             ADDRR, 1, 1, 0, 0, 0, // add to register 1 value 1
-            JUMP, 0, 1, 0, 0, 0   // jump to CMPTRUER
-	];
+            JUMPBACK, 0, 3, 0, 0, 0 // jump to CMPTRUER
+        ];
 
         const screenRAM = new Uint8Array(1024 * 1024);
 
         let pos = 0;
-        for (i = 0; i<bootloaderCode.length; i++) {
+        for (i = 0; i < bootloaderCode.length; i++) {
             memory[pos++] = bootloaderCode[i];
         }
-        for (i = 0; i<screenCode.length; i++) {
+        for (i = 0; i < screenCode.length; i++) {
             memory[pos++] = screenCode[i];
         }
-        for (i = 0; i<screenRAM.length; i++) {
+        for (i = 0; i < screenRAM.length; i++) {
             memory[pos++] = screenRAM[i];
         }
 
-	registers[0] = 1;
+	processTable[processTableEntrySize] = 1;
+	processTable[processTableEntrySize+2] = 6;
     }
 
     function execute() {
-	for (i=0;i<10;i++) {
-		address = registers[processNum*registerNum]-1;
-		console.log("address = "+address+" instruction = "+memory[address]+ " "+NAMES[memory[address]-1]+" "+memory[address+1]+" "+memory[address+2]+" "+memory[address+3]+" "+memory[address+4]);
-		switch(memory[address]) {
-		case PROC:
-		    for (j=0;j<maxProcess;j++) {
-			if (registers[j*registerNum]==256) {
-			    console.log("registering as process "+j);
-			    registers[j*registerNum] = j;
-			    
-			}
+    address=0;
+        while (true) {
+            currentProcess++;
+            if (currentProcess == maxProcess) currentProcess=0;
+            if( processTable[currentProcess * processTableEntrySize] == 0) continue;
+            address = processTable[currentProcess * processTableEntrySize + 1] * 256 + processTable[currentProcess * processTableEntrySize + 2];
+            if (address != 0) break;
+        }
+console.log("current process "+currentProcess);
+        for (ins = 0; ins < 5; ins++) { // 5 instruction per process
+            console.log("address = " + address + " instruction = " + memory[address] + " " + NAMES[memory[address] - 1] + " " + memory[address + 1] + " " + memory[address + 2] + " " + memory[address + 3] + " " + memory[address + 4] + " " + memory[address + 5]);
+dontIncreaseAddress=false;
+            switch (memory[address]) {
+                case PROC:
+                    for (j = 1; j < maxProcess; j++) {
+                        if (processTable[j * processTableEntrySize + 6] == 0) {
+                            console.log("registering as process " + j);
+                            processTable[j * processTableEntrySize] = 1; // active
+                            processTable[j * processTableEntrySize + 1] = memory[address + 2];
+                            processTable[j * processTableEntrySize + 2] = memory[address + 3];
+                            processTable[j * processTableEntrySize + 3] = memory[address + 2];
+                            processTable[j * processTableEntrySize + 4] = memory[address + 3];
+                            processTable[j * processTableEntrySize + 5] = memory[address + 4];
+                            processTable[j * processTableEntrySize + 6] = memory[address + 5];
+                            activeProcesses++;
+                            break;
+                        }
+                    }
+                    break;
+                case REGINT:
+                    if (intHandlers[memory[address + 1] * 3 +1] == 0) {
+                        console.log("registering int " + memory[address + 1]);
+                        intHandlers[memory[address + 1] * 3 ] = (address + bytesPerInstruction) / 256;
+                        intHandlers[memory[address + 1] * 3 + 1] = (address + bytesPerInstruction) % 256;
+                        processTable[currentProcess * processTableEntrySize] = 0; // sleepy, sleepy
+                        activeProcesses--;
+                    }
+                    break;
+                case INT:
+                        dontIncreaseAddress=true;
+                    if (intHandlers[memory[address + 1] * 3 + 1] == 0) {
+                    } else {
+			// jump to int handler
+			address = intHandlers[memory[address + 1] * 3 ]*256 +  intHandlers[memory[address + 1] * 3+1 ];
+			intHandlers[memory[address + 1] * 3+2 ]= currentProcess;			
+			processTable[j * processTableEntrySize + 1] = memory[address + 2];
+                            processTable[j * processTableEntrySize + 2] = memory[address + 3];
+                            processTable[j * processTableEntrySize + 3] = memory[address + 2];
+                            processTable[j * processTableEntrySize + 4] = memory[address + 3];
+                         
+//processedInt = memory[address + 1];
+            
+                //	processTable[currentProcess * processTableEntrySize] = 0; // sleepy, sleepy
 		    }
-		case INT:
-		    
-		}
-		registers[processNum*registerNum]+=bytesPerInstruction;
-		processNum++;
-		if (registers[processNum*registerNum+1]==0) {
-		    processNum = 0;
-		}
-	}
+                    break;
+                case END:
+            	    processTable[currentProcess * processTableEntrySize + 6] = 0;
+            	    activeProcesses--;
+            	    if (activeProcesses ==0) return;
+                    break;
+                case INTRET:
+address = 
+        processTable[intHandlers[processedInt*3+2] * processTableEntrySize + 1]*256+
+        processTable[intHandlers[processedInt*3+2] * processTableEntrySize + 2] 
+                    break;
+                case JUMPBACK:
+address-= (memory[address+1]*256+memory[address+2])*bytesPerInstruction;
+                    break;
+                case CMPRRTRUE:
+                console.log(  "comparing "+processTable[currentProcess * processTableEntrySize + 6+memory[address+1]+1]+" "+
+                  
+                    processTable[currentProcess * processTableEntrySize + 6+memory[address+2]+1]);
+                    if (processTable[currentProcess * processTableEntrySize + 6+memory[address+1]+1] !=
+                  
+                    processTable[currentProcess * processTableEntrySize + 6+memory[address+2]+1]) {
+	                address += bytesPerInstruction;
+		    }
+                    break;
+            }
+	    if (!dontIncreaseAddress) {
+        	address += bytesPerInstruction;
+	    }
+	    // if process is sleepy go into next task
+            if( processTable[currentProcess * processTableEntrySize] == 0) break;
+        }
+	// save address back into process info
+	// we need stack
+        processTable[currentProcess * processTableEntrySize + 1] = address / 256;
+        processTable[currentProcess * processTableEntrySize + 2] = address % 256;
     }
 
     bootloader();
-    execute();
+    
+    for (i = 0; i < 10; i++) {
+        execute();
+        if (activeProcesses==0) break;
+    }
 </script>
 
 </html>
