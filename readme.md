@@ -1,3 +1,4 @@
+# Preamble 
 IT is full of smart ideas prepared by very intelligent people, unfortunatelly not all of them
 are used in the most popular computer hardware (from different reasons). If you look into papers,
 you will see a lof of interesting concepts:
@@ -12,8 +13,12 @@ you will see a lof of interesting concepts:
 * TLB (Translation Lookaside Buffers)
 * Naumann machine
 
-Looking on it looks a little bit like touching sweets in the shop.
+When you search in internet, you can also find description of X86, Risc-V, ARM, Z80 and many others.
 
+Looking on all of it looks a little bit like touching sweets in the shop... but can something be done differently?
+Or better?
+
+# This project
 This project has in target preparing free design of the CPU / hardware, which possibly
 could be more effective than some popular generic solutions. It doesn't immediately reject elements
 abandomed by other designs, but rather look on profits and problems related to them in this concrete scenario.
@@ -42,6 +47,10 @@ and more simple ISA, which probably will be very close to the real-time hardware
 
 Maybe. From the other hand, mainstream hardware will never be the best in everything...and special
 projects have always place and/or niche.
+
+Additionally: every man should have son, plant tree and build house.
+
+Rherotical question: can we replace some of it with building own CPU?
 
 # License
 
@@ -140,12 +149,11 @@ much more secure and effective embedded devices. Who knows?
 
 # About author
 
-Professionally tester and (partially) developer. Software related person with tendence into
+Tester and (partially) developer. Software related person with tendence into
 low-level work with hardware (when have time). Quite good in optimalizing things.
 
 # Formatting source (info for me in development)
-1. ```npm -g install js-beautify```
-2. ```npm -g install html-beautify```
-3. ```js-beautify -e "\n" ng1.js > x```
-4. ```html-beautify -e "\n" project.html > x```
-5. ```sudo apt install retext```
+1. ```sudo apt install node-js-beautify```
+2. ```js-beautify -e "\n" ng1.js > x```
+3. ```html-beautify -e "\n" project.html > x```
+4. ```sudo apt install retext```

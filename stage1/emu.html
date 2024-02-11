@@ -33,19 +33,24 @@ const REG12=22+7;
     const REGINT = 1; //rint     register int support    int_number
     const INT = 2; //int      execute int             int_number, mem position, length
     const INTRET = 3; //intret   return from int
-    const WINT = 4; //wint     wait for int
-    const PROC = 5; //proc     separate and start process from memory  mem position, length
-    const END = 6; //end      end process
-    const JUMPBACK = 7; //jmp      jump                                    address
-    const CMPRRTRUE = 8; //cmptrue      compare memory with memory, when not the same, jump to      address1, address2, jump
-    const CMPFALSE = 9;
-    const CMPTRUER = 10;
-    const ADDRR = 11;
-    const PROCTABL = 12;
+    const PROC = 4; //proc     separate and start process from memory  mem position, length
+    const END = 5; //end      end process
+    const JUMPBACK = 6; //jmp      jump                                    address
+    const JUMPTRUE = 7; // compare register with value, when the same, jump to ....
+    const JUMPFALSE = 8; //compare register with value, when not the same, jump to ...
+    const CMPTRUE = 9; //cmptrue      compare register with register, when the same, jump to      address1, address2, jump
+    const CMPFALSE = 10;
+    const LOAD = 11; //load register from memory, start, stop, address
+    const SAVE = 12; //save register to memory, start, stop, value
+    const SET = 13;
+    const ADD = 14; // add register with value, start, stop, value
+    const DEC= 15;  // decrease register with value, start, stop, value
+    const DIV = 16;
+    const MUL = 17;
 
  activeProcesses = 0;
 
-    const NAMES = ['REGINT', 'INT', 'INTRET', 'WINT', 'PROC', 'END', 'JUMPBACK', 'CMPRRTRUE', 'CMPFALSE', 'CMPTRUER', 'ADDRR', 'PROCTABL'];
+    const NAMES = ['REGINT', 'INT', 'INTRET', 'PROC', 'END', 'JUMPBACK', 'JUMPTRUE', 'JUMPFALSE', 'CMPTRUE', 'CMPFALSE', 'LOAD', 'SAVE', 'SET', 'ADD', 'DEC', 'DIV', 'MUL'];
 
     function bootloader() {
         const screenProcessSize = 1024 * 1024 + 6 * bytesPerInstruction;
@@ -62,9 +67,9 @@ const REG12=22+7;
 
         const screenCode = [
             REGINT, 2, 0, 0, 0, 0, //register int 2
-            CMPRRTRUE, 1, 2, 0, 0, 0, //if address from register 1 = address from register 2  RINT
+            CMPTRUE, 1, 2, 0, 0, 0, //if address from register 1 = address from register 2  RINT
             INTRET, 2, 0, 0, 0, 0,
-            ADDRR, 1, 1, 0, 0, 0, // add to register 1 value 1
+            ADD, 1, 1, 0, 0, 0, // add to register 1 value 1
             JUMPBACK, 0, 3, 0, 0, 0 // jump to CMPTRUER
         ];
 
@@ -151,7 +156,7 @@ const REG12=22+7;
                 case JUMPBACK:
 		    address-= (memory[address+1]*256+memory[address+2])*bytesPerInstruction;
                     break;
-                case CMPRRTRUE:
+                case CMPTRUE:
                     console.log(  "comparing "+processTable[currentProcess * processTableEntrySize + 6 +memory[address+1]]+" "+
                     processTable[currentProcess * processTableEntrySize + 6+memory[address+2]]);
                     if (processTable[currentProcess * processTableEntrySize + 6+memory[address+1]+1] !=
