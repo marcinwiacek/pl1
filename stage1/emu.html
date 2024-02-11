@@ -130,8 +130,7 @@ const REG12=22+7;
                     	intHandlers[memory[address + 1] * 5+3 ] =( address+6)/256;	
                      	intHandlers[memory[address + 1] * 5+4 ] = (address+6)%256;				
                       	console.log("return address "+(address+6));
-			// jump to int handler
-			address = intHandlers[memory[address + 1] * 5 + 1] * 256 + intHandlers[memory[address + 1] * 5 + 2] ;
+			address = intHandlers[memory[address + 1] * 5 + 1] * 256 + intHandlers[memory[address + 1] * 5 + 2]; // jump to int handler
 			console.log("jump to address "+address);
            		intHandlers[memory[address + 1] * 5 ] = 1;			
 		    }
@@ -147,8 +146,7 @@ const REG12=22+7;
                     console.log("return address " + address);
            	    intHandlers[memory[address + 1] * 5+3 ] = 0;	
                     intHandlers[memory[address + 1] * 5+4 ] = 0;
-                    //not active			
-           	    intHandlers[memory[address + 1] * 5 ] = 0;
+           	    intHandlers[memory[address + 1] * 5 ] = 0;//not active
                     break;
                 case JUMPBACK:
 		    address-= (memory[address+1]*256+memory[address+2])*bytesPerInstruction;
