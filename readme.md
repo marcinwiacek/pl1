@@ -19,7 +19,7 @@ Looking on all of it looks a little bit like touching sweets in the shop... but 
 Or better?
 
 # This project
-This project has in target preparing free design of the CPU / hardware, which possibly
+This project has in target preparing free design of the CPU / hardware, which (I hope) possibly
 could be more effective than some popular generic solutions. It doesn't immediately reject elements
 abandomed by other designs, but rather look on profits and problems related to them in this concrete scenario.
 
@@ -47,6 +47,9 @@ and more simple ISA, which probably will be very close to the real-time hardware
 
 Maybe. From the other hand, mainstream hardware will never be the best in everything...and special
 projects have always place and/or niche.
+
+Plese look on such companies like Apple - in majority they're taking existing solutions and merging
+in new, unexpected way. Why I shouldn't use the same patern like best?
 
 Additionally: every man should have son, plant tree and build house.
 
