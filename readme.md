@@ -1,34 +1,37 @@
-# Preamble 
-IT is full of smart ideas prepared by very intelligent people, unfortunatelly not all of them
-are used in the most popular computer hardware (from different reasons). If you look into papers,
-you will see a lof of interesting concepts:
+# Preamble
+
+IT is full of smart ideas, unfortunatelly not all of them
+are used together in the most popular mainstream computer hardware (from different reasons).
+
+If you look into papers,
+you will see a lof of interesting concepts created by very intelligent people:
 
 * asynchronous design
 * stack, RISC, CISC and accumulator architectures
 * pipeline, superscalar, parallel processing
 * branch and instruction prediction
-* Harvard / von Naumann architectures
+* Harvard / Naumann architecture
 * virtual memory with paging / 2-level paging / segmentation / paged segmentation / segmented paging
 * dynamic address translation / base and bound translation
 * TLB (Translation Lookaside Buffers)
 * Naumann machine
 
-When you search in internet, you can also find description of X86, Risc-V, ARM, Z80 and many others.
-
-Looking on all of it looks a little bit like touching sweets in the shop... but can something be done differently?
-Or better?
+You can also find description of X86, Risc-V, ARM, Z80 and many others. Studying them is little bit like tasting sweets in the shop... **can something be done differently?
+Or better?**
 
 # This project
-This project has in target preparing free design of the CPU / hardware, which (I hope) possibly
-could be more effective than some popular generic solutions. It doesn't immediately reject elements
-abandomed by other designs, but rather look on profits and problems related to them in this concrete scenario.
 
-During some research I have found project [Antikernel](https://github.com/azonenberg/antikernel).
-First naive targets of this project were partially similar (for more detailed and mature version
-please look into docs, which are/will be written in next stages):
+This research project has in target preparing free design of the PL1 CPU / hardware, which (I hope) in some moment will be ellegant and effective (maybe even more effective than some popular generic solutions).
+It doesn't immediately reject elements abandomed by other designs, but rather look on profits and problems
+related to them in concrete scenarios.
+
+In other words: I want to take best from Risc-V and others and prepare some (possibly) more secure
+and simple ISA, which probably will be very close to the real-time hardware/software solution.
+
+During some research I have found project [Antikernel](https://github.com/azonenberg/antikernel) and also after looking into it I have defined some first naive targets:
 
 1. hardware (CPU) should make task switching as effective as possible - I don't want to
-have saving / restoring registers every time (is it possible with reasonable cost?),
+have saving / restoring registers every time (is it possible with reasonable cost? maybe L1 cache should contain registers?),
 additionally I don't want to have scheduler in software, if possible (main argument for software based
 solution is flexibility, ability of measuring CPU usage,  etc., but we have unnecessary
 instructions running)
@@ -40,25 +43,48 @@ it the most efficient)
 5. no kernel/user/hypervisor mode = no kernel and possibility of capturing somebody's data
 (which leads to question: how to protect again DoS and malicious behaviors?)
 
-In other words: I want to take best from Risc-V and others and prepare some (possibly) more secure
-and more simple ISA, which probably will be very close to the real-time hardware/software solution.
+Note: although some of them look doesn't look serious, researchers are thinking about them or even propose related PoC (again: Antikernel)
 
 # This is wasting time & opening opened doors
 
-Maybe. From the other hand, mainstream hardware will never be the best in everything...and special
+Maybe. Mainstream hardware is changing and is better every day.
+From the other hand, it will never be the best in everything...and special
 projects have always place and/or niche.
 
-Plese look on such companies like Apple - in majority they're taking existing solutions and merging
-in new, unexpected way. Why I shouldn't use the same patern like best?
+Please look on such companies like Apple - in majority they're taking existing solutions and merging them
+in new, unexpected way.
 
-Additionally: every man should have son, plant tree and build house.
+**Why shouldn't use the same patern?**
 
-Rherotical question: can we replace some of it with building own CPU?
+Additionally: every real man should have son, plant tree and build house.
+
+Rhetorical questions: is it possible to extend these three points with building own CPU?
+
+Some people collecting cars, some looking for stamps, designing own hardware is also nice.
 
 # License
 
 Please have in mind, that author of this repo will be more than happy, if you could share
 with him device(s) using this ISA.
+
+# Targets and timeline
+
+This project was initially separated into general stages, in every please expect many iterations:
+
+* Stage 1 - simulating things in software (HTML page, on the beginning very primitive version,
+later updates with memory protecting / MMU, virtual memory, etc.)
+* Stage 2 - simulating things in software (VHDL, maybe already with pipelines, multicore and
+asynchronous design)
+* Stage 3 - creating real hardware
+
+I don't have plans for replacing the most popular ISAs (there are milions of people behind them
+and in the end the most important is not ISA, but software working on it). It is possible, that stage number 3
+will happen in far future... but if project goals will be achieved, maybe it will be possible to create secure and effective embedded devices. Who knows?
+
+# About author
+
+Tester and (at least partially) developer. Software related person, who likes
+low-level work with hardware. Good in optimalizing things.
 
 # Why it was really started
 
@@ -135,25 +161,7 @@ when nothing is done, I know, that something is very wrong).
 * backward compatibility (POSIX) and some other aspects make, that IT doesn't move forward
 (why we don't have for example Fuchsia yet?)
 
-# Targets and timeline
-
-This project was initially separated into general stages, in every please expect many iterations:
-
-* Stage 1 - simulating things in software (HTML page, on the beginning very primitive version,
-later updates with memory protecting / MMU, virtual memory, etc.)
-* Stage 2 - simulating things in software (VHDL, maybe already with pipelines, multicore and
-asynchronous design)
-* Stage 3 - creating real hardware
-
-I don't have plans for replacing the most popular ISAs (there are milions of people behind them
-and in the end the most important is not ISA, but software on it). It is possible, that stage 3
-will happen in very far future... but if project goals will be achieved, maybe it will be possible to create
-much more secure and effective embedded devices. Who knows?
-
-# About author
-
-Tester and (partially) developer. Software related person with tendence into
-low-level work with hardware (when have time). Quite good in optimalizing things.
+Note: in the past not always best solutions were winners - see for example BeOS or OS/2.
 
 # Formatting source (info for me in development)
 1. ```sudo apt install node-js-beautify```
