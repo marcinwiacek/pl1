@@ -1,6 +1,7 @@
 <html>
 
 <head>
+  <title>PL1</title>
 </head>
 
 <body>
@@ -96,10 +97,8 @@
         for (i = 0; i < screenCode.length; i++) {
             memory[i+memoryPageSize] = screenCode[i];
         }
-        activeProcesses = 1;
         processTableIndex[processTableIndexEntrySize] =2 ;//active
         processTableIndex[processTableIndexEntrySize+1] = 1; //index
-        
     }
 
     function mmu(logicalAddress, processNum) {
@@ -135,9 +134,17 @@
 
     function execute() {
         address = 0;
+        endloop=0;
         while (true) {
             currentProcessIndex++;
-            if (currentProcessIndex == maxProcess) currentProcessIndex = 1;
+            if (currentProcessIndex == maxProcess) {
+            	currentProcessIndex = 1;
+            	endloop ++;
+            	if (endloop==5) {
+            		console.log("something wrong");
+            		return;
+            	}
+            }
             if (processTableIndex[currentProcessIndex * processTableIndexEntrySize] < 2) continue;
             break;
         }
@@ -151,7 +158,6 @@
         instruction = new Uint8Array(6);
 
         for (ins = 0; ins < 5; ins++) { // 5 instruction per process
-        
             for (j = 0; j < 6; j++) {
                 instruction[j] = memory[mmu(logicalAddress + j, currentProcess)];
             }
@@ -160,10 +166,10 @@
                 NAMES[instruction[0] - 1] + " " + instruction[1] + " " + instruction[2] + " " +
                 instruction[3] + " " + instruction[4] + " " + instruction[5]);
                
-            dontIncreaseAddress = false;
+            increaseAddress = true;
             switch (instruction[0]) {
                 case PROC:
-                    for (j = 1; j < maxProcess; j++) {
+                    for (j = 0; j < maxProcess; j++) {
                         if (processTableIndex[j * processTableIndexEntrySize + TABLE1_ACTIVE] == 0) {
                             console.log("registering as process " + j);
                             processTableIndex[j * processTableIndexEntrySize + TABLE1_ACTIVE] = 2; // active
@@ -175,6 +181,7 @@
                             processTableDetails[j * processTableDetailsEntrySize + TABLE2_CODE + 1] = 0;
 
                             activeProcesses++;
+                            console.log("active processes "+activeProcesses);
                             break;
                         }
                     }
@@ -189,45 +196,48 @@
 
                         processTableIndex[currentProcess * processTableIndexEntrySize + TABLE1_ACTIVE] = 1; // sleepy, sleepy
                         activeProcesses--;
+                        console.log("active processes "+activeProcesses);
                     }
                     break;
-                case INT:
-                    dontIncreaseAddress = true;
+                case INT:                 
                     if (intHandlers[instruction[1] * 4] != 0) {
                         // save current address
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_CODE] = (logicalAddress + 6) / 256;
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_CODE + 1] = (logicalAddress + 6) % 256;
-
                         //save process num
                         processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_INTRET_PROCESS_NUM] = currentProcess;
                         processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_PROCESS_NUM] = intHandlers[instruction[1] * 4 + 1];
-
+console.log("int from "+currentProcess +" to "+intHandlers[instruction[1] * 4 + 1]);
                         //switch to new values
                         currentProcess = intHandlers[instruction[1] * 4 + 1];
                         logicalAddress = intHandlers[instruction[1] * 4 + 2] * 256 + intHandlers[instruction[1] * 4 + 3];
                         intHandlers[instruction[1] * 4] = 2; //active
+                    } else {
+               		     increaseAddress = false;
+               		     //in theory make process sleepy
+                    	//processTableIndex[currentProcess * processTableIndexEntrySize + TABLE1_ACTIVE] = 1;
                     }
                     break;
                 case END:
-                    //processTable[currentProcess * processTableEntrySize + 6] = 0;
+                    processTableIndex[currentProcessIndex * processTableIndexEntrySize] =0;
                     activeProcesses--;
+                    console.log("active processes "+activeProcesses);
                     if (activeProcesses == 0) return;
                     break;
                 case INTRET:
-                    dontIncreaseAddress = true;
-
+                    increaseAddress = false;
+console.log("returning to process "+processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_INTRET_PROCESS_NUM]);
                     //restore process num
                     processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_PROCESS_NUM] =
                         processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_INTRET_PROCESS_NUM];
-
-                    // we're not in int anymore
+                    // we're not in int/Cansas anymore
                     processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_INTRET_PROCESS_NUM] = 0;
-
                     //switch to new values
                     currentProcess = processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_PROCESS_NUM];
                     logicalAddress =
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_CODE] * 256 +
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_CODE + 1];
+                        console.log("logical address "+logicalAddress);
                     break;
                 case JUMPBACK:
                     address -= (memory[address + 1] * 256 + memory[address + 2]) * bytesPerInstruction;
@@ -241,18 +251,14 @@
                     }*/
                     break;
             }
-            if (!dontIncreaseAddress) {
+            if (increaseAddress) {
                 logicalAddress += bytesPerInstruction;
-                //address = mmu(logicalAddress, currentProcess);
             }
             // if process is sleepy go into next task
-          //  if (processTableDetails[currentProcess * processTableDetailsEntrySize] == 1) break;
+            if (processTableIndex[currentProcess * processTableIndexEntrySize + TABLE1_ACTIVE] == 1) break;
         }
-        // save address back into process info
-        // we need stack
-        processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_CODE] = (logicalAddress + 6) / 256;
-        processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_CODE + 1] = (logicalAddress + 6) % 256;
-
+        processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_CODE] = (logicalAddress) / 256;
+        processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_CODE + 1] = (logicalAddress) % 256;
     }
 
     bootloader();
