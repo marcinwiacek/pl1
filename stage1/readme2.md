@@ -16,9 +16,12 @@ The same like previous point - too early, but in the future yes
 
 #Process switching
 
-Hardware based. Every task needs 33 bytes (with 12 2-byte registers). Let's
-assume, that CPU will have L1 cache with this and will support 1000 processes,
-which gives 33000 bytes (around 32KB, which should be possible in real chip).
+Hardware based. Every task needs 33 bytes (with 12 2-byte registers). I see two possibilities:
+
+1. Let's assume, that CPU will support 1000 processes,
+which gives 33000 bytes (around 32KB) - CPU has got L1 cache with it
+2. CPU will have table in RAM and data will be cached in "normal" L1
+3. Everything will be saved in L2
 
 Every process has got the same amount of CPU cycles (because it's RISC,
 theoretically we get similiar time per process). In more advanced version
@@ -82,7 +85,7 @@ A lot of things, for example:
 * virtual memory
 * port access and generating / support for hardware IRQ
 * full instruction set
-* memory sharing during IRQ (we should allocate concrete logical memory addresses
-for both)
+* memory sharing during IRQ (we should allocate concrete logical memory addresses for both)
 * current instructions have 6 bytes - later of course there is compacting required
 * 32 and 64-bits
+* instructions are 6-bit long, RISC-V 32-bit is 4-bit long
