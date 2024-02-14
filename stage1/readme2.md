@@ -1,6 +1,6 @@
 #RISC/CISC?
 
-RISC
+RISC (as much as possible)
 
 #Pipelined?
 
@@ -56,14 +56,23 @@ Additionally we need:
 two or more processes (also switching for example to new disk driver should
 be possible on-fly and old driver must somehow allow for this)
 2. allocating port access
+3. access to subprocesses memory maybe
 
 #Kernel
 
-Not required and in final version also not required (exception: device drivers)
+Not required, in final version also not required (exception: device drivers)
 
 #OS
 
 Device drivers, shell (in the future GUI) and libraries with API
+
+#User-kernel mode
+
+What for?
+
+But seriously: separating memory and controlling access to all devices
+should be more than enough + we save time on executing code for switching
+mode.
 
 #TODO
 

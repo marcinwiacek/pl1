@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 
 <head>
@@ -59,7 +60,7 @@
     const CMPFALSE = 10;
     const LOAD = 11; //load register from memory, start, stop, address
     const SAVE = 12; //save register to memory, start, stop, value
-    const SET = 13;
+    const SET = 13; //set 4bitod 4bitdo 16bit
     const ADD = 14; // add register with value, start, stop, value
     const DEC = 15; // decrease register with value, start, stop, value
     const DIV = 16;
@@ -70,7 +71,7 @@
     //and
     //or
     //neg
-    //set 4bitod 4bitdo 16bit
+    //neg2 
     const FREERAMBLOCK = 18;
     const NAMES = ['REGINT', 'INT', 'INTRET', 'PROC', 'END', 'JUMPBACK', 'JUMPTRUE', 'JUMPFALSE', 'CMPTRUE', 'CMPFALSE', 'LOAD', 'SAVE', 'SET', 'ADD', 'DEC', 'DIV', 'MUL'];
 
@@ -88,7 +89,7 @@
             CMPTRUE, 1, 2, 0, 0, 0, //if address from register 1 = address from register 2  RINT
             INTRET, 2, 0, 0, 0, 0,
             ADD, 1, 1, 0, 0, 0, // add to register 1 value 1
-            JUMPBACK, 0, 3, 0, 0, 0 // jump to CMPTRUER
+            JUMPBACK, 0, 2, 0, 0, 0 // jump to CMPTRUER
         ];
 
         for (i = 0; i < bootloaderCode.length; i++) {
@@ -188,11 +189,11 @@
                     break;
                 case REGINT:
                     if (intHandlers[instruction[1] * 4] == 0) {
-                        console.log("registering int " + instruction[1] + " " + address);
+                        console.log("registering int " + instruction[1] + " " + (logicalAddress+6));
                         intHandlers[instruction[1] * 4] = 1; // sleepy
                         intHandlers[instruction[1] * 4 + 1] = currentProcess;
-                        intHandlers[instruction[1] * 4 + 2] = (logicalAddress + 6) / 256;
-                        intHandlers[instruction[1] * 4 + 3] = (logicalAddress + 6) % 256;
+                        intHandlers[instruction[1] * 4 + 2] = (logicalAddress +6) / 256;
+                        intHandlers[instruction[1] * 4 + 3] = (logicalAddress +6) % 256;
 
                         processTableIndex[currentProcess * processTableIndexEntrySize + TABLE1_ACTIVE] = 1; // sleepy, sleepy
                         activeProcesses--;
@@ -207,16 +208,17 @@
                         //save process num
                         processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_INTRET_PROCESS_NUM] = currentProcess;
                         processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_PROCESS_NUM] = intHandlers[instruction[1] * 4 + 1];
-console.log("int from "+currentProcess +" to "+intHandlers[instruction[1] * 4 + 1]);
+console.log("int from "+currentProcess +" to "+intHandlers[instruction[1] * 4 + 1]+" address "+(intHandlers[instruction[1] * 4 + 2] * 256 + intHandlers[instruction[1] * 4 + 3]));
                         //switch to new values
                         currentProcess = intHandlers[instruction[1] * 4 + 1];
                         logicalAddress = intHandlers[instruction[1] * 4 + 2] * 256 + intHandlers[instruction[1] * 4 + 3];
                         intHandlers[instruction[1] * 4] = 2; //active
                     } else {
-               		     increaseAddress = false;
+               		    
                		     //in theory make process sleepy
                     	//processTableIndex[currentProcess * processTableIndexEntrySize + TABLE1_ACTIVE] = 1;
                     }
+                     increaseAddress = false;
                     break;
                 case END:
                     processTableIndex[currentProcessIndex * processTableIndexEntrySize] =0;
@@ -240,15 +242,16 @@ console.log("returning to process "+processTableIndex[currentProcessIndex * proc
                         console.log("logical address "+logicalAddress);
                     break;
                 case JUMPBACK:
-                    address -= (memory[address + 1] * 256 + memory[address + 2]) * bytesPerInstruction;
+                    logicalAddress -= (instruction[1] * 256 + instruction[2]) * bytesPerInstruction;
+                     increaseAddress = false;
                     break;
                 case CMPTRUE:
-                   /* console.log("comparing " + processTable[currentProcess * processTableEntrySize + 6 + memory[address + 1]] + " " +
-                        processTable[currentProcess * processTableEntrySize + 6 + memory[address + 2]]);
-                    if (processTable[currentProcess * processTableEntrySize + 6 + memory[address + 1] + 1] !=
-                        processTable[currentProcess * processTableEntrySize + 6 + memory[address + 2] + 1]) {
+                    value1 = memory[mmu(instruction[1], currentProcess)];
+         	    value2 = memory[mmu(instruction[2], currentProcess)];
+                    console.log("comparing " + value1 + " "+value2);
+                    if (value1!=value2) {
                         logicalAddress += bytesPerInstruction;
-                    }*/
+                    }
                     break;
             }
             if (increaseAddress) {
