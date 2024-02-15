@@ -231,7 +231,7 @@
 
             increaseAddress = true;
             switch (instruction[0]) {
-                case PROC:
+                case PROC: // create new process
                     for (j = 1; j < maxProcess; j++) {
                         if (processTableIndex[j * processTableIndexEntrySize + TABLE1_ACTIVE] == 0) {
                             console.log("registering as process " + j);
@@ -258,7 +258,14 @@
                         }
                     }
                     break;
-                case REGINT:
+                case END: // end current process
+                    processTableIndex[currentProcessIndex * processTableIndexEntrySize] = 0;
+                    activeProcesses--;
+                    if (debugLevel > 0) console.log("active processes " + activeProcesses);
+                    showInfo();
+                    if (activeProcesses == 0) return;
+                    break;
+                case REGINT: // register int handling
                     if (intHandlers[instruction[1] * 4] == 0) {
                         //console.log("registering int " + instruction[1] + " " + (logicalAddress + 6));
                         intHandlers[instruction[1] * 4] = 1; // sleepy
@@ -271,7 +278,7 @@
                         if (debugLevel > 0) console.log("active processes " + activeProcesses);
                     }
                     break;
-                case INT:
+                case INT: //execute int
                     if (intHandlers[instruction[1] * 4] != 0) {
                         // save current address
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_CODE] = (logicalAddress + bytesPerInstruction) / 256;
@@ -301,14 +308,7 @@
                     }
                     increaseAddress = false;
                     break;
-                case END:
-                    processTableIndex[currentProcessIndex * processTableIndexEntrySize] = 0;
-                    activeProcesses--;
-                    if (debugLevel > 0) console.log("active processes " + activeProcesses);
-                    showInfo();
-                    if (activeProcesses == 0) return;
-                    break;
-                case INTRET:
+                case INTRET: // return from int execution
                     increaseAddress = false;
                     console.log("returning to process " + processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_INTRET_PROCESS_NUM]);
                     //restore process num
@@ -341,8 +341,22 @@
                 case JUMP:
                     logicalAddress += (instruction[1] * 256 + instruction[2]) * bytesPerInstruction;
                     increaseAddress = false;
+                    break;               
+                 case ADD:
+                    value1 = instruction[3] * 256 + instruction[4];
+
+                    for (j = instruction[1]; j <= instruction[2]; j++) {
+                        value2 = processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 - 2] * 256 +
+                            processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 + 1 - 2];
+                        if (debugLevel > 0) console.log("value" + value1 + " " + value2);
+                        value2 += value1;
+                        if (debugLevel > 0) console.log("value" + value1 + " " + value2 + " " + (TABLE2_REG + j * 2 - 2));
+
+                        processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 - 2] = value2 / 256;
+                        processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 + 1 - 2] = value2 % 256;
+                    }
                     break;
-                case SET:
+                 case SET:
                     for (j = instruction[1]; j <= instruction[2]; j++) {
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 - 2] = instruction[3];
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 + 1 - 2] = instruction[4];
@@ -362,6 +376,15 @@
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 + 1 - 2] = value % 256;
                     }
                     break;
+                 case SAVETORAM:
+                    address = processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + instruction[3] * 2 - 2] * 256 +
+                        processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + instruction[3] * 2 + 1 - 2];
+                    for (j = instruction[1]; j <= instruction[2]; j++) {
+                        memory[mmu(address, currentProcess)] =
+                            processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 + 1 - 2];
+                        address++;
+                    }
+                    break;
                 case CMPTRUE:
                     value1 = processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + instruction[1] * 2 - 2] * 256 +
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + instruction[1] * 2 + 1 - 2];
@@ -370,21 +393,7 @@
                     if (value1 != value2) {
                         logicalAddress += bytesPerInstruction;
                     }
-                    break;
-                case ADD:
-                    value1 = instruction[3] * 256 + instruction[4];
-
-                    for (j = instruction[1]; j <= instruction[2]; j++) {
-                        value2 = processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 - 2] * 256 +
-                            processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 + 1 - 2];
-                        if (debugLevel > 0) console.log("value" + value1 + " " + value2);
-                        value2 += value1;
-                        if (debugLevel > 0) console.log("value" + value1 + " " + value2 + " " + (TABLE2_REG + j * 2 - 2));
-
-                        processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 - 2] = value2 / 256;
-                        processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 + 1 - 2] = value2 % 256;
-                    }
-                    break;
+                    break;               
                 case OUTPORT:
                     if (instruction[1] == 1) { // terminal screen
                         value = processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + instruction[2] * 2 - 2] * 256 + processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + instruction[2] * 2 - 2 + 1];
@@ -418,16 +427,7 @@
                             processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 + 1 - 2] = code % 256;
                         }
                     }
-                    break;
-                case SAVETORAM:
-                    address = processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + instruction[3] * 2 - 2] * 256 +
-                        processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + instruction[3] * 2 + 1 - 2];
-                    for (j = instruction[1]; j <= instruction[2]; j++) {
-                        memory[mmu(address, currentProcess)] =
-                            processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 + 1 - 2];
-                        address++;
-                    }
-                    break;
+                    break;               
                 case INPORTRET:
                     processTableIndex[currentProcess * processTableIndexEntrySize + TABLE1_ACTIVE] = 1; // sleepy, sleepy
                     activeProcesses--;
