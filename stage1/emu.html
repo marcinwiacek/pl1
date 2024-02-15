@@ -6,11 +6,17 @@
 </head>
 
 <body>
+    <div id=info></div>
+    <p>
     <div id=terminal></div>
 </body>
 
 <script>
     const debugLevel = 0;
+    instructions = 0;
+    MMUcache = 0;
+    MMUother = 0;
+    
     const memoryPageNumber = 256;
     const memoryPageSize = 256;
     const memorySize = memoryPageSize * memoryPageNumber;
@@ -155,6 +161,7 @@
                 console.log("logical address1 " + logicalAddress + " physical " +
                     (lastMMUSearch * memoryPageSize + logicalAddress % memoryPageSize) + " process " + processNum);
             }
+            MMUcache++;
             return lastMMUSearch * memoryPageSize + logicalAddress % memoryPageSize;
         }
         for (let s = 0; s < memoryPageNumber; s++) {
@@ -164,6 +171,7 @@
                     console.log("logical address2 " + logicalAddress + " physical " +
                         (lastMMUSearch * memoryPageSize + logicalAddress % memoryPageSize) + " process " + processNum);
                 }
+                MMUother++;
                 return lastMMUSearch * memoryPageSize + logicalAddress % memoryPageSize;
             }
         }
@@ -177,10 +185,15 @@
                     console.log("logical address3 " + logicalAddress + " physical " +
                         (lastMMUSearch * memoryPageSize + logicalAddress % memoryPageSize) + " process " + processNum);
                 }
+                MMUother;                
                 return lastMMUSearch * memoryPageSize + logicalAddress % memoryPageSize;
             }
         }
         //support for no memory unavailable situation
+    }
+    
+    function showInfo() {
+    	document.getElementById('info').innerHTML = "last process "+currentProcess+", active "+activeProcesses+", instructions run "+instructions+", MMU hit "+MMUcache+", MMU other "+MMUother;
     }
 
     function execute() {
@@ -200,7 +213,7 @@
         }
         currentProcess = processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_PROCESS_NUM];
         if (debugLevel > 0) console.log("current process " + currentProcessIndex + " current process index " + currentProcess);
-
+	
         logicalAddress =
             processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_CODE] * 256 +
             processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_CODE + 1];
@@ -292,6 +305,7 @@
                     processTableIndex[currentProcessIndex * processTableIndexEntrySize] = 0;
                     activeProcesses--;
                     if (debugLevel > 0) console.log("active processes " + activeProcesses);
+                    showInfo();
                     if (activeProcesses == 0) return;
                     break;
                 case INTRET:
@@ -423,6 +437,8 @@
             if (increaseAddress) {
                 logicalAddress += bytesPerInstruction;
             }
+            instructions++;
+	    showInfo();
             // if process is sleepy go into next task
             if (processTableIndex[currentProcess * processTableIndexEntrySize + TABLE1_ACTIVE] == 1) break;
         }
@@ -435,6 +451,7 @@
     while (true) {
         execute();
         if (activeProcesses == 0) {
+            console.log("sleeping");
             // todo: flushing all int support code
             break;
         }
