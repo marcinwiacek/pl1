@@ -16,7 +16,7 @@
     instructions = 0;
     MMUcache = 0;
     MMUother = 0;
-    
+
     const memoryPageNumber = 256;
     const memoryPageSize = 256;
     const memorySize = memoryPageSize * memoryPageNumber;
@@ -185,15 +185,15 @@
                     console.log("logical address3 " + logicalAddress + " physical " +
                         (lastMMUSearch * memoryPageSize + logicalAddress % memoryPageSize) + " process " + processNum);
                 }
-                MMUother;                
+                MMUother;
                 return lastMMUSearch * memoryPageSize + logicalAddress % memoryPageSize;
             }
         }
         //support for no memory unavailable situation
     }
-    
+
     function showInfo() {
-    	document.getElementById('info').innerHTML = "last process "+currentProcess+", active "+activeProcesses+", instructions run "+instructions+", MMU hit "+MMUcache+", MMU other "+MMUother;
+        document.getElementById('info').innerHTML = "last process " + currentProcess + ", active " + activeProcesses + ", instructions run " + instructions + ", MMU hit " + MMUcache + ", MMU other " + MMUother;
     }
 
     function execute() {
@@ -213,7 +213,7 @@
         }
         currentProcess = processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_PROCESS_NUM];
         if (debugLevel > 0) console.log("current process " + currentProcessIndex + " current process index " + currentProcess);
-	
+
         logicalAddress =
             processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_CODE] * 256 +
             processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_CODE + 1];
@@ -341,8 +341,8 @@
                 case JUMP:
                     logicalAddress += (instruction[1] * 256 + instruction[2]) * bytesPerInstruction;
                     increaseAddress = false;
-                    break;               
-                 case ADD:
+                    break;
+                case ADD:
                     value1 = instruction[3] * 256 + instruction[4];
 
                     for (j = instruction[1]; j <= instruction[2]; j++) {
@@ -356,7 +356,7 @@
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 + 1 - 2] = value2 % 256;
                     }
                     break;
-                 case SET:
+                case SET:
                     for (j = instruction[1]; j <= instruction[2]; j++) {
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 - 2] = instruction[3];
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 + 1 - 2] = instruction[4];
@@ -376,7 +376,7 @@
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 + 1 - 2] = value % 256;
                     }
                     break;
-                 case SAVETORAM:
+                case SAVETORAM:
                     address = processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + instruction[3] * 2 - 2] * 256 +
                         processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + instruction[3] * 2 + 1 - 2];
                     for (j = instruction[1]; j <= instruction[2]; j++) {
@@ -393,7 +393,7 @@
                     if (value1 != value2) {
                         logicalAddress += bytesPerInstruction;
                     }
-                    break;               
+                    break;
                 case OUTPORT:
                     if (instruction[1] == 1) { // terminal screen
                         value = processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + instruction[2] * 2 - 2] * 256 + processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + instruction[2] * 2 - 2 + 1];
@@ -427,7 +427,7 @@
                             processTableDetails[currentProcess * processTableDetailsEntrySize + TABLE2_REG + j * 2 + 1 - 2] = code % 256;
                         }
                     }
-                    break;               
+                    break;
                 case INPORTRET:
                     processTableIndex[currentProcess * processTableIndexEntrySize + TABLE1_ACTIVE] = 1; // sleepy, sleepy
                     activeProcesses--;
@@ -438,7 +438,7 @@
                 logicalAddress += bytesPerInstruction;
             }
             instructions++;
-	    showInfo();
+            showInfo();
             // if process is sleepy go into next task
             if (processTableIndex[currentProcess * processTableIndexEntrySize + TABLE1_ACTIVE] == 1) break;
         }
