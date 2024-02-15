@@ -1,3 +1,5 @@
+Version 240215
+
 #RISC/CISC?
 
 RISC (as much as possible)
@@ -8,7 +10,9 @@ Too early to speak about it, but in the future yes (probably 5 stages)
 
 #Asynchrononus?
 
-The same like previous point - too early, but in the future yes
+The same like previous point - too early, but in the future yes.
+
+Please note, that such was for example CPU in Polish MERA 400.
 
 #UMA (Unified Memory Architecture) ?
 
@@ -86,6 +90,10 @@ A lot of things, for example:
 * port access and generating / support for hardware IRQ
 * full instruction set
 * memory sharing during IRQ (we should allocate concrete logical memory addresses for both)
-* current instructions have 6 bytes - later of course there is compacting required
 * 32 and 64-bits
-* instructions are 6-bit long, RISC-V 32-bit is 4-bit long
+* instructions are 5-bit long, RISC-V 32-bit is 4-bit long (need compacting)
+* data / code pages
+
+#Why JavaScript for emulator? And not Scala for example?
+
+Because everybody has got browser.

@@ -1,3 +1,5 @@
+Version 240215
+
 # Preamble
 
 IT is full of smart ideas, unfortunatelly not all of them
@@ -16,8 +18,9 @@ you will see a lof of interesting concepts created by very intelligent people:
 * TLB (Translation Lookaside Buffers)
 * Naumann machine
 
-You can also find description of X86, Risc-V, ARM, Z80 and many others. Studying them is little bit like tasting sweets in the shop... **can something be done differently?
-Or better?**
+You can also find description of X86, Risc-V, ARM, Z80 and many others. Studying them is little bit like tasting sweets in the shop...
+
+**But can something be done differently? Or better?**
 
 # This project
 
@@ -47,7 +50,7 @@ Note: although some of them look doesn't look serious, researchers are thinking 
 
 # This is wasting time & opening opened doors
 
-Maybe. Mainstream hardware is changing and is better every day.
+Maybe yes, maybe no. Mainstream hardware is changing and is better every day.
 From the other hand, it will never be the best in everything...and special
 projects have always place and/or niche.
 
@@ -58,9 +61,13 @@ in new, unexpected way.
 
 Additionally: every real man should have son, plant tree and build house.
 
-Rhetorical questions: is it possible to extend these three points with building own CPU?
+Rhetorical questions: is it possible to extend these points and add building own CPU?
 
-Some people collecting cars, some looking for stamps, designing own hardware is also nice.
+Some people are collecting cars, some looking for stamps and some want to design CPU. Point.
+
+# This project is repeating design history from 16-bit to 32-bit and from console to graphical GUI design
+
+Rome was not built in one day.
 
 # License
 
@@ -103,8 +110,8 @@ mainstream, unfortunately there are some important issues with them:
 1. x86 - I was using many laptops (HP Elitebook, Dell Precision, Dell XPS, Hypebook
 L14 11gen / Clevo L140MU, Lenovo, Acers, Asus and others), but:
 
-    * they had annoying design decisions (for example with Dell Precision 5510 after
-    longer inactivity period, discharging battery and connecting laptop to the charger
+    * they had annoying design decisions (for example in Dell Precision 5510 - after
+    longer inactivity period, discharging battery and connecting it to the charger
     internal keyboard doesn't work very well before Windows login, which suggests some
     power problem and decreasing speed of the internal keyboard controller)
     * in generall they were not able to achieve more than 10-15h in the normal work
@@ -116,11 +123,10 @@ L14 11gen / Clevo L140MU, Lenovo, Acers, Asus and others), but:
 
     I'm not very suprised with problems:
 
-    * x86 was designed in totally different world and it didn't had in mind in first
-    place good power energy handling (additionall current mainstream Windows is totally
-    different than original Windows NT and even Windows XP)
+    * x86 was designed in totally different world (situation) and it didn't had in mind in first
+    place security or good power energy handling (additionally current mainstream Windows has got nothing to do with simplicity of original Windows NT or even Windows XP)
     * next generations of hardware don't fully allow for controlling behavior and for
-    example consume a lot of power during standby (DRAM refresh, NVME standby, etc.)
+    example consume power during standby (DRAM refresh, NVME standby, etc.)
     * removing obsolete elements is done very slowly (X86S is not mentioned even in Zen 5)
     and x86 is nigthmare in terms of complexity (CISC, many elements, etc.)
     * big companies built inside chips for monitoring and taking telemetry, which of
