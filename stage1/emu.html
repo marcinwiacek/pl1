@@ -16,6 +16,7 @@
     instructions = 0;
     MMUcache = 0;
     MMUother = 0;
+    MMUnew = 0;
 
     const memoryPageNumber = 256;
     const memoryPageSize = 256;
@@ -185,7 +186,7 @@
                     console.log("logical address3 " + logicalAddress + " physical " +
                         (lastMMUSearch * memoryPageSize + logicalAddress % memoryPageSize) + " process " + processNum);
                 }
-                MMUother;
+                MMUnew++;
                 return lastMMUSearch * memoryPageSize + logicalAddress % memoryPageSize;
             }
         }
@@ -193,7 +194,11 @@
     }
 
     function showInfo() {
-        document.getElementById('info').innerHTML = "last process " + currentProcess + ", active " + activeProcesses + ", instructions run " + instructions + ", MMU hit " + MMUcache + ", MMU other " + MMUother;
+        document.getElementById('info').innerHTML = "last process " + currentProcess + 
+", active " + activeProcesses + 
+", instructions run " + instructions + 
+", MMU hit " + MMUcache + ", MMU miss " + MMUother +
+", MMU new alloc "+MMUnew;
     }
 
     function execute() {
