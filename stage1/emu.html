@@ -94,11 +94,11 @@
             PROC, 3, 0, 0, 0, //  keyboard code process starts in segment 3
             PROC, 4, 0, 0, 0, //  disk code process starts in segment 4
             INT, 2, 1, 0, 0, // int with number 2 and segment 1 - we write initial info on the screen
-            SET, 1, 1, 5, 0, //set registers 1-1 to value 5*256+0
-            SET, 2, 2, 0, 2, //set registers 2-2 to value 2            
+            SET, 1, 1, 5, 0, //set registers 1-1 to value 5*256+0   //address
+            SET, 2, 2, 0, 3, //set registers 2-2 to value 3         //function 3   
             SAVETORAM, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1  
-            SET, 1, 1, 5, 1, //set registers 1-1 to value 5*256+0
-            SET, 2, 2, 0, 0, //set registers 2-2 to value 2            
+            SET, 1, 1, 5, 1, //set registers 1-1 to value 5*256+1 // address
+            SET, 2, 2, 0, 2, //set registers 2-2 to value 1          
             SAVETORAM, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1                      
             INT, 3, 5, 0, 0, // int with number 3 and segment 5 - disk read
             INT, 2, 5, 0, 0, // int with number 2 and segment 5 - write output on the screen
@@ -150,7 +150,7 @@
             //get file name
             CMPTRUE, 2, 0, 2, 0, //if value from register 2 = 2 then jumpplus & get file name
             JUMPPLUS, 0, 2, 0, 0,
-            INTRET, 0, 0, 0, 0,
+            JUMPPLUS, 0, 13, 0, 0,
             SET, 1, 1, memoryPageNumber - 1, 1, //set registers 1-1 to value memoryPageNumber*256+0            
             LOADFROMRAM, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1
             SET, 1, 1, memoryPageNumber - 1, 0, //set registers 1-1 to value memoryPageNumber*256+0                       
@@ -162,7 +162,25 @@
             CMPTRUE, 3, 0, 0, 0, //if value from register 2 = 0 then jump plus 2 & get file num            
             INTRET, 0, 0, 0, 0,
             ADD, 1, 1, 0, 1, // add 1 to registers 1-1            
-            JUMPBACK, 0, 7, 0,0       
+            JUMPBACK, 0, 7, 0,0     ,
+            
+            //get file content
+            CMPTRUE, 2, 0, 3, 0, //if value from register 2 = 3 then jumpplus & get file content
+            JUMPPLUS, 0, 2, 0, 0,
+            INTRET, 0, 0, 0, 0,
+            SET, 1, 1, memoryPageNumber - 1, 1, //set registers 1-1 to value memoryPageNumber*256+0            
+            LOADFROMRAM, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1  //this is file number 0,1 or 2
+            SET, 1, 1, memoryPageNumber - 1, 0, //set registers 1-1 to value memoryPageNumber*256+0                                  
+            MUL, 2, 2, 0, 256,
+            ADD, 2, 2, 0, 27,
+            ADD, 2, 2, 0, 1, // add 1 to registers 1-1
+            OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
+            INPORT, 2, 3, 3, 0, //read port 2 to registers 3-3
+            SAVETORAM, 3, 3, 1, 0, //save registers 2-2 to memory starting from address in register 1
+            CMPTRUE, 3, 0, 0, 0, //if value from register 2 = 0 then jump plus 2 & get file num            
+            INTRET, 0, 0, 0, 0,
+            ADD, 1, 1, 0, 1, // add 1 to registers 1-1            
+            JUMPBACK, 0, 7, 0,0        
         ];
 
 	if (bootloaderCode.length>memoryPageSize || bootloaderData.length>memoryPageSize || screenCode.length>memoryPageSize || keyboardCode>memoryPageSize || diskReaderCode>memoryPageSize) {
@@ -205,7 +223,7 @@
 	//file 2 content (256 bytes)
 	//...
         const diskFileNames = ["file1", "two", "three"];
-        const diskFileContent = ["Hello","Ala ma kota",""];
+        const diskFileContent = ["Hello2","Ala ma kota",""];
         disk[0] = diskFileNames.length;
         for (i = 0; i < diskFileNames.length; i++) {
             for (j = 0; j < diskFileNames[i].length; j++) {
