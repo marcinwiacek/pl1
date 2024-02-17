@@ -66,8 +66,8 @@
     const JUMPFALSE = 8; //compare register with value, when not the same, jump to ...
     const CMPTRUE = 9; //cmptrue      compare register with register, when the same, jump to      address1, address2, jump
     const CMPFALSE = 10;
-    const LOADFROMRAM = 11; //load register from memory, start, stop, address
-    const SAVETORAM = 12; //save register to memory, start, stop, value
+    const LOADFROMRAM8 = 11; //load register from memory, start, stop, address
+    const SAVETORAM8 = 12; //save register to memory, start, stop, value
     const SET = 13; //set 4bitod 4bitdo 16bit
     const ADD = 14; // add register with value, start, stop, value
     const DEC = 15; // decrease register with value, start, stop, value
@@ -86,7 +86,7 @@
     const REGINPORT = 21;
     const INPORTRET = 22;
     const JUMPPLUS = 23;
-    const NAMES = ['REGINT', 'INT', 'INTRET', 'PROC', 'END', 'JUMPBACK', 'JUMPTRUE', 'JUMPFALSE', 'CMPTRUE', 'CMPFALSE', 'LOADFROMRAM', 'SAVETORAM', 'SET', 'ADD', 'DEC', 'DIV', 'MUL', 'FREERAMBLOCK', 'OUTPORT', 'INPORT', 'REGINPORT', 'INPORTRET', 'JUMPPLUS'];
+    const NAMES = ['REGINT', 'INT', 'INTRET', 'PROC', 'END', 'JUMPBACK', 'JUMPTRUE', 'JUMPFALSE', 'CMPTRUE', 'CMPFALSE', 'LOADFROMRAM8', 'SAVETORAM8', 'SET', 'ADD', 'DEC', 'DIV', 'MUL', 'FREERAMBLOCK', 'OUTPORT', 'INPORT', 'REGINPORT', 'INPORTRET', 'JUMPPLUS'];
 
     function bootloader() {
         const bootloaderCode = [
@@ -96,10 +96,10 @@
             INT, 2, 1, 0, 0, // int with number 2 and segment 1 - we write initial info on the screen
             SET, 1, 1, 5, 0, //set registers 1-1 to value 5*256+0   //address
             SET, 2, 2, 0, 3, //set registers 2-2 to value 3         //function 3   
-            SAVETORAM, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1  
+            SAVETORAM8, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1  
             SET, 1, 1, 5, 1, //set registers 1-1 to value 5*256+1 // address
             SET, 2, 2, 0, 1, //set registers 2-2 to value 1          
-            SAVETORAM, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1                      
+            SAVETORAM8, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1                      
             INT, 3, 5, 0, 0, // int with number 3 and segment 5 - disk read
             INT, 2, 5, 0, 0, // int with number 2 and segment 5 - write output on the screen
             END, 0, 0, 0, 0
@@ -110,7 +110,7 @@
         const screenCode = [
             REGINT, 2, 0, 0, 0, //register int 2
             SET, 1, 1, memoryPageNumber - 1, 0, //set registers 1-1 to value memoryPageNumber*256+0
-            LOADFROMRAM, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1
+            LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1
             CMPTRUE, 2, 0, 0, 0, //if value from register 2 = 0 then INTRET
             INTRET, 0, 0, 0, 0,
             OUTPORT, 1, 2, 0, 0, //write to port 1 value from register 2
@@ -124,10 +124,10 @@
             INPORT, 1, 2, 2, 0, //read port 1 to registers 2-2
             CMPTRUE, 2, 0, 0, 0, //if value from register 2 = 0 then JUMP
             JUMPPLUS, 0, 4, 0, 0,
-            SAVETORAM, 2, 2, 1, 0, //save registers 2-2 to memory starting from address in register 1
+            SAVETORAM8, 2, 2, 1, 0, //save registers 2-2 to memory starting from address in register 1
             ADD, 1, 1, 0, 1, // add 1 to registers 1-1
             JUMPBACK, 0, 5, 0, 0, // jump to SET
-            SAVETORAM, 2, 2, 1, 0, //save registers 2-2 to memory starting from address in register 1            
+            SAVETORAM8, 2, 2, 1, 0, //save registers 2-2 to memory starting from address in register 1            
             INT, 2, 1, 0, 0, // int with number 2 and segment 1
             INPORTRET, 0, 0, 0, 0
         ];
@@ -135,7 +135,7 @@
         const diskReaderCode = [
             REGINT, 3, 0, 0, 0, //register int 3
             SET, 1, 1, memoryPageNumber - 1, 0, //set registers 1-1 to value memoryPageNumber*256+0
-            LOADFROMRAM, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1
+            LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1
             
             //get file number
             CMPTRUE, 2, 0, 1, 0, //if value from register 2 = 1 then jump plus 2 & get file num
@@ -144,7 +144,7 @@
             SET, 2, 2, 0, 0, //set registers 1-1 to value 0
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2
             INPORT, 2, 3, 3, 0, //read port 2 to registers 3-3
-            SAVETORAM, 3, 3, 1, 0, //save registers 2-2 to memory starting from address in register 1
+            SAVETORAM8, 3, 3, 1, 0, //save registers 2-2 to memory starting from address in register 1
             INTRET, 0, 0, 0, 0,
             
             //get file name
@@ -152,13 +152,13 @@
             JUMPPLUS, 0, 2, 0, 0,
             JUMPPLUS, 0, 13, 0, 0,
             SET, 1, 1, memoryPageNumber - 1, 1, //set registers 1-1 to value memoryPageNumber*256+0            
-            LOADFROMRAM, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1
+            LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1
             SET, 1, 1, memoryPageNumber - 1, 0, //set registers 1-1 to value memoryPageNumber*256+0                       
             MUL, 2, 2, 0, 9,
             ADD, 2, 2, 0, 1, // add 1 to registers 1-1
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
             INPORT, 2, 3, 3, 0, //read port 2 to registers 3-3
-            SAVETORAM, 3, 3, 1, 0, //save registers 2-2 to memory starting from address in register 1
+            SAVETORAM8, 3, 3, 1, 0, //save registers 2-2 to memory starting from address in register 1
             CMPTRUE, 3, 0, 0, 0, //if value from register 2 = 0 then jump plus 2 & get file num            
             INTRET, 0, 0, 0, 0,
             ADD, 1, 1, 0, 1, // add 1 to registers 1-1            
@@ -169,14 +169,14 @@
             JUMPPLUS, 0, 2, 0, 0,
             INTRET, 0, 0, 0, 0,
             SET, 1, 1, memoryPageNumber - 1, 1, //set registers 1-1 to value memoryPageNumber*256+0            
-            LOADFROMRAM, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1  //this is file number 0,1 or 2
+            LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1  //this is file number 0,1 or 2
             SET, 1, 1, memoryPageNumber - 1, 0, //set registers 1-1 to value memoryPageNumber*256+0                                  
             MUL, 2, 2, 0, 50,
             ADD, 2, 2, 0, 27,
             ADD, 2, 2, 0, 1, // add 1 to registers 1-1
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
             INPORT, 2, 3, 3, 0, //read port 2 to registers 3-3
-            SAVETORAM, 3, 3, 1, 0, //save registers 2-2 to memory starting from address in register 1
+            SAVETORAM8, 3, 3, 1, 0, //save registers 2-2 to memory starting from address in register 1
             CMPTRUE, 3, 0, 0, 0, //if value from register 2 = 0 then jump plus 2 & get file num            
             INTRET, 0, 0, 0, 0,
             ADD, 1, 1, 0, 1, // add 1 to registers 1-1            
@@ -509,7 +509,7 @@
                         changeRegister(j, value);
                     }
                     break;
-                case LOADFROMRAM:
+                case LOADFROMRAM8:
                     address = getRegister(instruction[3]);
                     value = memory[mmu(address, currentProcess)];
                     console.log("loading from ram " + value);
@@ -517,7 +517,7 @@
                         changeRegister(j, value);
                     }
                     break;
-                case SAVETORAM:
+                case SAVETORAM8:
                     address = getRegister(instruction[3]);
                     for (j = instruction[1]; j <= instruction[2]; j++) {
                         memory[mmu(address, currentProcess)] = getRegister(j) % 256;
