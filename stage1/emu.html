@@ -171,7 +171,7 @@
             SET, 1, 1, memoryPageNumber - 1, 1, //set registers 1-1 to value memoryPageNumber*256+0            
             LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1  //this is file number 0,1 or 2
             SET, 1, 1, memoryPageNumber - 1, 0, //set registers 1-1 to value memoryPageNumber*256+0                                  
-            MUL, 2, 2, 0, 50,
+            MUL, 2, 2, 0, 250,
             ADD, 2, 2, 0, 27,
             ADD, 2, 2, 0, 1, // add 1 to registers 1-1
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
@@ -219,8 +219,8 @@
 	//file 1 name (8+1 bytes)
 	//file 2 name (8+1 bytes)
 	//...
-	//file 1 content (50 bytes)
-	//file 2 content (50 bytes)
+	//file 1 content (250 bytes)
+	//file 2 content (250 bytes)
 	//...
         const diskFileNames = ["file1", "two", "three"];
         const diskFileContent = ["Hello2","Ala ma kota",""];
@@ -230,7 +230,7 @@
                 disk[1+i*9+j] = diskFileNames[i].charCodeAt(j);
             }
             for (j = 0; j < diskFileContent[i].length; j++) {
-                disk[1+3*9+i*50+j] = diskFileContent[i].charCodeAt(j);
+                disk[1+3*9+i*250+j] = diskFileContent[i].charCodeAt(j);
             }  
         }
         
@@ -427,7 +427,7 @@
                         //save int num
                         changeProcessDetails(currentProcessIndex, TABLE1_INTNUM, instruction[1]);
                         //force mmu to generate page
-                        mmu(instruction[2] * memoryPageNumber, currentProcess);
+                        mmu(instruction[2] * memoryPageSize, currentProcess);
                         //assign page to int process with page memoryPageNumber-1
                         for (s = 0; s < memoryPageNumber; s++) {
                             if (mmuTable[s * 2] == currentProcess && mmuTable[s * 2 + 1] == instruction[2]) {
