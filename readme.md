@@ -64,7 +64,7 @@ Additionally: real man should have son, plant tree and build house.
 
 Rhetorical question: is it possible to extend it and add building own CPU?
 
-Some people are collecting cars, some looking for stamps and some want to design CPU. Point.
+Some people are collecting cars, some looking for stamps and some want to design CPU (and it gives much bigger fun that creating [80386 Protected Mode kernel in 2005](https://mwiacek.com/zips/wat.pl/6/tm_cw_os.rar)). Point.
 
 # This project is repeating design history from 16-bit to 32-bit and from console to graphical GUI design
 
