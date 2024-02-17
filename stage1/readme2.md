@@ -97,4 +97,4 @@ A lot of things, for example:
 #Why JavaScript for emulator? And not Scala for example?
 
 Because everybody has got browser... and everybody loves Google Chrome / Safari
-(just kidding of course).
+(just kidding).

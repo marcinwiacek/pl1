@@ -20,7 +20,7 @@ you will see a lof of interesting concepts created by very intelligent people:
 
 You can also find description of X86, Risc-V, ARM, Z80 and many others. Studying them is little bit like tasting sweets in the shop...
 
-**But can something be done differently? Or better?**
+**Can something be done differently? Or better?**
 
 # This project
 
@@ -59,9 +59,9 @@ in new, unexpected way.
 
 **Why shouldn't use the same patern?**
 
-Additionally: every real man should have son, plant tree and build house.
+Additionally: real man should have son, plant tree and build house.
 
-Rhetorical questions: is it possible to extend these points and add building own CPU?
+Rhetorical question: is it possible to extend it and add building own CPU?
 
 Some people are collecting cars, some looking for stamps and some want to design CPU. Point.
 
@@ -72,7 +72,7 @@ Rome was not built in one day.
 # License
 
 Please have in mind, that author of this repo will be more than happy, if you could share
-with him device(s) using this ISA.
+with him project(s) or device(s) using this ISA.
 
 # Targets and timeline
 
@@ -115,7 +115,7 @@ L14 11gen / Clevo L140MU, Lenovo, Acers, Asus and others), but:
     internal keyboard doesn't work very well before Windows login, which suggests some
     power problem and decreasing speed of the internal keyboard controller)
     * in generall they were not able to achieve more than 10-15h in the normal work
-    (Clevo L140MU is exception and [sometimes I was able to achieve even 36h](https://mwiacek.com/www/?q=node/480),
+    (Clevo L140MU is exception and [sometimes allows even for 36h](https://mwiacek.com/www/?q=node/480),
     but it has bigger 73Wh battery and requires disabling Wi-Fi, Bluetooth, low brightness, etc.).
     * currently we have in fact duopol (where is this famous Intel's drawer with new
     ideas?), when few years ago they were many companies producing such cores (I found
@@ -147,13 +147,13 @@ I will give just few examples:
     * Macbook Air M1 has got PWM (hardware screen blinking), in the same time Macbook Air M2 is faster,
     but better speed in many scenarios is achieved with bigger power limits
     * you don't have Macbooks working 30h or more on the battery, because it's not required in mainstream
-    * planned obsolescence (please look on Rossmann channel in the Youtube)
+    * planned obsolescence (please look on [Louis Rossmann channel in the Youtube](https://m.youtube.com/@rossmanngroup))
 
 3. Risc-V - possible future, but please have in mind:
 
-    * it will need years, before chips will be so good like ARM (and companies will just try to make business
-    on it in every possible aspect - see price of first world Risc-V laptop)
-    * Risc-V will be concentrated on different classes of devices - once again, when something is
+    * it will need years, before chips will be so good like ARM (and companies will try to make business
+    on it in every possible aspect - see price of first world Risc-V Alibaba Roma laptop)
+    * Risc-V will be concentrated on different classes of devices - something is
     for everything can be not so good like specialized solution (I don't like having M, S and U
     modes, removing N extension and some others)
     * different chips will be not compatible with each other (it's because standard allows for implementing
@@ -166,8 +166,7 @@ in terms of effectiviness (when I look in task managers and see 1-10% CPU usage 
 when nothing is done, I know, that something is very wrong).
 * backward compatibility (POSIX) and some other aspects make, that IT doesn't move forward
 (why we don't have for example Fuchsia yet?)
-
-Note: in the past not always best solutions were winners - see for example BeOS or OS/2.
+* in the past not always best solutions were winners - see for example BeOS or OS/2.
 
 # Formatting source (info for me in development)
 1. ```sudo apt install node-js-beautify```
