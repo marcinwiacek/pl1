@@ -98,7 +98,7 @@
             SET, 2, 2, 0, 3, //set registers 2-2 to value 3         //function 3   
             SAVETORAM, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1  
             SET, 1, 1, 5, 1, //set registers 1-1 to value 5*256+1 // address
-            SET, 2, 2, 0, 2, //set registers 2-2 to value 1          
+            SET, 2, 2, 0, 1, //set registers 2-2 to value 1          
             SAVETORAM, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1                      
             INT, 3, 5, 0, 0, // int with number 3 and segment 5 - disk read
             INT, 2, 5, 0, 0, // int with number 2 and segment 5 - write output on the screen
@@ -171,7 +171,7 @@
             SET, 1, 1, memoryPageNumber - 1, 1, //set registers 1-1 to value memoryPageNumber*256+0            
             LOADFROMRAM, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1  //this is file number 0,1 or 2
             SET, 1, 1, memoryPageNumber - 1, 0, //set registers 1-1 to value memoryPageNumber*256+0                                  
-            MUL, 2, 2, 0, 256,
+            MUL, 2, 2, 0, 50,
             ADD, 2, 2, 0, 27,
             ADD, 2, 2, 0, 1, // add 1 to registers 1-1
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
@@ -219,8 +219,8 @@
 	//file 1 name (8+1 bytes)
 	//file 2 name (8+1 bytes)
 	//...
-	//file 1 content (256 bytes)
-	//file 2 content (256 bytes)
+	//file 1 content (50 bytes)
+	//file 2 content (50 bytes)
 	//...
         const diskFileNames = ["file1", "two", "three"];
         const diskFileContent = ["Hello2","Ala ma kota",""];
@@ -230,7 +230,7 @@
                 disk[1+i*9+j] = diskFileNames[i].charCodeAt(j);
             }
             for (j = 0; j < diskFileContent[i].length; j++) {
-                disk[1+3*9+i*256+j] = diskFileContent[i].charCodeAt(j);
+                disk[1+3*9+i*50+j] = diskFileContent[i].charCodeAt(j);
             }  
         }
         
