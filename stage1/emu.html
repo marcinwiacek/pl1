@@ -19,12 +19,14 @@
     MMUnew = 0;
     diskRead=0;
 
-    const memoryPageNumber = 256;
-    const memoryPageSize = 256;
+    const memoryPageNumber = 128;
+    const memoryPageSize = 512;
     const memorySize = memoryPageSize * memoryPageNumber;
     memory = new Uint8Array(memorySize); // DRAM RAM
     mmuTable = new Uint8Array(memoryPageNumber * 2); // SRAM in MMU  //in every entry: processNum, logicalPageNum
     lastMMUSearch = 0;
+    
+    const addressForInt = (memoryPageNumber - 1)*memoryPageSize;
 
     const intHandlerEntrySize = 4;
     intHandlers = new Uint8Array(256 * intHandlerEntrySize); //L1 cache? SRAM memory // in every entry: sleep=1/active =2, handler process num, handler 16-bit logic address
@@ -89,15 +91,20 @@
     const NAMES = ['REGINT', 'INT', 'INTRET', 'PROC', 'END', 'JUMPBACK', 'JUMPTRUE', 'JUMPFALSE', 'CMPTRUE', 'CMPFALSE', 'LOADFROMRAM8', 'SAVETORAM8', 'SET', 'ADD', 'DEC', 'DIV', 'MUL', 'FREERAMBLOCK', 'OUTPORT', 'INPORT', 'REGINPORT', 'INPORTRET', 'JUMPPLUS'];
 
     function bootloader() {
+    if (memorySize>256*256) {
+    		console.log("16 bit registers allows for addresing max. "+(256*256) +" big RAM");
+    		return;
+    	}
+    	
         const bootloaderCode = [
             PROC, 2, 0, 0, 0, //  screen code process starts in segment 2
             PROC, 3, 0, 0, 0, //  keyboard code process starts in segment 3
             PROC, 4, 0, 0, 0, //  disk code process starts in segment 4
             INT, 2, 1, 0, 0, // int with number 2 and segment 1 - we write initial info on the screen
-            SET, 1, 1, 5, 0, //set registers 1-1 to value 5*256+0   //address
+            SET, 1, 1, 5*memoryPageSize/256, 5*memoryPageSize%256, //set registers 1-1 to value 5*256+0   //address
             SET, 2, 2, 0, 3, //set registers 2-2 to value 3         //function 3   
             SAVETORAM8, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1  
-            SET, 1, 1, 5, 1, //set registers 1-1 to value 5*256+1 // address
+            SET, 1, 1, (5*memoryPageSize+1)/256, (5*memoryPageSize+1)%256, //set registers 1-1 to value 5*256+1 // address
             SET, 2, 2, 0, 1, //set registers 2-2 to value 1          
             SAVETORAM8, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1                      
             INT, 3, 5, 0, 0, // int with number 3 and segment 5 - disk read
@@ -109,7 +116,7 @@
 
         const screenCode = [
             REGINT, 2, 0, 0, 0, //register int 2
-            SET, 1, 1, memoryPageNumber - 1, 0, //set registers 1-1 to value memoryPageNumber*256+0
+            SET, 1, 1, addressForInt/256, addressForInt%256, //set registers 1-1 to value memoryPageNumber*256+0
             LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1
             CMPTRUE, 2, 0, 0, 0, //if value from register 2 = 0 then INTRET
             INTRET, 0, 0, 0, 0,
@@ -120,7 +127,7 @@
 
         const keyboardCode = [
             REGINPORT, 1, 0, 0, 0, //register input port 1
-            SET, 1, 1, 1, 0, //set registers 1-1 to value 1*256+0
+            SET, 1, 1, memoryPageSize/256, memoryPageSize%256, //set registers 1-1 to value 1*256+0
             INPORT, 1, 2, 2, 0, //read port 1 to registers 2-2
             CMPTRUE, 2, 0, 0, 0, //if value from register 2 = 0 then JUMP
             JUMPPLUS, 0, 4, 0, 0,
@@ -134,7 +141,7 @@
 
         const diskReaderCode = [
             REGINT, 3, 0, 0, 0, //register int 3
-            SET, 1, 1, memoryPageNumber - 1, 0, //set registers 1-1 to value memoryPageNumber*256+0
+            SET, 1, 1, addressForInt/256, addressForInt%256, //set registers 1-1 to value memoryPageNumber*256+0
             LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1
             
             //get file number
@@ -151,14 +158,14 @@
             CMPTRUE, 2, 0, 2, 0, //if value from register 2 = 2 then jumpplus & get file name
             JUMPPLUS, 0, 2, 0, 0,
             JUMPPLUS, 0, 13, 0, 0,
-            SET, 1, 1, memoryPageNumber - 1, 1, //set registers 1-1 to value memoryPageNumber*256+0            
+            SET, 1, 1, (addressForInt+1)/256, (addressForInt+1)%256, //set registers 1-1 to value memoryPageNumber*256+0            
             LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1
-            SET, 1, 1, memoryPageNumber - 1, 0, //set registers 1-1 to value memoryPageNumber*256+0                       
+            SET, 1, 1, addressForInt/256, addressForInt%256, //set registers 1-1 to value memoryPageNumber*256+0                       
             MUL, 2, 2, 0, 9,
             ADD, 2, 2, 0, 1, // add 1 to registers 1-1
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
             INPORT, 2, 3, 3, 0, //read port 2 to registers 3-3
-            SAVETORAM8, 3, 3, 1, 0, //save registers 2-2 to memory starting from address in register 1
+            SAVETORAM8, 3, 3,1,0, //save registers 2-2 to memory starting from address in register 1
             CMPTRUE, 3, 0, 0, 0, //if value from register 2 = 0 then jump plus 2 & get file num            
             INTRET, 0, 0, 0, 0,
             ADD, 1, 1, 0, 1, // add 1 to registers 1-1            
@@ -168,9 +175,9 @@
             CMPTRUE, 2, 0, 3, 0, //if value from register 2 = 3 then jumpplus & get file content
             JUMPPLUS, 0, 2, 0, 0,
             INTRET, 0, 0, 0, 0,
-            SET, 1, 1, memoryPageNumber - 1, 1, //set registers 1-1 to value memoryPageNumber*256+0            
+            SET, 1, 1, (addressForInt+1)/256, (addressForInt+1)%256, //set registers 1-1 to value memoryPageNumber*256+0            
             LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1  //this is file number 0,1 or 2
-            SET, 1, 1, memoryPageNumber - 1, 0, //set registers 1-1 to value memoryPageNumber*256+0                                  
+            SET, 1, 1, addressForInt/256, addressForInt%256, //set registers 1-1 to value memoryPageNumber*256+0                                  
             MUL, 2, 2, 2, 0,  // 2*256 = 512 = size of every single file
             ADD, 2, 2, 0, 27, // 3*9 = 27 = size of file table
             ADD, 2, 2, 0, 1, // add 1 to registers 1-1
