@@ -10,9 +10,9 @@ Too early to speak about it, but in the future yes (probably 5 stages)
 
 #Asynchrononus?
 
-The same like previous point - too early, but in the future yes.
+The same like previous point - too early to speak about it now, but in the future yes, yes and yes (chips created with it are consuming power only, when are really working; additionally many times they're faster)
 
-Please note, that such was for example CPU in Polish MERA 400.
+Please note, that such design was for example used in [CPU in Polish MERA 400](https://www.youtube.com/watch?v=Y59hgZ5_7sk). If you don't know Polish language and can't translate [MERA 400 channel](https://www.youtube.com/@MERA400), read [Introduction to Asynchronous Circuit Design from Jens Sparsø](https://orbit.dtu.dk/en/publications/introduction-to-asynchronous-circuit-design) or something similar.
 
 #UMA (Unified Memory Architecture) ?
 
@@ -94,7 +94,7 @@ A lot of things, for example:
 * instructions are 5-bit long, RISC-V 32-bit is 4-bit long (need compacting)
 * data / code pages
 
-#Why JavaScript for emulator? And not Scala for example?
+#Why JavaScript for emulator? And not Scheme for example?
 
 Because everybody has got browser... and everybody loves Google Chrome / Safari
 (just kidding).
