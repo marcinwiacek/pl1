@@ -41,7 +41,8 @@ instructions running)
 2. CPU should not give too many ways for communicating processes - memory sharing is
 enough and it will avoid unnecesary copying data and other things (in many documents you will find
 it the most efficient)
-3. (more generic version of previous) hardware should force writing software in optimized way
+3. (more generic version of previous) hardware should force writing software in optimized way.
+Example: no polling, if possible, just registering for events.
 4. CPU should cooperate on lowest level with DRAM, USB, etc. and fully disable them, when possible
 5. no kernel/user/hypervisor mode = no kernel and possibility of capturing somebody's data
 (which leads to question: how to protect again DoS and malicious behaviors?)
