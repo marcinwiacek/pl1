@@ -33,15 +33,17 @@
     keyboardInput = "";
     
     disk = new Uint8Array(256*256*256);
+    diskReadAddress = 0;
 
     const maxProcess = 100;
     const registerNum = 12;
-    const processTableIndexEntrySize = 4;
-    processTableIndex = new Uint8Array(maxProcess * processTableIndexEntrySize); // L1 cache? SRAM memory //in every entry: sleep=1/active =2, link to processTableDetails, intReturnProcessNumber for processTableDetails during int, intNumber
+    const processTableIndexEntrySize = 5;
+    processTableIndex = new Uint8Array(maxProcess * processTableIndexEntrySize); // L1 cache? SRAM memory //in every entry: sleep=1/active =2, link to processTableDetails, intReturnProcessNumber for processTableDetails during int, intNumber, intMemoryPage
     const TABLE1_ACTIVE = 0;
     const TABLE1_PROCESS_NUM = 1;
     const TABLE1_INTRET_PROCESS_NUM = 2;
     const TABLE1_INTNUM = 3;
+    const TABLE1_INTMEMPAGE = 4;
     const processTableDetailsEntrySize = 2 + 2 + 2 + registerNum * 2; // 16-bit logical code address, 
     //16 bit logical data address, 16 bit logical stack address, registers 16-bit
     processTableDetails = new Uint8Array(processTableDetailsEntrySize * maxProcess); //L1 cache? SRAM memory
@@ -89,12 +91,13 @@
         const bootloaderCode = [
             PROC, 2, 0, 0, 0, //  screen code process starts in segment 2
             PROC, 3, 0, 0, 0, //  keyboard code process starts in segment 3
-            PROC, 4, 0, 0, 0, //  keyboard code process starts in segment 4
-            INT, 2, 1, 0, 0, // int with number 2 and segment 1
-            SET, 2, 2, 0, 1, //set registers 1-1 to value 1
-            SET, 1, 1, memoryPageNumber *5, 0, //set registers 1-1 to value memoryPageNumber*256+0
-            SAVETORAM, 2, 2, 1, 0, //save registers 2-2 to memory starting from address in register 1           
-            INT, 3, 5, 0, 0, // int with number 2 and segment 1
+            PROC, 4, 0, 0, 0, //  disk code process starts in segment 4
+            INT, 2, 1, 0, 0, // int with number 2 and segment 1 - we write initial info on the screen
+            SET, 1, 1, 5, 0, //set registers 1-1 to value 5*256+0
+            SET, 2, 2, 0, 1, //set registers 2-2 to value 1            
+            SAVETORAM, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1           
+            INT, 3, 5, 0, 0, // int with number 3 and segment 5 - disk read
+            INT, 2, 5, 0, 0, // int with number 2 and segment 5 - write output on the screen
             END, 0, 0, 0, 0
         ];
 
@@ -130,7 +133,7 @@
             SET, 1, 1, memoryPageNumber - 1, 0, //set registers 1-1 to value memoryPageNumber*256+0
             LOADFROMRAM, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1
             CMPTRUE, 2, 0, 1, 0, //if value from register 2 = 1 then jumpplus & get file num
-            JUMPPLUS, 0, 4, 0, 0,
+            JUMPPLUS, 0, 2, 0, 0,
             INTRET, 0, 0, 0, 0,
             SET, 2, 2, 0, 0, //set registers 1-1 to value 0
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2
@@ -168,10 +171,10 @@
         activeProcesses++;
         
         const diskNames = [
-            "one  ", "two  ", "three"
+            "H", "one  ", "two  ", "three"
         ];
         pos = 0;
-        disk[pos++] = diskNames.length;
+        //disk[pos++] = diskNames.length;
         for (i = 0; i < diskNames.length; i++) {
             for (j=0; j<diskNames[i].length;j++) {
             	disk[pos++] = diskNames[i].charCodeAt(j);
@@ -250,19 +253,19 @@
             case TABLE1_PROCESS_NUM:
             case TABLE1_INTRET_PROCESS_NUM:
             case TABLE1_INTNUM:
-                console.log("proc " + processNum + " " + field + " " + value);
+            case TABLE1_INTMEMPAGE:
+             //   console.log("proc " + processNum + " " + field + " " + value);
                 processTableIndex[processNum * processTableIndexEntrySize + field] = value;
                 return;
         }
-        console.log("proc2 " + processNum + " " + (field - 20) + " " + value);
+        //console.log("proc2 " + processNum + " " + (field - 20) + " " + value);
 
         processTableDetails[processNum * processTableDetailsEntrySize + field - 20] = value / 256;
         processTableDetails[processNum * processTableDetailsEntrySize + field - 20+1] = value % 256;
-
     }
     
     function dumpProcessInfo(processNum) {
-        out="process "+processNum;
+        out="process "+processNum+" ";
     	for (z=0;z<processTableIndexEntrySize;z++) {
     		out+=processTableIndex[processNum*processTableIndexEntrySize+z]+" ";
     	}
@@ -367,13 +370,17 @@
                         //assign page to int process with page memoryPageNumber-1
                         for (s = 0; s < memoryPageNumber; s++) {
                             if (mmuTable[s * 2] == currentProcess && mmuTable[s * 2 + 1] == instruction[2]) {
+                                console.log("mmu table seg with int "+mmuTable[s * 2]+" "+mmuTable[s * 2 + 1]);
                                 //todo: saving somewhere old data
                                 mmuTable[s * 2] = intHandlers[instruction[1] * intHandlerEntrySize + 1];
+                                changeProcessDetails(currentProcessIndex, TABLE1_INTMEMPAGE, mmuTable[s * 2 + 1]);
                                 mmuTable[s * 2 + 1] = memoryPageNumber - 1;
+                                console.log("mmu table seg with int "+mmuTable[s * 2]+" "+mmuTable[s * 2 + 1]);
                                 if (debugLevel == 2) console.log("reassigning segment " + s + " to process " + intHandlers[instruction[1] * 4 + 1] + " and logical " + (memoryPageNumber - 1));
                                 break;
                             }
                         }
+                           console.log("int from process " + currentProcess + " to " + intHandlers[instruction[1] * 4 + 1] + " address " + (intHandlers[instruction[1] * 4 + 2] * 256 + intHandlers[instruction[1] * 4 + 3]));
                         //switch to new values
                         //new process
                         currentProcess = intHandlers[instruction[1] * intHandlerEntrySize + 1];
@@ -382,7 +389,7 @@
                         logicalAddress = intHandlers[instruction[1] * intHandlerEntrySize + 2] * 256 + intHandlers[instruction[1] * intHandlerEntrySize + 3];
                         //block executing this int by other process
                         intHandlers[instruction[1] * intHandlerEntrySize] = 2; //active
-                        console.log("int from process " + currentProcess + " to " + intHandlers[instruction[1] * 4 + 1] + " address " + (intHandlers[instruction[1] * 4 + 2] * 256 + intHandlers[instruction[1] * 4 + 3]));
+                    
                     }
                     increaseAddress = false;
                     break;
@@ -393,9 +400,11 @@
                     for (s = 0; s < memoryPageNumber; s++) {
                         //do it correctly by restoring old data
                         if (mmuTable[s * 2] == currentProcess && mmuTable[s * 2 + 1] != 0) {
+                            console.log("mmu table seg with int "+mmuTable[s * 2]+" "+mmuTable[s * 2 + 1]);
                             console.log("removing page");
-                            mmuTable[s * 2] = 0;
-                            mmuTable[s * 2 + 1] = 0;
+                            mmuTable[s * 2] = processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_INTRET_PROCESS_NUM];
+                            mmuTable[s * 2 + 1] = processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_INTMEMPAGE];
+                            console.log("mmu table seg with int "+mmuTable[s * 2]+" "+mmuTable[s * 2 + 1]);
                             break;
                         }
                     }
@@ -438,6 +447,7 @@
                 case LOADFROMRAM:
                     address = getRegister(instruction[3]);
                     value = memory[mmu(address, currentProcess)];
+                    console.log("loading from ram "+value);
                     for (j = instruction[1]; j <= instruction[2]; j++) {
                         changeRegister(j, value);
                     }
@@ -446,12 +456,14 @@
                     address = getRegister(instruction[3]);
                     for (j = instruction[1]; j <= instruction[2]; j++) {
                         memory[mmu(address, currentProcess)] = getRegister(j) % 256;
+                        console.log("saving to ram value "+getRegister(j) % 256);
                         address++;
                     }
                     break;
                 case CMPTRUE:
                     value1 = getRegister(instruction[1]);
                     value2 = instruction[2] * 256 + instruction[3];
+                    console.log("comaping value "+value1+" to value "+value2);
                     if (value1 != value2) {
                         logicalAddress += bytesPerInstruction;
                     }
@@ -464,6 +476,10 @@
                         } else {
                             document.getElementById('terminal').innerHTML = document.getElementById('terminal').innerHTML + String.fromCharCode(value);
                         }
+                    } else if (instruction[1] == 2) { // disk
+                        value = getRegister(instruction[2]);
+                        diskReadAddress = value;
+                        console.log("reading disk address "+diskReadAddress);
                     }
                     break;
                 case REGINPORT:
@@ -485,6 +501,12 @@
                             console.log(code + " " + keyboardInput);
                         }
                         for (j = instruction[2]; j <= instruction[3]; j++) {
+                            changeRegister(j, code);
+                        }
+                    } else if (instruction[1] == 2) { // disk
+                    	code = disk [diskReadAddress];
+                    	console.log("byte from disk "+code);
+                    	 for (j = instruction[2]; j <= instruction[3]; j++) {
                             changeRegister(j, code);
                         }
                     }
