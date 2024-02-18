@@ -17,7 +17,7 @@ in the future probably yes
 
 The same like in previous points - too early to speak about it now, but in
 the future yes, yes and yes (chips created with it are consuming power
-only, when are really working; additionally many times they're faster)
+only, when are really doing some work; additionally many times they're faster)
 
 Please note, that such design was for example used in
 [CPU in Polish MERA 400](https://www.youtube.com/watch?v=Y59hgZ5_7sk).
