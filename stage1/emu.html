@@ -92,7 +92,9 @@
     const INPORTRET = 22;
     const JUMPPLUS = 23;
     const LOADFROMRAM16 = 24;
-    const NAMES = ['REGINT', 'INT', 'INTRET', 'PROC', 'END', 'JUMPBACK', 'JUMPTRUE', 'JUMPFALSE', 'CMPTRUE', 'CMPFALSE', 'LOADFROMRAM8', 'SAVETORAM8', 'SET', 'ADD', 'DEC', 'DIV', 'MUL', 'FREERAMBLOCK', 'OUTPORT', 'INPORT', 'REGINPORT', 'INPORTRET', 'JUMPPLUS', 'LOADFROMRAM16'];
+    const SAVEINTORAM8 = 25;
+     const SAVEINTORAM16 = 26;
+    const NAMES = ['REGINT', 'INT', 'INTRET', 'PROC', 'END', 'JUMPBACK', 'JUMPTRUE', 'JUMPFALSE', 'CMPTRUE', 'CMPFALSE', 'LOADFROMRAM8', 'SAVETORAM8', 'SET', 'ADD', 'DEC', 'DIV', 'MUL', 'FREERAMBLOCK', 'OUTPORT', 'INPORT', 'REGINPORT', 'INPORTRET', 'JUMPPLUS', 'LOADFROMRAM16','SAVEINTORAM8','SAVEINTORAM16'];
 
     function bootloader() {
     const maxFilesInDisk = 10;
@@ -108,23 +110,13 @@
             PROC, 4, 0, 0, 0, //  disk code process starts in segment 4
             INT, 2, 1, 0, 0, // int with number 2 and segment 1 - we write initial info on the screen
          
-            // read text file from disk
-            SET, 1, 1, 5*memoryPageSize/256, 5*memoryPageSize%256, //set registers 1-1 to value 5*256+0   //address
-            SET, 2, 2, 0, 3, //set registers 2-2 to value 3         //function 3   
-            SAVETORAM8, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1  
-            SET, 1, 1, (5*memoryPageSize+1)/256, (5*memoryPageSize+1)%256, //set registers 1-1 to value 5*256+1 // address
-            SET, 2, 2, 0, 1, //set registers 2-2 to value 1 //file number 1 from range 0-x          
-            SAVETORAM8, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1                      
+            // read text file from disk           
+            SAVEINTORAM16, 5*memoryPageSize/256, 5*memoryPageSize%256, 3, 1, //function 3, file number 1 - save to memory             
             INT, 3, 5, 0, 0, // int with number 3 and segment 5 - disk read
             INT, 2, 5, 0, 0, // int with number 2 and segment 5 - write output on the screen
           
             //read and start program from disk
-            SET, 1, 1, 5*memoryPageSize/256, 5*memoryPageSize%256, //set registers 1-1 to value 5*256+0   //address
-            SET, 2, 2, 0, 4, //set registers 2-2 to value 3         //function 3   
-            SAVETORAM8, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1  
-            SET, 1, 1, (5*memoryPageSize+1)/256, (5*memoryPageSize+1)%256, //set registers 1-1 to value 5*256+1 // address
-            SET, 2, 2, 0, 2, //set registers 2-2 to value 1 //file number 1 from range 0-x          
-            SAVETORAM8, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1                      
+           SAVEINTORAM16, 5*memoryPageSize/256, 5*memoryPageSize%256, 4, 2, //function 4, file number 2 - save to memory                                   
             INT, 3, 5, 6, 0, // int with number 3 and segment 5 - disk read
             PROC, 5, 6, 0, 0, //  disk code process starts in segment 4
             END, 0, 0, 0, 0
@@ -197,15 +189,14 @@
             LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1  //this is file number 0,1 or 2
             SET, 1, 1, addressForInt/256, addressForInt%256, //set registers 1-1 to value memoryPageNumber*256+0                                  
             MUL, 2, 2, maxFileSize/256, maxFileSize%256,  // 2*256 = 512 = size of every single file
-            ADD, 2, 2, 0, 11*maxFilesInDisk, // 3*9 = 27 = size of file table
-            ADD, 2, 2, 0, 1, // add 1 to registers 1-1
+            ADD, 2, 2, 0, 11*maxFilesInDisk+1, // 3*9 = 27 = size of file table
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
             INPORT, 2, 3, 3, 0, //read port 2 to registers 3-3
             SAVETORAM8, 3, 3, 1, 0, //save registers 2-2 to memory starting from address in register 1
             CMPTRUE, 3, 0, 0, 0, //if value from register 3 = 0 then int ret            
             INTRET, 0, 0, 0, 0,
-            ADD, 1, 1, 0, 1, // add 1 to registers 1-1            
-            JUMPBACK, 0, 7, 0,0    ,
+            ADD, 1, 2, 0, 1, // add 1 to registers 1-1            
+            JUMPBACK, 0, 6, 0,0    ,
             
             //get binary file content
             CMPTRUE, 2, 0, 4, 0, //if value from register 2 = 3 then jumpplus & get file content
@@ -216,8 +207,7 @@
             LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1  //this is file number 0,1 or 2
             //calculate file body offset
             MUL, 2, 2, maxFileSize/256, maxFileSize%256,  // 2*256 = 512 = size of every single file
-            ADD, 2, 2, 0, 11*maxFilesInDisk, // 3*9 = 27 = size of file table
-            ADD, 2, 2, 0, 1, // add 1 to registers 2-2
+            ADD, 2, 2, 0, 11*maxFilesInDisk+1, // 3*9 = 27 = size of file table            
             // get code length to register 3
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
             INPORT, 2, 3, 3, 0, //read port 2 to registers 3-3
@@ -232,12 +222,11 @@
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
             INPORT, 2, 5, 5, 0, //read port 2 to registers 3-3            
             SAVETORAM8, 5, 5, 1, 0, //save registers 5-5 to memory starting from address in register 1
-            ADD, 1, 1, 0, 1, // add 1 to registers 1-1
-            ADD, 2, 2, 0, 1, // add 1 to registers 2-2
+            ADD, 1, 2, 0, 1, // add 1 to registers 1-1
             DEC, 3, 3, 0, 1, // dec 1 to registers 3-3
             CMPTRUE, 3, 0, 0, 0, //if value from register 3 = 0 then int ret            
             JUMPPLUS, 0, 2, 0, 0,
-            JUMPBACK, 0, 8, 0, 0,
+            JUMPBACK, 0, 7, 0, 0,
             //prepare for reading data
             SET, 1, 1, addressForInt2/256, addressForInt2%256, //set registers 1-1 to value memoryPageNumber*256+0   
             //read data                               
@@ -246,10 +235,9 @@
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
             INPORT, 2, 5, 5, 0, //read port 2 to registers 5-5            
             SAVETORAM8, 5, 5, 1, 0, //save registers 5-5 to memory starting from address in register 1
-            ADD, 1, 1, 0, 1, // add 1 to registers 1-1
-            ADD, 2, 2, 0, 1, // add 1 to registers 2-2
+            ADD, 1, 2, 0, 1, // add 1 to registers 1-1
             DEC, 4, 4, 0, 1, // dec 1 to registers 4-4
-            JUMPBACK, 0, 8, 0,0          
+            JUMPBACK, 0, 7, 0,0          
         ];
 
 	if (bootloaderCode.length>memoryPageSize || bootloaderData.length>memoryPageSize || screenCode.length>memoryPageSize || keyboardCode>memoryPageSize || diskReaderCode>memoryPageSize) {
@@ -411,14 +399,17 @@
                 used++;
             }
         }
+        pr = 0;
+        for (let ss=0;ss<maxProcess;ss++) {
+            if (getProcessDetails(ss, TABLE1_ACTIVE) >0) pr++;
+            }
 
-        document.getElementById('info').innerHTML = "last process " + currentProcess +
-            ", active " + activeProcesses +
-            ", instructions run " + instructions +
-            ", MMU hit " + MMUcache + ", MMU miss " + MMUother +
-            ", MMU new alloc " + MMUnew +
-            ", memory pages " + used + "/" + memoryPageNumber +
-            ", bytes read from disk "+diskRead;
+        document.getElementById('info').innerHTML = "processes: " + activeProcesses +"/"+pr+", last " +currentProcess +
+            ", instructions: run " + instructions +
+            ", MMU: hit " + MMUcache +" ("+(MMUcache/(MMUother+MMUcache+MMUnew)*100).toFixed(2)+ "%), miss " + MMUother +
+            ", new alloc " + MMUnew +
+            ", mem pages: " + used + "/" + memoryPageNumber + " ("+(used/memoryPageNumber*100).toFixed(2)+ "%)"+
+            ", disk: bytes read "+diskRead;
     }
 
     function dumpProcessInfo(processNum) {
@@ -479,14 +470,13 @@
                             changeProcessDetails(j, TABLE2_CODE, 0);
                             //reassign first/second page to new process
                             for (s = 0; s < memoryPageNumber; s++) {
-                                if (mmuTable[s * 2] == currentProcess && mmuTable[s * 2 + 1] == instruction[1]) {
+                                if (mmuTable[s * 2] != currentProcess) continue;
+                                if (mmuTable[s * 2 + 1] == instruction[1]) {
                                     mmuTable[s * 2] = j;
-                                    mmuTable[s * 2 + 1] = 0;
-                                    
-                                } else if (instruction[2]!=0 && mmuTable[s * 2] == currentProcess && mmuTable[s * 2 + 1] == instruction[2]) {
+                                    mmuTable[s * 2 + 1] = 0;                                    
+                                } else if (instruction[2]!=0 && mmuTable[s * 2 + 1] == instruction[2]) {
                                     mmuTable[s * 2] = j;
-                                    mmuTable[s * 2 + 1] = 1;
-                                    
+                                    mmuTable[s * 2 + 1] = 1;                                   
                                 }
                             }
                             activeProcesses++;
@@ -531,23 +521,21 @@
                         //assign page to int process with page memoryPageNumber-1
                         changeProcessDetails(currentProcessIndex, TABLE1_INTMEMPAGE2, 0);
                         for (s = 0; s < memoryPageNumber; s++) {
-                            if (mmuTable[s * 2] == currentProcess && mmuTable[s * 2 + 1] == instruction[2]) {
+                            if (mmuTable[s * 2] != currentProcess) continue;
+                            if (mmuTable[s * 2 + 1] == instruction[2]) {
                                 console.log("1mmu table seg with int " + mmuTable[s * 2] + " " + mmuTable[s * 2 + 1]);
                                 //todo: saving somewhere old data
                                 mmuTable[s * 2] = intHandlers[instruction[1] * intHandlerEntrySize + 1];
                                 changeProcessDetails(currentProcessIndex, TABLE1_INTMEMPAGE, mmuTable[s * 2 + 1]);
                                 mmuTable[s * 2 + 1] = addressForInt / memoryPageSize;
-                                console.log("1mmu table seg with int2 " + mmuTable[s * 2] + " " + mmuTable[s * 2 + 1]);
-                               
-                            }
-                             else if (instruction[3]!=0 && mmuTable[s * 2] == currentProcess && mmuTable[s * 2 + 1] == instruction[3]) {
+                                console.log("1mmu table seg with int2 " + mmuTable[s * 2] + " " + mmuTable[s * 2 + 1]);                               
+                            } else if (instruction[3]!=0 && mmuTable[s * 2 + 1] == instruction[3]) {
                                 console.log("2mmu table seg with int " + mmuTable[s * 2] + " " + mmuTable[s * 2 + 1]);
                                 //todo: saving somewhere old data
                                 mmuTable[s * 2] = intHandlers[instruction[1] * intHandlerEntrySize + 1];
                                 changeProcessDetails(currentProcessIndex, TABLE1_INTMEMPAGE2, mmuTable[s * 2 + 1]);
                                 mmuTable[s * 2 + 1] = addressForInt2 / memoryPageSize;
-                                console.log("2mmu table seg with int2 " + mmuTable[s * 2] + " " + mmuTable[s * 2 + 1]);
-                               
+                                console.log("2mmu table seg with int2 " + mmuTable[s * 2] + " " + mmuTable[s * 2 + 1]);                              
                             }
                         }
                         console.log("int from process " + currentProcess + " to " + intHandlers[instruction[1] * 4 + 1] + " address " + (intHandlers[instruction[1] * 4 + 2] * 256 + intHandlers[instruction[1] * 4 + 3]));
@@ -568,21 +556,17 @@
                     console.log("returning to process " + processTableIndex[currentProcessIndex * processTableIndexEntrySize + TABLE1_INTRET_PROCESS_NUM]);
                     //remove shared memory
                     for (s = 0; s < memoryPageNumber; s++) {
-                        
-                        if (mmuTable[s * 2] == currentProcess && mmuTable[s * 2 + 1] == addressForInt / memoryPageSize) {
+                        if (mmuTable[s * 2] != currentProcess) continue;
+                        if (mmuTable[s * 2 + 1] == addressForInt / memoryPageSize) {
                             console.log("1mmu table seg with int " + mmuTable[s * 2] + " " + mmuTable[s * 2 + 1]);
-                            console.log("removing page");
                             mmuTable[s * 2] = getProcessDetails(currentProcessIndex, TABLE1_INTRET_PROCESS_NUM);
                             mmuTable[s * 2 + 1] = getProcessDetails(currentProcessIndex,  TABLE1_INTMEMPAGE);
-                            console.log("1mmu table seg with int " + mmuTable[s * 2] + " " + mmuTable[s * 2 + 1]);
-                            
-                        } else if (mmuTable[s * 2] == currentProcess && mmuTable[s * 2 + 1] == addressForInt2 / memoryPageSize) {
-                            console.log("2mmu table seg with int " + mmuTable[s * 2] + " " + mmuTable[s * 2 + 1]);
-                            console.log("removing page");
+                            console.log("1mmu table seg with int " + mmuTable[s * 2] + " " + mmuTable[s * 2 + 1]);                            
+                        } else if (mmuTable[s * 2 + 1] == addressForInt2 / memoryPageSize) {
+                            console.log("2mmu table seg with int " + mmuTable[s * 2] + " " + mmuTable[s * 2 + 1]);                            
                              mmuTable[s * 2] = getProcessDetails(currentProcessIndex, TABLE1_INTRET_PROCESS_NUM);
                             mmuTable[s * 2 + 1] = getProcessDetails(currentProcessIndex,  TABLE1_INTMEMPAGE2);
-                            console.log("2mmu table seg with int " + mmuTable[s * 2] + " " + mmuTable[s * 2 + 1]);
-                            
+                            console.log("2mmu table seg with int " + mmuTable[s * 2] + " " + mmuTable[s * 2 + 1]);                           
                         }
                     }
 
@@ -631,9 +615,8 @@
                         changeRegister(j, value);
                     }
                     break;
-                case LOADFROMRAM8:
-                    address = getRegister(instruction[3]);
-                    value = memory[mmu(address, currentProcess)];
+                case LOADFROMRAM8:                    
+                    value = memory[mmu(getRegister(instruction[3]), currentProcess)];
                     console.log("loading from ram " + value);
                     for (j = instruction[1]; j <= instruction[2]; j++) {
                         changeRegister(j, value);
@@ -655,10 +638,24 @@
                         address++;
                     }
                     break;
+                     case SAVEINTORAM8:
+                     memory[mmu(instruction[1]*256+instruction[2], currentProcess)] = instruction[3];                        
+                        console.log("saving to ram value " + instruction[3]+ " address "+instruction[1]*256+instruction[2]+" "+mmu(instruction[1]*256+instruction[2], currentProcess));                        
+                    
+                    break;
+                    
+                       case SAVEINTORAM16:
+                     memory[mmu(instruction[1]*256+instruction[2], currentProcess)] = instruction[3];                        
+                      memory[mmu(instruction[1]*256+instruction[2]+1, currentProcess)] = instruction[4];
+                    
+                        console.log("saving to ram values " + instruction[3]+ " "+instruction[4]+" from address "+instruction[1]*256+instruction[2]+" "+mmu(instruction[1]*256+instruction[2], currentProcess));                        
+                    
+                    break;
+                    
                 case CMPTRUE:
                     value1 = getRegister(instruction[1]);
                     value2 = instruction[2] * 256 + instruction[3];
-                    console.log("comaping value " + value1 + " to value " + value2);
+                    console.log("comparing value " + value1 + " to value " + value2);
                     if (value1 != value2) {
                         logicalAddress += bytesPerInstruction;
                     }
@@ -666,14 +663,10 @@
                 case OUTPORT:
                     if (instruction[1] == 1) { // terminal screen
                         value = getRegister(instruction[2]);
-                        if (value == 10) { // new line character
-                            document.getElementById('terminal').innerHTML = document.getElementById('terminal').innerHTML + "<br>";
-                        } else {
-                            document.getElementById('terminal').innerHTML = document.getElementById('terminal').innerHTML + String.fromCharCode(value);
-                        }
+                        document.getElementById('terminal').innerHTML = document.getElementById('terminal').innerHTML + 
+                        (value == 10?"<br>":String.fromCharCode(value));
                     } else if (instruction[1] == 2) { // disk
-                        value = getRegister(instruction[2]);
-                        diskReadAddress = value;
+                        diskReadAddress = getRegister(instruction[2]);
                         console.log("reading disk address " + diskReadAddress);
                     }
                     break;
