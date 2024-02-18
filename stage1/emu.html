@@ -211,38 +211,44 @@
             CMPTRUE, 2, 0, 4, 0, //if value from register 2 = 3 then jumpplus & get file content
             JUMPPLUS, 0, 2, 0, 0,
             INTRET, 0, 0, 0, 0,
+            //get file number
             SET, 1, 1, (addressForInt+1)/256, (addressForInt+1)%256, //set registers 1-1 to value memoryPageNumber*256+0            
             LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1  //this is file number 0,1 or 2
+            //calculate file body offset
             MUL, 2, 2, maxFileSize/256, maxFileSize%256,  // 2*256 = 512 = size of every single file
             ADD, 2, 2, 0, 11*maxFilesInDisk, // 3*9 = 27 = size of file table
-            ADD, 2, 2, 0, 1, // add 1 to registers 1-1
+            ADD, 2, 2, 0, 1, // add 1 to registers 2-2
+            // get code length to register 3
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
-            INPORT, 2, 3, 3, 0, //read port 2 to registers 3-3   //code length
-            ADD, 2, 2, 0, 1, // add 1 to registers 1-1
+            INPORT, 2, 3, 3, 0, //read port 2 to registers 3-3
+            // get data length to register 4
+            ADD, 2, 2, 0, 1, // add 1 to registers 2-2
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
-            INPORT, 2, 4, 4, 0, //read port 2 to registers 3-3   //data length            
+            INPORT, 2, 4, 4, 0, //read port 2 to registers 4-4
+            //prepare for saving binary part
             SET, 1, 1, addressForInt/256, addressForInt%256, //set registers 1-1 to value memoryPageNumber*256+0                                  
             ADD, 2, 2, 0, 1, // add 1 to registers 1-1
             //read binary
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
-            INPORT, 2, 5, 5, 0, //read port 2 to registers 3-3   //data length            
-            SAVETORAM8, 5, 5, 1, 0, //save registers 2-2 to memory starting from address in register 1
+            INPORT, 2, 5, 5, 0, //read port 2 to registers 3-3            
+            SAVETORAM8, 5, 5, 1, 0, //save registers 5-5 to memory starting from address in register 1
             ADD, 1, 1, 0, 1, // add 1 to registers 1-1
-            ADD, 2, 2, 0, 1, // add 1 to registers 1-1
-            DEC, 3, 3, 0, 1, // add 1 to registers 1-1
+            ADD, 2, 2, 0, 1, // add 1 to registers 2-2
+            DEC, 3, 3, 0, 1, // dec 1 to registers 3-3
             CMPTRUE, 3, 0, 0, 0, //if value from register 3 = 0 then int ret            
             JUMPPLUS, 0, 2, 0, 0,
             JUMPBACK, 0, 8, 0, 0,
-            //read data
-            SET, 1, 1, addressForInt2/256, addressForInt2%256, //set registers 1-1 to value memoryPageNumber*256+0                                  
-            CMPTRUE, 4, 0, 0, 0, //if value from register 3 = 0 then int ret            
+            //prepare for reading data
+            SET, 1, 1, addressForInt2/256, addressForInt2%256, //set registers 1-1 to value memoryPageNumber*256+0   
+            //read data                               
+            CMPTRUE, 4, 0, 0, 0, //if value from register 4 = 0 then int ret            
             INTRET, 0, 0, 0, 0,
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
-            INPORT, 2, 5, 5, 0, //read port 2 to registers 3-3   //data length            
-            SAVETORAM8, 5, 5, 1, 0, //save registers 2-2 to memory starting from address in register 1
+            INPORT, 2, 5, 5, 0, //read port 2 to registers 5-5            
+            SAVETORAM8, 5, 5, 1, 0, //save registers 5-5 to memory starting from address in register 1
             ADD, 1, 1, 0, 1, // add 1 to registers 1-1
-            ADD, 2, 2, 0, 1, // add 1 to registers 1-1
-            DEC, 4, 4, 0, 1, // add 1 to registers 1-1
+            ADD, 2, 2, 0, 1, // add 1 to registers 2-2
+            DEC, 4, 4, 0, 1, // dec 1 to registers 4-4
             JUMPBACK, 0, 8, 0,0          
         ];
 
