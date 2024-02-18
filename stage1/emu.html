@@ -130,7 +130,7 @@
             END, 0, 0, 0, 0
         ];
 
-        const bootloaderData = "Szesnastobitowe pozdrowienia z ekranu dla Michala!!!\n" + document.title + "\nHello world!\nPress character key to see magic\n";
+        const bootloaderData = "Szesnastobitowe pozdrowienia z ekranu dla Michala!!!\n" + document.title + "\nHello world!\nPress character key to see magic\n\n";
 
         const screenCode = [
             REGINT, 2, 0, 0, 0, //register int 2
@@ -282,7 +282,7 @@
             INT, 2, 1, 0, 0, // int with number 2 and segment 1 - we write initial info on the screen
             END, 0, 0, 0, 0
         ];
-        const fileData = "Hallo world from program from disk\n";
+        const fileData = "Hello world from program from disk\n\n";
         
 	//number of files (8 bit)
 	//file1 length (16 bit) file 1 name (8+1 bytes)
@@ -292,7 +292,7 @@
 	//file 2 content (max 512 bytes)
 	//...
         const diskFileNames = ["file1", "two", "three"];
-        const diskFileContent = ["Hello2","Hallo from text file in disk\n",""];
+        const diskFileContent = ["Hello2","Hallo from text file in disk\n\n",""];
         disk[0] = diskFileNames.length;
         for (i = 0; i < diskFileNames.length; i++) {
             disk[1+i*11] = diskFileContent[i].length / 256;
