@@ -91,26 +91,36 @@
     const NAMES = ['REGINT', 'INT', 'INTRET', 'PROC', 'END', 'JUMPBACK', 'JUMPTRUE', 'JUMPFALSE', 'CMPTRUE', 'CMPFALSE', 'LOADFROMRAM8', 'SAVETORAM8', 'SET', 'ADD', 'DEC', 'DIV', 'MUL', 'FREERAMBLOCK', 'OUTPORT', 'INPORT', 'REGINPORT', 'INPORTRET', 'JUMPPLUS'];
 
     function bootloader() {
-    const maxFilesInDisk = 3;
+    const maxFilesInDisk = 10;
     const maxFileSize = 512;
     if (memorySize>256*256) {
-    		console.log("16 bit registers allows for addresing max. "+(256*256) +" big RAM");
+    		console.log("16 bit registers allow for addresing max. "+(256*256) +" big RAM");
     		return;
     	}
     	
         const bootloaderCode = [
             PROC, 2, 0, 0, 0, //  screen code process starts in segment 2
-            PROC, 3, 0, 0, 0, //  keyboard code process starts in segment 3
+          //  PROC, 3, 0, 0, 0, //  keyboard code process starts in segment 3
             PROC, 4, 0, 0, 0, //  disk code process starts in segment 4
-            INT, 2, 1, 0, 0, // int with number 2 and segment 1 - we write initial info on the screen
+          //  INT, 2, 1, 0, 0, // int with number 2 and segment 1 - we write initial info on the screen
+          //  SET, 1, 1, 5*memoryPageSize/256, 5*memoryPageSize%256, //set registers 1-1 to value 5*256+0   //address
+          //  SET, 2, 2, 0, 3, //set registers 2-2 to value 3         //function 3   
+          //  SAVETORAM8, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1  
+          //  SET, 1, 1, (5*memoryPageSize+1)/256, (5*memoryPageSize+1)%256, //set registers 1-1 to value 5*256+1 // address
+          //  SET, 2, 2, 0, 1, //set registers 2-2 to value 1 //file number 1 from range 0-x          
+          //  SAVETORAM8, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1                      
+          //  INT, 3, 5, 0, 0, // int with number 3 and segment 5 - disk read
+          //  INT, 2, 5, 0, 0, // int with number 2 and segment 5 - write output on the screen
+          
             SET, 1, 1, 5*memoryPageSize/256, 5*memoryPageSize%256, //set registers 1-1 to value 5*256+0   //address
             SET, 2, 2, 0, 3, //set registers 2-2 to value 3         //function 3   
             SAVETORAM8, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1  
             SET, 1, 1, (5*memoryPageSize+1)/256, (5*memoryPageSize+1)%256, //set registers 1-1 to value 5*256+1 // address
-            SET, 2, 2, 0, 1, //set registers 2-2 to value 1          
+            SET, 2, 2, 0, 1, //set registers 2-2 to value 1 //file number 1 from range 0-x          
             SAVETORAM8, 2, 2, 1, 0, //save value of registers 2-2 to memory starting from address in register 1                      
             INT, 3, 5, 0, 0, // int with number 3 and segment 5 - disk read
-            INT, 2, 5, 0, 0, // int with number 2 and segment 5 - write output on the screen
+          INT, 2, 5, 0, 0, // int with number 2 and segment 5 - write output on the screen
+          
             END, 0, 0, 0, 0
         ];
 
@@ -163,7 +173,7 @@
             SET, 1, 1, (addressForInt+1)/256, (addressForInt+1)%256, //set registers 1-1 to value memoryPageNumber*256+0            
             LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1
             SET, 1, 1, addressForInt/256, addressForInt%256, //set registers 1-1 to value memoryPageNumber*256+0                       
-            MUL, 2, 2, 0, 9,
+            MUL, 2, 2, 0, 11,
             ADD, 2, 2, 0, 1, // add 1 to registers 1-1
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
             INPORT, 2, 3, 3, 0, //read port 2 to registers 3-3
@@ -181,7 +191,7 @@
             LOADFROMRAM8, 2, 2, 1, 0, //load to registers 2-2 value from address specified in register 1  //this is file number 0,1 or 2
             SET, 1, 1, addressForInt/256, addressForInt%256, //set registers 1-1 to value memoryPageNumber*256+0                                  
             MUL, 2, 2, maxFileSize/256, maxFileSize%256,  // 2*256 = 512 = size of every single file
-            ADD, 2, 2, 0, 9*maxFilesInDisk, // 3*9 = 27 = size of file table
+            ADD, 2, 2, 0, 11*maxFilesInDisk, // 3*9 = 27 = size of file table
             ADD, 2, 2, 0, 1, // add 1 to registers 1-1
             OUTPORT, 2, 2, 0, 0, //write to port 2 value from register 2            
             INPORT, 2, 3, 3, 0, //read port 2 to registers 3-3
@@ -226,29 +236,32 @@
         
         const fileCode = [
             INT, 2, 1, 0, 0, // int with number 2 and segment 1 - we write initial info on the screen
-            END, 0, 0, 0, 0
+            END, 0, 0, 0, 0,
+            0
         ];
         const fileData = "Hello world!\n";
         
 	//number of files (8 bit)
-	//file 1 name (8+1 bytes)
-	//file 2 name (8+1 bytes)
+	//file1 length (16 bit) file 1 name (8+1 bytes)
+	//file2 length (16 bit) file 2 name (8+1 bytes)
 	//...
-	//file 1 content (512 bytes)
-	//file 2 content (512 bytes)
+	//file 1 content (max 512 bytes)
+	//file 2 content (max 512 bytes)
 	//...
         const diskFileNames = ["file1", "two", "three"];
         const diskFileContent = ["Hello2","Ala ma kota",""];
         disk[0] = diskFileNames.length;
         for (i = 0; i < diskFileNames.length; i++) {
+            disk[1+i*11] = diskFileContent[i].length / 256;
+            disk[1+i*11+1] = diskFileContent[i].length % 256;
             for (j = 0; j < diskFileNames[i].length; j++) {
-                disk[1+i*9+j] = diskFileNames[i].charCodeAt(j);
+                disk[1+i*11+j+2] = diskFileNames[i].charCodeAt(j);
             }
             if (i==2) {
-            	pos = 1+maxFilesInDisk*9+i*maxFileSize;
-            	disk[pos++] = 2; //2 segments
-            	disk[pos++] = fileCode.length;
-            	disk[pos++] = fileData.length;
+            	pos = 1+maxFilesInDisk*11+i*maxFileSize;
+            	//disk[pos++] = 2; //2 segments
+            	//disk[pos++] = fileCode.length;
+            	//disk[pos++] = fileData.length;
             	 for (j = 0; j < fileCode.length; j++) {
                 disk[pos++] = fileCode[j];
             } 
@@ -257,7 +270,7 @@
             } 
             } else {
             for (j = 0; j < diskFileContent[i].length; j++) {
-                disk[1+maxFilesInDisk*9+i*maxFileSize+j] = diskFileContent[i].charCodeAt(j);
+                disk[1+maxFilesInDisk*11+i*maxFileSize+j] = diskFileContent[i].charCodeAt(j);
             }  
             }
         }
@@ -411,9 +424,13 @@
                             changeProcessDetails(j, TABLE1_INTRET_PROCESS_NUM, 0);
                             //logical pc address
                             changeProcessDetails(j, TABLE2_CODE, 0);
-                            //reassign first page to new process
+                            //reassign first/second page to new process
                             for (s = 0; s < memoryPageNumber; s++) {
                                 if (mmuTable[s * 2] == currentProcess && mmuTable[s * 2 + 1] == instruction[1]) {
+                                    mmuTable[s * 2] = j;
+                                    mmuTable[s * 2 + 1] = 0;
+                                    break;
+                                } else if (instruction[2]!=0 && mmuTable[s * 2] == currentProcess && mmuTable[s * 2 + 1] == instruction[2]) {
                                     mmuTable[s * 2] = j;
                                     mmuTable[s * 2 + 1] = 0;
                                     break;
