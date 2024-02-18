@@ -10,9 +10,16 @@ Too early to speak about it, but in the future yes (probably 5 stages)
 
 #Asynchrononus?
 
-The same like previous point - too early to speak about it now, but in the future yes, yes and yes (chips created with it are consuming power only, when are really working; additionally many times they're faster)
+The same like previous point - too early to speak about it now, but in
+the future yes, yes and yes (chips created with it are consuming power
+only, when are really working; additionally many times they're faster)
 
-Please note, that such design was for example used in [CPU in Polish MERA 400](https://www.youtube.com/watch?v=Y59hgZ5_7sk). If you don't know Polish language and can't translate [MERA 400 channel](https://www.youtube.com/@MERA400), read [Introduction to Asynchronous Circuit Design from Jens Sparsø](https://orbit.dtu.dk/en/publications/introduction-to-asynchronous-circuit-design) or something similar.
+Please note, that such design was for example used in
+[CPU in Polish MERA 400](https://www.youtube.com/watch?v=Y59hgZ5_7sk).
+If you don't know Polish language and can't translate
+[MERA 400 channel](https://www.youtube.com/@MERA400),
+read [Introduction to Asynchronous Circuit Design from Jens Sparsø](https://orbit.dtu.dk/en/publications/introduction-to-asynchronous-circuit-design)
+or something similar.
 
 #UMA (Unified Memory Architecture) ?
 
@@ -45,7 +52,7 @@ some place in disk and provide us ID of it).
 
 What is important:
 
-* every process on the start has got allocated one page in RAM
+* every process on the start has got allocated one or two pages in RAM
 * more allocations are done only when we try to access some logical address
 assigned to other page
 

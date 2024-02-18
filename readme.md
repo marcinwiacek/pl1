@@ -2,11 +2,10 @@ Version 240215
 
 # Preamble
 
-IT is full of smart ideas, unfortunatelly not all of them
-are used together in the most popular mainstream computer hardware (from different reasons).
+IT is full of smart ideas, unfortunatelly not all of them are used together in the most popular
+mainstream computer hardware (from different reasons).
 
-If you look into papers,
-you will see a lof of interesting concepts created by very intelligent people:
+If you look into papers, you will see a lof of interesting concepts created by very intelligent people:
 
 * asynchronous design
 * stack, RISC, CISC and accumulator architectures
@@ -18,26 +17,29 @@ you will see a lof of interesting concepts created by very intelligent people:
 * TLB (Translation Lookaside Buffers)
 * Naumann machine
 
-You can also find description of X86, Risc-V, ARM, Z80 and many others. Studying them is little bit like tasting sweets in the shop...
+You can find description of X86, Risc-V, ARM, Z80 and many others. Studying them is little bit
+like tasting sweets in the big shop.
 
 **Can something be done differently? Or better?**
 
 # This project
 
-This research project has in target preparing free design of the PL1 CPU / hardware, which (I hope) in some moment will be ellegant and effective (maybe even more effective than some popular generic solutions).
+This research project has in target preparing free design of the PL1 CPU / hardware, which (I hope)
+in some moment will be ellegant and effective (maybe even more effective than some popular generic solutions).
 It doesn't immediately reject elements abandomed by other designs, but rather look on profits and problems
 related to them in concrete scenarios.
 
 In other words: I want to take best from Risc-V and others and prepare some (possibly) more secure
 and simple ISA, which probably will be very close to the real-time hardware/software solution.
 
-During some research I have found project [Antikernel](https://github.com/azonenberg/antikernel) and also after looking into it I have defined some first naive targets:
+During some research I have found project [Antikernel](https://github.com/azonenberg/antikernel)
+and also after looking into it I have defined some first naive targets:
 
 1. hardware (CPU) should make task switching as effective as possible - I don't want to
-have saving / restoring registers every time (is it possible with reasonable cost? maybe L1 cache should contain registers?),
-additionally I don't want to have scheduler in software, if possible (main argument for software based
-solution is flexibility, ability of measuring CPU usage,  etc., but we have unnecessary
-instructions running)
+have saving / restoring registers every time (is it possible with reasonable cost? maybe
+L1 cache should contain registers?), additionally I don't want to have scheduler in software,
+if possible (main argument for software based solution is flexibility, ability of measuring CPU usage,
+etc., but we have unnecessary instructions running)
 2. CPU should not give too many ways for communicating processes - memory sharing is
 enough and it will avoid unnecesary copying data and other things (in many documents you will find
 it the most efficient)
@@ -47,7 +49,8 @@ Example: no polling, if possible, just registering for events.
 5. no kernel/user/hypervisor mode = no kernel and possibility of capturing somebody's data
 (which leads to question: how to protect again DoS and malicious behaviors?)
 
-Note: although some of them look doesn't look serious, researchers are thinking about them or even propose related PoC (again: Antikernel)
+Note: although some of them look doesn't look serious, researchers are thinking about them or even
+propose related PoC (again: Antikernel)
 
 # This is wasting time & opening opened doors
 
@@ -55,8 +58,8 @@ Maybe yes, maybe no. Mainstream hardware is changing and is better every day.
 From the other hand, it will never be the best in everything...and special
 projects have always place and/or niche.
 
-Please look on such companies like Apple - in majority they're taking existing solutions and merging them
-in new, unexpected way.
+Please look on such companies like Apple - in majority they're taking existing
+solutions and merging them in new, unexpected way.
 
 **Why shouldn't use the same patern?**
 
@@ -64,7 +67,9 @@ Additionally: real man should have son, plant tree and build house.
 
 Rhetorical question: is it possible to extend it and add building own CPU?
 
-Some people are collecting cars, some looking for stamps and some want to design CPU (and it gives much bigger fun that creating [80386 Protected Mode kernel in 2005](https://mwiacek.com/zips/wat.pl/6/tm_cw_os.rar)). Point.
+Some people are collecting cars, some looking for stamps and some want to
+design CPU (and it gives me much bigger fun that creating 
+[80386 Protected Mode kernel in 2005](https://mwiacek.com/zips/wat.pl/6/tm_cw_os.rar)). Point.
 
 # This project is repeating design history from 16-bit to 32-bit and from console to graphical GUI design
 
@@ -79,15 +84,16 @@ with him project(s) or device(s) using this ISA.
 
 This project was initially separated into general stages, in every please expect many iterations:
 
-* Stage 1 - simulating things in software (HTML page, on the beginning very primitive version,
-later updates with memory protecting / MMU, virtual memory, etc.)
+* Stage 1 - simulating things in software (HTML page, on the beginning very primitive,
+later updated with memory protecting / MMU, virtual memory, etc.)
 * Stage 2 - simulating things in software (VHDL, maybe already with pipelines, multicore and
 asynchronous design)
 * Stage 3 - creating real hardware
 
 I don't have plans for replacing the most popular ISAs (there are milions of people behind them
-and in the end the most important is not ISA, but software working on it). It is possible, that stage number 3
-will happen in far future... but if project goals will be achieved, maybe it will be possible to create secure and effective embedded devices. Who knows?
+and in the end the most important is not ISA, but software working on it). It is possible, that
+stage number 3 will happen in far future... but if project goals will be achieved, maybe it will be
+possible at least creating secure and effective embedded devices. Who knows?
 
 # About author
 
@@ -117,7 +123,7 @@ L14 11gen / Clevo L140MU, Lenovo, Acers, Asus and others), but:
     power problem and decreasing speed of the internal keyboard controller)
     * in generall they were not able to achieve more than 10-15h in the normal work
     (Clevo L140MU is exception and [sometimes allows even for 36h](https://mwiacek.com/www/?q=node/480),
-    but it has bigger 73Wh battery and requires disabling Wi-Fi, Bluetooth, low brightness, etc.).
+    but it has 73Wh battery and requires disabling Wi-Fi, Bluetooth, low brightness, etc.).
     * currently we have in fact duopol (where is this famous Intel's drawer with new
     ideas?), when few years ago they were many companies producing such cores (I found
     even some open-source designs like ao486)
@@ -125,7 +131,8 @@ L14 11gen / Clevo L140MU, Lenovo, Acers, Asus and others), but:
     I'm not very suprised with problems:
 
     * x86 was designed in totally different world (situation) and it didn't had in mind in first
-    place security or good power energy handling (additionally current mainstream Windows has got nothing to do with simplicity of original Windows NT or even Windows XP)
+    place security or good power energy handling (additionally current mainstream Windows has got
+    nothing to do with simplicity of original Windows NT or even Windows XP)
     * next generations of hardware don't fully allow for controlling behavior and for
     example consume power during standby (DRAM refresh, NVME standby, etc.)
     * removing obsolete elements is done very slowly (X86S is not mentioned even in Zen 5)
@@ -157,8 +164,8 @@ I will give just few examples:
     * Risc-V will be concentrated on different classes of devices - something is
     for everything can be not so good like specialized solution (I don't like having M, S and U
     modes, removing N extension and some others)
-    * different chips will be not compatible with each other (it's because standard allows for implementing
-    some sets of instructions)
+    * different chips will be not compatible with each other (it's because standard allows for
+    implementing some sets of instructions)
 
 Regardless of hardware and ISA:
 

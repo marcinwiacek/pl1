@@ -256,8 +256,7 @@
         
         const fileCode = [
             INT, 2, 1, 0, 0, // int with number 2 and segment 1 - we write initial info on the screen
-            END, 0, 0, 0, 0,
-            0
+            END, 0, 0, 0, 0
         ];
         const fileData = "Hello world!\n";
         
@@ -278,13 +277,13 @@
                 disk[1+i*11+j+2] = diskFileNames[i].charCodeAt(j);
             }
             if (i==2) {
-            	pos = 1+maxFilesInDisk*11+i*maxFileSize;
-            	//disk[pos++] = 2; //2 segments
-            	//disk[pos++] = fileCode.length;
-            	//disk[pos++] = fileData.length;
+             disk[1+i*11] = (fileCode.length+fileData.length) / 256;
+            disk[1+i*11+1] = (fileCode.length+fileData.length) % 256;
+            	pos = 1+maxFilesInDisk*11+i*maxFileSize;            	
             	 for (j = 0; j < fileCode.length; j++) {
                 disk[pos++] = fileCode[j];
             } 
+             disk[pos++] = 0;
             	 for (j = 0; j < fileData.length; j++) {
                 disk[pos++] = fileData.charCodeAt(j);
             } 
