@@ -49,7 +49,7 @@ Example: no polling, if possible, just registering for events.
 5. no kernel/user/hypervisor mode = no kernel and possibility of capturing somebody's data
 (which leads to question: how to protect again DoS and malicious behaviors?)
 
-Note: although some of them look doesn't look serious, researchers are thinking about them or even
+Note: although some of them don't look serious, researchers are thinking about them or even
 propose related PoC (again: Antikernel)
 
 # This is wasting time & opening opened doors
