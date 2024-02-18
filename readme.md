@@ -61,14 +61,14 @@ projects have always place and/or niche.
 Please look on such companies like Apple - in majority they're taking existing
 solutions and merging them in new, unexpected way.
 
-**Why shouldn't use the same patern?**
+**Why shouldn't use the same pattern?**
 
 Additionally: real man should have son, plant tree and build house.
 
 Rhetorical question: is it possible to extend it and add building own CPU?
 
 Some people are collecting cars, some looking for stamps and some want to
-design CPU (and it gives me much bigger fun that creating 
+design CPU (note: it gives me much bigger fun that creating 
 [80386 Protected Mode kernel in 2005](https://mwiacek.com/zips/wat.pl/6/tm_cw_os.rar)). Point.
 
 # This project is repeating design history from 16-bit to 32-bit and from console to graphical GUI design
