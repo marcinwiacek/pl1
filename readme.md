@@ -130,11 +130,11 @@ L14 11gen / Clevo L140MU, Lenovo, Acers, Asus and others), but:
 
     I'm not very suprised with problems:
 
-    * x86 was designed in totally different world (situation) and it didn't had in mind in first
+    * x86 was designed in totally different world & situation and it didn't had in first
     place security or good power energy handling (additionally current mainstream Windows has got
     nothing to do with simplicity of original Windows NT or even Windows XP)
     * next generations of hardware don't fully allow for controlling behavior and for
-    example consume power during standby (DRAM refresh, NVME standby, etc.)
+    example consume a lot of power during standby (DRAM refresh, NVME standby, etc.)
     * removing obsolete elements is done very slowly (X86S is not mentioned even in Zen 5)
     and x86 is nigthmare in terms of complexity (CISC, many elements, etc.)
     * big companies built inside chips for monitoring and taking telemetry, which of
@@ -151,10 +151,10 @@ I will give just few examples:
 
     * MacOS, although very nice, simply cannot scale screen elements like Windows (you can only
     change resolution, which in many cases gives strange results)
-    * You cannot buy Macbooks with matte screen (and foil is just workaround)
+    * you cannot buy Macbooks with matte screen (and foil is just workaround)
     * Macbook Air M1 has got PWM (hardware screen blinking), in the same time Macbook Air M2 is faster,
     but better speed in many scenarios is achieved with bigger power limits
-    * you don't have Macbooks working 30h or more on the battery, because it's not required in mainstream
+    * you don't have Macbooks working 30h or more on the battery, because it's not required in the mainstream
     * planned obsolescence (please look on [Louis Rossmann channel in the Youtube](https://m.youtube.com/@rossmanngroup))
 
 3. Risc-V - possible future, but please have in mind:
