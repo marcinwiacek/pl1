@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>PL1 240215</title>
+    <title>PL1 240218</title>
 </head>
 
 <body>
@@ -109,8 +109,9 @@
             PROC, 2, 0, 0, 0, //  screen code process starts in segment 2
             PROC, 3, 0, 0, 0, //  keyboard code process starts in segment 3
             PROC, 4, 0, 0, 0, //  disk code process starts in segment 4
+            
             INT, 2, 1, 0, 0, // int with number 2 and segment 1 - we write initial info on the screen
-         
+           
             // read text file from disk           
             SAVEINTORAM16, 5*memoryPageSize/256, 5*memoryPageSize%256, 3, 1, //function 3, file number 1 - save to memory             
             INT, 3, 5, 0, 0, // int with number 3 and segment 5 - disk read
@@ -120,7 +121,7 @@
            SAVEINTORAM16, 5*memoryPageSize/256, 5*memoryPageSize%256, 4, 2, //function 4, file number 2 - save to memory                                   
             INT, 3, 5, 6, 0, // int with number 3 and segment 5 - disk read
             PROC, 5, 6, 0, 0, //  disk code process starts in segment 4
-            
+             
             END, 0, 0, 0, 0
         ];
 
@@ -280,7 +281,7 @@
             INT, 2, 1, 0, 0, // int with number 2 and segment 1 - we write initial info on the screen
             END, 0, 0, 0, 0
         ];
-        const fileData = "Hello world from program from disk\n\n";
+        const fileData = "Hello from program from disk\n\n";
         
 	//number of files (8 bit)
 	//file1 length (16 bit) file 1 name (8+1 bytes)
@@ -290,7 +291,7 @@
 	//file 2 content (max 512 bytes)
 	//...
         const diskFileNames = ["file1", "two", "hello"];
-        const diskFileContent = ["Hello2","Hallo from text file in disk\n\n",""];
+        const diskFileContent = ["Hello2","Hello from text file in disk\n\n",""];
         disk[0] = diskFileNames.length;
         for (i = 0; i < diskFileNames.length; i++) {
             disk[1+i*11] = diskFileContent[i].length / 256;

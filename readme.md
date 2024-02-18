@@ -1,14 +1,13 @@
-Version 240215
+Version 240218
 
 # Preamble
 
-IT is full of smart ideas, unfortunatelly not all of them are used together in the most popular
-mainstream computer hardware (from different reasons).
+IT is full of smart ideas, unfortunatelly not all of them are used together in the most popular mainstream computer hardware (from different reasons).
 
-If you look into papers, you will see a lof of interesting concepts created by very intelligent people:
+If you look into free papers, you will see a lof of interesting concepts created by very intelligent people, for example:
 
 * asynchronous design
-* stack, RISC, CISC and accumulator architectures
+* stack, RISC, CISC and accumulator architecture
 * pipeline, superscalar, parallel processing
 * branch and instruction prediction
 * Harvard / Naumann architecture
@@ -17,17 +16,15 @@ If you look into papers, you will see a lof of interesting concepts created by v
 * TLB (Translation Lookaside Buffers)
 * Naumann machine
 
-You can find description of X86, Risc-V, ARM, Z80 and many others. Studying them is little bit
-like tasting sweets in the big shop.
+You can find description of X86, Risc-V, ARM, Z80 and many others. Studying them is like tasting sweets in the big shop.
 
 **Can something be done differently? Or better?**
 
-I'm thinking for example about CPU, which will be setup to different instruction
-set on program start.
+I'm thinking for example about CPU, which will be setup to different instruction set on program start.
 
 # This project
 
-This research project has in target preparing free design of the PL1 CPU / hardware, which (I hope)
+This research project has in target preparing free design of the **PL1** CPU / hardware, which (I hope)
 in some moment will be ellegant and effective (maybe even more effective than some popular generic solutions).
 It doesn't immediately reject elements abandomed by other designs, but rather look on profits and problems
 related to them in concrete scenarios.
@@ -98,10 +95,17 @@ and in the end the most important is not ISA, but software working on it). It is
 stage number 3 will happen in far future... but if project goals will be achieved, maybe it will be
 possible at least creating secure and effective embedded devices. Who knows?
 
+![Screenshot from 18 Feb 2024](screen2.png)
+
 # About author
 
-Tester and (at least partially) developer. Software related person, who likes
+Tester and (at least partially) developer. Software related engineer, who likes
 low-level work with hardware. Good in optimalizing things.
+
+# Contact
+* GitHub and/or
+* marcin ( at ) mwiacek (.) com + marcin.wiacek.work ( at ) gmail (.) com
+(the best send your message to both)
 
 # Why it was really started
 
@@ -120,7 +124,7 @@ mainstream, unfortunately there are some important issues with them:
 1. x86 - I was using many laptops (HP Elitebook, Dell Precision, Dell XPS, Hypebook
 L14 11gen / Clevo L140MU, Lenovo, Acers, Asus and others), but:
 
-    * they had annoying design decisions (for example in Dell Precision 5510 - after
+    * they had annoying design decisions (for example with Dell Precision 5510 after
     longer inactivity period, discharging battery and connecting it to the charger
     internal keyboard doesn't work very well before Windows login, which suggests some
     power problem and decreasing speed of the internal keyboard controller)
