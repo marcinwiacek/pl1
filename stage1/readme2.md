@@ -6,11 +6,16 @@ RISC (as much as possible)
 
 #Pipelined?
 
-Too early to speak about it, but in the future yes (probably 5 stages)
+Too early to speak about it, but in the future yes (probably classical 5 stages)
+
+#Superscalar
+
+It's to early to speak about running more instruction in parallel, but
+in the future probably yes
 
 #Asynchrononus?
 
-The same like previous point - too early to speak about it now, but in
+The same like in previous points - too early to speak about it now, but in
 the future yes, yes and yes (chips created with it are consuming power
 only, when are really working; additionally many times they're faster)
 
@@ -100,6 +105,8 @@ A lot of things, for example:
 * 32 and 64-bits
 * instructions are 5-bit long, RISC-V 32-bit is 4-bit long (need compacting)
 * data / code pages
+* address counter for separating code (addresses below) from data (addresses above)
+  in the segment. Similiar should allow for sharing only segment part in INT
 
 #Why JavaScript for emulator? And not Scheme for example?
 
