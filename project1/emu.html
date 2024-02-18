@@ -101,6 +101,7 @@
     const maxFileSize = 512;
     if (memorySize>256*256) {
     		console.log("16 bit registers allow for addresing max. "+(256*256) +" big RAM");
+    		verywrong = true;
     		return;
     	}
     	
@@ -147,6 +148,7 @@
             JUMPBACK, 0, 5, 0, 0, // jump to SET
             SAVETORAM8, 2, 2, 1, 0, //save registers 2-2 to memory starting from address in register 1            
             INT, 2, 1, 0, 0, // int with number 2 and segment 1
+            FREERAMBLOCK, 1, 0,0,0,
             INPORTRET, 0, 0, 0, 0
         ];
 
@@ -243,6 +245,7 @@
 
 	if (bootloaderCode.length>memoryPageSize || bootloaderData.length>memoryPageSize || screenCode.length>memoryPageSize || keyboardCode>memoryPageSize || diskReaderCode>memoryPageSize) {
 		console.log("too long code");
+		verywrong = true;
 		return;
 	}
 	
@@ -489,10 +492,21 @@
                 case END: // end current process
                     changeProcessDetails(currentProcessIndex, TABLE1_ACTIVE, 0);
                     //todo: free memory in MMU and clean memory
+                    for (s = 0; s < memoryPageNumber; s++) {
+                            if (mmuTable[s * 2] != currentProcess) continue;
+                             mmuTable[s * 2] = 0;
+                        }
                     activeProcesses--;
                     if (debugLevel > 0) console.log("active processes " + activeProcesses);
                     showInfo();
-                    return;
+                    return;                  
+                case FREERAMBLOCK:
+                    for (s = 0; s < memoryPageNumber; s++) {
+                            if (mmuTable[s * 2] == currentProcess && mmuTable[s*2+1]==instruction[1]) {
+                             mmuTable[s * 2] = 0;
+                             break;
+                             }
+                        }                   
                     break;
                 case REGINT: // register int handling
                     if (intHandlers[instruction[1] * intHandlerEntrySize] == 0) {
@@ -639,20 +653,15 @@
                         address++;
                     }
                     break;
-                     case SAVEINTORAM8:
+                 case SAVEINTORAM8:
                      memory[mmu(instruction[1]*256+instruction[2], currentProcess)] = instruction[3];                        
-                        console.log("saving to ram value " + instruction[3]+ " address "+instruction[1]*256+instruction[2]+" "+mmu(instruction[1]*256+instruction[2], currentProcess));                        
-                    
-                    break;
-                    
-                       case SAVEINTORAM16:
+                        console.log("saving to ram value " + instruction[3]+ " address "+instruction[1]*256+instruction[2]+" "+mmu(instruction[1]*256+instruction[2], currentProcess));                  
+                    break;                   
+                 case SAVEINTORAM16:
                      memory[mmu(instruction[1]*256+instruction[2], currentProcess)] = instruction[3];                        
                       memory[mmu(instruction[1]*256+instruction[2]+1, currentProcess)] = instruction[4];
-                    
-                        console.log("saving to ram values " + instruction[3]+ " "+instruction[4]+" from address "+instruction[1]*256+instruction[2]+" "+mmu(instruction[1]*256+instruction[2], currentProcess));                        
-                    
-                    break;
-                    
+                        console.log("saving to ram values " + instruction[3]+ " "+instruction[4]+" from address "+instruction[1]*256+instruction[2]+" "+mmu(instruction[1]*256+instruction[2], currentProcess));         
+                    break;                    
                 case CMPTRUE:
                     value1 = getRegister(instruction[1]);
                     value2 = instruction[2] * 256 + instruction[3];
@@ -706,8 +715,8 @@
                     activeProcesses--;
                     if (debugLevel > 0) console.log("active processes " + activeProcesses);
                     break;
-                    default:
-                    console.log("wrong instrcution");
+                default:
+                    console.log("wrong instruction");
                     verywrong = true;
                     return;
             }
@@ -727,10 +736,9 @@
 
     bootloader();
 
-    while (true) {
+    while (!verywrong) {
         execute();
-          //if (instructions > 1000 || verywrong) break;
-          if (verywrong) break;
+          //if (instructions > 1000) break;
         if (activeProcesses == 0) {
             console.log("sleeping");
             // todo: flushing all int support code
