@@ -104,11 +104,10 @@ A lot of things, for example:
 * memory sharing during IRQ (we should allocate concrete logical memory addresses for both)
 * 32 and 64-bits
 * instructions are 5-bit long, RISC-V 32-bit is 4-bit long (need compacting)
-* data / code pages
-* address counter for separating code (addresses below) from data (addresses above)
+* data / code pages or more address counter for separating code (addresses below) from data (addresses above)
   in the segment. Similiar should allow for sharing only segment part in INT
 
 #Why JavaScript for emulator? And not Scheme for example?
 
-Because everybody has got browser... and everybody loves Google Chrome / Safari
+Because everybody has got browser... and everybody loves Firefox / Chrome / Safari / whatever
 (just kidding).
