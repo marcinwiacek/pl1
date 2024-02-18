@@ -119,6 +119,7 @@
            SAVEINTORAM16, 5*memoryPageSize/256, 5*memoryPageSize%256, 4, 2, //function 4, file number 2 - save to memory                                   
             INT, 3, 5, 6, 0, // int with number 3 and segment 5 - disk read
             PROC, 5, 6, 0, 0, //  disk code process starts in segment 4
+            
             END, 0, 0, 0, 0
         ];
 
@@ -285,7 +286,7 @@
 	//file 1 content (max 512 bytes)
 	//file 2 content (max 512 bytes)
 	//...
-        const diskFileNames = ["file1", "two", "three"];
+        const diskFileNames = ["file1", "two", "hello"];
         const diskFileContent = ["Hello2","Hallo from text file in disk\n\n",""];
         disk[0] = diskFileNames.length;
         for (i = 0; i < diskFileNames.length; i++) {

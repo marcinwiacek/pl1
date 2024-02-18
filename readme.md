@@ -22,6 +22,9 @@ like tasting sweets in the big shop.
 
 **Can something be done differently? Or better?**
 
+I'm thinking for example about CPU, which will be setup to different instruction
+set on program start.
+
 # This project
 
 This research project has in target preparing free design of the PL1 CPU / hardware, which (I hope)
