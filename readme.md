@@ -88,7 +88,8 @@ with him project(s) or device(s) using this ISA.
 This project was initially separated into general stages, in every please expect many iterations:
 
 * Stage 1 - simulating things in software (HTML page, on the beginning very primitive,
-later updated with memory protecting / MMU, virtual memory, etc.)
+later updated with memory protecting / MMU, virtual memory, etc.,
+the most probably many iterations)
 * Stage 2 - simulating things in software (VHDL, maybe already with pipelines, multicore and
 asynchronous design)
 * Stage 3 - creating real hardware
