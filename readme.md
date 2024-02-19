@@ -10,11 +10,13 @@ If you look into free papers, you will see a lof of interesting concepts created
 * stack, RISC, CISC and accumulator architecture
 * pipeline, superscalar, parallel processing
 * branch and instruction prediction
+* instruction reordering
 * Harvard / Naumann architecture
 * virtual memory with paging / 2-level paging / segmentation / paged segmentation / segmented paging
 * dynamic address translation / base and bound translation
 * TLB (Translation Lookaside Buffers)
 * Naumann machine
+* Hyperthreading
 
 You can find description of X86, Risc-V, ARM, Z80 and many others. Studying them is like tasting sweets in the big shop.
 
@@ -94,6 +96,8 @@ I don't have plans for replacing the most popular ISAs (there are milions of peo
 and in the end the most important is not ISA, but software working on it). It is possible, that
 stage number 3 will happen in far future... but if project goals will be achieved, maybe it will be
 possible at least creating secure and effective embedded devices. Who knows?
+
+Example from work done in first project days:
 
 ![Screenshot from 18 Feb 2024](screen2.png)
 

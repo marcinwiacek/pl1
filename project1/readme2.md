@@ -97,15 +97,21 @@ mode.
 
 A lot of things, for example:
 
-* support for abnormal situations
+* support for abnormal situations - no enough processes, no RAM, second
+  allocation for IRQ or port, wrong instruction
+* keyboard handling for user apps
 * virtual memory
-* port access and generating / support for hardware IRQ
 * full instruction set
-* memory sharing during IRQ (we should allocate concrete logical memory addresses for both)
 * 32 and 64-bits
-* instructions are 5-bit long, RISC-V 32-bit is 4-bit long (need compacting)
-* data / code pages or more address counter for separating code (addresses below) from data (addresses above)
-  in the segment. Similiar should allow for sharing only segment part in INT
+* instructions are 5-bit long, RISC-V 32-bit is 4-bit long (needs compacting)
+* data / code pages or address counter for separating code (addresses below)
+  from data (addresses above) in the memory space. Similiar should allow for
+  sharing only segment part in INT
+* moving INT handlers to separate non-process table?
+* moving all tables (process, INT, etc.) to RAM?
+* stack?
+* more effective MMU - with tables per process we need more RAM, but possibly
+  can save loops
 
 #Why JavaScript for emulator? And not Scheme for example?
 
