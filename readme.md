@@ -7,7 +7,7 @@ IT is full of smart ideas, unfortunatelly not all of them are used together in t
 If you look into free papers, you will see a lof of interesting concepts created by very intelligent people, for example:
 
 * asynchronous design
-* stack, RISC, CISC and accumulator architecture
+* stack, RISC, CISC, VLIW and accumulator architecture
 * pipeline, superscalar, parallel processing
 * branch and instruction prediction
 * instruction reordering
@@ -31,8 +31,9 @@ in some moment will be ellegant and effective (maybe even more effective than so
 It doesn't immediately reject elements abandomed by other designs, but rather look on profits and problems
 related to them in concrete scenarios.
 
-In other words: I want to take best from Risc-V and others and prepare some (possibly) more secure
-and simple ISA, which probably will be very close to the real-time hardware/software solution.
+In other words: I want to take best from Risc-V and others and in next iterations
+prepare some (possibly) more secure and simple ISA, which probably will be very close to the
+real-time hardware/software solution.
 
 During some research I have found project [Antikernel](https://github.com/azonenberg/antikernel)
 and also after looking into it I have defined some first naive targets:
