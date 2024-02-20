@@ -7,7 +7,7 @@ IT is full of smart ideas, unfortunatelly not all of them are used together in t
 If you look into free papers, you will see a lof of interesting concepts created by very intelligent people, for example:
 
 * asynchronous design
-* stack, RISC, CISC, VLIW and accumulator architecture
+* stack, RISC, CISC, VLIW, MIPS and accumulator architecture
 * pipeline, superscalar, parallel processing
 * branch and instruction prediction
 * instruction reordering
@@ -18,7 +18,7 @@ If you look into free papers, you will see a lof of interesting concepts created
 * Naumann machine
 * Hyperthreading
 
-You can find description of X86, Risc-V, ARM, Z80 and many others. Studying them is like tasting sweets in the big shop.
+You can find description of X86, Risc-V, ARM, Z80, MP-4 and many others. Studying them is like tasting sweets in the big shop.
 
 **Can something be done differently? Or better?**
 
