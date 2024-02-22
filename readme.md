@@ -72,7 +72,7 @@ Rhetorical question: is it possible to extend it and add building own CPU?
 
 Some people are collecting cars, some looking for stamps and some want to
 design CPU (note: it gives me much bigger fun that creating 
-[80386 Protected Mode kernel in 2005](https://mwiacek.com/zips/wat.pl/6/tm_cw_os.rar)). Point.
+[386 Protected Mode kernel in 2005](https://mwiacek.com/zips/wat.pl/6/tm_cw_os.rar)). Point.
 
 # This project is repeating design history from 16-bit to 32-bit and from console to graphical GUI design
 
@@ -90,8 +90,8 @@ This project was initially separated into general stages, in every please expect
 * Stage 1 - simulating things in software (HTML page, on the beginning very primitive,
 later updated with memory protecting / MMU, virtual memory, etc.,
 the most probably many iterations)
-* Stage 2 - simulating things in software (VHDL, maybe already with pipelines, multicore and
-asynchronous design)
+* Stage 2 - simulating things in software (rather Verilog & not VHDL,
+maybe already with pipelines, multicore and asynchronous design)
 * Stage 3 - creating real hardware
 
 I don't have plans for replacing the most popular ISAs (there are milions of people behind them
