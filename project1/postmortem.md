@@ -39,7 +39,7 @@ and third and forth and fifth.
 
 My proposal is, that CPU should first execute instruction from first
 program, than (in next cycle) instruction from second program and so one.
-Programs are normally totally independent. Thanks to this approach we can have better concurrency illusion and in theory will eliminate all types of hazards (if we handle more tasks at once/between, even jump prediction is not necessary, because CPU will always know 100% correct address of new instruction).
+Programs are normally totally independent. Thanks to this approach we can have better concurrency illusion and in theory will eliminate all types of hazards (if we handle more tasks at once/between, even jump prediction miss is not visible, because CPU will always know 100% correct address of new instruction).
 
 What is required here?
 
@@ -58,6 +58,8 @@ In the most primitive solution we need instructions for:
 
 and CPU can just switch to new active task after specified amount of time / executed instructions.
 
+In the more advanced version we could schedule tasks and for example specify, that some of them should be resumed after one hour / on the specified time.
+
 # Memory protection and sharing
 
 Every process should have own logical memory space with addresses, which are changed on-fly to the hardware based. Normally such task is done by MMU. Sometimes it's independent from CPU, sometimes dependent.
@@ -65,8 +67,8 @@ Every process should have own logical memory space with addresses, which are cha
 In proposed solution:
 
 1. MMU should use paging and translate every memory page address.
-2. we should save at least one translated logical-hardware page number for every process and it should our cache (we will not clear it on context switch). Let's imagine, that process is asking for logical address 1 and MMU finds, that this is logical page 0 address assigned to physical page 3. This finding should be cached and next time, twhen process is asking for all addresses from logical page 0 address, MMU should return immediately physical page 3 address.
-3. data exchange between two processes should be possibly only with memory sharing - process A is preparing in own logical space some memory area and is calling process B with this area (the most probably using software interrupt mechanism) allowing it access to shared memory area only during call.
+2. we should save at least one translated logical-hardware page number for every process and it should be our cache (we will not clear it on context switch). Let's imagine, that process is asking for logical address 1 and MMU finds, that this is logical page 0 address assigned to physical page 3. This finding should be cached and next time, when process is asking for all addresses from logical page 0 address, MMU should return immediately physical page 3 address.
+3. data exchange between two processes should be possibly only with memory sharing during interrupt call - process A is preparing in own logical space some memory area and is calling process B with this area (the most probably using software interrupt mechanism) allowing it access to shared memory area only during call.
 4. every process should have mechanism for blocking executing instruction from data area and this could be achieved with one address location register - all logical addresses below value should be treat as process area (code execution possible, no overwrite) and all logical addresses above value should be treat as data area (no code execution possible, updates possible, using in various code instructions possible).
 5. CPU/hardware should define maximal available number of pages for process
 
@@ -89,16 +91,25 @@ RISC-V in the classic approch has got 32-bit long instructions. Opened questions
 
 # Minimal operating system
 
-In proposed solution we should not have user-kernel architecture. Minimal operating system could have such modules:
+In proposed solution we don't need user-kernel architecture. Minimal operating system could have such modules:
 
-1. disk driver supporting user app requests for accessing files (created with interrupt) and request for virtual memory pages (from MMU)
+1. disk driver supporting user app requests for accessing files (created with interrupt) and request for virtual memory pages (also send with interrupt but from MMU)
 2. keyboard driver sending pressed key to user apps, which asked for this (they need to submit such request first). This module should implement clipboard.
 3. graphic driver displaying something on the screen
 4. mouse driver
 5. (optional) certificate integrity checking module
-6. shell reading programs from disk and starting them as separate process. Shell should have ability of stopping already started processes (if necessary) and getting their status (active/non-active).
+6. module showing information about errors (called by CPU in case of errors)
+7. shell reading programs from disk and starting them as separate process. Shell should have ability of stopping already started processes (if necessary) and getting their status (active/non-active)
 
 In ideal situation disk/keyboard/graphic drivers (when loaded again) are asking already loaded modules if can them switch (modules are signed and when signature is OK, they replace them on-fly)
+
+In graphic version every process should have graphic driver API for creating windows and graphic driver should register for Ctrl+Tab and just switch from window to window when pressed.
+
+# Registers
+
+Many publications are providing information, that accessing registers needs quite the same time to accessing L1 cache.
+
+Open question: do we really need registers or can we use L1 for saving them like proposed earlier? Please note, that with second approach we could define for example different amount of general purpose registers for every task.
 
 # Asynchronous hardware design
 
