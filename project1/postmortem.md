@@ -4,7 +4,8 @@ Version 20240225
 
 After creating first primitive software model for PL1 I have found, how
 weak it is - for example modeling things in the gate level requires total
-other approach than software based.
+other approach than software based (I have found such tools like *iverilog* or *vvp* or *gtkwave* and they're not very difficult, from the other hands
+they need some self-study work)
 
 After getting some experiences with this model I decided to make summary
 document postmortem document describing more deeply elements for upcoming
@@ -99,7 +100,7 @@ RISC-V in the classic approch has got 32-bit long instructions. Opened questions
 
 In proposed solution we don't need user-kernel architecture. Minimal operating system could have such modules:
 
-1. disk driver supporting user app requests for accessing files (created with interrupt) and request for virtual memory pages (also send with interrupt but from MMU)
+1. disk driver supporting user app requests for accessing files (created with interrupt) and request for virtual memory pages (also send with interrupt but from MMU). This should allow for some operations (like updates of system binaries) for example to shell process only.
 2. keyboard driver sending pressed key info to user apps, which asked for this (they need to submit such request first). This module should implement clipboard.
 3. graphic driver displaying something on the screen (speaking with RAM memory)
 4. mouse driver
