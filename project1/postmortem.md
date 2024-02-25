@@ -6,7 +6,7 @@ After creating first primitive software model for PL1 I have found, how
 weak it is - for example modeling things in the gate level requires total
 other approach than software based.
 
-After getting some experiences with first model I decided to make summary
+After getting some experiences with this model I decided to make summary
 document postmortem document describing more deeply elements for upcoming
 version 2.
 
