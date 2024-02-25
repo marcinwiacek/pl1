@@ -1,4 +1,4 @@
-Version 240218
+Version 240215
 
 # Preamble
 
@@ -83,7 +83,7 @@ Rome was not built in one day.
 Please have in mind, that author of this repo will be more than happy, if you could share
 with him project(s) or device(s) using this ISA.
 
-# Targets and timeline
+# First targets and timeline
 
 This project was initially separated into general stages, in every please expect many iterations:
 
@@ -99,9 +99,12 @@ and in the end the most important is not ISA, but software working on it). It is
 stage number 3 will happen in far future... but if project goals will be achieved, maybe it will be
 possible at least creating secure and effective embedded devices. Who knows?
 
-Example from work done in first project days:
+(Update 18 Feb 2024) Example from work done in first project days:
 
 ![Screenshot from 18 Feb 2024](screen2.png)
+
+(Update 25 Feb 2024) There is already very primitive software emulator and some postmortem document
+describing, where it can go. Now I need to go into drawing board and make it much, much better.
 
 # About author
 
