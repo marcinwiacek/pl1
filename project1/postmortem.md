@@ -33,14 +33,14 @@ needs already results
 or decoded instuctions invalid)
 
 Situations like this are called hazards or pipeline stalls... and CPUs are
-trying it to avoid for example by putting some empty instructions between or reordering instructions (if possible).
+trying to avoid it for example by putting some empty instructions between or reordering code order (if possible).
 
 Now let's imagine, that first instruction is totally independent from second
 and third and forth and fifth.
 
 My proposal is, that CPU should first execute instruction from first
 program, than (in next cycle) instruction from second program and so one.
-Programs are normally totally independent. Thanks to this approach we can have better concurrency illusion (less instructions are stopping CPU) and in theory will eliminate all types of hazards (if we handle enough tasks at once/between, even jump prediction miss is not visible, because CPU will always know 100% correct address of new instruction).
+Programs/tasks are normally totally independent. Thanks to this approach we can have better concurrency illusion (less instructions are stopping CPU and more threads are running smoothly) and in theory will eliminate all types of hazards (if we handle enough tasks at once/between, even jump prediction miss is not visible, because CPU will always know 100% correct address of new instruction).
 
 What is required here?
 
@@ -53,7 +53,7 @@ When CPU will execute only one task, we will still have such stall situations.
 
 # Task switching
 
-Majority / all general usage CPUs and OS are making context switch using some software elements. But what if CPU itself has got table indicating process status (is it active, what are register values, etc.) and is switching among them periodically.
+Majority/all general usage CPUs and OS are making context switch using some software elements in kernel. But what if CPU itself has got table indicating process status (is it active, what are register values, etc.) and is switching among them periodically?
 
 In the most primitive solution we need instructions for:
 
@@ -65,7 +65,7 @@ and CPU can just switch to new active task after specified amount of time / exec
 
 In the more advanced version we could have task priorities & schedule tasks and for example specify, that some of them should be resumed after one hour / on the specified time.
 
-Additionall profit: when no tasks are active, we could immediately temporary disable CPU.
+Extra profit: when no tasks are active, we could immediately temporary disable CPU.
 
 # Memory protection and sharing
 
@@ -73,8 +73,8 @@ Every process should have own logical memory space with addresses, which are cha
 
 In proposed solution:
 
-1. MMU should use paging and translate every memory page address.
-2. we should save at least one translated logical-hardware page number for every process and it should be our cache (we will not clear it on context switch). Let's imagine, that process is asking for logical address 1 and MMU finds, that this is logical page 0 address assigned to physical page 3. This finding should be cached and next time, when process is asking for all addresses from logical page 0 address, MMU should return immediately physical page 3 address.
+1. MMU should use paging and translate every memory address
+2. we should save at least one translated logical-hardware page number for every process and it should be our cache (we will not clear it on context switch). Let's imagine, that process is asking for logical address 1 and MMU finds, that this is logical page 0 address assigned to physical page 3. This info should be cached and next time, when process is asking for all addresses from logical page 0 address, MMU should return immediately physical page 3 address.
 3. data exchange between two processes should be possibly only with memory sharing during interrupt call - process A is preparing in own logical space some memory area and is calling process B with this area (the most probably using software interrupt mechanism) allowing it access to shared memory area only during call.
 4. every process should have mechanism for blocking executing instruction from data area and this could be achieved with one address location register - all logical addresses below value should be treat as process area (code execution possible, no overwrite) and all logical addresses above value should be treat as data area (no code execution possible, updates possible, using in various code instructions possible).
 5. CPU/hardware should define maximal available number of pages for process
@@ -85,7 +85,7 @@ For defining: mechanism for saving memory pages to/from disk in virtual memory.
 
 CPU should have instructions "reserving" concrete hardware resources into process (let's call it A) and next process (let's call it B) asking for the same resource access should be approved by A.
 
-In other words: process A (for example driver) is reserving for example concrete port and when we want to replace A with next process (for example updated driver), we have to ask A, if it's to do it.
+In other words: process A (for example driver) is reserving for example concrete port and when we want to replace A with next process (for example updated driver), we have to ask A, if it's OK to do it.
 
 # Minimalizing access to memory
 
@@ -105,7 +105,7 @@ In proposed solution we don't need user-kernel architecture. Minimal operating s
 3. graphic driver displaying something on the screen (speaking with RAM memory)
 4. mouse driver
 5. (optional) certificate integrity checking module
-6. module showing information about errors (called by CPU in case of errors)
+6. module showing information about errors (called by CPU in case of errors), which could restart drivers
 7. shell reading programs from disk and starting them as separate process. Shell should have ability of stopping already started processes (if necessary) and getting their status (active/non-active)
 
 In ideal situation disk/keyboard/graphic drivers (when loaded again) are asking already loaded modules if can them switch (modules are signed and when signature is OK, they replace them on-fly)
