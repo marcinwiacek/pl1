@@ -17,34 +17,38 @@ Unfamous Pentium IV had (too) many stages and because of it required a lot
 of energy and was not able to achieve big processing speed. The most typical
 approach to this topic is defining five stages:
 
-1. instuction fetching
+1. instruction fetching
 2. instruction decoding (includes register reading)
 3. execution - ALU operation and address calculating
 4. memory data access
 5. register write back
 
 The ideal situation is, that every CPU part (responsible for one stage)
-is executing something. It's possible, that for example:
+is always executing something. Unfortunately it doesn't happen in 100%. It's possible, that for example:
 
 1. first instruction is making some calculation and second instruction
-needs results
+needs already results
 2. program jumps and CPU knowns it in the end (which makes already fetched
 or decoded instuctions invalid)
 
 Situations like this are called hazards or pipeline stalls... and CPUs are
-trying it to avoid for example by putting some empty instructions between.
+trying it to avoid for example by putting some empty instructions between or reordering instructions (if possible).
 
 Now let's imagine, that first instruction is totally independent from second
 and third and forth and fifth.
 
 My proposal is, that CPU should first execute instruction from first
 program, than (in next cycle) instruction from second program and so one.
-Programs are normally totally independent. Thanks to this approach we can have better concurrency illusion and in theory will eliminate all types of hazards (if we handle more tasks at once/between, even jump prediction miss is not visible, because CPU will always know 100% correct address of new instruction).
+Programs are normally totally independent. Thanks to this approach we can have better concurrency illusion (less instructions are stopping CPU) and in theory will eliminate all types of hazards (if we handle enough tasks at once/between, even jump prediction miss is not visible, because CPU will always know 100% correct address of new instruction).
 
 What is required here?
 
 1. CPU must be built this way, that have access to registers from all processed programs (without delay). It means, that we need enough number of registers or L1 cache memory and access to every process register can be achieved by getting/setting correct cache address).
-2. CPU must handle task switching in hadrware way
+2. CPU must handle task switching in hardware way
+
+What is not resolved here?
+
+When CPU will execute only one task, we will still have such stall situations.
 
 # Task switching
 
@@ -58,7 +62,9 @@ In the most primitive solution we need instructions for:
 
 and CPU can just switch to new active task after specified amount of time / executed instructions.
 
-In the more advanced version we could schedule tasks and for example specify, that some of them should be resumed after one hour / on the specified time.
+In the more advanced version we could have task priorities & schedule tasks and for example specify, that some of them should be resumed after one hour / on the specified time.
+
+Additionall profit: when no tasks are active, we could immediately temporary disable CPU.
 
 # Memory protection and sharing
 
@@ -86,16 +92,16 @@ RISC architecture simplifies different operations with constant instruction leng
 
 RISC-V in the classic approch has got 32-bit long instructions. Opened questions:
 
-1. is it possible to decrease length and save everything in 3 bytes? Let's assume, that we define one byte for instruction type and two bytes for address. Is it possible to save with it 32 or 64 bit long addresses? Normally not, but maybe for example defining few instructions with different addressing mode is enough? For example JMP1 address1 is is jumping forward "forward1" bytes from actual executing address, JMP2 address2 is jumping to logical address specified by address2 and JMP3 regnum is jumping to address saved in register "regnum". We could define three instructions changing register, for example SET1 regnum, value1 is changing 0-15 bits of register, SET2 regnum, value2 is changing bits 16-31, SET2 bits 32-47 and SET4 bits 48-63 and SET5, SET6, SET7 are reading 16-bit, 32-bit and 64-bit long values from . In theory we could get longer code, but in practise majority programs are not jumping very far or are not changing very often big values.
-2. does it have any sense going little bit into CISC? For example implementing some instructions copying null-ended strings
+1. is it possible to decrease length and save everything in 3 bytes? Let's assume, that we define one byte for instruction type and two bytes for address. Is it possible to save with it 32 or 64 bit long addresses? Normally not, but maybe for example defining few instructions with different addressing mode is enough? For example JMP1 address1 is is jumping forward "forward1" bytes from actual executing address, JMP2 address2 is jumping to logical address specified by address2 and JMP3 regnum is jumping to address saved in register "regnum". We could define three instructions changing register, for example SET1 regnum, value1 is changing 0-15 bits of register, SET2 regnum, value2 is changing bits 16-31, SET2 bits 32-47 and SET4 bits 48-63 and SET5, SET6, SET7 are reading 16-bit, 32-bit and 64-bit long values from concrete memory location, etc. In theory we could get longer code (more instructions), but in practise majority programs are not jumping very far or are not changing very often big values.
+2. does it have any sense going a little bit into CISC? For example implementing some instructions copying null-ended strings
 
 # Minimal operating system
 
 In proposed solution we don't need user-kernel architecture. Minimal operating system could have such modules:
 
 1. disk driver supporting user app requests for accessing files (created with interrupt) and request for virtual memory pages (also send with interrupt but from MMU)
-2. keyboard driver sending pressed key to user apps, which asked for this (they need to submit such request first). This module should implement clipboard.
-3. graphic driver displaying something on the screen
+2. keyboard driver sending pressed key info to user apps, which asked for this (they need to submit such request first). This module should implement clipboard.
+3. graphic driver displaying something on the screen (speaking with RAM memory)
 4. mouse driver
 5. (optional) certificate integrity checking module
 6. module showing information about errors (called by CPU in case of errors)
@@ -103,7 +109,7 @@ In proposed solution we don't need user-kernel architecture. Minimal operating s
 
 In ideal situation disk/keyboard/graphic drivers (when loaded again) are asking already loaded modules if can them switch (modules are signed and when signature is OK, they replace them on-fly)
 
-In graphic version every process should have graphic driver API for creating windows and graphic driver should register for Ctrl+Tab and just switch from window to window when pressed.
+In graphic version every process should have graphic driver API for creating windows(s) and graphic driver should register for Ctrl+Tab and just switch from window to window when pressed.
 
 # Registers
 
