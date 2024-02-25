@@ -79,7 +79,10 @@ In proposed solution:
 4. every process should have mechanism for blocking executing instruction from data area and this could be achieved with one address location register - all logical addresses below value should be treat as process area (code execution possible, no overwrite) and all logical addresses above value should be treat as data area (no code execution possible, updates possible, using in various code instructions possible).
 5. CPU/hardware should define maximal available number of pages for process
 
-For defining: mechanism for saving memory pages to/from disk in virtual memory.
+For defining:
+
+1. mechanism for saving memory pages to/from disk in virtual memory.
+2. algorithm for assigning free memory. Please note, that DRAM needs refreshing & when we will try to avoid using RAM from different physical modules, we could disable unused one and save some power.
 
 # Hardware access protection
 
