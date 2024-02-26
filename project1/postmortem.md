@@ -19,7 +19,7 @@ of energy and was not able to achieve big processing speed. The most typical
 approach to this topic is defining five stages:
 
 1. instruction fetching
-2. instruction decoding (includes register reading)
+2. instruction decoding
 3. execution - ALU operation and address calculating
 4. memory data access
 5. register write back
@@ -50,6 +50,8 @@ What is required here?
 What is not resolved here?
 
 When CPU will execute only one task, we will still have such stall situations.
+
+Note: we can avoid instruction decoding and immediately read values of internal CPU registers and microcode (saying what should done in instruction) in first stage - this is how work CPUs without instruction set. Maybe CPU should have such mode optionally?
 
 # Task switching
 
@@ -98,6 +100,7 @@ RISC-V in the classic approch has got 32-bit long instructions. Opened questions
 
 1. is it possible to decrease length and save everything in 3 bytes? Let's assume, that we define one byte for instruction type and two bytes for address. Is it possible to save with it 32 or 64 bit long addresses? Normally not, but maybe for example defining few instructions with different addressing mode is enough? For example JMP1 address1 is is jumping forward "forward1" bytes from actual executing address, JMP2 address2 is jumping to logical address specified by address2 and JMP3 regnum is jumping to address saved in register "regnum". We could define three instructions changing register, for example SET1 regnum, value1 is changing 0-15 bits of register, SET2 regnum, value2 is changing bits 16-31, SET2 bits 32-47 and SET4 bits 48-63 and SET5, SET6, SET7 are reading 16-bit, 32-bit and 64-bit long values from concrete memory location, etc. In theory we could get longer code (more instructions), but in practise majority programs are not jumping very far or are not changing very often big values.
 2. does it have any sense going a little bit into CISC? For example implementing some instructions copying null-ended strings
+3. does it have sence to read everytime for example 5 bytes and interpret only part of them as instruction? (have instructions like different length like in CISC)
 
 # Minimal operating system
 
