@@ -1,4 +1,4 @@
-Version 20240225
+Version 20240303
 
 # Hardware switching and other ways to remove typical CPU problems
 
@@ -143,3 +143,10 @@ If you don't know Polish language and can't translate
 read [Introduction to Asynchronous Circuit Design from Jens Sparsø](https://orbit.dtu.dk/en/publications/introduction-to-asynchronous-circuit-design)
 or something similar.
 
+# Possible other things
+
+Although it looks like Sci-Fi in this moment:
+
+* taking electromagnetic wave energy for some tasks, which don't need too much A or V
+* preparing 3D structure, which has got air channels for cooling (something like
+old channels in the car engine)
