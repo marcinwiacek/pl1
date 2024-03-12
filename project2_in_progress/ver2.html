@@ -24,27 +24,20 @@
     counter = 0;
     processnr = 1;
 
-    stage1busy = false;
-    stage1inputdataready = true;
     async function stage1() {
         while (true) {
             await sleep(1);
-            if (stage1inputdataready) {
-                stage1busy = true;
-                const d = new Date();
-                counter++;
-                await sleep(10);
-                while (stage2busy) {
-                    await sleep(1);
-                }
-                const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 1 input " + processnr);
-                stage2input = processnr;
-                processnr++;
-                stage2inputdataready = true;
-                stage1busy = false;
-                stage1inputdataready = false;
+            const d = new Date();
+            counter++;
+            await sleep(10);
+            while (stage2busy) {
+                await sleep(1);
             }
+            const d2 = new Date();
+            console.log(dt(d) + dt(d2) + "processing 1 input " + processnr);
+            stage2input = processnr;
+            processnr++;
+            stage2inputdataready = true;
             if (counter == maxcycles) break;
         }
     }
@@ -132,19 +125,18 @@
                 stage5busy = true;
                 const d = new Date();
                 await sleep(10);
-                while (stage1busy) {
-                    await sleep(1);
-                }
+                //                while (stage1busy) {
+                //                    await sleep(1);
+                //                }
                 const d2 = new Date();
                 console.log(dt(d) + dt(d2) + "processing 5 input " + stage5input);
-                //                stage1input = stage5input;
-                stage1inputdataready = true;
                 stage5busy = false;
                 stage5inputdataready = false;
             }
             if (counter == maxcycles) break;
         }
     }
+
 
     stage1();
     stage2();

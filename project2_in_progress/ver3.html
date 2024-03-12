@@ -16,34 +16,33 @@
         return d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds() + ":" + d.getMilliseconds() + "    ";
     }
 
+
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     maxcycles = 20;
     counter = 0;
-    processnr = 1;
+    processnr = 0;
+    const thread = new Uint8Array(5);
 
-    stage1busy = false;
-    stage1inputdataready = true;
     async function stage1() {
         while (true) {
             await sleep(1);
-            if (stage1inputdataready) {
-                stage1busy = true;
-                const d = new Date();
-                counter++;
-                await sleep(10);
-                while (stage2busy) {
-                    await sleep(1);
+            for (i = 0; i < 5; i++) {
+                if (thread[i] == 0) {
+                    thread[i] = 1;
+                    const d = new Date();
+                    counter++;
+                    await sleep(10);
+                    while (stage2busy) {
+                        await sleep(1);
+                    }
+                    const d2 = new Date();
+                    console.log(dt(d) + dt(d2) + "processing 1 input " + processnr);
+                    stage2input = i;
+                    stage2inputdataready = true;
                 }
-                const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 1 input " + processnr);
-                stage2input = processnr;
-                processnr++;
-                stage2inputdataready = true;
-                stage1busy = false;
-                stage1inputdataready = false;
             }
             if (counter == maxcycles) break;
         }
@@ -132,19 +131,19 @@
                 stage5busy = true;
                 const d = new Date();
                 await sleep(10);
-                while (stage1busy) {
-                    await sleep(1);
-                }
+                //                while (stage1busy) {
+                //                    await sleep(1);
+                //                }
                 const d2 = new Date();
                 console.log(dt(d) + dt(d2) + "processing 5 input " + stage5input);
-                //                stage1input = stage5input;
-                stage1inputdataready = true;
+                thread[stage5input] = 0;
                 stage5busy = false;
                 stage5inputdataready = false;
             }
             if (counter == maxcycles) break;
         }
     }
+
 
     stage1();
     stage2();
