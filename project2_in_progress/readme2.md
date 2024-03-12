@@ -12,7 +12,11 @@ ca. 10 miliseconds.
 
 Executing with maxcycles=20: 1069 ms
 
-This should look this way: 12345 12345 12345 12345 12345
+This should look this way (instructions from the same process):
+
+```
+12345 12345 12345 12345 12345
+```
 
 # Version 2
 
@@ -24,8 +28,8 @@ This should look this way:
 
 ```
 12345     <- instruction 1
- 12345    <- instruction 2
-  12345   <- instruction 3
+ 12345    <- instruction 2 from the same process
+  12345   <- instruction 3 from the same process
 ```
 
 Problem: every next instruction can be dependent on previous one
@@ -43,9 +47,45 @@ Executing with maxcycles=20: 278 ms
 This should look this way:
 
 ```
-12345 12345     <- process 1
- 12345 12345    <- process 2
-  12345 12345   <- process 3
+12345 12345      <- process 1
+ 12345 12345     <- process 2
+  12345 12345    <- process 3
+   12345 12345   <- process 4
+    12345 12345  <- process 5
+     12345 12345 <- process 1
 ```
+
+It looks a little bit like Hyperthreading or superscalar design. We avoid stalls.
+Single process is slower than in version 2, but in parallel (for user)?
+
+Big, big question: is it much better or much worse than version 2 or this design:
+
+```
+12345      <- instruction
+ 12345     <- instruction from other process
+  12345    <- instruction from other process than instruction 2 and 1
+   12345   <- instruction from process 4
+    12345  <- instruction from process 5
+     12345 <- again instruction from process 1
+```
+
+Remember, that these theoretical designs have every pipeline stage with the same length
+(and we have always every pipeline stage, which is not true)
+
+# Version 4
+
+Example topics for discovering:
+
+1. in stage 2 after checking, that we don't have for example jump, we can already initiate stage 1
+(reading new instruction)
+2. in stage saving data to RAM we can just dump it to L1 cache and start saving to RAM (without waiting
+for confirmation)
+3. how to make L1 cache usage? examples:
+
+   * non-associated cache: save to next L1 memory entries, overwrite from address 1 (it has got the oldest data),
+     when try to get, start from last saved (when to start getting from RAM?)
+   * cache with hash?
+
+4. RAM should be with 2 or 4 channels and we should get the whole instruction at once in stage 1
 
 (WORK IN PROGRESS)
