@@ -12,12 +12,100 @@
 </body>
 
 <script>
-//times for read / write operations
-L1cacheTime = 1
-L2cacheTime = 4
-L3cacheTime = 40
-RAMTime = 80
-DiskTime = 100*80
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    const RAM = new Uint8Array(1024 * 1024);
+    RAMReadDataReadyIn = false;
+    RAMReadAddressIn = 0;
+    RAMReadValueOut = 0;
+    RAMReadValueReadyOut = false;
+    async function ram() {
+        while (true) {
+            await sleep(1);
+//            console.log("ram");
+//            if (ramread) console.log("ram read");
+	    if (RAMReadDataReadyIn==false) {
+		RAMReadReadyOut = false;
+	    } else if (RAMReadDataReadyIn) {
+		RAMReadValueOut = 5;
+	        RAMReadValueReadyOut = true;
+	    }
+        }
+    }
+
+    const l1cache = new Uint8Array(1024 * 32);
+    c1ReadExecuteIn = false;
+    c1ReadAddressIn = 0;
+    c1ReadValueOut = 0;
+    c1ReadOut = false;
+    async function c1() {
+        while (true) {
+            await sleep(1);
+	    if (c1ReadExecuteIn==false) {
+		c1ReadOut = false;
+	    } else if (c1ReadExecuteIn) {
+		c1ReadValueOut = 5;
+	        c1ReadOut = true;
+	    }
+        }
+    }
+
+    instraddr = 0;
+    async function instruction_fetcher() {
+        ramread = true;
+
+        while (true) {
+            await sleep(1);
+	    for (i=0;i<4;i++) {
+	    RAMReadDataReadyIn = false;
+	    while(RAMReadReadyOut) {
+        	await sleep(1);
+	    }
+	    RAMReadAddressIn = instraddr;
+	    RAMReadDataReadyIn = true;
+	    while(RAMReadValueReadyOut==false) {
+        	await sleep(1);
+	    }
+	    console.log("ram read value "+RAMReadValueOut);
+	    instraddr++;
+	    }
+        }
+    }
+
+    decoderExecuteIn = false;
+    async function instruction_decoder() {
+        ramread = true;
+
+        while (true) {
+            await sleep(1);
+	    for (i=0;i<4;i++) {
+	    RAMReadExecuteIn = false;
+	    while(RAMReadOut) {
+        	await sleep(1);
+	    }
+	    RAMReadAddressIn = instraddr;
+	    RAMReadExecuteIn = true;
+	    while(RAMReadOut==false) {
+        	await sleep(1);
+	    }
+	    console.log("ram read value "+RAMReadValueOut);
+	    instraddr++;
+	    }
+        }
+    }
+
+    ram();
+    c1();
+    instruction_fetcher();
+
+    //times for read / write operations
+    L1cacheTime = 1
+    L2cacheTime = 4
+    L3cacheTime = 40
+    RAMTime = 80
+    DiskTime = 100 * 80
 
     // debug
     const debugLevel = 2;
@@ -27,20 +115,22 @@ DiskTime = 100*80
     MMUnew = 0;
     diskRead = 0;
 
-//process end pointer
-//when delete process move last into free place
-//process list from beginning
-//process details from end
+    //process end pointer
+    //when delete process move last into free place
+    //process list from beginning
+    //process details from end
     const L1CacheSize = 1024;
     const L1Cache = new Uint8Array(L1CacheSize);
+
     function getL1Cache(address) {
-    	return L1Cache[address];
+        return L1Cache[address];
     }
-    function setL1Cache(address,value) {
-    	return L1Cache[address] = value;
+
+    function setL1Cache(address, value) {
+        return L1Cache[address] = value;
     }
     const L1CACHEMAXPROCESS = 0;
-        const L1CACHECURRENTPROCESS = 2;
+    const L1CACHECURRENTPROCESS = 2;
     const L1CACHETABLE1START = 4;
 
     const registerNum = 12;
@@ -48,7 +138,7 @@ DiskTime = 100*80
     activeProcesses = 0;
     verywrong = false;
 
-//in every entry: sleep=1/active =2, link to processTableDetails, intReturnProcessNumber for processTableDetails during int, 
+    //in every entry: sleep=1/active =2, link to processTableDetails, intReturnProcessNumber for processTableDetails during int, 
     //intNumber, intMemoryPage, intMemoryPage2
     const processTableIndexEntrySize = 6;
     const TABLE1_ACTIVE = 0;
@@ -61,33 +151,27 @@ DiskTime = 100*80
     // in every entry: 16-bit logical code address, 16 bit logical data address, 16 bit logical stack address, registers 16-bit
     // we add 20 to every const to distinguish them from TABLE1 const
     const processTableDetailsEntrySize = 2 + 2 + 2 + registerNum * 2;
-    processTableDetails = new Uint8Array(processTableDetailsEntrySize * 1024*1024); //L1 cache? SRAM memory
+    processTableDetails = new Uint8Array(processTableDetailsEntrySize * 1024 * 1024); //L1 cache? SRAM memory
     const TABLE2_CODE = 0 + 20;
     const TABLE2_DATE = 2 + 20;
     const TABLE2_STACK = 4 + 20;
     const TABLE2_REG = 6 + 20;
-    
-    const RAM = new Uint8Array(1024*1024);
-    function getRAM(address) {
-    	return RAM[address];
-    }
-    function setRAM(address,value) {
-    	return RAM[address] = value;
-    }
 
     const memoryPageNumber = 128;
     const memoryPageSize = 512;
     const memorySize = memoryPageSize * memoryPageNumber; // cannot be bigger than 256*256
     memory = new Uint8Array(memorySize); // DRAM RAM
-    
-    const MMU = new Uint8Array(1024*1024);
+
+    const MMU = new Uint8Array(1024 * 1024);
+
     function getMMU(address) {
-    	return MMU[address];
+        return MMU[address];
     }
-    function setMMU(address,value) {
-    	return MMU[address] = value;
+
+    function setMMU(address, value) {
+        return MMU[address] = value;
     }
-    
+
     //in every entry: processNum, logicalPageNum
     const MMU_PROCESS_NUM = 0;
     const MMU_LOGICALPAGE_NUM = 1;
@@ -116,13 +200,15 @@ DiskTime = 100*80
     const maxFileSize = 512;
     disk = new Uint8Array(256 * 256 * 256);
     diskReadAddress = 0;
-    
-    const Disk = new Uint8Array(1024*1024);
+
+    const Disk = new Uint8Array(1024 * 1024);
+
     function getDisk(address) {
-    	return Disk[address];
+        return Disk[address];
     }
-    function setDisk(address,value) {
-    	return Disk[address] = value;
+
+    function setDisk(address, value) {
+        return Disk[address] = value;
     }
 
     const bytesPerInstruction = 5;
@@ -331,7 +417,7 @@ DiskTime = 100*80
         //registration for the whole bootloader process, split for screenCode and keyboardCode will be done later
         changeProcessDetails(0, TABLE1_ACTIVE, 2); //active
         changeProcessDetails(0, TABLE1_PROCESS_NUM, 0);
-setL1Cache(L1CACHEMAXPROCESS+1,1);
+        setL1Cache(L1CACHEMAXPROCESS + 1, 1);
 
         for (i = 0; i < 5; i++) {
             mmuTable[i * 2 + MMU_PROCESS_NUM] = 1; // process num
@@ -375,8 +461,8 @@ setL1Cache(L1CACHEMAXPROCESS+1,1);
                     disk[pos++] = fileData.charCodeAt(j);
                 }
             } else { // text files
-        	disk[1 + i * 11] = diskFileContent[i].length / 256;
-        	disk[1 + i * 11 + 1] = diskFileContent[i].length % 256;
+                disk[1 + i * 11] = diskFileContent[i].length / 256;
+                disk[1 + i * 11 + 1] = diskFileContent[i].length % 256;
                 for (j = 0; j < diskFileContent[i].length; j++) {
                     disk[1 + maxFilesInDisk * 11 + i * maxFileSize + j] = diskFileContent[i].charCodeAt(j);
                 }
@@ -439,7 +525,7 @@ setL1Cache(L1CACHEMAXPROCESS+1,1);
             case TABLE1_INTNUM:
             case TABLE1_INTMEMPAGE:
             case TABLE1_INTMEMPAGE2:
-    setL1Cache(L1CACHETABLE1START+processNum * processTableIndexEntrySize + field,value);
+                setL1Cache(L1CACHETABLE1START + processNum * processTableIndexEntrySize + field, value);
                 return;
         }
         processTableDetails[processNum * processTableDetailsEntrySize + field - 20] = value / 256;
@@ -454,7 +540,7 @@ setL1Cache(L1CACHEMAXPROCESS+1,1);
             case TABLE1_INTNUM:
             case TABLE1_INTMEMPAGE:
             case TABLE1_INTMEMPAGE2:
-                return getL1Cache(L1CACHETABLE1START+processNum * processTableIndexEntrySize + field);
+                return getL1Cache(L1CACHETABLE1START + processNum * processTableIndexEntrySize + field);
         }
         return processTableDetails[processNum * processTableDetailsEntrySize + field - 20] * 256 +
             processTableDetails[processNum * processTableDetailsEntrySize + field - 20 + 1];
@@ -483,11 +569,11 @@ setL1Cache(L1CACHEMAXPROCESS+1,1);
     function dumpProcessInfo(processNum) {
         out = "process " + processNum + " ";
         for (z = 0; z < processTableIndexEntrySize; z++) {
-            out += L1Cache[L1CACHETABLE1START+processNum * processTableIndexEntrySize + z] + " ";
+            out += L1Cache[L1CACHETABLE1START + processNum * processTableIndexEntrySize + z] + " ";
         }
         out += ", ";
         for (z = 0; z < processTableDetailsEntrySize; z++) {
-            out += processTableDetails[L1Cache[L1CACHETABLE1START+processNum * processTableIndexEntrySize + TABLE1_PROCESS_NUM] * processTableDetailsEntrySize + z] + " ";
+            out += processTableDetails[L1Cache[L1CACHETABLE1START + processNum * processTableIndexEntrySize + TABLE1_PROCESS_NUM] * processTableDetailsEntrySize + z] + " ";
         }
         console.log(out);
     }
@@ -495,11 +581,11 @@ setL1Cache(L1CACHEMAXPROCESS+1,1);
     function execute() {
         endloop = 0;
         while (true) {
-        console.log(getProcessDetails(currentProcessIndex, TABLE1_ACTIVE)+" "+currentProcessIndex);
-            if (getProcessDetails(currentProcessIndex, TABLE1_ACTIVE)==2) break;
-            
-	            currentProcessIndex++;            
-	    if (currentProcessIndex == getL1Cache(L1CACHEMAXPROCESS)*256+getL1Cache(L1CACHEMAXPROCESS+1)) {
+            console.log(getProcessDetails(currentProcessIndex, TABLE1_ACTIVE) + " " + currentProcessIndex);
+            if (getProcessDetails(currentProcessIndex, TABLE1_ACTIVE) == 2) break;
+
+            currentProcessIndex++;
+            if (currentProcessIndex == getL1Cache(L1CACHEMAXPROCESS) * 256 + getL1Cache(L1CACHEMAXPROCESS + 1)) {
                 currentProcessIndex = 0;
                 endloop++;
                 if (endloop == 5) {
@@ -627,7 +713,7 @@ setL1Cache(L1CACHEMAXPROCESS+1,1);
                     break;
                 case INTRET: // return from int execution
                     increaseAddress = false;
-                    console.log("returning to process " + L1Cache[L1CACHETABLE1START+currentProcessIndex * processTableIndexEntrySize + TABLE1_INTRET_PROCESS_NUM]);
+                    console.log("returning to process " + L1Cache[L1CACHETABLE1START + currentProcessIndex * processTableIndexEntrySize + TABLE1_INTRET_PROCESS_NUM]);
                     //remove shared memory
                     for (s = 0; s < memoryPageNumber; s++) {
                         if (mmuTable[s * 2 + MMU_PROCESS_NUM] != currentProcess) continue;
@@ -816,18 +902,18 @@ setL1Cache(L1CACHEMAXPROCESS+1,1);
         console.log("16 bit registers allow for addresing max. " + (256 * 256) + " big RAM");
         verywrong = true;
     } else {
-        bootloader();
-        preparedisk();
-        while (!verywrong) {
-            execute();
-            //if (instructions > 1000) break;
-            if (activeProcesses == 0) {
-                console.log("sleeping");
-                // todo: flushing all int support code
-                break;
-            }
-        }
-        window.addEventListener('keyup', keyUpFunction.bind(this), false);
+        //    bootloader();
+        //    preparedisk();
+        //    while (!verywrong) {
+        //        execute();
+        //if (instructions > 1000) break;
+        //        if (activeProcesses == 0) {
+        //            console.log("sleeping");
+        // todo: flushing all int support code
+        //            break;
+        //        }
+        //    }
+        //    window.addEventListener('keyup', keyUpFunction.bind(this), false);
     }
 </script>
 
