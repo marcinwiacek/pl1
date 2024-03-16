@@ -30,26 +30,27 @@
     async function stage1() {
         while (true) {
             await sleep(1);
-            for (i = 0; i < 5; i++) {
-                if (thread[i] == 0) {
-                    thread[i] = 1;
-                    const d = new Date();
-                    counter++;
-                    await sleep(10);
-                    while (stage2busy) {
-                        await sleep(1);
-                    }
-                    const d2 = new Date();
-                    console.log(dt(d) + dt(d2) + "processing 1 input " + processnr);
-                    stage2input = i;
-                    stage2inputdataready = true;
+	    if (thread[processnr]==0) {
+		thread[processnr]=1;
+                const d = new Date();
+                counter++;
+                await sleep(10);
+                while (stage2busy) {
+                    await sleep(1);
                 }
-            }
+                const d2 = new Date();
+                console.log(dt(d) + dt(d2) + "processing 1 input " + processnr);
+                stage2input = processnr;
+                processnr++;
+		if (processnr==5) processnr=0;
+                stage2inputdataready = true;
+	    }
             if (counter == maxcycles) break;
         }
     }
 
     // instruction decoding
+    // with majority instructions we can initiate stage 1 and go into 3 or later
     stage2busy = false;
     stage2input = 0;
     stage2inputdataready = false;
@@ -67,6 +68,7 @@
                 console.log(dt(d) + dt(d2) + "processing 2 input " + stage2input);
                 stage3input = stage2input;
                 stage3inputdataready = true;
+		thread[stage2input]=0;
                 stage2busy = false;
                 stage2inputdataready = false;
             }
@@ -74,7 +76,7 @@
         }
     }
 
-    //ALU
+    //memory get
     stage3busy = false;
     stage3input = 0;
     stage3inputdataready = false;
@@ -99,7 +101,7 @@
         }
     }
 
-    //memory get
+    //ALU
     stage4busy = false;
     stage4input = 0;
     stage4inputdataready = false;
@@ -124,7 +126,8 @@
         }
     }
 
-    //RAM save
+    //memory save
+    //we just initiate memory saving and go further
     stage5busy = false;
     stage5input = 0;
     stage5inputdataready = false;
@@ -135,12 +138,8 @@
                 stage5busy = true;
                 const d = new Date();
                 await sleep(10);
-                //                while (stage1busy) {
-                //                    await sleep(1);
-                //                }
                 const d2 = new Date();
                 console.log(dt(d) + dt(d2) + "processing 5 input " + stage5input);
-                thread[stage5input] = 0;
                 stage5busy = false;
                 stage5inputdataready = false;
             }
@@ -148,12 +147,14 @@
         }
     }
 
-
     stage1();
     stage2();
     stage3();
     stage4();
     stage5();
+
+    //cache organization:
+    //physical location, value
 </script>
 
 </html>

@@ -36,29 +36,8 @@ Problem: every next instruction can be dependent on previous one
 
 # Version 3
 
-The same like 2, but with preparation for starting instruction from other processes
-in every pipeline run (+ every instruction is done after previous one in thread).
-This doesn't give any performance improvement in such simulation,
-but should provide great help in situations, when instructions from every processes
-are dependent on each other.
+Big question: how to avoid dependies?
 
-Executing with maxcycles=20: 278 ms
-
-This should look this way:
-
-```
-12345 12345      <- process 1
- 12345 12345     <- process 2
-  12345 12345    <- process 3
-   12345 12345   <- process 4
-    12345 12345  <- process 5
-     12345 12345 <- process 1
-```
-
-It looks a little bit like Hyperthreading or superscalar design. We avoid stalls.
-Single process is slower than in version 2, but in parallel (for user)?
-
-Big, big question: is it much better or much worse than version 2 or this design:
 
 ```
 12345      <- instruction
@@ -69,10 +48,24 @@ Big, big question: is it much better or much worse than version 2 or this design
      12345 <- again instruction from process 1
 ```
 
+The same like 2, but with preparation for starting instruction from other processes
+in every pipeline run (we need to fetch instruction after decoding, etc.).
+
+Executing with maxcycles=20: 278ms
+
+This doesn't give any performance improvement in such simulation,
+but should provide great help in real situations, when instructions from every processes
+are dependent on each other. Single process is slower than in version 2, but in parallel 
+(for user) it can give only profits (note: it's probably enough to run 2 processes in parallel).
+
 Remember, that these theoretical designs have every pipeline stage with the same length
 (and we have always every pipeline stage, which is not true)
 
 # Version 4
+
+Decreased amount of threads to 2 + more code for instructions
+
+# Future version
 
 Example topics for discovering:
 

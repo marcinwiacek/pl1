@@ -125,9 +125,6 @@
                 stage5busy = true;
                 const d = new Date();
                 await sleep(10);
-                //                while (stage1busy) {
-                //                    await sleep(1);
-                //                }
                 const d2 = new Date();
                 console.log(dt(d) + dt(d2) + "processing 5 input " + stage5input);
                 stage5busy = false;
@@ -136,7 +133,6 @@
             if (counter == maxcycles) break;
         }
     }
-
 
     stage1();
     stage2();

@@ -80,7 +80,7 @@ Rome was not built in one day.
 
 # License
 
-GPLv3. For other please contact author of this report. Please have in mind, that hr will be more than happy, 
+GPLv3. For other please contact author of this repo. Please have in mind, that hr will be more than happy, 
 if you could share with him project(s) or device(s) using this ISA.
 
 # First targets and timeline
