@@ -16,16 +16,38 @@
         return d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds() + ":" + d.getMilliseconds() + "    ";
     }
 
-
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    const LOADFROMRAM8 = 11; //load register from memory, start, stop, address
+
+    const RAMMemory = new Uint8Array(1024);
+    RAMreadBusy = false;
+    RAMreadInput = 0;
+    RAMreadInputDataReady = false;
+    RAMreadOutput = 0;
+    async function RAM() {
+        while (true) {
+            await sleep(1);
+            if (RAMreadInputDataReady) {
+                RAMbusy = true;
+                const d = new Date();
+                await sleep(10);
+                const d2 = new Date();
+                console.log(dt(d) + dt(d2) + "processing RAM read " + RAMreadInput);
+		RAMreadOutput = RAMMemory[RAMreadInput];
+                RAMreadBusy = false;
+                RAMreadInputDataReady = false;
+            }
+        }
     }
 
     maxcycles = 20;
     counter = 0;
     processnr = 0;
     const thread = new Uint8Array(5);
-
+    const threadAddress = new Uint8Array(5); 
     //instruction fetching
     async function stage1() {
         while (true) {
@@ -33,14 +55,27 @@
 	    if (thread[processnr]==0) {
 		thread[processnr]=1;
                 const d = new Date();
-                counter++;
-                await sleep(10);
+		tempRAM = new Uint8Array(4);
+		for (i=0;i<4;i++) {
+		    RAMreadInput = threadAddress[processnr]+i;
+		    RAMreadInputDataReady = true;
+            	    while (RAMreadInputDataReady) {
+                	await sleep(1);
+            	    }
+		    tempRAM[i]=RAMreadOutput;
+            	    console.log("ram read");
+		}
                 while (stage2busy) {
                     await sleep(1);
                 }
                 const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 1 input " + processnr);
+                console.log(dt(d) + dt(d2) + "processing 1 input " + processnr+" "+counter);
                 stage2input = processnr;
+                stage2input2 = counter;	
+                for (i=0;i<4;i++) {
+                	stage2inputx[i] = tempRAM[i];
+		}
+                counter++;
                 processnr++;
 		if (processnr==2) processnr=0;
                 stage2inputdataready = true;
@@ -53,6 +88,8 @@
     // with majority instructions we can initiate starting stage 1 and go into 3 or later
     stage2busy = false;
     stage2input = 0;
+    stage2inputx = new Uint8Array(4);
+    stage2input2 = 0;
     stage2inputdataready = false;
     async function stage2() {
         while (true) {
@@ -60,13 +97,19 @@
             if (stage2inputdataready) {
                 stage2busy = true;
                 const d = new Date();
+                switch (stage2inputx[0]) {
+                	case LOADFROMRAM8:
+console.log("LOADFROMRAM8");
+                		break;
+                }
                 await sleep(10);
                 while (stage3busy) {
                     await sleep(1);
                 }
                 const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 2 input " + stage2input);
+                console.log(dt(d) + dt(d2) + "processing 2 input " + stage2input+" "+stage2input2);
                 stage3input = stage2input;
+                stage3input2 = stage2input2;
                 stage3inputdataready = true;
 		thread[stage2input]=0;
                 stage2busy = false;
@@ -79,6 +122,7 @@
     //memory get
     stage3busy = false;
     stage3input = 0;
+    stage3input2 = 0;
     stage3inputdataready = false;
     async function stage3() {
         while (true) {
@@ -91,8 +135,9 @@
                     await sleep(1);
                 }
                 const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 3 input " + stage3input);
+                console.log(dt(d) + dt(d2) + "processing 3 input " + stage3input+" "+stage3input2);
                 stage4input = stage3input;
+                stage4input2 = stage3input2;
                 stage4inputdataready = true;
                 stage3busy = false;
                 stage3inputdataready = false;
@@ -104,6 +149,7 @@
     //ALU
     stage4busy = false;
     stage4input = 0;
+    stage4input2 = 0;
     stage4inputdataready = false;
     async function stage4() {
         while (true) {
@@ -116,8 +162,9 @@
                     await sleep(1);
                 }
                 const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 4 input " + stage4input);
+                console.log(dt(d) + dt(d2) + "processing 4 input " + stage4input+" "+stage4input2);
                 stage5input = stage4input;
+                stage5input2 = stage4input2;
                 stage5inputdataready = true;
                 stage4busy = false;
                 stage4inputdataready = false;
@@ -130,6 +177,7 @@
     //we just initiate memory saving and go further
     stage5busy = false;
     stage5input = 0;
+    stage5input2 = 0;
     stage5inputdataready = false;
     async function stage5() {
         while (true) {
@@ -139,7 +187,7 @@
                 const d = new Date();
                 await sleep(10);
                 const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 5 input " + stage5input);
+                console.log(dt(d) + dt(d2) + "processing 5 input " + stage5input+" "+stage5input2);
                 stage5busy = false;
                 stage5inputdataready = false;
             }
@@ -147,6 +195,12 @@
         }
     }
 
+    threadAddress[0]=0;
+    threadAddress[1]=100;
+    RAMMemory[0] = LOADFROMRAM8;
+    RAMMemory[1] = 50;
+    RAMMemory[49] = 127;
+    RAM();
     stage1();
     stage2();
     stage3();
@@ -154,14 +208,9 @@
     stage5();
 
     //cache organization:
-
     //cache divided into two parts
     //physical location, value
-
     //physical location, value
-
-
-
 </script>
 
 </html>

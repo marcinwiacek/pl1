@@ -63,7 +63,16 @@ Remember, that these theoretical designs have every pipeline stage with the same
 
 # Version 4
 
-Decreased amount of threads to 2 + more code for instructions
+Decreased amount of threads to 2 + more code for instructions.
+
+```
+11112345      <- instruction
+ 11112345     <- instruction from process 2
+  11112345    <- instruction from first process
+   11112345   <- instruction from process 2
+    11112345  <- instruction from first process
+     11112345 <- again instruction from process 2
+```
 
 # Future version
 
