@@ -21,6 +21,7 @@
     }
     
     const LOADFROMRAM8 = 11; //load register from memory, start, stop, address
+    const JUMPPLUS = 23;
 
     const RAMMemory = new Uint8Array(1024);
     RAMreadBusy = false;
@@ -97,23 +98,27 @@
             if (stage2inputdataready) {
                 stage2busy = true;
                 const d = new Date();
-                switch (stage2inputx[0]) {
+		if (stage2inputx[0]==JUMPPLUS) {
+			thread[stage2input]=0;
+		} else {
+			switch (stage2inputx[0]) {
                 	case LOADFROMRAM8:
-console.log("LOADFROMRAM8");
+				console.log("LOADFROMRAM8");
                 		break;
-                }
-                await sleep(10);
-                while (stage3busy) {
-                    await sleep(1);
-                }
-                const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 2 input " + stage2input+" "+stage2input2);
-                stage3input = stage2input;
-                stage3input2 = stage2input2;
-                stage3inputdataready = true;
-		thread[stage2input]=0;
-                stage2busy = false;
-                stage2inputdataready = false;
+                        }                        
+	                await sleep(10);
+	                while (stage3busy) {
+	                    await sleep(1);
+	                }
+	                const d2 = new Date();
+	                console.log(dt(d) + dt(d2) + "processing 2 input " + stage2input+" "+stage2input2);
+	                stage3input = stage2input;
+	                stage3input2 = stage2input2;
+	                stage3inputdataready = true;
+			thread[stage2input]=0;
+	       }
+               stage2busy = false;
+               stage2inputdataready = false;
             }
             if (counter == maxcycles) break;
         }
