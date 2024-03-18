@@ -19,7 +19,7 @@
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
-    
+
     const LOADFROMRAM8 = 11; //load register from memory, start, stop, address
     const JUMPPLUS = 23;
 
@@ -28,18 +28,32 @@
     RAMreadInput = 0;
     RAMreadInputDataReady = false;
     RAMreadOutput = 0;
+    RAMsaveBusy = false;
+    RAMsaveAddressInput = 0;
+    RAMsaveValueInput = 0;
+    RAMsaveInputDataReady = false;
     async function RAM() {
         while (true) {
             await sleep(1);
             if (RAMreadInputDataReady) {
-                RAMbusy = true;
+                RAMreadBusy = true;
                 const d = new Date();
                 await sleep(10);
                 const d2 = new Date();
                 console.log(dt(d) + dt(d2) + "processing RAM read " + RAMreadInput);
-		RAMreadOutput = RAMMemory[RAMreadInput];
+                RAMreadOutput = RAMMemory[RAMreadInput];
                 RAMreadBusy = false;
                 RAMreadInputDataReady = false;
+            }
+            if (RAMsaveInputDataReady) {
+                RAMsaveBusy = true;
+                const d = new Date();
+                await sleep(10);
+                const d2 = new Date();
+                console.log(dt(d) + dt(d2) + "processing RAM save " + RAMsaveAddressInput+" "+RAMsaveValueInput);
+                RAMMemory[RAMsaveAddressInput]=RAMsaveValueInput;
+                RAMsaveBusy = false;
+                RAMsaveInputDataReady = false;
             }
         }
     }
@@ -48,39 +62,52 @@
     counter = 0;
     processnr = 0;
     const thread = new Uint8Array(5);
-    const threadAddress = new Uint8Array(5); 
+    const threadAddress = new Uint8Array(5);
     //instruction fetching
     async function stage1() {
         while (true) {
             await sleep(1);
-	    if (thread[processnr]==0) {
-		thread[processnr]=1;
+            if (thread[processnr] == 0) {
+                thread[processnr] = 1;
                 const d = new Date();
-		tempRAM = new Uint8Array(4);
-		for (i=0;i<4;i++) {
-		    RAMreadInput = threadAddress[processnr]+i;
-		    RAMreadInputDataReady = true;
-            	    while (RAMreadInputDataReady) {
-                	await sleep(1);
-            	    }
-		    tempRAM[i]=RAMreadOutput;
-            	    console.log("ram read");
-		}
-                while (stage2busy) {
-                    await sleep(1);
+                tempRAM = new Uint8Array(4);
+                for (i = 0; i < 2; i++) {
+                    RAMreadInput = threadAddress[processnr] + i;
+                    RAMreadInputDataReady = true;
+                    while (RAMreadInputDataReady) {
+                        await sleep(1);
+                    }
+                    tempRAM[i] = RAMreadOutput;
+                    console.log("ram read");
                 }
-                const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 1 input " + processnr+" "+counter);
-                stage2input = processnr;
-                stage2input2 = counter;	
-                for (i=0;i<4;i++) {
-                	stage2inputx[i] = tempRAM[i];
-		}
-                counter++;
-                processnr++;
-		if (processnr==2) processnr=0;
-                stage2inputdataready = true;
-	    }
+                if (stage2inputx[0] == JUMPPLUS) {
+		    //jumps can be fast
+		} else {
+                    for (i = 2; i < 4; i++) {
+                        RAMreadInput = threadAddress[processnr] + i;
+                        RAMreadInputDataReady = true;
+                        while (RAMreadInputDataReady) {
+                            await sleep(1);
+                        }
+                        tempRAM[i] = RAMreadOutput;
+                        console.log("ram read");
+                    }
+                    while (stage2busy) {
+                        await sleep(1);
+                    }
+                    const d2 = new Date();
+                    console.log(dt(d) + dt(d2) + "processing 1 input " + processnr + " " + counter);
+                    stage2input = processnr;
+                    stage2input2 = counter;
+                    for (i = 0; i < 4; i++) {
+                        stage2inputx[i] = tempRAM[i];
+                    }
+                    counter++;
+                    processnr++;
+                    if (processnr == 2) processnr = 0;
+                    stage2inputdataready = true;
+                }
+            }
             if (counter == maxcycles) break;
         }
     }
@@ -98,27 +125,23 @@
             if (stage2inputdataready) {
                 stage2busy = true;
                 const d = new Date();
-		if (stage2inputx[0]==JUMPPLUS) {
-			thread[stage2input]=0;
-		} else {
-			switch (stage2inputx[0]) {
-                	case LOADFROMRAM8:
-				console.log("LOADFROMRAM8");
-                		break;
-                        }                        
-	                await sleep(10);
-	                while (stage3busy) {
-	                    await sleep(1);
-	                }
-	                const d2 = new Date();
-	                console.log(dt(d) + dt(d2) + "processing 2 input " + stage2input+" "+stage2input2);
-	                stage3input = stage2input;
-	                stage3input2 = stage2input2;
-	                stage3inputdataready = true;
-			thread[stage2input]=0;
-	       }
-               stage2busy = false;
-               stage2inputdataready = false;
+                switch (stage2inputx[0]) {
+                    case LOADFROMRAM8:
+                        console.log("LOADFROMRAM8");
+                        break;
+                }
+                await sleep(10);
+                while (stage3busy) {
+                    await sleep(1);
+                }
+                const d2 = new Date();
+                console.log(dt(d) + dt(d2) + "processing 2 input " + stage2input + " " + stage2input2);
+                stage3input = stage2input;
+                stage3input2 = stage2input2;
+                stage3inputdataready = true;
+                thread[stage2input] = 0;
+                stage2busy = false;
+                stage2inputdataready = false;
             }
             if (counter == maxcycles) break;
         }
@@ -140,7 +163,7 @@
                     await sleep(1);
                 }
                 const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 3 input " + stage3input+" "+stage3input2);
+                console.log(dt(d) + dt(d2) + "processing 3 input " + stage3input + " " + stage3input2);
                 stage4input = stage3input;
                 stage4input2 = stage3input2;
                 stage4inputdataready = true;
@@ -167,7 +190,7 @@
                     await sleep(1);
                 }
                 const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 4 input " + stage4input+" "+stage4input2);
+                console.log(dt(d) + dt(d2) + "processing 4 input " + stage4input + " " + stage4input2);
                 stage5input = stage4input;
                 stage5input2 = stage4input2;
                 stage5inputdataready = true;
@@ -192,7 +215,7 @@
                 const d = new Date();
                 await sleep(10);
                 const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 5 input " + stage5input+" "+stage5input2);
+                console.log(dt(d) + dt(d2) + "processing 5 input " + stage5input + " " + stage5input2);
                 stage5busy = false;
                 stage5inputdataready = false;
             }
@@ -200,8 +223,8 @@
         }
     }
 
-    threadAddress[0]=0;
-    threadAddress[1]=100;
+    threadAddress[0] = 0;
+    threadAddress[1] = 100;
     RAMMemory[0] = LOADFROMRAM8;
     RAMMemory[1] = 50;
     RAMMemory[49] = 127;
