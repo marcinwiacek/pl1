@@ -284,11 +284,11 @@
     threadRegisterAddress[1] = 100;
 
     RAMMemory[11] = LOADFROMRAM8;
-    RAMMemory[12] = 49;
-    RAMMemory[13] = 1;
+    RAMMemory[12] = 49; //source address
+    RAMMemory[13] = 1; //target(register) address
     RAMMemory[15] = LOADFROMRAM8;
-    RAMMemory[16] = 1;
-    RAMMemory[17] = 2;
+    RAMMemory[16] = 1; //source address
+    RAMMemory[17] = 2; //target(register) address
     RAMMemory[49] = 127;
     RAM();
     stage1();
