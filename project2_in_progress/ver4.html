@@ -46,8 +46,8 @@
                 const d = new Date();
                 await sleep(10);
                 const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing RAM read " + RAMreadInput);
                 RAMreadOutput = RAMMemory[RAMreadInput];
+                console.log(dt(d) + dt(d2) + "processing RAM read " + RAMreadInput+" "+RAMreadOutput);
                 RAMreadBusy = false;
                 RAMreadInputDataReady = false;
             }
@@ -56,8 +56,8 @@
                 const d = new Date();
                 await sleep(10);
                 const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing RAM read2 " + RAMread2Input);
                 RAMread2Output = RAMMemory[RAMread2Input];
+                console.log(dt(d) + dt(d2) + "processing RAM read2 " + RAMread2Input+" "+RAMread2Output);
                 RAMread2Busy = false;
                 RAMread2InputDataReady = false;
             }
@@ -79,6 +79,7 @@
     processnr = 0;
     const thread = new Uint8Array(5);
     const threadAddress = new Uint8Array(5);
+    const threadRegisterAddress = new Uint8Array(5);
     //instruction fetching
     async function stage1() {
         while (true) {
@@ -94,7 +95,6 @@
                         await sleep(1);
                     }
                     tempRAM[i] = RAMreadOutput;
-                    console.log("ram read");
                 }
                 if (stage2inputx[0] == JUMPPLUS) {
                     threadAddress[processnr]+=tempRAM[1]*4;
@@ -107,8 +107,8 @@
                             await sleep(1);
                         }
                         tempRAM[i] = RAMreadOutput;
-                        console.log("ram read");
                     }
+                    threadAddress[processnr]+=4;
                     while (stage2busy) {
                         await sleep(1);
                     }
@@ -155,6 +155,7 @@
 			tempSaveRegister = true;
 	    		tempRAMReadAddress = stage2inputx[1];
 			tempSaveRegisterAddress= stage2inputx[2];
+			console.log("LOADFROMRAM8 from "+tempRAMReadAddress+" to "+tempSaveRegisterAddress);
 			break;
 		    default:
 			break;
@@ -203,14 +204,16 @@
                     }
                     tempRAM = RAMread2Output;
 
-                while (stage4busy) {
+                while (stage5busy) {
                     await sleep(1);
                 }
                 const d2 = new Date();
                 console.log(dt(d) + dt(d2) + "processing 3 input " + stage3input + " " + stage3input2);
-                stage4input = stage3input;
-                stage4input2 = stage3input2;
-                stage4inputdataready = true;
+                stage5input = stage3input;
+                stage5input2 = stage3input2;
+		stage5Address = stage3registerAddress;
+		stage5Value = tempRAM;
+                stage5inputdataready = true;
                 stage3busy = false;
                 stage3inputdataready = false;
             }
@@ -250,6 +253,8 @@
     stage5busy = false;
     stage5input = 0;
     stage5input2 = 0;
+    stage5Address = 0;
+    stage5Value = 0;
     stage5inputdataready = false;
     async function stage5() {
         while (true) {
@@ -260,6 +265,12 @@
                 await sleep(10);
                 const d2 = new Date();
                 console.log(dt(d) + dt(d2) + "processing 5 input " + stage5input + " " + stage5input2);
+                while (RAMsaveBusy) {
+                    await sleep(1);
+                }
+	        RAMsaveAddressInput = stage5Address;
+	        RAMsaveValueInput = stage5Value;
+                RAMsaveInputDataReady = true;
                 stage5busy = false;
                 stage5inputdataready = false;
             }
@@ -267,10 +278,17 @@
         }
     }
 
-    threadAddress[0] = 0;
-    threadAddress[1] = 100;
-    RAMMemory[0] = LOADFROMRAM8;
-    RAMMemory[1] = 50;
+    threadAddress[0] = 11;
+    threadRegisterAddress[0] = 0;
+    threadAddress[1] = 111;
+    threadRegisterAddress[1] = 100;
+
+    RAMMemory[11] = LOADFROMRAM8;
+    RAMMemory[12] = 49;
+    RAMMemory[13] = 1;
+    RAMMemory[15] = LOADFROMRAM8;
+    RAMMemory[16] = 1;
+    RAMMemory[17] = 2;
     RAMMemory[49] = 127;
     RAM();
     stage1();
