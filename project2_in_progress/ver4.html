@@ -28,6 +28,12 @@
     RAMreadInput = 0;
     RAMreadInputDataReady = false;
     RAMreadOutput = 0;
+
+    RAMread2Busy = false;
+    RAMread2Input = 0;
+    RAMread2InputDataReady = false;
+    RAMread2Output = 0;
+
     RAMsaveBusy = false;
     RAMsaveAddressInput = 0;
     RAMsaveValueInput = 0;
@@ -44,6 +50,16 @@
                 RAMreadOutput = RAMMemory[RAMreadInput];
                 RAMreadBusy = false;
                 RAMreadInputDataReady = false;
+            }
+            if (RAMread2InputDataReady) {
+                RAMread2Busy = true;
+                const d = new Date();
+                await sleep(10);
+                const d2 = new Date();
+                console.log(dt(d) + dt(d2) + "processing RAM read2 " + RAMread2Input);
+                RAMread2Output = RAMMemory[RAMread2Input];
+                RAMread2Busy = false;
+                RAMread2InputDataReady = false;
             }
             if (RAMsaveInputDataReady) {
                 RAMsaveBusy = true;
@@ -81,7 +97,8 @@
                     console.log("ram read");
                 }
                 if (stage2inputx[0] == JUMPPLUS) {
-		    //jumps can be fast
+                    threadAddress[processnr]+=tempRAM[1]*4;
+		    //jump can be fast
 		} else {
                     for (i = 2; i < 4; i++) {
                         RAMreadInput = threadAddress[processnr] + i;
@@ -113,7 +130,8 @@
     }
 
     // instruction decoding
-    // with majority instructions we can initiate starting stage 1 and go into 3 or later
+    // with majority instructions we can initiate starting stage 1
+    // and go into 3 or later
     stage2busy = false;
     stage2input = 0;
     stage2inputx = new Uint8Array(4);
@@ -125,21 +143,36 @@
             if (stage2inputdataready) {
                 stage2busy = true;
                 const d = new Date();
-                switch (stage2inputx[0]) {
-                    case LOADFROMRAM8:
-                        console.log("LOADFROMRAM8");
-                        break;
-                }
                 await sleep(10);
-                while (stage3busy) {
-                    await sleep(1);
+                tempALU = false;
+		tempRAMRead = false;
+		tempRAMReadAddress = 0;
+		tempSaveRegister = false;
+		tempSaveRegisterAddress = 0;
+		switch (stage2inputx[0]) {
+                    case LOADFROMRAM8:
+			tempRAMRead = true;
+			tempSaveRegister = true;
+	    		tempRAMReadAddress = stage2inputx[1];
+			tempSaveRegisterAddress= stage2inputx[2];
+			break;
+		    default:
+			break;
                 }
-                const d2 = new Date();
+            	const d2 = new Date();
                 console.log(dt(d) + dt(d2) + "processing 2 input " + stage2input + " " + stage2input2);
-                stage3input = stage2input;
-                stage3input2 = stage2input2;
-                stage3inputdataready = true;
                 thread[stage2input] = 0;
+		if (tempRAMRead) {
+            		while (stage3busy) {
+                	    await sleep(1);
+            		}
+                	stage3input = stage2input;
+                	stage3input2 = stage2input2;
+			stage3inputAddress = tempRAMReadAddress;
+		        stage3register = tempSaveRegister;
+		        stage3registerAddress = tempSaveRegisterAddress;
+                	stage3inputdataready = true;
+		}
                 stage2busy = false;
                 stage2inputdataready = false;
             }
@@ -147,10 +180,13 @@
         }
     }
 
-    //memory get
+    //RAM get
     stage3busy = false;
     stage3input = 0;
     stage3input2 = 0;
+    stage3inputAddress = 0;
+    stage3register = false;
+    stage3registerAddress = 0;
     stage3inputdataready = false;
     async function stage3() {
         while (true) {
@@ -159,6 +195,14 @@
                 stage3busy = true;
                 const d = new Date();
                 await sleep(10);
+
+                    RAMread2Input = stage3inputAddress;
+                    RAMread2InputDataReady = true;
+                    while (RAMread2InputDataReady) {
+                        await sleep(1);
+                    }
+                    tempRAM = RAMread2Output;
+
                 while (stage4busy) {
                     await sleep(1);
                 }
@@ -201,7 +245,7 @@
         }
     }
 
-    //memory save
+    //RAM save
     //we just initiate memory saving and go further
     stage5busy = false;
     stage5input = 0;
