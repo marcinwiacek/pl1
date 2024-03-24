@@ -20,268 +20,298 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    const LOADFROMRAM8 = 11; //load register from memory, start, stop, address
-    const JUMPPLUS = 23;
+    const maxThread = 2;
+    const maxCycles = 100000; //setup to 0 to have infinite execution
+    counterCycles = 0;
 
-    const RAMMemory = new Uint8Array(1024);
-    RAMreadBusy = false;
-    RAMreadInput = 0;
-    RAMreadInputDataReady = false;
-    RAMreadOutput = 0;
+    RAMMemory = new Uint8Array(256 * 256);
+    RegisterMemory = Array.from({
+        length: maxThread
+    }, () => new Uint8Array(512 / 8)); //512 bits = 64 bytes per thread
+    RegisterMemoryValid = Array.from({
+        length: maxThread
+    }, () => Array.from({
+        length: 512
+    }, () => false));
+    threadInstructionAddressRegister = new Uint8Array(maxThread);
 
-    RAMread2Busy = false;
-    RAMread2Input = 0;
-    RAMread2InputDataReady = false;
-    RAMread2Output = 0;
+    const LOADFROMRAM8 = 1; //load register from memory, start, stop, address
+    const JUMPPLUS = 2;
+    const SAVETORAM8 = 3; //save register to memory, start, stop, address
 
-    RAMsaveBusy = false;
-    RAMsaveAddressInput = 0;
-    RAMsaveValueInput = 0;
-    RAMsaveInputDataReady = false;
+    RAMreadAddressInputStage1 = new Uint16Array(maxThread);
+    RAMreadAddress2InputStage1 = new Uint16Array(maxThread); //two channels
+    RAMreadValueOutputStage1 = new Uint8Array(maxThread);
+    RAMreadValue2OutputStage1 = new Uint8Array(maxThread); //two channels
+    RAMreadInputDataProcessingStage1 = Array.from({
+        length: maxThread
+    }, () => false);
+
+    RAMreadAddressInputStage3 = new Uint16Array(maxThread);
+    RAMreadAddress2InputStage3 = new Uint16Array(maxThread); //two channels
+    RAMreadValueOutputStage3 = new Uint8Array(maxThread);
+    RAMreadValue2OutputStage3 = new Uint8Array(maxThread); //two channels
+    RAMreadInputDataProcessingStage3 = Array.from({
+        length: maxThread
+    }, () => false);
+
+    RAMsaveAddressInput = new Uint16Array(maxThread);
+    RAMsaveValueInput = new Uint8Array(maxThread);
+    RAMsaveInputDataProcessing = Array.from({
+        length: maxThread
+    }, () => false);
     async function RAM() {
-        while (true) {
+        while (counterCycles < maxCycles) {
             await sleep(1);
-            if (RAMreadInputDataReady) {
-                RAMreadBusy = true;
-                const d = new Date();
-                await sleep(10);
-                const d2 = new Date();
-                RAMreadOutput = RAMMemory[RAMreadInput];
-                console.log(dt(d) + dt(d2) + "processing RAM read " + RAMreadInput+" "+RAMreadOutput);
-                RAMreadBusy = false;
-                RAMreadInputDataReady = false;
-            }
-            if (RAMread2InputDataReady) {
-                RAMread2Busy = true;
-                const d = new Date();
-                await sleep(10);
-                const d2 = new Date();
-                RAMread2Output = RAMMemory[RAMread2Input];
-                console.log(dt(d) + dt(d2) + "processing RAM read2 " + RAMread2Input+" "+RAMread2Output);
-                RAMread2Busy = false;
-                RAMread2InputDataReady = false;
-            }
-            if (RAMsaveInputDataReady) {
-                RAMsaveBusy = true;
-                const d = new Date();
-                await sleep(10);
-                const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing RAM save " + RAMsaveAddressInput+" "+RAMsaveValueInput);
-                RAMMemory[RAMsaveAddressInput]=RAMsaveValueInput;
-                RAMsaveBusy = false;
-                RAMsaveInputDataReady = false;
+            for (z = 0; z < maxThread; z++) {
+                if (RAMreadInputDataProcessingStage1[z]) {
+                    const d = new Date();
+                    await sleep(10);
+                    const d2 = new Date();
+                    RAMreadValueOutputStage1[z] = RAMMemory[RAMreadAddressInputStage1[z]];
+                    RAMreadValue2OutputStage1[z] = RAMMemory[RAMreadAddress2InputStage1[z]];
+                    console.log(dt(d) + dt(d2) + "dual RAM read stage 1 " +
+                        RAMreadAddressInputStage1[z] + "=" + RAMreadValueOutputStage1[z] + " " +
+                        RAMreadAddress2InputStage1[z] + "=" + RAMreadValue2OutputStage1[z]);
+                    RAMreadInputDataProcessingStage1[z] = false;
+                }
+                if (RAMreadInputDataProcessingStage3[z]) {
+                    const d = new Date();
+                    await sleep(10);
+                    const d2 = new Date();
+                    RAMreadValueOutputStage3[z] = RAMMemory[RAMreadAddressInputStage3[z]];
+                    RAMreadValue2OutputStage3[z] = RAMMemory[RAMreadAddress2InputStage3[z]];
+                    console.log(dt(d) + dt(d2) + "dual RAM read stage 3 " +
+                        RAMreadAddressInputStage3[z] + "=" + RAMreadValueOutputStage3[z] + " " +
+                        RAMreadAddress2InputStage3[z] + "=" + RAMreadValue2OutputStage3[z]);
+                    RAMreadInputDataProcessingStage3[z] = false;
+                }
+                if (RAMsaveInputDataProcessing[z]) {
+                    const d = new Date();
+                    await sleep(10);
+                    const d2 = new Date();
+                    console.log(dt(d) + dt(d2) + "processing RAM save stage 5 " + RAMsaveAddressInput[z] + "=" + RAMsaveValueInput[z]);
+                    RAMMemory[RAMsaveAddressInput[z]] = RAMsaveValueInput[z];
+                    RAMsaveInputDataProcessing[z] = false;
+                }
             }
         }
     }
 
-    maxcycles = 20;
-    counter = 0;
-    processnr = 0;
-    const thread = new Uint8Array(5);
-    const threadAddress = new Uint8Array(5);
-    const threadRegisterAddress = new Uint8Array(5);
+    stage1Processing = Array.from({
+        length: maxThread
+    }, () => false);
     //instruction fetching
     async function stage1() {
-        while (true) {
+        while (counterCycles < maxCycles) {
             await sleep(1);
-            if (thread[processnr] == 0) {
-                thread[processnr] = 1;
-                const d = new Date();
-                tempRAM = new Uint8Array(4);
-                for (i = 0; i < 2; i++) {
-                    RAMreadInput = threadAddress[processnr] + i;
-                    RAMreadInputDataReady = true;
-                    while (RAMreadInputDataReady) {
+            for (i = 0; i < maxThread; i++) {
+                if (stage1Processing[i]) {
+                    const d = new Date();
+                    tempRAM = new Uint8Array(4);
+                    RAMreadAddressInputStage1[i] = threadInstructionAddressRegister[i];
+                    RAMreadAddress2InputStage1[i] = threadInstructionAddressRegister[i] + 1;
+                    RAMreadInputDataProcessingStage1[i] = true;
+                    while (RAMreadInputDataProcessingStage1[i]) {
                         await sleep(1);
                     }
-                    tempRAM[i] = RAMreadOutput;
-                }
-                if (stage2inputx[0] == JUMPPLUS) {
-                    threadAddress[processnr]+=tempRAM[1]*4;
-		    //jump can be fast
-		} else {
-                    for (i = 2; i < 4; i++) {
-                        RAMreadInput = threadAddress[processnr] + i;
-                        RAMreadInputDataReady = true;
-                        while (RAMreadInputDataReady) {
+                    tempRAM[0] = RAMreadValueOutputStage1[i];
+                    tempRAM[1] = RAMreadValue2OutputStage1[i];
+                    RAMreadInputDataProcessingStage1[i] = true;
+                    if (tempRAM[0] == JUMPPLUS) {
+                        threadInstructionAddress[i] += tempRAM[1] * 4;
+                        //jump can be fast
+                    } else {
+                        RAMreadAddressInputStage1[i] = threadInstructionAddressRegister[i] + 2;
+                        RAMreadAddress2InputStage1[i] = threadInstructionAddressRegister[i] + 3;
+                        RAMreadInputDataProcessingStage1[i] = true;
+                        while (RAMreadInputDataProcessingStage1[i]) {
                             await sleep(1);
                         }
-                        tempRAM[i] = RAMreadOutput;
-                    }
-                    threadAddress[processnr]+=4;
-                    while (stage2busy) {
-                        await sleep(1);
+                        tempRAM[2] = RAMreadValueOutputStage1[i];
+                        tempRAM[3] = RAMreadValue2OutputStage1[i];
+                        threadInstructionAddressRegister[i] += 4;
+                        while (stage2Processing[i]) {
+                            await sleep(1);
+                        }
+                        stage2input[i] = tempRAM[0];
+                        stage2input2[i] = tempRAM[1];
+                        stage2input3[i] = tempRAM[2];
+                        stage2input4[i] = tempRAM[3];
+                        stage2Processing[i] = true;
+
                     }
                     const d2 = new Date();
-                    console.log(dt(d) + dt(d2) + "processing 1 input " + processnr + " " + counter);
-                    stage2input = processnr;
-                    stage2input2 = counter;
-                    for (i = 0; i < 4; i++) {
-                        stage2inputx[i] = tempRAM[i];
-                    }
-                    counter++;
-                    processnr++;
-                    if (processnr == 2) processnr = 0;
-                    stage2inputdataready = true;
+                    console.log(dt(d) + dt(d2) + "stage 1 (fetch) input process=" + i + " counter=" + counterCycles);
+                    stage1Processing[i] = false;
+                    counterCycles++;
                 }
             }
-            if (counter == maxcycles) break;
         }
     }
 
     // instruction decoding
     // with majority instructions we can initiate starting stage 1
     // and go into 3 or later
-    stage2busy = false;
-    stage2input = 0;
-    stage2inputx = new Uint8Array(4);
-    stage2input2 = 0;
-    stage2inputdataready = false;
+    stage2Processing = Array.from({
+        length: maxThread
+    }, () => false);
+    stage2input = new Uint8Array(maxThread);
+    stage2input2 = new Uint8Array(maxThread);
+    stage2input3 = new Uint8Array(maxThread);
+    stage2input4 = new Uint8Array(maxThread);
     async function stage2() {
-        while (true) {
+        while (counterCycles < maxCycles) {
             await sleep(1);
-            if (stage2inputdataready) {
-                stage2busy = true;
-                const d = new Date();
-                await sleep(10);
-                tempALU = false;
-		tempRAMRead = false;
-		tempRAMReadAddress = 0;
-		tempSaveRegister = false;
-		tempSaveRegisterAddress = 0;
-		switch (stage2inputx[0]) {
-                    case LOADFROMRAM8:
-			tempRAMRead = true;
-			tempSaveRegister = true;
-	    		tempRAMReadAddress = stage2inputx[1];
-			tempSaveRegisterAddress= stage2inputx[2];
-			console.log("LOADFROMRAM8 from "+tempRAMReadAddress+" to "+tempSaveRegisterAddress);
-			break;
-		    default:
-			break;
+            for (ii = 0; ii < maxThread; ii++) {
+                if (stage2Processing[ii]) {
+                    const d = new Date();
+                    await sleep(10);
+                    tempRAMReadStage3 = false;
+                    tempRAMReadAddressStage3 = 0;
+                    tempRAMReadLengthStage3 = 0;
+                    tempRAMReadRegisterAddress3 = 0;
+                    tempALUStage4 = false;
+                    tempSaveRAMStage5 = false;
+                    switch (stage2input[ii]) {
+                        case LOADFROMRAM8:
+                            tempRAMReadStage3 = true;
+                            tempRAMReadAddressStage3 = stage2input[ii];
+                            tempRAMReadRegisterAddress3 = stage2input2[ii];
+                            tempRAMReadLengthStage3 = 1;
+                            //RegisterMemoryValid[i][tempRAMReadRegisterAddress3] = false;
+                            tempRAMReadStage3 = true;
+                            console.log("LOADFROMRAM8 from " + tempRAMReadAddressStage3 + " to " + (tempRAMReadAddressStage3 + tempRAMReadLengthStage3));
+                            while (stage1Processing[ii]) {
+                                await sleep(1);
+                            }
+                            stage1Processing[ii]=true;
+                            break;
+                            /*    case SAVETORAM8:
+                                    tempRAMReadStage3 = false;
+                                    tempRAMReadAddressStage3 = stage2input[1];
+                                    tempRAMReadRegisterAddress3 = stage2input[2];
+                                    tempRAMReadLengthStage3 = 1; 
+                                    RegisterMemoryValid[i][tempRAMReadRegisterAddress3]=false;                             
+                                    tempRAMReadStage3 = true;                         
+                                    console.log("LOADFROMRAM8 from " + tempRAMReadAddressStage3 + " to " + (tempRAMReadAddressStage3+tempRAMReadLengthStage3));
+                                    break;*/
+                        default:
+                            break;
+                    }
+                    const d2 = new Date();
+                    console.log(dt(d) + dt(d2) + "stage 2 (decode) input process=" + ii);
+                    if (tempRAMReadStage3) {
+                        while (stage3Processing[ii]) {
+                            await sleep(1);
+                        }
+                        stage3ReadAddressInput[ii] = tempRAMReadAddressStage3;
+                        stage3ReadLengthInput[ii] = tempRAMReadLengthStage3;
+                        stage3Processing[ii] = true;
+                    }
+                    stage2Processing[ii] = false;
                 }
-            	const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 2 input " + stage2input + " " + stage2input2);
-                thread[stage2input] = 0;
-		if (tempRAMRead) {
-            		while (stage3busy) {
-                	    await sleep(1);
-            		}
-                	stage3input = stage2input;
-                	stage3input2 = stage2input2;
-			stage3inputAddress = tempRAMReadAddress;
-		        stage3register = tempSaveRegister;
-		        stage3registerAddress = tempSaveRegisterAddress;
-                	stage3inputdataready = true;
-		}
-                stage2busy = false;
-                stage2inputdataready = false;
             }
-            if (counter == maxcycles) break;
         }
     }
 
     //RAM get
-    stage3busy = false;
-    stage3input = 0;
-    stage3input2 = 0;
-    stage3inputAddress = 0;
-    stage3register = false;
-    stage3registerAddress = 0;
-    stage3inputdataready = false;
+    stage3Processing = Array.from({
+        length: maxThread
+    }, () => false);
+    stage3ReadAddressInput = new Uint8Array(maxThread);
+    stage3ReadLengthInput = new Uint8Array(maxThread);
+    stage3RegisterAddressInput = new Uint8Array(maxThread);
     async function stage3() {
-        while (true) {
+        while (counterCycles < maxCycles) {
             await sleep(1);
-            if (stage3inputdataready) {
-                stage3busy = true;
-                const d = new Date();
-                await sleep(10);
-
-                    RAMread2Input = stage3inputAddress;
-                    RAMread2InputDataReady = true;
-                    while (RAMread2InputDataReady) {
+            for (iii = 0; iii < maxThread; iii++) {
+                if (stage3Processing[iii]) {
+                    const d = new Date();
+                    await sleep(10);
+                    RAMreadAddressInputStage3[iii] = stage3ReadAddressInput[iii];
+                    RAMreadAddress2InputStage3[iii] = stage3ReadAddressInput[iii];
+                    RAMreadInputDataProcessingStage3[iii] = true;
+                    while (RAMreadInputDataProcessingStage3[iii]) {
                         await sleep(1);
                     }
-                    tempRAM = RAMread2Output;
-
-                while (stage5busy) {
-                    await sleep(1);
+                    RegisterMemory[stage3RegisterAddressInput] = RAMreadValueOutputStage3[iii];
+                    tempRAM[1] = RAMreadValue2OutputStage1[iii];
+                    const d2 = new Date();
+                    console.log(dt(d) + dt(d2) + "stage 3 (read RAM) input process=" + iii);
+                    stage3Processing[iii] = false;
                 }
-                const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 3 input " + stage3input + " " + stage3input2);
-                stage5input = stage3input;
-                stage5input2 = stage3input2;
-		stage5Address = stage3registerAddress;
-		stage5Value = tempRAM;
-                stage5inputdataready = true;
-                stage3busy = false;
-                stage3inputdataready = false;
             }
-            if (counter == maxcycles) break;
         }
     }
+
 
     //ALU
-    stage4busy = false;
-    stage4input = 0;
-    stage4input2 = 0;
-    stage4inputdataready = false;
-    async function stage4() {
-        while (true) {
-            await sleep(1);
-            if (stage4inputdataready) {
-                stage4busy = true;
-                const d = new Date();
-                await sleep(10);
-                while (stage5busy) {
-                    await sleep(1);
-                }
-                const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 4 input " + stage4input + " " + stage4input2);
-                stage5input = stage4input;
-                stage5input2 = stage4input2;
-                stage5inputdataready = true;
-                stage4busy = false;
-                stage4inputdataready = false;
-            }
-            if (counter == maxcycles) break;
-        }
-    }
+    /*  stage4Processing = Array.from({
+          length: maxThread
+      }, () => false);
+      stage4busy = false;
+      stage4input = 0;
+      stage4input2 = 0;
+      stage4inputdataready = false;
+      async function stage4() {
+          while (true) {
+              await sleep(1);
+              if (stage4inputdataready) {
+                  stage4busy = true;
+                  const d = new Date();
+                  await sleep(10);
+                  while (stage5busy) {
+                      await sleep(1);
+                  }
+                  const d2 = new Date();
+                  console.log(dt(d) + dt(d2) + "processing 4 input " + stage4input + " " + stage4input2);
+                  stage5input = stage4input;
+                  stage5input2 = stage4input2;
+                  stage5inputdataready = true;
+                  stage4busy = false;
+                  stage4inputdataready = false;
+              }
+              if (counter == maxcycles) break;
+          }
+      }*/
 
     //RAM save
-    //we just initiate memory saving and go further
-    stage5busy = false;
-    stage5input = 0;
-    stage5input2 = 0;
-    stage5Address = 0;
-    stage5Value = 0;
-    stage5inputdataready = false;
-    async function stage5() {
-        while (true) {
-            await sleep(1);
-            if (stage5inputdataready) {
-                stage5busy = true;
-                const d = new Date();
-                await sleep(10);
-                const d2 = new Date();
-                console.log(dt(d) + dt(d2) + "processing 5 input " + stage5input + " " + stage5input2);
-                while (RAMsaveBusy) {
-                    await sleep(1);
-                }
-	        RAMsaveAddressInput = stage5Address;
-	        RAMsaveValueInput = stage5Value;
-                RAMsaveInputDataReady = true;
-                stage5busy = false;
-                stage5inputdataready = false;
-            }
-            if (counter == maxcycles) break;
-        }
-    }
+    //we can just initiate memory saving and go further
+    /*  stage5Processing = Array.from({
+          length: maxThread
+      }, () => false);
+      stage5input = 0;
+      stage5input2 = 0;
+      stage5Address = 0;
+      stage5Value = 0;
+      stage5inputdataready = false;
+      async function stage5() {
+          while (true) {
+              await sleep(1);
+              if (stage5inputdataready) {
+                  stage5busy = true;
+                  const d = new Date();
+                  await sleep(10);
+                  const d2 = new Date();
+                  console.log(dt(d) + dt(d2) + "processing 5 input " + stage5input + " " + stage5input2);
+                  while (RAMsaveBusy) {
+                      await sleep(1);
+                  }
+                  RAMsaveAddressInput = stage5Address;
+                  RAMsaveValueInput = stage5Value;
+                  RAMsaveInputDataReady = true;
+                  stage5busy = false;
+                  stage5inputdataready = false;
+              }
+              if (counter == maxcycles) break;
+          }
+      }*/
 
-    threadAddress[0] = 11;
-    threadRegisterAddress[0] = 0;
-    threadAddress[1] = 111;
-    threadRegisterAddress[1] = 100;
+    threadInstructionAddressRegister[0] = 11;
+    threadInstructionAddressRegister[1] = 111;
+    stage1Processing[0] = true;
+    stage1Processing[1] = true;
 
     RAMMemory[11] = LOADFROMRAM8;
     RAMMemory[12] = 49; //source address
@@ -294,8 +324,8 @@
     stage1();
     stage2();
     stage3();
-    stage4();
-    stage5();
+    //  stage4();
+    //  stage5();
 
     //cache organization:
     //cache divided into two parts
