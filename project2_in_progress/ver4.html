@@ -17,6 +17,7 @@
     }
 
     function sleep(ms) {
+//	if (ms == 1) console.log("one sleep");
         if (ms == 10) instructionZeroLength++;
         return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -69,7 +70,6 @@
     }, () => false);
     async function RAM() {
         while (counterCycles < maxCycles) {
-            await sleep(1);
             for (z = 0; z < maxThread; z++) {
                 if (RAMreadInputDataProcessingStage1[z]) {
                     const d = new Date();
@@ -81,8 +81,7 @@
                         RAMreadAddressInputStage1[z] + "=" + RAMreadValueOutputStage1[z] + " " +
                         RAMreadAddress2InputStage1[z] + "=" + RAMreadValue2OutputStage1[z]);
                     RAMreadInputDataProcessingStage1[z] = false;
-                }
-                if (RAMreadInputDataProcessingStage3[z]) {
+                } else if (RAMreadInputDataProcessingStage3[z]) {
                     const d = new Date();
                     await sleep(10);
                     const d2 = new Date();
@@ -102,6 +101,7 @@
                     RAMsaveInputDataProcessingStage5[z] = false;
                 }
             }
+            await sleep(1);
         }
     }
 
@@ -110,8 +110,8 @@
     }, () => false);
     //instruction fetching
     async function stage1() {
+                    const d0 = new Date();
         while (counterCycles < maxCycles) {
-            await sleep(1);
             for (i = 0; i < maxThread; i++) {
                 if (stage1Processing[i]) {
                     const d = new Date();
@@ -172,8 +172,10 @@
                 }
                 counterCycles++;
             }
+            await sleep(1);
         }
-        console.log("average length = " + instructionLength + " normalLength = " + (instructionZeroLength * 10 / instructionNum));
+                    const d00 = new Date();
+        console.log("average length = " + instructionLength + " normalLength = " + (instructionZeroLength * 10 / instructionNum)+" simulation length = "+(d00-d0));
     }
 
     // instruction decoding
@@ -195,7 +197,6 @@
 
     async function stage2() {
         while (counterCycles < maxCycles) {
-            await sleep(1);
             for (ii = 0; ii < maxThread; ii++) {
                 if (stage2Processing[ii]) {
                     const d = new Date();
@@ -208,7 +209,6 @@
                     tempRAMSaveStage5 = false;
                     tempRAMSaveAddressStage5 = 0;
                     tempRAMSaveValueStage5 = 0;
-
                     switch (stage2input[ii]) {
                         case LOADFROMRAM8:
                             tempRAMReadStage3 = true;
@@ -256,6 +256,7 @@
                     stage2Processing[ii] = false;
                 }
             }
+            await sleep(1);
         }
     }
 
@@ -271,7 +272,6 @@
     stage3RegisterAddressInput = new Uint8Array(maxThread);
     async function stage3() {
         while (counterCycles < maxCycles) {
-            await sleep(1);
             for (iii = 0; iii < maxThread; iii++) {
                 if (stage3Processing[iii]) {
                     const d = new Date();
@@ -293,6 +293,7 @@
                     stage3Processing[iii] = false;
                 }
             }
+            await sleep(1);
         }
     }
 
@@ -338,11 +339,9 @@
     stage5SaveValueInput = new Uint8Array(maxThread);
     async function stage5() {
         while (counterCycles < maxCycles) {
-            await sleep(1);
             for (iiiii = 0; iiiii < maxThread; iiiii++) {
                 if (stage5Processing[iiiii]) {
                     const d = new Date();
-
                     RAMsaveAddressInputStage5[iiiii] = stage5SaveAddressInput[iiiii];
                     RAMsaveValueInputStage5[iiiii] = stage5SaveValueInput[iiiii];
                     RAMsaveInputDataProcessingStage5[iiiii] = true;
@@ -356,6 +355,7 @@
                     stage5Processing[iiiii] = false;
                 }
             }
+            await sleep(1);
         }
     }
 
