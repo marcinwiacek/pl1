@@ -22,7 +22,7 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    const maxThread = 2;
+    const maxThread = 1;
     const maxCycles = 200; //setup to 0 to have infinite execution
 
     //stats
@@ -175,7 +175,7 @@
             await sleep(1);
         }
                     const d00 = new Date();
-        console.log("average length = " + instructionLength + " normalLength = " + (instructionZeroLength * 10 / instructionNum)+" simulation length = "+(d00-d0));
+        console.log("average length = " + instructionLength + " normalLength = " + (instructionZeroLength * 10 / instructionNum)+" simulation length = "+(d00-d0)+" length="+((d00-d0)/instructionNum)+" instructionnum="+instructionNum);
     }
 
     // instruction decoding
@@ -210,7 +210,20 @@
                     tempRAMSaveStage5 = false;
                     tempRAMSaveAddressStage5 = 0;
                     tempRAMSaveValueStage5 = 0;
+                    const d2 = new Date();
                     switch (stage2input[ii]) {
+/*			case JUMPPLUS:
+                        threadInstructionAddressRegister[ii] += stage2input2[ii] * 4;
+                    await sleep(10);
+                        instructionLength = (instructionLength + (d2 - d)) / 2;
+                        console.log("JUMPPLUS  " + stage2input2[ii]);                       
+break;
+			case JUMPMINUS:
+                        threadInstructionAddressRegister[ii] -= stage2input2[ii] * 4;
+                    await sleep(10);
+                        instructionLength = (instructionLength + (d2 - d)) / 2;
+                        console.log("JUMPPLUS  " + stage2input2[ii]);
+break;*/
                         case LOADFROMRAM8:
                             tempRAMReadStage3 = true;
                             tempRAMReadAddressStage3 = stage2input[ii];
@@ -230,7 +243,6 @@
                         default:
                             break;
                     }
-                    const d2 = new Date();
                     console.log(dt(d) + dt(d2) + "stage 2 (decode) input process=" + ii+" address="+stage2inputaddress[ii]);
                     if (tempRAMReadStage3) {
                         while (stage3Processing[ii]) {
