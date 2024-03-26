@@ -17,12 +17,12 @@
     }
 
     function sleep(ms) {
-//	if (ms == 1) console.log("one sleep");
+        //	if (ms == 1) console.log("one sleep");
         if (ms == 10) instructionZeroLength++;
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    const maxThread = 2;
+    const maxThread = 1;
     const maxCycles = 200; //setup to 0 to have infinite execution
 
     //stats
@@ -92,7 +92,8 @@
                         RAMreadAddressInputStage1[z] + "=" + RAMreadValueOutputStage1[z] + " " +
                         RAMreadAddress2InputStage1[z] + "=" + RAMreadValue2OutputStage1[z]);
                     RAMreadInputDataProcessingStage1[z] = false;
-                } 
+                }  
+                
                 if (RAMsaveInputDataProcessingStage5[z]) {
                     const d = new Date();
                     await sleep(10);
@@ -111,7 +112,7 @@
     }, () => false);
     //instruction fetching
     async function stage1() {
-                    const d0 = new Date();
+        const d0 = new Date();
         while (counterCycles < maxCycles) {
             for (i = 0; i < maxThread; i++) {
                 if (stage1Processing[i]) {
@@ -124,27 +125,27 @@
                         await sleep(1);
                     }
                     tempRAM[0] = RAMreadValueOutputStage1[i];
-                    tempRAM[1] = RAMreadValue2OutputStage1[i];                  
+                    tempRAM[1] = RAMreadValue2OutputStage1[i];
                     instructionNum++;
                     if (tempRAM[0] == JUMPPLUS) {
                         threadInstructionAddressRegister[i] += tempRAM[1] * 4;
                         //jump can be fast
                         const d2 = new Date();
                         instructionLength = (instructionLength + (d2 - d)) / 2;
-                        
+
                         console.log(dt(d) + dt(d2) + "stage 1 (fetch) input process=" + i + " address=" + threadInstructionAddressRegister[i] + " len=" + (d2 - d));
                         console.log("JUMPPLUS  " + tempRAM[1]);
-                       
+
                     } else if (tempRAM[0] == JUMPMINUS) {
                         threadInstructionAddressRegister[i] -= tempRAM[1] * 4;
                         //jump can be fast
                         const d2 = new Date();
                         instructionLength = (instructionLength + (d2 - d)) / 2;
-                        
+
                         console.log(dt(d) + dt(d2) + "stage 1 (fetch) input process=" + i + " address=" + threadInstructionAddressRegister[i] + " len=" + (d2 - d));
                         console.log("JUMPMINUS  " + tempRAM[1]);
-                       
-                    } else {                        
+
+                    } else {
                         RAMreadAddressInputStage1[i] = threadInstructionAddressRegister[i] + 2;
                         RAMreadAddress2InputStage1[i] = threadInstructionAddressRegister[i] + 3;
                         RAMreadInputDataProcessingStage1[i] = true;
@@ -154,112 +155,72 @@
                         tempRAM[2] = RAMreadValueOutputStage1[i];
                         tempRAM[3] = RAMreadValue2OutputStage1[i];
                         threadInstructionAddressRegister[i] += 4;
-                        while (stage2Processing[i]) {
-                            await sleep(1);
-                            console.log("waiting stage 2");
+                        
+
+
+                        tempRAMReadStage3 = false;
+                        tempRAMReadAddressStage3 = 0;
+                        tempRAMReadLengthStage3 = 0;
+                        tempRAMReadRegisterAddress3 = 0;
+                        tempALUStage4 = false;
+                        tempRAMSaveStage5 = false;
+                        tempRAMSaveAddressStage5 = 0;
+                        tempRAMSaveValueStage5 = 0;
+                        switch (tempRAM[0]) {
+                            case LOADFROMRAM8:
+                                tempRAMReadStage3 = true;
+                                tempRAMReadAddressStage3 = tempRAM[1];
+                                tempRAMReadRegisterAddress3 = tempRAM[2];
+                                tempRAMReadLengthStage3 = 1;
+                                //RegisterMemoryValid[i][tempRAMReadRegisterAddress3] = false;
+                                tempRAMReadStage3 = true;
+                                console.log("LOADFROMRAM8 from " + tempRAMReadAddressStage3 + " to " + (tempRAMReadAddressStage3 + tempRAMReadLengthStage3));
+                                break;
+                            case SAVETORAM8:
+                                tempRAMReadStage3 = false;
+                                tempRAMSaveStage5 = true;
+                                tempRAMSaveValueStage5 = RegisterMemory[i][tempRAM[1]];
+                                tempRAMSaveAddressStage5 = tempRAM[2];
+                                console.log("SAVETORAM8 from " + tempRAM[0] + " " + i + " " + RegisterMemory[i][tempRAM[0]] + " " + tempRAMSaveAddressStage5 + " to " + tempRAMSaveValueStage5);
+                                break;
+                            default:
+                                stage1Processing[i] = false;
+                                break;
                         }
-                        stage2input[i] = tempRAM[0];
-                        stage2input2[i] = tempRAM[1];
-                        stage2input3[i] = tempRAM[2];
-                        stage2input4[i] = tempRAM[3];
-                        stage2DTStart[i] = d;
-                        stage2inputaddress[i] = threadInstructionAddressRegister[i];
-                        stage2Processing[i] = true;
-                        const d2 = new Date();                                            
-                        console.log(dt(d) + dt(d2) + "stage 1 (fetch) input process=" + i + " address=" + threadInstructionAddressRegister[i] );
-                        stage1Processing[i] = false;
+                        if (tempRAMReadStage3) {
+                            while (stage3Processing[i]) {
+                                await sleep(1);
+                                console.log("waiting stage 3");
+                            }
+                            stage3ReadAddressInput[i] = tempRAMReadAddressStage3;
+                            stage3ReadLengthInput[i] = tempRAMReadLengthStage3;
+                            stage3DTStart[i] = d;
+                            stage3inputaddress[i] = threadInstructionAddressRegister[i];
+                            stage3Processing[i] = true;
+                        }
+                        if (tempRAMSaveStage5) {
+                            while (stage5Processing[i]) {
+                                await sleep(1);
+                                console.log("waiting stage 5");
+                            }
+                            stage5SaveAddressInput[i] = tempRAMSaveAddressStage5;
+                            stage5SaveValueInput[i] = tempRAMSaveValueStage5;
+                            stage5DTStart[i] = d;
+                            stage5inputaddress[i] = threadInstructionAddressRegister[i];
+                            stage5Processing[i] = true;
+                        }
+                        const d2 = new Date();
+                        console.log(dt(d) + dt(d2) + "stage 1&2 (fetch,decode) input process=" + i + " address=" + threadInstructionAddressRegister[i]);
                     }
                 }
                 counterCycles++;
             }
             await sleep(1);
         }
-                    const d00 = new Date();
-        console.log("average length = " + instructionLength + " normalLength = " + (instructionZeroLength * 10 / instructionNum)+" simulation length = "+(d00-d0));
+        const d00 = new Date();
+        console.log("average length = " + instructionLength + " normalLength = " + (instructionZeroLength * 10 / instructionNum) + " simulation length = " + (d00 - d0));
     }
 
-    // instruction decoding
-    // with majority instructions we can initiate starting stage 1
-    // and go into 3 or later
-    stage2Processing = Array.from({
-        length: maxThread
-    }, () => false);
-    stage2DTStart = Array.from({
-        length: maxThread
-    }, () => new Date());
-    stage2input = new Uint8Array(maxThread);
-    stage2input2 = new Uint8Array(maxThread);
-    stage2input3 = new Uint8Array(maxThread);
-    stage2input4 = new Uint8Array(maxThread);
-    stage2inputaddress = new Uint8Array(maxThread); 
-    stage2inputStart = Array.from({
-        length: maxThread
-    }, () => new Date());
-    async function stage2() {
-        while (counterCycles < maxCycles) {
-            for (ii = 0; ii < maxThread; ii++) {
-                if (stage2Processing[ii]) {            
-                    const d = new Date();
-                    await sleep(10);
-                    stage1Processing[ii] = true;        
-                    tempRAMReadStage3 = false;
-                    tempRAMReadAddressStage3 = 0;
-                    tempRAMReadLengthStage3 = 0;
-                    tempRAMReadRegisterAddress3 = 0;
-                    tempALUStage4 = false;
-                    tempRAMSaveStage5 = false;
-                    tempRAMSaveAddressStage5 = 0;
-                    tempRAMSaveValueStage5 = 0;
-                    switch (stage2input[ii]) {
-                        case LOADFROMRAM8:
-                            tempRAMReadStage3 = true;
-                            tempRAMReadAddressStage3 = stage2input[ii];
-                            tempRAMReadRegisterAddress3 = stage2input2[ii];
-                            tempRAMReadLengthStage3 = 1;
-                            //RegisterMemoryValid[i][tempRAMReadRegisterAddress3] = false;
-                            tempRAMReadStage3 = true;
-                            console.log("LOADFROMRAM8 from " + tempRAMReadAddressStage3 + " to " + (tempRAMReadAddressStage3 + tempRAMReadLengthStage3));                           
-                            break;
-                        case SAVETORAM8:
-                            tempRAMReadStage3 = false;
-                            tempRAMSaveStage5 = true;
-                            tempRAMSaveValueStage5 = RegisterMemory[ii][stage2input2[ii]];
-                            tempRAMSaveAddressStage5 = stage2input3[ii];
-                            console.log("SAVETORAM8 from " + stage2input2[ii] + " " + ii + " " + RegisterMemory[ii][stage2input2[ii]] + " " + tempRAMSaveAddressStage5 + " to " + tempRAMSaveValueStage5);                            
-                            break;
-                        default:
-                            break;
-                    }
-                    const d2 = new Date();
-                    console.log(dt(d) + dt(d2) + "stage 2 (decode) input process=" + ii+" address="+stage2inputaddress[ii]);
-                    if (tempRAMReadStage3) {
-                        while (stage3Processing[ii]) {
-                            await sleep(1);
-                            console.log("waiting stage 3");
-                        }
-                        stage3ReadAddressInput[ii] = tempRAMReadAddressStage3;
-                        stage3ReadLengthInput[ii] = tempRAMReadLengthStage3;
-                        stage3DTStart[ii] = stage2DTStart[ii];
-                        stage3inputaddress[ii] = stage2inputaddress[ii];
-                        stage3Processing[ii] = true;
-                    }
-                    if (tempRAMSaveStage5) {
-                        while (stage5Processing[ii]) {
-                            await sleep(1);
-                            console.log("waiting stage 5");
-                        }
-                        stage5SaveAddressInput[ii] = tempRAMSaveAddressStage5;
-                        stage5SaveValueInput[ii] = tempRAMSaveValueStage5;
-                        stage5DTStart[ii] = stage2DTStart[ii];
-                        stage5inputaddress[ii] = stage2inputaddress[ii];
-                        stage5Processing[ii] = true;
-                    }
-                    stage2Processing[ii] = false;
-                }
-            }
-            await sleep(1);
-        }
-    }
 
     //RAM get
     stage3Processing = Array.from({
@@ -271,7 +232,7 @@
     stage3ReadAddressInput = new Uint8Array(maxThread);
     stage3ReadLengthInput = new Uint8Array(maxThread);
     stage3RegisterAddressInput = new Uint8Array(maxThread);
-    stage3inputaddress = new Uint8Array(maxThread); 
+    stage3inputaddress = new Uint8Array(maxThread);
     async function stage3() {
         while (counterCycles < maxCycles) {
             for (iii = 0; iii < maxThread; iii++) {
@@ -287,8 +248,8 @@
                     tempRAM[1] = RAMreadValue2OutputStage1[iii];
                     const d2 = new Date();
                     instructionLength = (instructionLength + (d2 - stage3DTStart[iii])) / 2;
-        
-                    console.log(dt(d) + dt(d2) + "stage 3 (read RAM) input process=" + iii + " address="+stage3inputaddress[iii]+" start=" + dt(stage3DTStart[iii]) + " len=" + (d2 - stage3DTStart[iii]));
+
+                    console.log(dt(d) + dt(d2) + "stage 3 (read RAM) input process=" + iii + " address=" + stage3inputaddress[iii] + " start=" + dt(stage3DTStart[iii]) + " len=" + (d2 - stage3DTStart[iii]));
                     stage3Processing[iii] = false;
                 }
             }
@@ -336,7 +297,7 @@
     }, () => new Date());
     stage5SaveAddressInput = new Uint8Array(maxThread);
     stage5SaveValueInput = new Uint8Array(maxThread);
-        stage5inputaddress = new Uint8Array(maxThread); 
+    stage5inputaddress = new Uint8Array(maxThread);
 
     async function stage5() {
         while (counterCycles < maxCycles) {
@@ -351,8 +312,8 @@
                     }
                     const d2 = new Date();
                     instructionLength = (instructionLength + (d2 - stage5DTStart[iiiii])) / 2;
-     
-                    console.log(dt(d) + dt(d2) + "stage 5 (save RAM) input process=" + iiiii + " address="+stage5inputaddress[iiiii]+" start=" + dt(stage5DTStart[iiiii]) + " len=" + (d2 - stage5DTStart[iiiii]));
+
+                    console.log(dt(d) + dt(d2) + "stage 5 (save RAM) input process=" + iiiii + " address=" + stage5inputaddress[iiiii] + " start=" + dt(stage5DTStart[iiiii]) + " len=" + (d2 - stage5DTStart[iiiii]));
                     stage5Processing[iiiii] = false;
                 }
             }
@@ -377,7 +338,7 @@
     RAMMemory[23] = JUMPMINUS;
     RAMMemory[24] = 3;
     RAMMemory[49] = 127;
-    
+
     RAMMemory[111] = LOADFROMRAM8;
     RAMMemory[112] = 149; //source address
     RAMMemory[113] = 1; //target(register) address
@@ -393,7 +354,7 @@
 
     RAM();
     stage1();
-    stage2();
+
     stage3();
     //  stage4();
     stage5();
