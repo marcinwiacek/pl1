@@ -2,27 +2,22 @@
 `define OPCODE_JUMPMINUS 2
 
 module cpu(input rst, input ram_clk);
+  reg [7:0]registers[0:511];
+ 
   reg stage12_clk;
-  reg [15:0]pc;
   wire stage12_ready;
   wire [15:0]stage3_read_address;
   wire stage3_read;
   
-  stage12 stage12(.pc(pc), .stage12_clk(stage12_clk), .rst(rst),.ram_clk(ram_clk),
+  stage12 stage12(.stage12_clk(stage12_clk), .rst(rst),.ram_clk(ram_clk),
   	.stage12_ready(stage12_ready),.stage3_read_address(stage3_read_address), .stage3_read(stage3_read));
   
   always @(rst) begin
-    	$display($time,"reset");
-    	pc=0;
+    	$display($time,"reset1");
     	stage12_clk=1;
   end
   always @(posedge stage12_ready) begin
 	$display($time,"posedge stage12ready");
-	//if (instruction[0]=OPCODE_JUMPMINUS) begin
-	//	pc-=instruction[1]*4;
-//	end else begin
-	   	pc=pc+4;
-//	end
        	stage12_clk=0;
   end
   always @(negedge stage12_clk) begin
@@ -31,7 +26,7 @@ module cpu(input rst, input ram_clk);
   end
 endmodule
 
-module stage12(input [15:0]pc, input stage12_clk, input rst,input ram_clk,
+module stage12(input stage12_clk, input rst,input ram_clk,
   output reg stage12_ready, output reg [15:0]stage3_read_address, output reg stage3_read);
   reg ram_write_enable;
   reg [15:0]ram_address;
@@ -41,7 +36,12 @@ module stage12(input [15:0]pc, input stage12_clk, input rst,input ram_clk,
   	.data_out(ram_data_out));
 
   reg [7:0]instruction[0:3];
+  reg [15:0]pc;
  
+  always @(rst) begin
+    	$display($time,"reset2");
+    	pc=0;
+  end
   always @ (stage12_clk) begin
 	stage12_ready <= 0;
     	ram_write_enable = 0; 
@@ -69,8 +69,10 @@ module stage12(input [15:0]pc, input stage12_clk, input rst,input ram_clk,
 		$display($time," READRAM8");
 		stage3_read<=1;
 		stage3_read_address=instruction[1];
+		pc+=4;
 	end else if (instruction[0]==`OPCODE_JUMPMINUS) begin
 		$display($time," JUMPMINUS");
+		pc-=instruction[1]*4;
 	end
 	stage12_ready<=1;
   end
