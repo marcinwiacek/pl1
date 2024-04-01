@@ -16,13 +16,18 @@ module cpu(input rst, input ram_clk);
   wire [15:0] stage12_ram_read_address;
   wire stage12_ram_read_ready;
   wire [7:0] stage12_ram_read_data_out;
-	
+  wire stage3_ram_read;
+  wire [15:0] stage3_ram_read_address;
+  wire stage3_ram_read_ready;
+  wire [7:0] stage3_ram_read_data_out;
+  	
   ram2 ram2(.ram_clk(ram_clk), .stage12_read(stage12_ram_read), .stage12_read_address(stage12_ram_read_address),
-	.stage12_read_ready(stage12_ram_read_ready), .stage12_read_data_out(stage12_ram_read_data_out));
+	.stage12_read_ready(stage12_ram_read_ready), .stage12_read_data_out(stage12_ram_read_data_out),
+	.stage3_read(stage3_ram_read), .stage3_read_address(stage3_ram_read_address),
+	.stage3_read_ready(stage3_ram_read_ready), .stage3_read_data_out(stage3_ram_read_data_out));
 	
   stage12 stage12(.stage12_clk(stage12_clk), .rst(rst),
   	.stage12_ready(stage12_ready),.stage3_read_address(stage3_read_address), .stage3_read(stage3_read),
-  	
   	.stage12_ram_read(stage12_ram_read), .stage12_ram_read_address(stage12_ram_read_address),
 	.stage12_ram_read_ready(stage12_ram_read_ready), .stage12_ram_read_data_out(stage12_ram_read_data_out));
   
@@ -98,8 +103,28 @@ module stage12(input stage12_clk, input rst,input ram_clk,
   end
 endmodule
 
+module stage3(input stage3_clk, input rst,
+  output reg stage3_ready, input [15:0]stage3_read_address, input stage3_read,
+  output reg stage3_ram_read, output reg [15:0] stage3_ram_read_address,
+	input stage3_ram_read_ready, input [7:0] stage3_ram_read_data_out);
+ 
+    always @(posedge stage3_ram_read_ready) begin
+  	stage3_ram_read <= 0;
+  end
+  always @(stage3_clk) begin
+	stage3_ready <= 0;
+	stage3_ram_read_address <= stage3_read_address;
+	stage3_ram_read <= 1;
+	@(posedge stage3_ram_read_ready)
+	stage3_ram_read <= 0;
+	stage3_ready<=1;
+  end
+endmodule
+
 module ram2(input ram_clk, input stage12_read, input [15:0] stage12_read_address,
-	output reg stage12_read_ready, output reg [7:0] stage12_read_data_out);
+	output reg stage12_read_ready, output reg [7:0] stage12_read_data_out,
+	input stage3_read, input [15:0] stage3_read_address,
+	output reg stage3_read_ready, output reg [7:0] stage3_read_data_out);
   reg ram_write_enable;
   reg [15:0]ram_address;
   reg [7:0]ram_data_in;
@@ -108,13 +133,14 @@ module ram2(input ram_clk, input stage12_read, input [15:0] stage12_read_address
   	.data_out(ram_data_out));
   
   always @(posedge stage12_read) begin
-  	stage12_read_ready = 0;
-  	ram_write_enable = 0; 
-	ram_address = stage12_read_address;
-	@(posedge ram_clk)
-	@(posedge ram_clk)
-	stage12_read_data_out <= ram_data_out;
-	stage12_read_ready<=1;
+  		stage12_read_ready <= 0;
+  		ram_write_enable = 0; 
+		ram_address = stage12_read_address;
+		$display($time," reading RAM from stage12 address ",stage12_read_address);
+		@(posedge ram_clk)
+		@(posedge ram_clk)
+		stage12_read_data_out <= ram_data_out;
+		stage12_read_ready<=1;
   end
 endmodule
 
