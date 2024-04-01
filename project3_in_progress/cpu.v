@@ -57,9 +57,6 @@ module stage12(input stage12_clk, input rst,input ram_clk,
     	$display($time,"reset2");
     	pc=0;
   end
-    always @(posedge stage12_ram_read_ready) begin
-  	stage12_ram_read <= 0;
-  end
   always @(stage12_clk) begin
 	stage12_ready <= 0;
 	$display($time," executing pc ",pc);
@@ -76,15 +73,15 @@ module stage12(input stage12_clk, input rst,input ram_clk,
 	instruction[1] = stage12_ram_read_data_out;
 
 	stage12_ram_read_address <= pc+2;
-	stage12_ram_read = 1;
+	stage12_ram_read <= 1;
 	@(posedge stage12_ram_read_ready)
-	stage12_ram_read = 0;
+	stage12_ram_read <= 0;
 	instruction[2] = stage12_ram_read_data_out;
 
 	stage12_ram_read_address <= pc+3;
-	stage12_ram_read = 1;
+	stage12_ram_read <= 1;
 	@(posedge stage12_ram_read_ready)
-	stage12_ram_read = 0;
+	stage12_ram_read <= 0;
 	instruction[3] = stage12_ram_read_data_out;
 
 	$display($time," ",instruction[0], " ", instruction[1]," ",
@@ -133,14 +130,14 @@ module ram2(input ram_clk, input stage12_read, input [15:0] stage12_read_address
   	.data_out(ram_data_out));
   
   always @(posedge stage12_read) begin
-  		stage12_read_ready <= 0;
-  		ram_write_enable = 0; 
-		ram_address = stage12_read_address;
-		$display($time," reading RAM from stage12 address ",stage12_read_address);
-		@(posedge ram_clk)
-		@(posedge ram_clk)
-		stage12_read_data_out <= ram_data_out;
-		stage12_read_ready<=1;
+  	stage12_read_ready <= 0;
+  	ram_write_enable = 0; 	
+	ram_address = stage12_read_address;
+  	$display($time," reading RAM from stage12 address ",stage12_read_address);
+	@(posedge ram_clk)
+	@(posedge ram_clk)
+	stage12_read_data_out <= ram_data_out;
+	stage12_read_ready<=1;
   end
 endmodule
 
