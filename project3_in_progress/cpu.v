@@ -21,8 +21,11 @@ module cpu(input rst, input ram_clk);
   wire stage3_ram_read_ready;
   wire [7:0] stage3_ram_read_data_out;
   	
-  ram2 ram2(.ram_clk(ram_clk), .stage12_read(stage12_ram_read), .stage12_read_address(stage12_ram_read_address),
+  ram2 ram2(.ram_clk(ram_clk),
+
+  	.stage12_read(stage12_ram_read), .stage12_read_address(stage12_ram_read_address),
 	.stage12_read_ready(stage12_ram_read_ready), .stage12_read_data_out(stage12_ram_read_data_out),
+	
 	.stage3_read(stage3_ram_read), .stage3_read_address(stage3_ram_read_address),
 	.stage3_read_ready(stage3_ram_read_ready), .stage3_read_data_out(stage3_ram_read_data_out));
 	
@@ -30,6 +33,11 @@ module cpu(input rst, input ram_clk);
   	.stage12_ready(stage12_ready),.stage3_read_address(stage3_read_address), .stage3_read(stage3_read),
   	.stage12_ram_read(stage12_ram_read), .stage12_ram_read_address(stage12_ram_read_address),
 	.stage12_ram_read_ready(stage12_ram_read_ready), .stage12_ram_read_data_out(stage12_ram_read_data_out));
+	
+  stage3 stage3(.stage3_clk(stage3_clk), .rst(rst),
+  	.stage3_ready(stage3_ready),
+  	.stage3_ram_read(stage3_ram_read), .stage3_ram_read_address(stage3_ram_read_address),
+	.stage3_ram_read_ready(stage3_ram_read_ready), .stage3_ram_read_data_out(stage3_ram_read_data_out));
   
   always @(rst) begin
     	$display($time,"reset1");
@@ -47,6 +55,7 @@ endmodule
 
 module stage12(input stage12_clk, input rst,input ram_clk,
   output reg stage12_ready, output reg [15:0]stage3_read_address, output reg stage3_read,
+  
   output reg stage12_ram_read, output reg [15:0] stage12_ram_read_address,
 	input stage12_ram_read_ready, input [7:0] stage12_ram_read_data_out);
  
@@ -57,7 +66,7 @@ module stage12(input stage12_clk, input rst,input ram_clk,
     	$display($time,"reset2");
     	pc=0;
   end
-  always @(stage12_clk) begin
+  always @(posedge stage12_clk) begin
 	stage12_ready <= 0;
 	$display($time," executing pc ",pc);
 	stage12_ram_read_address <= pc;
@@ -102,13 +111,14 @@ endmodule
 
 module stage3(input stage3_clk, input rst,
   output reg stage3_ready, input [15:0]stage3_read_address, input stage3_read,
+  
   output reg stage3_ram_read, output reg [15:0] stage3_ram_read_address,
 	input stage3_ram_read_ready, input [7:0] stage3_ram_read_data_out);
  
     always @(posedge stage3_ram_read_ready) begin
   	stage3_ram_read <= 0;
   end
-  always @(stage3_clk) begin
+  always @(posedge stage3_clk) begin
 	stage3_ready <= 0;
 	stage3_ram_read_address <= stage3_read_address;
 	stage3_ram_read <= 1;
@@ -118,10 +128,10 @@ module stage3(input stage3_clk, input rst,
   end
 endmodule
 
-module ram2(input ram_clk, input stage12_read, input [15:0] stage12_read_address,
-	output reg stage12_read_ready, output reg [7:0] stage12_read_data_out,
-	input stage3_read, input [15:0] stage3_read_address,
-	output reg stage3_read_ready, output reg [7:0] stage3_read_data_out);
+module ram2(input ram_clk,
+	input stage12_read, input [15:0] stage12_read_address, output reg stage12_read_ready, output reg [7:0] stage12_read_data_out,
+	input stage3_read,  input [15:0] stage3_read_address,  output reg stage3_read_ready,  output reg [7:0] stage3_read_data_out);
+
   reg ram_write_enable;
   reg [15:0]ram_address;
   reg [7:0]ram_data_in;
@@ -130,6 +140,7 @@ module ram2(input ram_clk, input stage12_read, input [15:0] stage12_read_address
   	.data_out(ram_data_out));
   
   always @(posedge stage12_read or posedge stage3_read) begin
+  	$display($time," ",stage12_read," ",stage3_read);
   	if (stage12_read) begin
   		stage12_read_ready <= 0;
   		ram_write_enable = 0; 	
