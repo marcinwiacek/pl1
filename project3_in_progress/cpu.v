@@ -129,15 +129,19 @@ module ram2(input ram_clk, input stage12_read, input [15:0] stage12_read_address
   ram ram(.ram_clk(ram_clk),.write_enable(ram_write_enable),.address(ram_address),.data_in(ram_data_in),
   	.data_out(ram_data_out));
   
-  always @(posedge stage12_read) begin
-  	stage12_read_ready <= 0;
-  	ram_write_enable = 0; 	
-	ram_address = stage12_read_address;
-  	$display($time," reading RAM from stage12 address ",stage12_read_address);
-	@(posedge ram_clk)
-	@(posedge ram_clk)
-	stage12_read_data_out <= ram_data_out;
-	stage12_read_ready<=1;
+  always @(posedge stage12_read or posedge stage3_read) begin
+  	if (stage12_read) begin
+  		stage12_read_ready <= 0;
+  		ram_write_enable = 0; 	
+		ram_address = stage12_read_address;
+  		$display($time," reading RAM from stage12 address ",stage12_read_address);
+		@(posedge ram_clk)
+		@(posedge ram_clk)
+		stage12_read_data_out <= ram_data_out;
+		stage12_read_ready<=1;
+	end else begin
+		$display($time," problem");
+	end
   end
 endmodule
 
