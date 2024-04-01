@@ -145,15 +145,15 @@ module ram2(input ram_clk, input stage12_read, input [15:0] stage12_read_address
 endmodule
 
 // we have to use standard RAM = definition is "as is"
-module ram(input ram_clk,input write_enable,input [15:0]address,input [7:0]data_in,
-	output reg [7:0]data_out);
-  reg [7:0]ram_memory[0:65536];
+module ram(input ram_clk, input write_enable, input [15:0] address,input [7:0] data_in,
+	output reg [7:0] data_out);
+  reg [7:0] ram_memory[0:65536];
   
   initial begin
     $readmemh("rom.mem", ram_memory);
   end
   always @(posedge ram_clk) begin
-    if(write_enable)
+    if (write_enable)
         ram_memory[address] <= data_in;
     else
         data_out <= ram_memory[address];
