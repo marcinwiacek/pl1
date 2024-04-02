@@ -4,6 +4,12 @@
 
 `define OPER_ADD 1
 
+//`define DEBUG_LEVEL 2 //higher=more info
+//`define DEBUG1(TXT) \
+//    	if (`DEBUG_LEVEL==1 || `DEBUG_LEVEL==2) $display($time,$sformatf TXT);
+//`define DEBUG2(TXT) \
+//    	if (`DEBUG_LEVEL==2) $display($time,TXT);
+
 module cpu(input rst, input ram_clk);
   reg [7:0]registers[511:0];
     
