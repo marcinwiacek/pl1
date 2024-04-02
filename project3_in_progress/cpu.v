@@ -84,7 +84,7 @@ module cpu(input rst, input ram_clk);
        		stage3_exec=1; // start when necessary
        	end
        	if (stage5_should_exec) begin
-	$display($time," stage5_should_exec");
+	//$display($time," stage5_should_exec");
        		stage5_exec=1; // start when necessary
        	end
   end
@@ -140,20 +140,20 @@ module stage12(input rst, input stage12_exec, output reg stage12_exec_ready,
 	stage12_ram_read <= 0;
 	instruction[3] = stage12_ram_read_data_out;
 
-	$display($time," ",instruction[0], " ", instruction[1]," ",
+	$display($time,"   ",instruction[0], " ", instruction[1]," ",
 		instruction[2]," ",instruction[3]);
 	stage3_should_exec<=0;	
 	stage5_should_exec<=0;
 	if (instruction[0]==`OPCODE_READRAM8) begin
-		$display($time," READRAM8");
+		$display($time,"   READRAM8");
 		stage3_read_address<=instruction[1];
 		stage3_should_exec<=1;
 		pc+=4;
 	end else if (instruction[0]==`OPCODE_JUMPMINUS) begin
-		$display($time," JUMPMINUS");
+		$display($time,"   JUMPMINUS");
 		pc-=instruction[1]*4;
 	end else if (instruction[0]==`OPCODE_SAVERAM8) begin
-		$display($time," SAVERAM8");
+		$display($time,"   SAVERAM8");
 		stage5_save_address<=instruction[1];
 		stage5_save_value<=instruction[2];
 		stage5_should_exec<=1;
@@ -200,7 +200,7 @@ module stage5( input rst, input stage5_exec,  output reg stage5_exec_ready,
 	stage5_ram_save <= 1;
 	@(posedge stage5_ram_save_ready)
 	stage5_ram_save <= 0;
-	$display($time," hurra");
+	//$display($time," hurra");
 	stage5_exec_ready<=1;
   end
 endmodule
@@ -219,7 +219,6 @@ module ram2(input ram_clk,
   	.data_out(ram_data_out));
   
   always @(posedge stage12_read or posedge stage3_read or posedge stage5_save) begin
- 
 	if (stage3_read) begin
   		stage3_read_ready <= 0;
   		ram_write_enable <= 0; 	
@@ -246,12 +245,12 @@ module ram2(input ram_clk,
 		ram_address = stage5_save_address;
 		ram_data_in = stage5_save_data_in; 	
   		$display($time," saving RAM from stage5 address ",stage5_save_address);
-  		@(posedge ram_clk)
-		@(posedge ram_clk)
+  	//	@(posedge ram_clk)
+	//	@(posedge ram_clk)
 		ram_write_enable <= 0; 	
 		stage5_save_ready <= 1;
 	end
- $display($time," ",stage3_read, " ",stage12_read," ",stage5_save);
+ //$display($time," ",stage3_read, " ",stage12_read," ",stage5_save);
   end
 endmodule
 
@@ -262,12 +261,10 @@ module ram(input ram_clk, input write_enable, input [15:0] address,input [7:0] d
   
   initial begin
     $readmemh("rom.mem", ram_memory);
-    
   end
   always @(posedge ram_clk) begin
     if (write_enable) begin
-  		$display($time," saving RAM");
-    
+  	$display($time," saving RAM");
         ram_memory[address] = data_in;
     end else begin
         data_out <= ram_memory[address];
