@@ -4,3 +4,5 @@ rm ./cpu.vcd
 iverilog -o cpu cpu.v cpu_test.v
 vvp cpu
 #gtkwave cpu.vcd &
+rm ./cpu
+rm ./cpu.vcd
