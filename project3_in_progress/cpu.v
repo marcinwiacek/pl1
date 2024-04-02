@@ -64,7 +64,7 @@ module cpu(input rst, input ram_clk);
   wire stage5_exec_ready;
   
   stage5 stage5(.rst(rst), .stage5_exec(stage5_exec), .stage5_exec_ready(stage5_exec_ready),
-  	.stage5_save_address(stage5_save_address),
+  	.stage5_save_address(stage5_save_address), .stage5_save_value(stage5_save_value),
   	//ram
   	.stage5_ram_save(stage5_ram_save), .stage5_ram_save_ready(stage5_ram_save_ready),
   	.stage5_ram_save_address(stage5_ram_save_address), .stage5_ram_save_data_in(stage5_ram_save_data_in));
@@ -114,6 +114,8 @@ module stage12(input rst, input stage12_exec, output reg stage12_exec_ready,
   end
   always @(posedge stage12_exec) begin
 	stage12_exec_ready <= 0;
+	stage3_should_exec<=0;	
+	stage5_should_exec<=0;
 	$display($time," executing pc ",pc);
 	
 	stage12_ram_read_address <= pc;
@@ -128,37 +130,37 @@ module stage12(input rst, input stage12_exec, output reg stage12_exec_ready,
 	stage12_ram_read <= 0;
 	instruction[1] = stage12_ram_read_data_out;
 
-	stage12_ram_read_address <= pc+2;
-	stage12_ram_read <= 1;
-	@(posedge stage12_ram_read_ready)
-	stage12_ram_read <= 0;
-	instruction[2] = stage12_ram_read_data_out;
-
-	stage12_ram_read_address <= pc+3;
-	stage12_ram_read <= 1;
-	@(posedge stage12_ram_read_ready)
-	stage12_ram_read <= 0;
-	instruction[3] = stage12_ram_read_data_out;
-
-	$display($time,"   ",instruction[0], " ", instruction[1]," ",
-		instruction[2]," ",instruction[3]);
-	stage3_should_exec<=0;	
-	stage5_should_exec<=0;
-	if (instruction[0]==`OPCODE_READRAM8) begin
-		$display($time,"   READRAM8");
-		stage3_read_address<=instruction[1];
-		stage3_should_exec<=1;
-		pc+=4;
-	end else if (instruction[0]==`OPCODE_JUMPMINUS) begin
+	if (instruction[0]==`OPCODE_JUMPMINUS) begin
 		$display($time,"   JUMPMINUS");
 		pc-=instruction[1]*4;
-	end else if (instruction[0]==`OPCODE_SAVERAM8) begin
-		$display($time,"   SAVERAM8");
-		stage5_save_address<=instruction[1];
-		stage5_save_value<=instruction[2];
-		stage5_should_exec<=1;
-		pc+=4;
+	end else begin
+		stage12_ram_read_address <= pc+2;
+		stage12_ram_read <= 1;
+		@(posedge stage12_ram_read_ready)
+		stage12_ram_read <= 0;
+		instruction[2] = stage12_ram_read_data_out;
+
+		stage12_ram_read_address <= pc+3;
+		stage12_ram_read <= 1;
+		@(posedge stage12_ram_read_ready)
+		stage12_ram_read <= 0;
+		instruction[3] = stage12_ram_read_data_out;
+		
+		if (instruction[0]==`OPCODE_READRAM8) begin
+			$display($time,"   READRAM8");
+			stage3_read_address<=instruction[1];
+			stage3_should_exec<=1;
+			pc+=4;
+		end else if (instruction[0]==`OPCODE_SAVERAM8) begin
+			$display($time,"   SAVERAM8");
+			stage5_save_address<=instruction[1];
+			stage5_save_value<=instruction[2];
+			stage5_should_exec<=1;
+			pc+=4;
+		end
 	end
+	$display($time,"   ",instruction[0], " ", instruction[1]," ",
+			instruction[2]," ",instruction[3]);
 	stage12_exec_ready<=1;
   end
 endmodule
@@ -200,7 +202,6 @@ module stage5( input rst, input stage5_exec,  output reg stage5_exec_ready,
 	stage5_ram_save <= 1;
 	@(posedge stage5_ram_save_ready)
 	stage5_ram_save <= 0;
-	//$display($time," hurra");
 	stage5_exec_ready<=1;
   end
 endmodule
@@ -219,17 +220,28 @@ module ram2(input ram_clk,
   	.data_out(ram_data_out));
   
   always @(posedge stage12_read or posedge stage3_read or posedge stage5_save) begin
+	if (stage5_save) begin
+  		stage5_save_ready <= 0;
+		ram_write_enable <= 1;
+		ram_address = stage5_save_address;
+		ram_data_in = stage5_save_data_in; 	
+  		$display($time," saving RAM from stage5 address ",stage5_save_address);
+  		@(posedge ram_clk)
+		@(posedge ram_clk)
+		ram_write_enable <= 0; 	
+		stage5_save_ready <= 1;
+	end
 	if (stage3_read) begin
   		stage3_read_ready <= 0;
   		ram_write_enable <= 0; 	
 		ram_address = stage3_read_address;
   		$display($time," reading RAM from stage3 address ",stage3_read_address);
 		@(posedge ram_clk)
-		//@(posedge ram_clk)
+		@(posedge ram_clk)
 		stage3_read_data_out <= ram_data_out;
 		stage3_read_ready<=1;
 	end
-  	if (stage12_read) begin
+	if (stage12_read) begin
   		stage12_read_ready <= 0;
   		ram_write_enable <= 0; 	
 		ram_address = stage12_read_address;
@@ -239,23 +251,12 @@ module ram2(input ram_clk,
 		stage12_read_data_out <= ram_data_out;
 		stage12_read_ready<=1;
 	end
-  	if (stage5_save) begin
-  		stage5_save_ready <= 0;
-		ram_write_enable <= 1;
-		ram_address = stage5_save_address;
-		ram_data_in = stage5_save_data_in; 	
-  		$display($time," saving RAM from stage5 address ",stage5_save_address);
-  	//	@(posedge ram_clk)
-	//	@(posedge ram_clk)
-		ram_write_enable <= 0; 	
-		stage5_save_ready <= 1;
-	end
  //$display($time," ",stage3_read, " ",stage12_read," ",stage5_save);
   end
 endmodule
 
 // we have to use standard RAM = definition is "as is"
-module ram(input ram_clk, input write_enable, input [15:0] address,input [7:0] data_in,
+module ram(input ram_clk, input write_enable, input [15:0] address, input [7:0] data_in,
 	output reg [7:0] data_out);
   reg [7:0] ram_memory[0:65536];
   
@@ -264,8 +265,7 @@ module ram(input ram_clk, input write_enable, input [15:0] address,input [7:0] d
   end
   always @(posedge ram_clk) begin
     if (write_enable) begin
-  	$display($time," saving RAM");
-        ram_memory[address] = data_in;
+        ram_memory[address] <= data_in;
     end else begin
         data_out <= ram_memory[address];
     end
