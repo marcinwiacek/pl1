@@ -46,13 +46,14 @@ I/O:
  2. INPORTRET - return from input port support
  3. INPORT - read from port
  4. OUTPORT - save to port
+ 5. REGOUTPORT
 
 Register load/save (needs simple and vector instructions):
 
- 1. LOADFROMRAM8 = 11; //load from memory from address in register, start, stop, address
- 2. SAVETORAM8 = 12; //save to memory to address in register, start, stop, value
- 4. SAVEINTORAM8 //save to memory with specified address
- 3. LOADFROMRAM16 //load from memory with specified address
+ 1. READFROMRAM - load from memory from address in register to register, params: target register number, length, register with source address, example: 2, 5, 1 loads data starting from address in register 1 and load into register 2-7
+ 2. SAVETORAM - save to memory with address in register, params: source register number, length, register with target address
+ 3. LOADFROMRAM - load from memory with specified address, params: target register number, length, source memory address, example: 2, 5, 123 loads data starting from address 123 and load into register 2-7
+ 4. WRITETORAM - save to memory with specified address, params: source register number, length, target memory address
 
 Calculations: (needs simple and vector instructions)
 
