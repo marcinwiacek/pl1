@@ -232,8 +232,8 @@ module ram2(input ram_clk,
 		ram_address = stage5_save_address;
 		ram_data_in = stage5_save_data_in; 	
   		$display($time," saving RAM from stage5 address ",stage5_save_address);
-  		@(posedge ram_clk)
 		@(posedge ram_clk)
+  		@(negedge ram_clk)
 		ram_write_enable <= 0; 	
 		stage5_save_ready <= 1;
 	end
@@ -241,9 +241,9 @@ module ram2(input ram_clk,
   		stage3_read_ready <= 0;
   		ram_write_enable <= 0; 	
 		ram_address = stage3_read_address;
-  		$display($time," reading RAM from stage3 address ",stage3_read_address);
 		@(posedge ram_clk)
-		@(posedge ram_clk)
+		@(negedge ram_clk)
+  		$display($time," reading RAM from stage3 address ",stage3_read_address," value ",ram_data_out);
 		stage3_read_data_out <= ram_data_out;
 		stage3_read_ready<=1;
 	end
@@ -251,9 +251,9 @@ module ram2(input ram_clk,
   		stage12_read_ready <= 0;
   		ram_write_enable <= 0; 	
 		ram_address = stage12_read_address;
-  		$display($time," reading RAM from stage12 address ",stage12_read_address);
 		@(posedge ram_clk)
-		@(posedge ram_clk)
+		@(negedge ram_clk)
+  		$display($time," reading RAM from stage12 address ",stage12_read_address," value ",ram_data_out);
 		stage12_read_data_out <= ram_data_out;
 		stage12_read_ready<=1;
 	end
@@ -277,4 +277,3 @@ module ram(input ram_clk, input write_enable, input [15:0] address, input [7:0] 
     end
   end
 endmodule
-
