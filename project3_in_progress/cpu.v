@@ -171,17 +171,17 @@ module stage12(
 		instruction[3] = stage12_ram_read_data_out;
 		
 		if (instruction[0]==`OPCODE_LOADFROMRAM) begin
-			$display($time,"   LOADFROMRAM");
-			stage3_target_register_start<=instruction[1];
-  			stage3_target_register_length<=instruction[2];
-			stage3_source_ram_address<=instruction[3];
+			stage3_target_register_start=instruction[1];
+  			stage3_target_register_length=instruction[2];
+			stage3_source_ram_address=instruction[3];
+			$display($time,"   LOADFROMRAM ",stage3_target_register_length," bytes from RAM address ",stage3_source_ram_address,"+ and save to register ",stage3_target_register_start,"+");
 			stage3_should_exec<=1;
 			pc+=4;
 		end else if (instruction[0]==`OPCODE_WRITETORAM) begin
-			$display($time,"   WRITETORAM");
-			stage5_source_register_start<=instruction[1];
-  			stage5_source_register_length<=instruction[2];
-  			stage5_target_ram_address<=instruction[3];  
+			stage5_source_register_start=instruction[1];
+  			stage5_source_register_length=instruction[2];
+  			stage5_target_ram_address=instruction[3];  
+			$display($time,"   WRITETORAM ",stage5_source_register_length," bytes from register ",stage5_source_register_start,"+ and save to RAM address ",stage5_target_ram_address,"+");
 			stage5_should_exec<=1;
 			pc+=4;
 		end
@@ -204,7 +204,7 @@ module stage3(
   	input [7:0] stage3_ram_read_data_out);
  
  integer i;
- string s=" ";
+ string s;
  
   always @(posedge stage3_exec) begin
 	stage3_exec_ready <= 0;
@@ -215,7 +215,8 @@ module stage3(
 		stage3_ram_read <= 0;
 		registers[i] = stage3_ram_read_data_out;
 	end
-	for (i=0;i<64;i++) begin
+	s=" ";
+	for (i=0;i<20;i++) begin
 		s={s,$sformatf("%02x ",registers[i])};
 	end
 	$display($time,s);
