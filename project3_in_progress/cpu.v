@@ -1,6 +1,7 @@
 `define OPCODE_LOADFROMRAM 1
 `define OPCODE_JUMPMINUS 2
 `define OPCODE_WRITETORAM 3
+`define OPCODE_ADD8 4
 
 `define OPER_ADD 1
 
@@ -44,6 +45,13 @@ module cpu(input rst, input ram_clk);
   wire [15:0]stage3_source_ram_address; //address, which we should read
   wire [15:0]stage3_target_register_start;
   wire [15:0]stage3_target_register_length;
+  wire stage4_should_exec;
+  wire [15:0]stage4_oper;
+  wire [15:0]stage4_register_A_start;
+  wire [15:0]stage4_register_B_start;
+  wire [15:0]stage4_value_B;  
+  wire [15:0]stage4_register_out_start;
+  wire [15:0]stage4_register_length;  
   wire stage5_should_exec; //should we do it?
   wire [15:0]stage5_source_register_start;
   wire [15:0]stage5_source_register_length;
@@ -52,6 +60,10 @@ module cpu(input rst, input ram_clk);
   stage12 stage12(.rst(rst), .stage12_exec(stage12_exec), .stage12_exec_ready(stage12_exec_ready),
   	.stage3_should_exec(stage3_should_exec), .stage3_source_ram_address(stage3_source_ram_address),
   	.stage3_target_register_start(stage3_target_register_start), .stage3_target_register_length(stage3_target_register_length),
+  	.stage4_should_exec(stage4_should_exec),
+  	.stage4_oper(stage4_oper), .stage4_register_A_start(stage4_register_A_start),.stage4_register_B_start(stage4_register_B_start),
+  	.stage4_value_B(stage4_value_B), .stage4_register_out_start(stage4_register_out_start),
+  	.stage4_register_length(stage4_register_length),
   	.stage5_should_exec(stage5_should_exec), .stage5_source_register_start(stage5_source_register_start),
   	.stage5_source_register_length(stage5_source_register_length),.stage5_target_ram_address(stage5_target_ram_address),
   	//ram
@@ -71,7 +83,13 @@ module cpu(input rst, input ram_clk);
   	.stage3_ram_read_address(stage3_ram_read_address), .stage3_ram_read_data_out(stage3_ram_read_data_out));
   
   //alu
+  reg stage4_exec;
+  wire stage4_exec_ready;
   
+  stage4 stage4(.stage4_exec(stage4_exec), .stage4_exec_ready(stage4_exec_ready),.stage4_oper(stage4_oper),  .stage4_register_A_start(stage4_register_A_start),
+  .stage4_register_B_start(stage4_register_B_start),  .stage4_value_B(stage4_value_B),  .stage4_register_out_start(stage4_register_out_start),
+  .stage4_register_length(stage4_register_length),  .inregisters(registers),.outregisters(registers));
+  	  
   //ram save
   reg stage5_exec;
   wire stage5_exec_ready;
@@ -107,6 +125,10 @@ module cpu(input rst, input ram_clk);
 	$display($time," posedge stage3execready");
        	stage3_exec=0;
   end
+  always @(posedge stage4_exec_ready) begin
+	$display($time," posedge stage4execready");
+       	stage4_exec=0;
+  end
   always @(posedge stage5_exec_ready) begin
 	$display($time," posedge stage5execready");
        	stage5_exec=0;
@@ -120,6 +142,13 @@ module stage12(
   	output reg [15:0]stage3_source_ram_address, 
   	output reg [15:0]stage3_target_register_start, 
   	output reg [15:0]stage3_target_register_length,
+  	output reg stage4_should_exec,
+   	output reg [15:0]stage4_oper,
+  	output reg [15:0]stage4_register_A_start,
+	output reg [15:0]stage4_register_B_start,
+  	output reg [15:0]stage4_value_B,
+  	output reg [15:0]stage4_register_out_start,
+  	output reg [15:0]stage4_register_length,
   	output reg stage5_should_exec, 
   	output reg [15:0] stage5_source_register_start,
   	output reg [15:0] stage5_source_register_length,
@@ -139,6 +168,7 @@ module stage12(
   always @(posedge stage12_exec) begin
 	stage12_exec_ready <= 0;
 	stage3_should_exec<=0;	
+	stage4_should_exec<=0;
 	stage5_should_exec<=0;
 	$display($time," executing pc ",pc);
 	
@@ -184,6 +214,15 @@ module stage12(
 			$display($time,"   WRITETORAM ",stage5_source_register_length," bytes from register ",stage5_source_register_start,"+ and save to RAM address ",stage5_target_ram_address,"+");
 			stage5_should_exec<=1;
 			pc+=4;
+		end else if (instruction[0]==`OPCODE_ADD8) begin
+		   	stage4_oper=`OPER_ADD;
+  			stage4_register_A_start=instruction[1];
+			stage4_register_B_start=instruction[1];
+		  	stage4_register_out_start=instruction[2];
+		  	stage4_register_length=instruction[3];
+			$display($time,"   OPCODE_ADD8 add register ",stage4_register_A_start,"+ to register ",stage4_register_B_start," and save to register ",stage4_register_out_start,"+, len ",stage4_register_length);
+			stage4_should_exec<=1;
+			pc+=4;
 		end
 	end
 	$display($time,"   ",instruction[0], " ", instruction[1]," ",
@@ -224,11 +263,32 @@ module stage3(
   end
 endmodule
 
-module stage4(input [7:0] a, input [7:0] b, input [4:0] oper, output reg [7:0] out);
-    always @(*) begin
-        case (oper)
-        	`OPER_ADD: out <= a+b;
-        endcase
+module stage4(input stage4_exec, output reg stage4_exec_ready,  input [15:0]stage4_oper,
+  input [15:0]stage4_register_A_start,
+  input [15:0]stage4_register_B_start,
+  input [15:0]stage4_value_B,
+  input [15:0]stage4_register_out_start,
+  input [15:0]stage4_register_length,
+  input [7:0]inregisters[63:0],
+  output reg [7:0]outregisters[63:0]);
+  
+  integer i;
+ string s;
+  
+     always @(posedge stage4_exec) begin
+     	stage4_exec_ready <= 0;
+       // case (stage4_oper)
+        //	`OPER_ADD: 
+        		for (i=0;i<stage4_register_length;i++) begin
+        			outregisters[i+stage4_register_out_start] = inregisters[i+stage4_register_A_start]+inregisters[i+stage4_register_B_start];
+        		end
+        		s=" ";
+			for (i=0;i<20;i++) begin
+				s={s,$sformatf("%02x ",inregisters[i])};
+			end
+			$display($time,s);
+      // endcase
+        stage4_exec_ready <= 1;
     end
 endmodule
 
