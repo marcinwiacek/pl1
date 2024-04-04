@@ -11,7 +11,7 @@
 //    	if (`DEBUG_LEVEL==2) $display($time,TXT);
 
 module cpu(input rst, input ram_clk);
-  wire [4087:0]registers; //512*8 = 4088
+  wire [7:0]registers[63:0];
     
   // ram with extra prioritization
   wire stage12_ram_read;
@@ -181,13 +181,13 @@ endmodule
 
 module stage3( input stage3_exec,  output reg stage3_exec_ready,
   input [15:0]stage3_source_ram_address, input [15:0]stage3_target_register_start, input [15:0]stage3_target_register_length,
-    output reg [4087:0]registers,
-
+    output reg [7:0]registers[63:0],
   //ram
   output reg stage3_ram_read, 	input stage3_ram_read_ready, 
   output reg [15:0] stage3_ram_read_address, input [7:0] stage3_ram_read_data_out);
  
  integer i;
+ string s=" ";
  
   always @(posedge stage3_exec) begin
 	stage3_exec_ready <= 0;
@@ -196,8 +196,12 @@ module stage3( input stage3_exec,  output reg stage3_exec_ready,
 		stage3_ram_read <= 1;
 		@(posedge stage3_ram_read_ready)
 		stage3_ram_read <= 0;
-		registers[(i+stage3_target_register_start-1)*8] <= stage3_ram_read_data_out;
+		registers[i] = stage3_ram_read_data_out;
 	end
+	for (i=0;i<64;i++) begin
+		s={s,$sformatf("%02x ",registers[i])};
+	end
+	$display($time,s);
 	stage3_exec_ready<=1;
   end
 endmodule
