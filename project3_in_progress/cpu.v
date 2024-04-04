@@ -88,7 +88,7 @@ module cpu(input rst, input ram_clk);
   
   stage4 stage4(.stage4_exec(stage4_exec), .stage4_exec_ready(stage4_exec_ready),.stage4_oper(stage4_oper),  .stage4_register_A_start(stage4_register_A_start),
   .stage4_register_B_start(stage4_register_B_start),  .stage4_value_B(stage4_value_B),  .stage4_register_out_start(stage4_register_out_start),
-  .stage4_register_length(stage4_register_length),  .inregisters(registers),.outregisters(registers));
+  .stage4_register_length(stage4_register_length),  .registers(registers));
   	  
   //ram save
   reg stage5_exec;
@@ -115,6 +115,9 @@ module cpu(input rst, input ram_clk);
        	stage12_exec=0;
        	if (stage3_should_exec) begin
        		stage3_exec=1; // start when necessary
+       	end
+       	if (stage4_should_exec) begin
+       		stage4_exec=1; // start when necessary
        	end
        	if (stage5_should_exec) begin
 	//$display($time," stage5_should_exec");
@@ -269,24 +272,30 @@ module stage4(input stage4_exec, output reg stage4_exec_ready,  input [15:0]stag
   input [15:0]stage4_value_B,
   input [15:0]stage4_register_out_start,
   input [15:0]stage4_register_length,
-  input [7:0]inregisters[63:0],
-  output reg [7:0]outregisters[63:0]);
+  input [7:0]registers[63:0]
+//  output reg [7:0]outregisters[63:0]
+  );
   
   integer i;
- string s;
+ string s2;
   
      always @(posedge stage4_exec) begin
      	stage4_exec_ready <= 0;
        // case (stage4_oper)
         //	`OPER_ADD: 
-        		for (i=0;i<stage4_register_length;i++) begin
-        			outregisters[i+stage4_register_out_start] = inregisters[i+stage4_register_A_start]+inregisters[i+stage4_register_B_start];
-        		end
-        		s=" ";
+        s2=" ";
 			for (i=0;i<20;i++) begin
-				s={s,$sformatf("%02x ",inregisters[i])};
+				s2={s2,$sformatf("%02x ",registers[i])};
 			end
-			$display($time,s);
+			$display($time,s2);
+        		for (i=0;i<stage4_register_length;i++) begin
+        			//inregisters[i+stage4_register_out_start] = inregisters[i+stage4_register_A_start]+inregisters[i+stage4_register_B_start];
+        		end
+        		s2=" ";
+			for (i=0;i<20;i++) begin
+				s2={s2,$sformatf("%02x ",registers[i])};
+			end
+			$display($time,s2);
       // endcase
         stage4_exec_ready <= 1;
     end
