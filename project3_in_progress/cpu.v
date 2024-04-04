@@ -1,6 +1,6 @@
-`define OPCODE_READFROMRAM 1
+`define OPCODE_LOADFROMRAM 1
 `define OPCODE_JUMPMINUS 2
-`define OPCODE_SAVERAM8 3
+`define OPCODE_WRITETORAM 3
 
 `define OPER_ADD 1
 
@@ -45,13 +45,15 @@ module cpu(input rst, input ram_clk);
   wire [15:0]stage3_target_register_start;
   wire [15:0]stage3_target_register_length;
   wire stage5_should_exec; //should we do it?
-  wire [15:0]stage5_save_address; //address, which we should read
-  wire [7:0]stage5_save_value;
-  
+  wire [15:0]stage5_source_register_start;
+  wire [15:0]stage5_source_register_length;
+  wire [15:0]stage5_target_ram_address;
+ 
   stage12 stage12(.rst(rst), .stage12_exec(stage12_exec), .stage12_exec_ready(stage12_exec_ready),
   	.stage3_should_exec(stage3_should_exec), .stage3_source_ram_address(stage3_source_ram_address),
   	.stage3_target_register_start(stage3_target_register_start), .stage3_target_register_length(stage3_target_register_length),
-  	.stage5_should_exec(stage5_should_exec), .stage5_save_address(stage5_save_address), .stage5_save_value(stage5_save_value),
+  	.stage5_should_exec(stage5_should_exec), .stage5_source_register_start(stage5_source_register_start),
+  	.stage5_source_register_length(stage5_source_register_length),.stage5_target_ram_address(stage5_target_ram_address),
   	//ram
   	.stage12_ram_read(stage12_ram_read), .stage12_ram_read_ready(stage12_ram_read_ready),
   	.stage12_ram_read_address(stage12_ram_read_address), .stage12_ram_read_data_out(stage12_ram_read_data_out));
@@ -75,7 +77,9 @@ module cpu(input rst, input ram_clk);
   wire stage5_exec_ready;
   
   stage5 stage5(.stage5_exec(stage5_exec), .stage5_exec_ready(stage5_exec_ready),
-  	.stage5_save_address(stage5_save_address), .stage5_save_value(stage5_save_value),
+  	.stage5_source_register_start(stage5_source_register_start), .stage5_source_register_length(stage5_source_register_length),
+  	.stage5_target_ram_address(stage5_target_ram_address),  
+  	.registers(registers),
   	//ram
   	.stage5_ram_save(stage5_ram_save), .stage5_ram_save_ready(stage5_ram_save_ready),
   	.stage5_ram_save_address(stage5_ram_save_address), .stage5_ram_save_data_in(stage5_ram_save_data_in));
@@ -109,13 +113,21 @@ module cpu(input rst, input ram_clk);
   end
 endmodule
 
-module stage12(input rst, input stage12_exec, output reg stage12_exec_ready, 
-  output reg stage3_should_exec, output reg [15:0]stage3_source_ram_address, output reg [15:0]stage3_target_register_start, output reg [15:0]stage3_target_register_length,
-  
-  output reg stage5_should_exec, output reg [15:0]stage5_save_address, output reg [7:0]stage5_save_value,
-  //ram
-  output reg stage12_ram_read, input stage12_ram_read_ready, 
-  output reg [15:0] stage12_ram_read_address, input [7:0] stage12_ram_read_data_out);
+module stage12(
+	input rst,
+	input stage12_exec, output reg stage12_exec_ready, 
+  	output reg stage3_should_exec, 
+  	output reg [15:0]stage3_source_ram_address, 
+  	output reg [15:0]stage3_target_register_start, 
+  	output reg [15:0]stage3_target_register_length,
+  	output reg stage5_should_exec, 
+  	output reg [15:0] stage5_source_register_start,
+  	output reg [15:0] stage5_source_register_length,
+  	output reg [15:0] stage5_target_ram_address,
+  	//ram
+  	output reg stage12_ram_read, input stage12_ram_read_ready, 
+  	output reg [15:0] stage12_ram_read_address,
+  	input [7:0] stage12_ram_read_data_out);
  
   reg [7:0] instruction[0:3];
   reg [15:0] pc;
@@ -158,17 +170,18 @@ module stage12(input rst, input stage12_exec, output reg stage12_exec_ready,
 		stage12_ram_read <= 0;
 		instruction[3] = stage12_ram_read_data_out;
 		
-		if (instruction[0]==`OPCODE_READFROMRAM) begin
-			$display($time,"   READFROMRAM");
+		if (instruction[0]==`OPCODE_LOADFROMRAM) begin
+			$display($time,"   LOADFROMRAM");
 			stage3_target_register_start<=instruction[1];
   			stage3_target_register_length<=instruction[2];
 			stage3_source_ram_address<=instruction[3];
 			stage3_should_exec<=1;
 			pc+=4;
-		end else if (instruction[0]==`OPCODE_SAVERAM8) begin
-			$display($time,"   SAVERAM8");
-			stage5_save_address<=instruction[1];
-			stage5_save_value<=instruction[2];
+		end else if (instruction[0]==`OPCODE_WRITETORAM) begin
+			$display($time,"   WRITETORAM");
+			stage5_source_register_start<=instruction[1];
+  			stage5_source_register_length<=instruction[2];
+  			stage5_target_ram_address<=instruction[3];  
 			stage5_should_exec<=1;
 			pc+=4;
 		end
@@ -179,12 +192,16 @@ module stage12(input rst, input stage12_exec, output reg stage12_exec_ready,
   end
 endmodule
 
-module stage3( input stage3_exec,  output reg stage3_exec_ready,
-  input [15:0]stage3_source_ram_address, input [15:0]stage3_target_register_start, input [15:0]stage3_target_register_length,
-    output reg [7:0]registers[63:0],
-  //ram
-  output reg stage3_ram_read, 	input stage3_ram_read_ready, 
-  output reg [15:0] stage3_ram_read_address, input [7:0] stage3_ram_read_data_out);
+module stage3(
+	input stage3_exec, output reg stage3_exec_ready,
+	input [15:0]stage3_source_ram_address,
+	input [15:0]stage3_target_register_start, 
+	input [15:0]stage3_target_register_length,
+    	output reg [7:0]registers[63:0],
+  	//ram
+  	output reg stage3_ram_read, input stage3_ram_read_ready, 
+  	output reg [15:0] stage3_ram_read_address,
+  	input [7:0] stage3_ram_read_data_out);
  
  integer i;
  string s=" ";
@@ -214,19 +231,29 @@ module stage4(input [7:0] a, input [7:0] b, input [4:0] oper, output reg [7:0] o
     end
 endmodule
 
-module stage5( input stage5_exec,  output reg stage5_exec_ready, 
-  input [15:0] stage5_save_address, input [7:0] stage5_save_value,
-  //ram
-  output reg stage5_ram_save, input stage5_ram_save_ready, 
-  output reg [15:0] stage5_ram_save_address, output reg [7:0] stage5_ram_save_data_in);
+module stage5(
+	input stage5_exec,
+	output reg stage5_exec_ready, 
+	input [15:0] stage5_source_register_start, 
+	input [15:0] stage5_source_register_length,
+	input [15:0] stage5_target_ram_address,
+	input [7:0]registers[63:0],
+  	//ram
+  	output reg stage5_ram_save, input stage5_ram_save_ready, 
+  	output reg [15:0] stage5_ram_save_address,
+  	output reg [7:0] stage5_ram_save_data_in);
+
+integer i;
  
   always @(posedge stage5_exec) begin
 	stage5_exec_ready <= 0;
-	stage5_ram_save_address <= stage5_save_address;
-	stage5_ram_save_data_in <= stage5_save_value;
-	stage5_ram_save <= 1;
-	@(posedge stage5_ram_save_ready)
-	stage5_ram_save <= 0;
+	for (i=0;i<stage5_source_register_length;i++) begin
+		stage5_ram_save_address <= stage5_target_ram_address+i;
+		stage5_ram_save_data_in <= registers[i+stage5_source_register_start];
+		stage5_ram_save <= 1;
+		@(posedge stage5_ram_save_ready)
+		stage5_ram_save <= 0;
+	end
 	stage5_exec_ready<=1;
   end
 endmodule
