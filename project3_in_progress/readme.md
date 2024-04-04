@@ -32,21 +32,18 @@ changed?)
 
 Addresses are in the end and are process type (16, 32 or 64 bit) related
 
-Process related:
+Process and I/O related:
 
  1. REGINT - register interrupt for current process
  2. INT - execute interrupt
  3. INTRET - return from interrupt
  4. PROC - new process. We need to say, if process is 16, 32 or 64 bit, additionally need to select data and code border
  5. FREERAMBLOCK
-
-I/O:
-
- 1. REGINPORT - register code for input port support
- 2. INPORTRET - return from input port support
- 3. INPORT - read from port
- 4. OUTPORT - save to port
- 5. REGOUTPORT
+ 6. REGINPORT - register code for input port support
+ 7. INPORTRET - return from input port support
+ 8. INPORT - read from port
+ 9. OUTPORT - save to port
+ 10. REGOUTPORT
 
 Register load/save (needs simple and vector instructions):
 
@@ -57,18 +54,18 @@ Register load/save (needs simple and vector instructions):
 
 Calculations: (needs simple and vector instructions)
 
- const SET = 13; //set 4bitod 4bitdo 16bit
-    const ADD = 14; // add register with value, start, stop, value
-    const DEC = 15; // decrease register with value, start, stop, value
-    const DIV = 16;
-    const MUL = 17;
-    //leftbit
-    //rightbit
-    //xor
-    //and
-    //or
-    //neg
-    //neg2
+ 1. const SET = 13; //set 4bitod 4bitdo 16bit
+ 2. const ADD = 14; // add register with value, start, stop, value
+ 3. const DEC = 15; // decrease register with value, start, stop, value
+ 4. const DIV = 16;
+ 5. const MUL = 17;
+ 6. //leftbit
+ 7. //rightbit
+ 8. //xor
+ 9. //and
+ 10. //or
+ 11. //neg
+ 12. //neg2
 
 Jump:
 

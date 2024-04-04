@@ -1,5 +1,3 @@
-Version 240215
-
 # Preamble
 
 IT is full of smart ideas, unfortunatelly not all of them are used together in the most popular mainstream computer hardware (from different reasons).
