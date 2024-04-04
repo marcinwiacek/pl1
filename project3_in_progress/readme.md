@@ -1,8 +1,8 @@
-Verilog simulation. I'm using here experience from project 1 (mainly ideas related
-to instructions and processing handling) and project 2 (blocks)
+Verilog simulation. I'm using here experiences from project 1 (mainly ideas related
+to instruction list and processing handling) and project 2 (blocks and signals among them)
 
 Although for example in YouTube it's possible to find some tips about modeling in
-concrete software (for example https://www.youtube.com/playlist?list=PLilenfQGj6CEG6iZ4TQJ10PI7pCWsy1AO),
+concrete software (for example [channel](https://www.youtube.com/playlist?list=PLilenfQGj6CEG6iZ4TQJ10PI7pCWsy1AO)),
 I decided to go into plain code first and in the future it will probably end with:
 
 1. Verilog code
@@ -66,6 +66,8 @@ Calculations: (needs simple and vector instructions)
  10. //or
  11. //neg
  12. //neg2
+ 
+ 14. ADD8 - add register A and B and save to register "out", 8-bit processing (format: register A start, register B start, register out start, length)
 
 Jump:
 
