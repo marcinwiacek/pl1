@@ -20,6 +20,26 @@
 //    	if (`DEBUG_LEVEL==2) $display($time,TXT);
 
 module cpu(input rst, input ram_clk);
+  //task switcher  
+  reg switcher_exec;
+  wire switcher_exec_ready;
+  switcher switcher(
+	.switcher_exec(switcher_should_exec), .switcher_exec_ready(switcher_exec_ready), 
+	//registers
+	.switcher_register_save(switcher_register_save),  .switcher_register_save_ready(switcher_register_save_ready),
+  	.switcher_register_save_address(switcher_register_save_address),
+	.switcher_register_save_data_in(switcher_register_save_data_in),
+  	.switcher_register_read(switcher_register_read),  .switcher_register_read_ready(switcher_register_read_ready),
+  	.switcher_register_read_address(switcher_register_read_address),
+  	.switcher_register_read_data_out(switcher_register_read_data_out),
+  	//ram
+  	.switcher_ram_save(switcher_ram_save), .switcher_ram_save_ready(switcher_ram_save_ready), 
+  	.switcher_ram_save_address(switcher_ram_save_address),
+  	.switcher_ram_save_data_in(switcher_ram_save_data_in),
+  	.switcher_ram_read(switcher_ram_read), .switcher_ram_read_ready(switcher_ram_read_ready), 
+  	.switcher_ram_read_address(switcher_ram_read_address),
+  	.switcher_ram_read_data_out(switcher_ram_read_data_out));
+
   //registers (in the future with extra prioritization and hazard detection)
   reg dump_reg;
   wire dump_reg_ready;
@@ -49,6 +69,16 @@ module cpu(input rst, input ram_clk);
   wire [15:0] stage5_register_read_address;
   wire [7:0] stage5_register_read_data_out;
   
+  wire switcher_register_save;
+  wire switcher_register_save_ready;
+  wire [15:0] switcher_register_save_address;
+  wire [7:0] switcher_register_save_data_in;
+  
+  wire switcher_register_read;
+  wire switcher_register_read_ready;
+  wire [15:0] switcher_register_read_address;
+  wire [7:0] switcher_register_read_data_out;
+  
   registers registers(
   	.dump_reg(dump_reg),
 	.dump_reg_ready(dump_reg_ready),  
@@ -56,7 +86,9 @@ module cpu(input rst, input ram_clk);
 	.stage3_save(stage3_register_save),  .stage3_save_ready(stage3_register_save_ready),  .stage3_save_address(stage3_register_save_address),  .stage3_save_data_in(stage3_register_save_data_in),
 	.stage4_save(stage4_register_save),  .stage4_save_ready(stage4_register_save_ready),  .stage4_save_address(stage4_register_save_address),  .stage4_save_data_in(stage4_register_save_data_in),
 	.stage4_read(stage4_register_read),  .stage4_read_ready(stage4_register_read_ready),  .stage4_read_address(stage4_register_read_address),  .stage4_read_data_out(stage4_register_read_data_out),
-	.stage5_read(stage5_register_read),  .stage5_read_ready(stage5_register_read_ready),  .stage5_read_address(stage5_register_read_address),  .stage5_read_data_out(stage5_register_read_data_out)	
+	.stage5_read(stage5_register_read),  .stage5_read_ready(stage5_register_read_ready),  .stage5_read_address(stage5_register_read_address),  .stage5_read_data_out(stage5_register_read_data_out),
+	.switcher_save(switcher_register_save),  .switcher_save_ready(switcher_register_save_ready),  .switcher_save_address(switcher_register_save_address),  .switcher_save_data_in(switcher_register_save_data_in),
+	.switcher_read(switcher_register_read),  .switcher_read_ready(switcher_register_read_ready),  .switcher_read_address(switcher_register_read_address),  .switcher_read_data_out(switcher_register_read_data_out)
 	);
 
   // ram with extra prioritization
@@ -74,6 +106,16 @@ module cpu(input rst, input ram_clk);
   wire stage5_ram_save_ready;
   wire [15:0] stage5_ram_save_address;
   wire [7:0] stage5_ram_save_data_in;
+
+  wire switcher_ram_read;
+  wire switcher_ram_read_ready;
+  wire [15:0] switcher_ram_read_address;
+  wire [7:0] switcher_ram_read_data_out;
+
+  wire switcher_ram_save;
+  wire switcher_ram_save_ready;
+  wire [15:0] switcher_ram_save_address;
+  wire [7:0] switcher_ram_save_data_in;
   
   ram2 ram2(.ram_clk(ram_clk),
   	.stage12_read(stage12_ram_read), .stage12_read_ready(stage12_ram_read_ready),
@@ -81,7 +123,12 @@ module cpu(input rst, input ram_clk);
 	.stage3_read(stage3_ram_read), .stage3_read_ready(stage3_ram_read_ready),
 	.stage3_read_address(stage3_ram_read_address), .stage3_read_data_out(stage3_ram_read_data_out),
 	.stage5_save(stage5_ram_save), .stage5_save_ready(stage5_ram_save_ready),
-	.stage5_save_address(stage5_ram_save_address), .stage5_save_data_in(stage5_ram_save_data_in));
+	.stage5_save_address(stage5_ram_save_address), .stage5_save_data_in(stage5_ram_save_data_in),	
+	.switcher_read(switcher_ram_read), .switcher_read_ready(switcher_ram_read_ready),
+	.switcher_read_address(switcher_ram_read_address), .switcher_read_data_out(switcher_ram_read_data_out),
+	.switcher_save(switcher_ram_save), .switcher_save_ready(switcher_ram_save_ready),
+	.switcher_save_address(switcher_ram_save_address), .switcher_save_data_in(switcher_ram_save_data_in)
+	);
 	
   //fetch & decode
   reg stage12_exec;
@@ -101,8 +148,10 @@ module cpu(input rst, input ram_clk);
   wire [15:0]stage5_source_register_start;
   wire [15:0]stage5_source_register_length;
   wire [15:0]stage5_target_ram_address;
+  wire switcher_should_exec;
  
   stage12 stage12(.rst(rst), .stage12_exec(stage12_exec), .stage12_exec_ready(stage12_exec_ready),
+  	.switcher_should_exec(switcher_should_exec),
   	.stage3_should_exec(stage3_should_exec), .stage3_source_ram_address(stage3_source_ram_address),
   	.stage3_target_register_start(stage3_target_register_start), .stage3_target_register_length(stage3_target_register_length),
   	.stage4_should_exec(stage4_should_exec),
@@ -158,12 +207,15 @@ module cpu(input rst, input ram_clk);
   	.stage5_ram_save_address(stage5_ram_save_address), .stage5_ram_save_data_in(stage5_ram_save_data_in));
 	
   always @(rst) begin
-    	$display($time," reset1");
+    	$display($time," reset1"); 
     	stage12_exec=1; //start it
   end
   always @(negedge stage12_exec) begin
    	$display($time," negedge stage12exec");
-    	stage12_exec=1; //force it to start again
+   	$display($time," abc ",switcher_should_exec);
+    	if (switcher_should_exec==0) begin
+    		stage12_exec=1; //force it to start again
+    	end
   end
   always @(posedge stage12_exec_ready) begin
 	$display($time," posedge stage12execready");
@@ -197,11 +249,16 @@ module cpu(input rst, input ram_clk);
 	$display($time," posedge stage5execready");
        	stage5_exec=0;
   end
+  always @(posedge switcher_exec_ready) begin
+	$display($time," posedge switcherexecready");
+       	switcher_exec=0;
+  end
 endmodule
 
 module stage12(
 	input rst,
 	input stage12_exec, output reg stage12_exec_ready, 
+	output reg switcher_should_exec,
   	output reg stage3_should_exec, 
   	output reg [15:0]stage3_source_ram_address, 
   	output reg [15:0]stage3_target_register_start, 
@@ -228,119 +285,132 @@ module stage12(
  
   reg [7:0] instruction[0:3];
   reg [15:0] pc;
+  reg [15:0] process_address;
+  reg [15:0] executed;
  
   always @(rst) begin
     	$display($time," reset2");
-    	pc=0;
+    	executed=0;
+    	process_address=0;
+    	pc=process_address+64+8; //registers 64 + 4
   end
   always @(posedge stage12_exec) begin
 	stage12_exec_ready <= 0;
-	stage3_should_exec<=0;	
-	stage4_should_exec<=0;
-	stage5_should_exec<=0;
-	$display($time," executing pc ",pc);
-	
-	stage12_ram_read_address <= pc;
-	stage12_ram_read <= 1;
-	@(posedge stage12_ram_read_ready)
-	stage12_ram_read <= 0;
-	instruction[0] = stage12_ram_read_data_out;
-
-	stage12_ram_read_address <= pc+1;
-	stage12_ram_read <= 1;
-	@(posedge stage12_ram_read_ready)
-	stage12_ram_read <= 0;
-	instruction[1] = stage12_ram_read_data_out;
-
-	if (instruction[0]==`OPCODE_JUMPMINUS) begin
-		$display($time,"   JUMPMINUS");
-		pc-=instruction[1]*4;
-	end if (instruction[0]==`OPCODE_JUMPPLUS) begin
-		$display($time,"   JUMPPLUS");
-		pc+=instruction[1]*4;
+	executed++;
+	switcher_should_exec<=0;
+	if (executed==4) begin
+		switcher_should_exec<=1;
+		$display($time,"   switcher should exec");
 	end else begin
-		stage12_ram_read_address <= pc+2;
+		stage3_should_exec<=0;	
+		stage4_should_exec<=0;
+		stage5_should_exec<=0;
+		$display($time," executing pc ",pc, " ",executed);
+	
+		stage12_ram_read_address <= pc;
 		stage12_ram_read <= 1;
 		@(posedge stage12_ram_read_ready)
 		stage12_ram_read <= 0;
-		instruction[2] = stage12_ram_read_data_out;
+		instruction[0] = stage12_ram_read_data_out;
 
-		stage12_ram_read_address <= pc+3;
+		stage12_ram_read_address <= pc+1;
 		stage12_ram_read <= 1;
 		@(posedge stage12_ram_read_ready)
 		stage12_ram_read <= 0;
-		instruction[3] = stage12_ram_read_data_out;
+		instruction[1] = stage12_ram_read_data_out;
+
+		if (instruction[0]==`OPCODE_JUMPMINUS) begin
+			$display($time,"   JUMPMINUS");
+			pc-=instruction[1]*4;
+	       		executed++;
+		end if (instruction[0]==`OPCODE_JUMPPLUS) begin
+			$display($time,"   JUMPPLUS");
+			pc+=instruction[1]*4;
+	       		executed++;
+		end else begin
+			stage12_ram_read_address <= pc+2;
+			stage12_ram_read <= 1;
+			@(posedge stage12_ram_read_ready)
+			stage12_ram_read <= 0;
+			instruction[2] = stage12_ram_read_data_out;
+
+			stage12_ram_read_address <= pc+3;
+			stage12_ram_read <= 1;
+			@(posedge stage12_ram_read_ready)
+			stage12_ram_read <= 0;
+			instruction[3] = stage12_ram_read_data_out;
 		
-		if (instruction[0]==`OPCODE_LOADFROMRAM) begin
-			stage3_target_register_start=instruction[1];
-  			stage3_target_register_length=instruction[2];
-			stage3_source_ram_address=instruction[3];
-			$display($time,"   LOADFROMRAM ",stage3_target_register_length," bytes from RAM address ",stage3_source_ram_address,"+ and save to register ",stage3_target_register_start,"+");
-			stage3_should_exec<=1;
-			pc+=4;
-		end if (instruction[0]==`OPCODE_READFROMRAM) begin
-			stage12_register_read_address <= instruction[3];
-			stage12_register_read <= 1;
-			@(posedge stage12_register_read_ready)
-			stage12_register_read <= 0;
+			if (instruction[0]==`OPCODE_LOADFROMRAM) begin
+				stage3_target_register_start=instruction[1];
+	  			stage3_target_register_length=instruction[2];
+				stage3_source_ram_address=instruction[3];
+				$display($time,"   LOADFROMRAM ",stage3_target_register_length," bytes from RAM address ",stage3_source_ram_address,"+ and save to register ",stage3_target_register_start,"+");
+				stage3_should_exec<=1;
+				pc+=4;
+			end if (instruction[0]==`OPCODE_READFROMRAM) begin
+				stage12_register_read_address <= instruction[3];
+				stage12_register_read <= 1;
+				@(posedge stage12_register_read_ready)
+				stage12_register_read <= 0;
 
-			stage3_target_register_start=instruction[1];
-  			stage3_target_register_length=instruction[2];
-			stage3_source_ram_address=stage12_register_read_data_out;
+				stage3_target_register_start=instruction[1];
+	  			stage3_target_register_length=instruction[2];
+				stage3_source_ram_address=stage12_register_read_data_out;
 
-			$display($time,"   READFROMRAM ",stage3_target_register_length," bytes from RAM address ",stage3_source_ram_address,"+ and save to register ",stage3_target_register_start,"+");
-			stage3_should_exec<=1;
-			pc+=4;
-		end else if (instruction[0]==`OPCODE_WRITETORAM) begin
-			stage5_source_register_start=instruction[1];
-  			stage5_source_register_length=instruction[2];
-  			stage5_target_ram_address=instruction[3];  
-			$display($time,"   WRITETORAM ",stage5_source_register_length," bytes from register ",stage5_source_register_start,"+ and save to RAM address ",stage5_target_ram_address,"+");
-			stage5_should_exec<=1;
-			pc+=4;
-		end else if (instruction[0]==`OPCODE_SAVETORAM) begin
-			stage12_register_read_address <= instruction[3];
-			stage12_register_read <= 1;
-			@(posedge stage12_register_read_ready)
-			stage12_register_read <= 0;
+				$display($time,"   READFROMRAM ",stage3_target_register_length," bytes from RAM address ",stage3_source_ram_address,"+ and save to register ",stage3_target_register_start,"+");
+				stage3_should_exec<=1;
+				pc+=4;
+			end else if (instruction[0]==`OPCODE_WRITETORAM) begin
+				stage5_source_register_start=instruction[1];
+	  			stage5_source_register_length=instruction[2];
+	  			stage5_target_ram_address=instruction[3];  
+				$display($time,"   WRITETORAM ",stage5_source_register_length," bytes from register ",stage5_source_register_start,"+ and save to RAM address ",stage5_target_ram_address,"+");
+				stage5_should_exec<=1;
+				pc+=4;
+			end else if (instruction[0]==`OPCODE_SAVETORAM) begin
+				stage12_register_read_address <= instruction[3];
+				stage12_register_read <= 1;
+				@(posedge stage12_register_read_ready)
+				stage12_register_read <= 0;
 			
-			stage5_source_register_start=instruction[1];
-  			stage5_source_register_length=instruction[2];
-  			stage5_target_ram_address=stage12_register_read_data_out;  
-			$display($time,"   SAVETORAM ",stage5_source_register_length," bytes from register ",stage5_source_register_start,"+ and save to RAM address ",stage5_target_ram_address,"+");
-			stage5_should_exec<=1;
-			pc+=4;
-		end else if (instruction[0]==`OPCODE_ADD8) begin
-		   	stage4_oper=`OPER_ADD;
-  			stage4_register_A_start=instruction[1];
-			stage4_register_B_start=instruction[1];
-		  	stage4_register_out_start=instruction[2];
-		  	stage4_register_length=instruction[3];
-			$display($time,"   OPCODE_ADD8 add register ",stage4_register_A_start,"+ to register ",stage4_register_B_start," and save to register ",stage4_register_out_start,"+, len ",stage4_register_length);
-			stage4_should_exec<=1;
-			pc+=4;
-		end else if (instruction[0]==`OPCODE_ADDNUM8) begin
-		   	stage4_oper=`OPER_ADDNUM;
-  			stage4_register_A_start=instruction[1];
-			stage4_value_B=instruction[1];
-		  	stage4_register_out_start=instruction[2];
-		  	stage4_register_length=instruction[3];
-			$display($time,"   OPCODE_ADDNUM8 add value ",stage4_value_B," to register ",stage4_register_A_start," and save to register ",stage4_register_out_start,"+, len ",stage4_register_length);
-			stage4_should_exec<=1;
-			pc+=4;
-		end else if (instruction[0]==`OPCODE_SET8) begin
-		   	stage4_oper=`OPER_SETNUM;
-  			//stage4_register_A_start=instruction[1];
-			stage4_value_B=0;
-		  	stage4_register_out_start=instruction[1];
-		  	stage4_register_length=instruction[2];
-			$display($time,"   OPCODE_SET8 add value ",stage4_value_B," to register ",stage4_register_A_start," and save to register ",stage4_register_out_start,"+, len ",stage4_register_length);
-			stage4_should_exec<=1;
-			pc+=4;
+				stage5_source_register_start=instruction[1];
+	  			stage5_source_register_length=instruction[2];
+	  			stage5_target_ram_address=stage12_register_read_data_out;  
+				$display($time,"   SAVETORAM ",stage5_source_register_length," bytes from register ",stage5_source_register_start,"+ and save to RAM address ",stage5_target_ram_address,"+");
+				stage5_should_exec<=1;
+				pc+=4;
+			end else if (instruction[0]==`OPCODE_ADD8) begin
+			   	stage4_oper=`OPER_ADD;
+	  			stage4_register_A_start=instruction[1];
+				stage4_register_B_start=instruction[1];
+			  	stage4_register_out_start=instruction[2];
+			  	stage4_register_length=instruction[3];
+				$display($time,"   OPCODE_ADD8 add register ",stage4_register_A_start,"+ to register ",stage4_register_B_start," and save to register ",stage4_register_out_start,"+, len ",stage4_register_length);
+				stage4_should_exec<=1;
+				pc+=4;
+			end else if (instruction[0]==`OPCODE_ADDNUM8) begin
+			   	stage4_oper=`OPER_ADDNUM;
+	  			stage4_register_A_start=instruction[1];
+				stage4_value_B=instruction[1];
+			  	stage4_register_out_start=instruction[2];
+			  	stage4_register_length=instruction[3];
+				$display($time,"   OPCODE_ADDNUM8 add value ",stage4_value_B," to register ",stage4_register_A_start," and save to register ",stage4_register_out_start,"+, len ",stage4_register_length);
+				stage4_should_exec<=1;
+				pc+=4;
+			end else if (instruction[0]==`OPCODE_SET8) begin
+			   	stage4_oper=`OPER_SETNUM;
+	  			//stage4_register_A_start=instruction[1];
+				stage4_value_B=0;
+			  	stage4_register_out_start=instruction[1];
+			  	stage4_register_length=instruction[2];
+				$display($time,"   OPCODE_SET8 add value ",stage4_value_B," to register ",stage4_register_A_start," and save to register ",stage4_register_out_start,"+, len ",stage4_register_length);
+				stage4_should_exec<=1;
+				pc+=4;
+			end
 		end
+		$display($time,"   ",instruction[0], " ", instruction[1]," ",
+				instruction[2]," ",instruction[3]);
 	end
-	$display($time,"   ",instruction[0], " ", instruction[1]," ",
-			instruction[2]," ",instruction[3]);
 	stage12_exec_ready<=1;
   end
 endmodule
@@ -469,10 +539,65 @@ integer i;
   end
 endmodule
 
+module switcher(
+	input switcher_exec, output reg switcher_exec_ready, 
+	//registers
+	output reg switcher_register_save,  input switcher_register_save_ready,
+  	output reg [15:0] switcher_register_save_address,
+	output reg [7:0] switcher_register_save_data_in,
+  	output reg switcher_register_read,  input switcher_register_read_ready,
+  	output reg [15:0] switcher_register_read_address,
+  	input [7:0] switcher_register_read_data_out,
+  	//ram
+  	output reg switcher_ram_save, input switcher_ram_save_ready, 
+  	output reg [15:0] switcher_ram_save_address,
+  	output reg [7:0] switcher_ram_save_data_in,
+  	output reg switcher_ram_read, input switcher_ram_read_ready, 
+  	output reg [15:0] switcher_ram_read_address,
+  	input [7:0] switcher_ram_read_data_out);
+
+integer i;
+integer j;
+
+  always @(posedge switcher_exec) begin
+	  $display($time,"switcher start");
+				
+	switcher_exec_ready <= 0;
+	for (i=0;i<64;i++) begin
+		switcher_register_read_address <= i+8;
+		switcher_register_read <= 1;
+		@(posedge switcher_register_read_ready)
+		switcher_register_read <= 0;
+		
+		switcher_ram_save_address <= i+8;
+		switcher_ram_save_data_in <= switcher_register_read_data_out;
+		switcher_ram_save <= 1;
+		@(posedge switcher_ram_save_ready)
+		switcher_ram_save <= 0;
+	end
+	j=100;
+	for (i=0;i<64;i++) begin
+		switcher_ram_read_address <= j+i+8;
+		switcher_ram_read <= 1;
+		@(posedge switcher_ram_read_ready)
+		switcher_ram_read <= 0;
+		
+		switcher_register_save_address <= i+8;
+		switcher_register_save_data_in <= switcher_register_read_data_out;
+		switcher_register_save <= 1;
+		@(posedge switcher_register_save_ready)
+		switcher_register_save <= 0;
+	end
+	switcher_exec_ready<=1;
+  end
+endmodule
+
 module ram2(input ram_clk,
 	input stage12_read, output reg stage12_read_ready, input [15:0] stage12_read_address, output reg [7:0] stage12_read_data_out,
 	input stage3_read,  output reg stage3_read_ready,  input [15:0] stage3_read_address,  output reg [7:0] stage3_read_data_out,
-	input stage5_save,  output reg stage5_save_ready,  input [15:0] stage5_save_address,  input [7:0] stage5_save_data_in);
+	input stage5_save,  output reg stage5_save_ready,  input [15:0] stage5_save_address,  input [7:0] stage5_save_data_in,
+	input switcher_read,  output reg switcher_read_ready,  input [15:0] switcher_read_address,  output reg [7:0] switcher_read_data_out,
+	input switcher_save,  output reg switcher_save_ready,  input [15:0] switcher_save_address,  input [7:0] switcher_save_data_in);
 
   reg ram_write_enable;
   reg [15:0]ram_address;
@@ -482,7 +607,18 @@ module ram2(input ram_clk,
   ram ram(.ram_clk(ram_clk),.write_enable(ram_write_enable),.address(ram_address),.data_in(ram_data_in),
   	.data_out(ram_data_out));
   
-  always @(posedge stage12_read or posedge stage3_read or posedge stage5_save) begin
+  always @(posedge stage12_read or posedge stage3_read or posedge stage5_save or posedge switcher_save or posedge switcher_read) begin
+	if (switcher_save) begin
+  		switcher_save_ready <= 0;
+		ram_write_enable <= 1;
+		ram_address = switcher_save_address;
+		ram_data_in = switcher_save_data_in; 	
+  		$display($time," saving RAM from switcher address ",switcher_save_address);
+		@(posedge ram_clk)
+  		@(negedge ram_clk)
+		ram_write_enable <= 0; 	
+		switcher_save_ready <= 1;
+	end
 	if (stage5_save) begin
   		stage5_save_ready <= 0;
 		ram_write_enable <= 1;
@@ -493,6 +629,16 @@ module ram2(input ram_clk,
   		@(negedge ram_clk)
 		ram_write_enable <= 0; 	
 		stage5_save_ready <= 1;
+	end
+	if (switcher_read) begin
+  		switcher_read_ready <= 0;
+  		ram_write_enable <= 0; 	
+		ram_address = switcher_read_address;
+		@(posedge ram_clk)
+		@(negedge ram_clk)
+  		$display($time," reading RAM from switcher address ",switcher_read_address," value ",ram_data_out);
+		switcher_read_data_out <= ram_data_out;
+		switcher_read_ready<=1;
 	end
 	if (stage3_read) begin
   		stage3_read_ready <= 0;
@@ -524,7 +670,7 @@ module ram(input ram_clk, input write_enable, input [15:0] address, input [7:0] 
   reg [7:0] ram_memory[0:65536];
   
   initial begin
-    $readmemh("rom.mem", ram_memory);
+    $readmemh("rom2.mem", ram_memory);
   end
   always @(posedge ram_clk) begin
     if (write_enable) begin
@@ -540,7 +686,9 @@ module registers(
 	input stage3_save,  output reg stage3_save_ready,  input [15:0] stage3_save_address,  input [7:0] stage3_save_data_in,
 	input stage4_save,  output reg stage4_save_ready,  input [15:0] stage4_save_address,  input [7:0] stage4_save_data_in,
 	input stage4_read,  output reg stage4_read_ready,  input [15:0] stage4_read_address,  output reg [7:0] stage4_read_data_out,
-	input stage5_read,  output reg stage5_read_ready,  input [15:0] stage5_read_address,  output reg [7:0] stage5_read_data_out,
+	input stage5_read,  output reg stage5_read_ready,  input [15:0] stage5_read_address,  output reg [7:0] stage5_read_data_out,	
+	input switcher_save,  output reg switcher_save_ready,  input [15:0] switcher_save_address,  input [7:0] switcher_save_data_in,
+	input switcher_read,  output reg switcher_read_ready,  input [15:0] switcher_read_address,  output reg [7:0] switcher_read_data_out,	
 	input dump_reg,  output reg dump_reg_ready
 	);
   reg [7:0]registers_memory[63:0];
@@ -572,6 +720,16 @@ module registers(
 	stage5_read_ready <= 0;
 	stage5_read_data_out = registers_memory[stage5_read_address];
 	stage5_read_ready<=1;
+  end
+  always @(posedge switcher_save) begin
+	switcher_save_ready <= 0;
+	registers_memory[switcher_save_address] = switcher_save_data_in;
+	switcher_save_ready<=1;
+  end
+  always @(posedge switcher_read) begin
+	switcher_read_ready <= 0;
+	switcher_read_data_out = registers_memory[switcher_read_address];
+	switcher_read_ready<=1;
   end
   always @(posedge dump_reg) begin
 	dump_reg_ready <= 0;

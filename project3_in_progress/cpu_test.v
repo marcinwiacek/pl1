@@ -12,7 +12,7 @@ initial begin
     $dumpvars(0,cpu_test);
     ram_clk=0;
     rst=1;
-    #100
+    #600
     $finish();
 end
 
