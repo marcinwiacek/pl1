@@ -47,15 +47,14 @@ Process and I/O related:
 
 Register load/save (needs simple and vector instructions):
 
- 1. READFROMRAM - load from memory from address in register to register, params: target register number, length, register with source address, example: 2, 5, 1 loads data starting from address in register 1 and load into register 2-7
- 2. SAVETORAM - save to memory with address in register, params: source register number, length, register with target address
  3. LOADFROMRAM - load from memory with specified address, params: target register number, length, source memory address, example: 2, 5, 123 loads data starting from address 123 and load into register 2-7
  4. WRITETORAM - save to memory with specified address, params: source register number, length, target memory address
 
+ 1. READFROMRAM - load from memory from address in register to register, params: target register number, length, register with source address, example: 2, 5, 1 loads data starting from address in register 1 and load into register 2-7
+ 2. SAVETORAM - save to memory with address in register, params: source register number, length, register with target address
+
 Calculations: (needs simple and vector instructions)
 
- 1. const SET = 13; //set 4bitod 4bitdo 16bit
- 2. const ADD = 14; // add register with value, start, stop, value
  3. const DEC = 15; // decrease register with value, start, stop, value
  4. const DIV = 16;
  5. const MUL = 17;
@@ -68,6 +67,7 @@ Calculations: (needs simple and vector instructions)
  12. //neg2
  
  14. ADD8 - add register A and B and save to register "out", 8-bit processing (format: register A start, register B start, register out start, length)
+ 15. ADDNUM8 - add numeric value to registers
 
 Jump:
 

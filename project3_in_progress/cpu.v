@@ -2,6 +2,7 @@
 `define OPCODE_JUMPMINUS 2
 `define OPCODE_WRITETORAM 3
 `define OPCODE_ADD8 4
+`define OPCODE_JUMPPLUS 5
 
 `define OPER_ADD 1
 
@@ -12,8 +13,39 @@
 //    	if (`DEBUG_LEVEL==2) $display($time,TXT);
 
 module cpu(input rst, input ram_clk);
-  wire [7:0]registers[63:0];
-    
+  //registers with extra prioritization and hazard detection
+  reg dump_reg;
+  wire dump_reg_ready;
+  
+  wire stage3_register_save;
+  wire stage3_register_save_ready;
+  wire [15:0] stage3_register_save_address;
+  wire [7:0] stage3_register_save_data_in;
+
+  wire stage4_register_save;
+  wire stage4_register_save_ready;
+  wire [15:0] stage4_register_save_address;
+  wire [7:0] stage4_register_save_data_in;
+  
+  wire stage4_register_read;
+  wire stage4_register_read_ready;
+  wire [15:0] stage4_register_read_address;
+  wire [7:0] stage4_register_read_data_out;
+
+  wire stage5_register_read;
+  wire stage5_register_read_ready;
+  wire [15:0] stage5_register_read_address;
+  wire [7:0] stage5_register_read_data_out;
+  
+  registers registers(
+  	.dump_reg(dump_reg),
+	.dump_reg_ready(dump_reg_ready),  
+	.stage3_save(stage3_register_save),  .stage3_save_ready(stage3_register_save_ready),  .stage3_save_address(stage3_register_save_address),  .stage3_save_data_in(stage3_register_save_data_in),
+	.stage4_save(stage4_register_save),  .stage4_save_ready(stage4_register_save_ready),  .stage4_save_address(stage4_register_save_address),  .stage4_save_data_in(stage4_register_save_data_in),
+	.stage4_read(stage4_register_read),  .stage4_read_ready(stage4_register_read_ready),  .stage4_read_address(stage4_register_read_address),  .stage4_read_data_out(stage4_register_read_data_out),
+	.stage5_read(stage5_register_read),  .stage5_read_ready(stage5_register_read_ready),  .stage5_read_address(stage5_register_read_address),  .stage5_read_data_out(stage5_register_read_data_out)	
+	);
+
   // ram with extra prioritization
   wire stage12_ram_read;
   wire stage12_ram_read_ready;
@@ -77,7 +109,8 @@ module cpu(input rst, input ram_clk);
   stage3 stage3(.stage3_exec(stage3_exec), .stage3_exec_ready(stage3_exec_ready),
   	.stage3_source_ram_address(stage3_source_ram_address), .stage3_target_register_start(stage3_target_register_start),
   	.stage3_target_register_length(stage3_target_register_length),
-  	.registers(registers),
+	.stage3_register_save(stage3_register_save),  .stage3_register_save_ready(stage3_register_save_ready), 
+	.stage3_register_save_address(stage3_register_save_address),  .stage3_register_save_data_in(stage3_register_save_data_in),
   	//ram
   	.stage3_ram_read(stage3_ram_read), .stage3_ram_read_ready(stage3_ram_read_ready),
   	.stage3_ram_read_address(stage3_ram_read_address), .stage3_ram_read_data_out(stage3_ram_read_data_out));
@@ -88,7 +121,11 @@ module cpu(input rst, input ram_clk);
   
   stage4 stage4(.stage4_exec(stage4_exec), .stage4_exec_ready(stage4_exec_ready),.stage4_oper(stage4_oper),  .stage4_register_A_start(stage4_register_A_start),
   .stage4_register_B_start(stage4_register_B_start),  .stage4_value_B(stage4_value_B),  .stage4_register_out_start(stage4_register_out_start),
-  .stage4_register_length(stage4_register_length),  .registers(registers));
+  .stage4_register_length(stage4_register_length),
+	.stage4_register_save(stage4_register_save),  .stage4_register_save_ready(stage4_register_save_ready), 
+	.stage4_register_save_address(stage4_register_save_address),  .stage4_register_save_data_in(stage4_register_save_data_in),
+	.stage4_register_read(stage4_register_read),  .stage4_register_read_ready(stage4_register_read_ready), 
+	.stage4_register_read_address(stage4_register_read_address),  .stage4_register_read_data_out(stage4_register_read_data_out));
   	  
   //ram save
   reg stage5_exec;
@@ -97,7 +134,8 @@ module cpu(input rst, input ram_clk);
   stage5 stage5(.stage5_exec(stage5_exec), .stage5_exec_ready(stage5_exec_ready),
   	.stage5_source_register_start(stage5_source_register_start), .stage5_source_register_length(stage5_source_register_length),
   	.stage5_target_ram_address(stage5_target_ram_address),  
-  	.registers(registers),
+	.stage5_register_read(stage5_register_read),  .stage5_register_read_ready(stage5_register_read_ready), 
+	.stage5_register_read_address(stage5_register_read_address),  .stage5_register_read_data_out(stage5_register_read_data_out),
   	//ram
   	.stage5_ram_save(stage5_ram_save), .stage5_ram_save_ready(stage5_ram_save_ready),
   	.stage5_ram_save_address(stage5_ram_save_address), .stage5_ram_save_data_in(stage5_ram_save_data_in));
@@ -126,10 +164,16 @@ module cpu(input rst, input ram_clk);
   end
   always @(posedge stage3_exec_ready) begin
 	$display($time," posedge stage3execready");
+	dump_reg <= 1;
+	@(posedge dump_reg_ready)
+	dump_reg <= 0;
        	stage3_exec=0;
   end
   always @(posedge stage4_exec_ready) begin
 	$display($time," posedge stage4execready");
+	dump_reg <= 1;
+	@(posedge dump_reg_ready)
+	dump_reg <= 0;
        	stage4_exec=0;
   end
   always @(posedge stage5_exec_ready) begin
@@ -190,6 +234,9 @@ module stage12(
 	if (instruction[0]==`OPCODE_JUMPMINUS) begin
 		$display($time,"   JUMPMINUS");
 		pc-=instruction[1]*4;
+	end if (instruction[0]==`OPCODE_JUMPPLUS) begin
+		$display($time,"   JUMPPLUS");
+		pc+=instruction[1]*4;
 	end else begin
 		stage12_ram_read_address <= pc+2;
 		stage12_ram_read <= 1;
@@ -239,14 +286,16 @@ module stage3(
 	input [15:0]stage3_source_ram_address,
 	input [15:0]stage3_target_register_start, 
 	input [15:0]stage3_target_register_length,
-    	output reg [7:0]registers[63:0],
+	//registers
+	output reg stage3_register_save,  input stage3_register_save_ready,
+	output reg [15:0] stage3_register_save_address,
+	output reg [7:0] stage3_register_save_data_in,
   	//ram
   	output reg stage3_ram_read, input stage3_ram_read_ready, 
   	output reg [15:0] stage3_ram_read_address,
   	input [7:0] stage3_ram_read_data_out);
  
  integer i;
- string s;
  
   always @(posedge stage3_exec) begin
 	stage3_exec_ready <= 0;
@@ -255,59 +304,73 @@ module stage3(
 		stage3_ram_read <= 1;
 		@(posedge stage3_ram_read_ready)
 		stage3_ram_read <= 0;
-		registers[i] = stage3_ram_read_data_out;
+		
+		stage3_register_save_address <= i;
+		stage3_register_save_data_in <= stage3_ram_read_data_out;
+		stage3_register_save <= 1;
+		@(posedge stage3_register_save_ready)
+		stage3_register_save <= 0;
 	end
-	s=" ";
-	for (i=0;i<20;i++) begin
-		s={s,$sformatf("%02x ",registers[i])};
-	end
-	$display($time,s);
 	stage3_exec_ready<=1;
   end
 endmodule
 
-module stage4(input stage4_exec, output reg stage4_exec_ready,  input [15:0]stage4_oper,
+module stage4(input stage4_exec, output reg stage4_exec_ready,
+  input [15:0]stage4_oper,
   input [15:0]stage4_register_A_start,
   input [15:0]stage4_register_B_start,
   input [15:0]stage4_value_B,
   input [15:0]stage4_register_out_start,
   input [15:0]stage4_register_length,
-  input [7:0]registers[63:0]
-//  output reg [7:0]outregisters[63:0]
-  );
+  //registers
+  output reg stage4_register_save,  input stage4_register_save_ready,
+  output reg [15:0] stage4_register_save_address,
+  output reg [7:0] stage4_register_save_data_in,
+  output reg stage4_register_read,  input stage4_register_read_ready,
+  output reg [15:0] stage4_register_read_address,
+  input [7:0] stage4_register_read_data_out);
   
   integer i;
  string s2;
+ reg [7:0] temp;
   
      always @(posedge stage4_exec) begin
      	stage4_exec_ready <= 0;
        // case (stage4_oper)
         //	`OPER_ADD: 
-        s2=" ";
-			for (i=0;i<20;i++) begin
-				s2={s2,$sformatf("%02x ",registers[i])};
-			end
-			$display($time,s2);
-        		for (i=0;i<stage4_register_length;i++) begin
-        			//inregisters[i+stage4_register_out_start] = inregisters[i+stage4_register_A_start]+inregisters[i+stage4_register_B_start];
-        		end
-        		s2=" ";
-			for (i=0;i<20;i++) begin
-				s2={s2,$sformatf("%02x ",registers[i])};
-			end
-			$display($time,s2);
+       for (i=0;i<stage4_register_length;i++) begin
+       		stage4_register_read_address <= i+stage4_register_A_start;
+		stage4_register_read <= 1;
+		@(posedge stage4_register_read_ready)
+		stage4_register_read <= 0;
+		
+		temp = stage4_register_read_data_out;
+
+       		stage4_register_read_address <= i+stage4_register_B_start;
+		stage4_register_read <= 1;
+		@(posedge stage4_register_read_ready)
+		stage4_register_read <= 0;
+		
+	       	stage4_register_save_address <= i+stage4_register_out_start;
+		stage4_register_save_data_in <= temp + stage4_register_read_data_out;
+		stage4_register_save <= 1;
+		@(posedge stage4_register_save_ready)
+		stage4_register_save <= 0;
+       end
       // endcase
         stage4_exec_ready <= 1;
     end
 endmodule
 
 module stage5(
-	input stage5_exec,
-	output reg stage5_exec_ready, 
+	input stage5_exec, output reg stage5_exec_ready, 
 	input [15:0] stage5_source_register_start, 
 	input [15:0] stage5_source_register_length,
 	input [15:0] stage5_target_ram_address,
-	input [7:0]registers[63:0],
+	//registers
+	output reg stage5_register_read,  input stage5_register_read_ready,
+	output reg [15:0] stage5_register_read_address,
+	input [7:0] stage5_register_read_data_out,
   	//ram
   	output reg stage5_ram_save, input stage5_ram_save_ready, 
   	output reg [15:0] stage5_ram_save_address,
@@ -318,8 +381,13 @@ integer i;
   always @(posedge stage5_exec) begin
 	stage5_exec_ready <= 0;
 	for (i=0;i<stage5_source_register_length;i++) begin
+		stage5_register_read_address <= i+stage5_source_register_start;
+		stage5_register_read <= 1;
+		@(posedge stage5_register_read_ready)
+		stage5_register_read <= 0;
+
 		stage5_ram_save_address <= stage5_target_ram_address+i;
-		stage5_ram_save_data_in <= registers[i+stage5_source_register_start];
+		stage5_ram_save_data_in <= stage5_register_read_data_out;
 		stage5_ram_save <= 1;
 		@(posedge stage5_ram_save_ready)
 		stage5_ram_save <= 0;
@@ -393,3 +461,47 @@ module ram(input ram_clk, input write_enable, input [15:0] address, input [7:0] 
     end
   end
 endmodule
+
+module registers(
+	input stage3_save,  output reg stage3_save_ready,  input [15:0] stage3_save_address,  input [7:0] stage3_save_data_in,
+	input stage4_save,  output reg stage4_save_ready,  input [15:0] stage4_save_address,  input [7:0] stage4_save_data_in,
+	input stage4_read,  output reg stage4_read_ready,  input [15:0] stage4_read_address,  output reg [7:0] stage4_read_data_out,
+	input stage5_read,  output reg stage5_read_ready,  input [15:0] stage5_read_address,  output reg [7:0] stage5_read_data_out,
+	input dump_reg,  output reg dump_reg_ready
+	);
+  reg [7:0]registers_memory[63:0];
+  
+  integer i;
+  string s2;
+
+  always @(posedge stage3_save) begin
+	stage3_save_ready <= 0;
+	registers_memory[stage3_save_address] = stage3_save_data_in;
+	stage3_save_ready<=1;
+  end
+  always @(posedge stage4_save) begin
+	stage4_save_ready <= 0;
+	registers_memory[stage4_save_address] = stage4_save_data_in;
+	stage4_save_ready<=1;
+  end
+  always @(posedge stage4_read) begin
+	stage4_read_ready <= 0;
+	stage4_read_data_out = registers_memory[stage4_read_address];
+	stage4_read_ready<=1;
+  end
+  always @(posedge stage5_read) begin
+	stage5_read_ready <= 0;
+	stage5_read_data_out = registers_memory[stage5_read_address];
+	stage5_read_ready<=1;
+  end
+  always @(posedge dump_reg) begin
+	dump_reg_ready <= 0;
+        s2=" ";
+	for (i=0;i<20;i++) begin
+		s2={s2,$sformatf("%02x ",registers_memory[i])};
+	end
+	$display($time,s2);
+	dump_reg_ready<=1;
+  end
+endmodule
+
