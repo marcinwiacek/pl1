@@ -38,8 +38,8 @@ of registers and in many cases can decrease amount or RAM  read/write operations
 Every process in memory has the following structure:
 
   * address of next process (4 bytes)
-  * address of previous process (4 bytes)
   * PC register (4 bytes)
+  * registers used (4 bytes)
   * registers (64 bytes)
   * program (code and data)
 
