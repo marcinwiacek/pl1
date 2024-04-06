@@ -44,7 +44,6 @@ Every process in memory has the following structure:
   * program (code and data)
 
 Program cannot access registers and everything below.
-
 Processor has got two process lists - one for active process, one for suspended.
 
 # Instruction set
@@ -107,3 +106,5 @@ Todo:
 When "register" has got "value", jump outside block else execute next block instructions. With this approach we can say to CPU "cache block instructions" (for normal used 1x it doesn't even have sence to write them into cache, with "howmany" 0 we have conditional jump)
   * LOOPNEQ howmany, register, value - block has got "howmany" instructions. 
 When "register" is different than "value", jump outside block else execute next block instructions. With this approach we can say to CPU "cache block instructions" (for normal used 1x it doesn't even have sence to write them into cache, with "howmany" 0 we have conditional jump)
+
+# Cache

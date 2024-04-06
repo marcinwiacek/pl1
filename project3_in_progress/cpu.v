@@ -13,6 +13,8 @@
 `define OPER_ADDNUM 2
 `define OPER_SETNUM 3
 
+`define REGISTER_NUM 64
+
 //`define DEBUG_LEVEL 2 //higher=more info
 //`define DEBUG1(TXT) \
 //    	if (`DEBUG_LEVEL==1 || `DEBUG_LEVEL==2) $display($time,$sformatf TXT);
@@ -557,14 +559,14 @@ integer i,j ;
 
 always @(rst) begin
     	$display($time," reset2");
-    	process_address = 12+64;
+    	process_address = 12+`REGISTER_NUM;
   end
   
   always @(posedge switcher_exec) begin
 	  $display($time,"switcher start");
 				
 	switcher_exec_ready <= 0;
-	for (i=0;i<64;i++) begin
+	for (i=0;i<`REGISTER_NUM;i++) begin
 		switcher_register_read_address <= i+12;
 		switcher_register_read <= 1;
 		@(posedge switcher_register_read_ready)
@@ -588,7 +590,7 @@ always @(rst) begin
 	end
 	
 	process_address = j;
-	for (i=0;i<64;i++) begin
+	for (i=0;i<`REGISTER_NUM;i++) begin
 		switcher_ram_read_address <= 100+i+12;
 		switcher_ram_read <= 1;
 		@(posedge switcher_ram_read_ready)
@@ -704,7 +706,7 @@ module registers(
 	input switcher_read,  output reg switcher_read_ready,  input [15:0] switcher_read_address,  output reg [7:0] switcher_read_data_out,	
 	input dump_reg,  output reg dump_reg_ready
 	);
-  reg [7:0]registers_memory[63:0];
+  reg [7:0]registers_memory[`REGISTER_NUM-1:0];
   
   integer i;
   string s2;
