@@ -46,7 +46,7 @@ module cpu(
       .start_pc(start_pc),
       .pc(pc),
       .registers_used(registers_used),
-      .switcher_exec(switcher_should_exec),
+      .switcher_exec(switcher_exec),
       .switcher_exec_ready(switcher_exec_ready),
       //registers
       .switcher_register_save(switcher_register_save),
@@ -210,7 +210,6 @@ module cpu(
   wire [15:0] stage5_source_register_start;
   wire [15:0] stage5_source_register_length;
   wire [15:0] stage5_target_ram_address;
-  reg switcher_should_exec;
 
   stage12 stage12 (
       .stage12_exec(stage12_exec),
@@ -315,21 +314,16 @@ module cpu(
 
   always @(rst) begin
     $display($time, " reset1");
-    switcher_should_exec = 0;
+    switcher_exec = 0;
+    $display($time, "   switcher should exec ", switcher_exec);
     executed = 0;
     stage12_exec = 1;  //start it
   end
   always @(negedge stage12_exec) begin
     $display($time, " negedge stage12exec");
-    $display($time, " abc ", switcher_should_exec);
-    if (switcher_should_exec == 0) begin
-      executed++;
-      if (executed == 4) begin
-        switcher_should_exec = 1;
-        $display($time, "   switcher should exec");
-      end else begin
-        stage12_exec = 1;  //force it to start again
-      end
+    if (executed < 4) begin
+      $display($time, " start 12 ", executed);
+      stage12_exec = 1;  //force it to start again
     end
   end
   always @(posedge stage12_exec_ready) begin
@@ -337,33 +331,58 @@ module cpu(
     stage12_exec = 0;
     if (stage3_should_exec) begin
       stage3_exec = 1;  // start when necessary
-    end
-    if (stage4_should_exec) begin
+    end else if (stage4_should_exec) begin
       stage4_exec = 1;  // start when necessary
-    end
-    if (stage5_should_exec) begin
+    end else if (stage5_should_exec) begin
       //$display($time," stage5_should_exec");
       stage5_exec = 1;  // start when necessary
+    end else begin
+      if (executed == 4) begin
+        switcher_exec = 1;
+        $display($time, "   switcher should exec ", switcher_exec);
+      end else begin
+      	executed++;
+      end
     end
   end
   always @(posedge stage3_exec_ready) begin
     $display($time, " posedge stage3execready");
     dump_reg <= 1;
     @(posedge dump_reg_ready) dump_reg <= 0;
+      if (executed == 4) begin
+        switcher_exec = 1;
+        $display($time, "   switcher should exec ", switcher_exec);
+      end else begin
+      	executed++;
+      end
     stage3_exec = 0;
   end
   always @(posedge stage4_exec_ready) begin
     $display($time, " posedge stage4execready");
     dump_reg <= 1;
     @(posedge dump_reg_ready) dump_reg <= 0;
+      if (executed == 4) begin
+        switcher_exec = 1;
+        $display($time, "   switcher should exec ", switcher_exec);
+      end else begin
+      	executed++;
+      end
     stage4_exec = 0;
   end
   always @(posedge stage5_exec_ready) begin
     $display($time, " posedge stage5execready");
+      if (executed == 4) begin
+        switcher_exec = 1;
+        $display($time, "   switcher should exec ", switcher_exec);
+      end else begin
+      	executed++;
+      end
     stage5_exec = 0;
   end
   always @(posedge switcher_exec_ready) begin
     $display($time, " posedge switcherexecready");
+    executed=0;
+    stage12_exec = 1;
     switcher_exec = 0;
   end
 endmodule
@@ -684,13 +703,14 @@ module switcher (
 );
 
 
-  integer i, j,z;
+  integer i, j, z;
+  string s2;
   reg [15:0] process_address;
-  reg[7:0]temp[7:0];
+  reg [7:0] temp[7:0];
 
   always @(rst) begin
     $display($time, " reset2");
-    process_address=0;
+    process_address = 0;
     start_pc = 12 + `REGISTER_NUM;
   end
 
@@ -704,19 +724,25 @@ module switcher (
     $display($time, "switcher start");
     switcher_exec_ready <= 0;
 
-temp[0] = registers_used[0]+registers_used[1]*2+registers_used[2]*4+registers_used[3]*8+registers_used[4]*16+registers_used[5]*32+registers_used[6]*64+registers_used[7]*128;
-temp[1] = registers_used[8]+registers_used[9]*2+registers_used[10]*4+registers_used[11]*8+registers_used[12]*16+registers_used[13]*32+registers_used[14]*64+registers_used[15]*128;
-temp[2] = registers_used[16]+registers_used[17]*2+registers_used[18]*4+registers_used[19]*8+registers_used[20]*16+registers_used[21]*32+registers_used[22]*64+registers_used[23]*128;
-temp[3] = registers_used[24]+registers_used[25]*2+registers_used[26]*4+registers_used[27]*8+registers_used[28]*16+registers_used[29]*32+registers_used[30]*64+registers_used[31]*128;
-temp[4] = registers_used[32]+registers_used[33]*2+registers_used[34]*4+registers_used[35]*8+registers_used[36]*16+registers_used[37]*32+registers_used[38]*64+registers_used[39]*128;
-temp[5] = registers_used[40]+registers_used[41]*2+registers_used[42]*4+registers_used[43]*8+registers_used[44]*16+registers_used[45]*32+registers_used[46]*64+registers_used[47]*128;
-temp[6] = registers_used[48]+registers_used[49]*2+registers_used[50]*4+registers_used[51]*8+registers_used[52]*16+registers_used[53]*32+registers_used[54]*64+registers_used[55]*128;
-temp[7] = registers_used[56]+registers_used[57]*2+registers_used[58]*4+registers_used[59]*8+registers_used[60]*16+registers_used[61]*32+registers_used[62]*64+registers_used[63]*128;
-    $display($time, "abcd ",temp[0]," ",temp[1]," ",temp[2]," ",temp[3]);
+    s2 = " ";
+    for (i = 0; i < 20; i++) begin
+      s2 = {s2, $sformatf("%01x ", registers_used[i])};
+    end
+    $display($time, s2);
 
-	//dump registers used
-	
-   //dump registers
+    temp[0] = registers_used[0]+registers_used[1]*2+registers_used[2]*4+registers_used[3]*8+registers_used[4]*16+registers_used[5]*32+registers_used[6]*64+registers_used[7]*128;
+    temp[1] = registers_used[8]+registers_used[9]*2+registers_used[10]*4+registers_used[11]*8+registers_used[12]*16+registers_used[13]*32+registers_used[14]*64+registers_used[15]*128;
+    temp[2] = registers_used[16]+registers_used[17]*2+registers_used[18]*4+registers_used[19]*8+registers_used[20]*16+registers_used[21]*32+registers_used[22]*64+registers_used[23]*128;
+    temp[3] = registers_used[24]+registers_used[25]*2+registers_used[26]*4+registers_used[27]*8+registers_used[28]*16+registers_used[29]*32+registers_used[30]*64+registers_used[31]*128;
+    temp[4] = registers_used[32]+registers_used[33]*2+registers_used[34]*4+registers_used[35]*8+registers_used[36]*16+registers_used[37]*32+registers_used[38]*64+registers_used[39]*128;
+    temp[5] = registers_used[40]+registers_used[41]*2+registers_used[42]*4+registers_used[43]*8+registers_used[44]*16+registers_used[45]*32+registers_used[46]*64+registers_used[47]*128;
+    temp[6] = registers_used[48]+registers_used[49]*2+registers_used[50]*4+registers_used[51]*8+registers_used[52]*16+registers_used[53]*32+registers_used[54]*64+registers_used[55]*128;
+    temp[7] = registers_used[56]+registers_used[57]*2+registers_used[58]*4+registers_used[59]*8+registers_used[60]*16+registers_used[61]*32+registers_used[62]*64+registers_used[63]*128;
+    $display($time, "abcd ", temp[0], " ", temp[1], " ", temp[2], " ", temp[3]);
+
+    //dump registers used
+
+    //dump registers
     for (i = 0; i < `REGISTER_NUM; i++) begin
       if (registers_used[i]) begin
         switcher_register_read_address <= process_address;
@@ -729,11 +755,11 @@ temp[7] = registers_used[56]+registers_used[57]*2+registers_used[58]*4+registers
         @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
       end
     end
-    
+
     //next process address
     j = 0;
     for (i = 0; i < 4; i++) begin
-      switcher_ram_read_address <= process_address+i;
+      switcher_ram_read_address <= process_address + i;
       switcher_ram_read <= 1;
       @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
       j += switcher_ram_read_data_out * (2 ** i);
@@ -970,6 +996,11 @@ module registers (
     s2 = " ";
     for (i = 0; i < 20; i++) begin
       s2 = {s2, $sformatf("%02x ", registers_memory[i])};
+    end
+    $display($time, s2);
+    s2 = " ";
+    for (i = 0; i < 20; i++) begin
+      s2 = {s2, $sformatf("%01x ", registers_used[i])};
     end
     $display($time, s2);
     dump_reg_ready <= 1;
