@@ -23,7 +23,11 @@ module cpu(input rst, input ram_clk);
   //task switcher  
   reg switcher_exec;
   wire switcher_exec_ready;
+  wire [15:0] process_address;
+  reg[7:0] executed;
   switcher switcher(
+  	.rst(rst),
+  	.process_address(process_address),
 	.switcher_exec(switcher_should_exec), .switcher_exec_ready(switcher_exec_ready), 
 	//registers
 	.switcher_register_save(switcher_register_save),  .switcher_register_save_ready(switcher_register_save_ready),
@@ -131,8 +135,6 @@ module cpu(input rst, input ram_clk);
 	);
 	
   //fetch & decode
-  reg [15:0] rst_process_address;
-  reg [7:0] executed;
   reg stage12_exec;
   wire stage12_exec_ready;
   wire stage3_should_exec; //should we do it?
@@ -152,7 +154,8 @@ module cpu(input rst, input ram_clk);
   wire [15:0]stage5_target_ram_address;
   reg switcher_should_exec;
  
-  stage12 stage12(.executed(executed), .rst_process_address(rst_process_address), .stage12_exec(stage12_exec), .stage12_exec_ready(stage12_exec_ready),
+  stage12 stage12(
+  	.process_address(process_address), .stage12_exec(stage12_exec), .stage12_exec_ready(stage12_exec_ready),
   	.stage3_should_exec(stage3_should_exec), .stage3_source_ram_address(stage3_source_ram_address),
   	.stage3_target_register_start(stage3_target_register_start), .stage3_target_register_length(stage3_target_register_length),
   	.stage4_should_exec(stage4_should_exec),
@@ -210,7 +213,6 @@ module cpu(input rst, input ram_clk);
   always @(rst) begin
     	$display($time," reset1");
     	switcher_should_exec=0;
-    	rst_process_address = 0;
     	executed = 0;
     	stage12_exec=1; //start it
   end
@@ -266,8 +268,7 @@ module cpu(input rst, input ram_clk);
 endmodule
 
 module stage12(
-	input [7:0] executed,
-	input [15:0] rst_process_address,
+	input [15:0] process_address,
 	input stage12_exec, output reg stage12_exec_ready, 
   	output reg stage3_should_exec, 
   	output reg [15:0]stage3_source_ram_address, 
@@ -296,15 +297,17 @@ module stage12(
   reg [7:0] instruction[0:3];
   reg [15:0] pc;
  
+always @(process_address) begin
+	pc=process_address+64+8; //registers 64 + 4
+	$display($time," new pc ",pc, " ",process_address);
+  end
+  
   always @(posedge stage12_exec) begin
 	stage12_exec_ready <= 0;
-	if (executed==0) begin
-	    	pc=rst_process_address+64+8; //registers 64 + 4
-	end
 	stage3_should_exec<=0;	
 	stage4_should_exec<=0;
 	stage5_should_exec<=0;
-	$display($time," executing pc ",pc, " ",executed);
+	$display($time," executing pc ",pc);
 	
 	stage12_ram_read_address <= pc;
 	stage12_ram_read <= 1;
@@ -530,6 +533,8 @@ endmodule
 
 module switcher(
 	input switcher_exec, output reg switcher_exec_ready, 
+	input rst,
+	output reg [15:0] process_address,
 	//registers
 	output reg switcher_register_save,  input switcher_register_save_ready,
   	output reg [15:0] switcher_register_save_address,
@@ -545,9 +550,14 @@ module switcher(
   	output reg [15:0] switcher_ram_read_address,
   	input [7:0] switcher_ram_read_data_out);
 
+  
 integer i;
-integer j;
 
+always @(rst) begin
+    	$display($time," reset2");
+    	process_address = 0;
+  end
+  
   always @(posedge switcher_exec) begin
 	  $display($time,"switcher start");
 				
@@ -564,9 +574,9 @@ integer j;
 		@(posedge switcher_ram_save_ready)
 		switcher_ram_save <= 0;
 	end
-	j=100;
+	process_address = 100;
 	for (i=0;i<64;i++) begin
-		switcher_ram_read_address <= j+i+8;
+		switcher_ram_read_address <= process_address+i+8;
 		switcher_ram_read <= 1;
 		@(posedge switcher_ram_read_ready)
 		switcher_ram_read <= 0;
@@ -577,6 +587,7 @@ integer j;
 		@(posedge switcher_register_save_ready)
 		switcher_register_save <= 0;
 	end
+	
 	switcher_exec_ready<=1;
   end
 endmodule
