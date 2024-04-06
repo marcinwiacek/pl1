@@ -35,11 +35,13 @@ module cpu(input rst, input ram_clk);
   reg switcher_exec;
   wire switcher_exec_ready;
   wire [15:0] start_pc;
+  wire [15:0] pc;
   wire [`REGISTER_NUM-1:0] registers_used;
   reg[7:0] executed;
   switcher switcher(
   	.rst(rst),
   	.start_pc(start_pc),
+  	.pc(pc),
   	.registers_used(registers_used),
 	.switcher_exec(switcher_should_exec), .switcher_exec_ready(switcher_exec_ready), 
 	//registers
@@ -170,7 +172,7 @@ module cpu(input rst, input ram_clk);
   reg switcher_should_exec;
  
   stage12 stage12(
-  	.start_pc(start_pc), .stage12_exec(stage12_exec), .stage12_exec_ready(stage12_exec_ready),
+  	.pc(pc), .start_pc(start_pc), .stage12_exec(stage12_exec), .stage12_exec_ready(stage12_exec_ready),
   	.stage3_should_exec(stage3_should_exec), .stage3_source_ram_address(stage3_source_ram_address),
   	.stage3_target_register_start(stage3_target_register_start), .stage3_target_register_length(stage3_target_register_length),
   	.stage4_should_exec(stage4_should_exec),
@@ -284,6 +286,7 @@ endmodule
 
 module stage12(
 	input [15:0] start_pc,
+	output   reg [15:0] pc,
 	input stage12_exec, output reg stage12_exec_ready, 
   	output reg stage3_should_exec, 
   	output reg [15:0]stage3_source_ram_address, 
@@ -310,7 +313,6 @@ module stage12(
   	input [7:0] stage12_ram_read_data_out);
  
   reg [7:0] instruction[0:3];
-  reg [15:0] pc;
  
  integer i;
  
@@ -550,6 +552,7 @@ integer i;
 endmodule
 
 module switcher(
+	input [15:0] pc,
 	input switcher_exec, output reg switcher_exec_ready, 
 	input rst,
 	output reg [15:0] start_pc,
