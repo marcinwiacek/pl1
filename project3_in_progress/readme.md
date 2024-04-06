@@ -1,3 +1,5 @@
+Version 2404*
+
 Work in progress
 
 Verilog simulation. I'm using here experiences from project 1 (mainly ideas related
