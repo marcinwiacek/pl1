@@ -131,6 +131,7 @@ module cpu(input rst, input ram_clk);
 	);
 	
   //fetch & decode
+  reg [15:0] rst_process_address;
   reg stage12_exec;
   wire stage12_exec_ready;
   wire stage3_should_exec; //should we do it?
@@ -150,7 +151,7 @@ module cpu(input rst, input ram_clk);
   wire [15:0]stage5_target_ram_address;
   wire switcher_should_exec;
  
-  stage12 stage12(.rst(rst), .stage12_exec(stage12_exec), .stage12_exec_ready(stage12_exec_ready),
+  stage12 stage12(.rst(rst), .rst_process_address(rst_process_address), .stage12_exec(stage12_exec), .stage12_exec_ready(stage12_exec_ready),
   	.switcher_should_exec(switcher_should_exec),
   	.stage3_should_exec(stage3_should_exec), .stage3_source_ram_address(stage3_source_ram_address),
   	.stage3_target_register_start(stage3_target_register_start), .stage3_target_register_length(stage3_target_register_length),
@@ -207,7 +208,8 @@ module cpu(input rst, input ram_clk);
   	.stage5_ram_save_address(stage5_ram_save_address), .stage5_ram_save_data_in(stage5_ram_save_data_in));
 	
   always @(rst) begin
-    	$display($time," reset1"); 
+    	$display($time," reset1");
+    	rst_process_address = 0;
     	stage12_exec=1; //start it
   end
   always @(negedge stage12_exec) begin
@@ -256,7 +258,7 @@ module cpu(input rst, input ram_clk);
 endmodule
 
 module stage12(
-	input rst,
+	input rst, input [15:0] rst_process_address,
 	input stage12_exec, output reg stage12_exec_ready, 
 	output reg switcher_should_exec,
   	output reg stage3_should_exec, 
@@ -285,17 +287,17 @@ module stage12(
  
   reg [7:0] instruction[0:3];
   reg [15:0] pc;
-  reg [15:0] process_address;
   reg [15:0] executed;
  
   always @(rst) begin
     	$display($time," reset2");
     	executed=0;
-    	process_address=0;
-    	pc=process_address+64+8; //registers 64 + 4
   end
   always @(posedge stage12_exec) begin
 	stage12_exec_ready <= 0;
+	if (executed==0) begin
+	    	pc=rst_process_address+64+8; //registers 64 + 4
+	end
 	executed++;
 	switcher_should_exec<=0;
 	if (executed==4) begin
