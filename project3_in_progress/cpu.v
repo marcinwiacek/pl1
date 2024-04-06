@@ -213,10 +213,10 @@ module cpu(
   reg switcher_should_exec;
 
   stage12 stage12 (
-      .pc(pc),
-      .start_pc(start_pc),
       .stage12_exec(stage12_exec),
       .stage12_exec_ready(stage12_exec_ready),
+      .pc(pc),
+      .start_pc(start_pc),
       .stage3_should_exec(stage3_should_exec),
       .stage3_source_ram_address(stage3_source_ram_address),
       .stage3_target_register_start(stage3_target_register_start),
@@ -254,6 +254,7 @@ module cpu(
       .stage3_source_ram_address(stage3_source_ram_address),
       .stage3_target_register_start(stage3_target_register_start),
       .stage3_target_register_length(stage3_target_register_length),
+      //registers
       .stage3_register_save(stage3_register_save),
       .stage3_register_save_ready(stage3_register_save_ready),
       .stage3_register_save_address(stage3_register_save_address),
@@ -278,10 +279,12 @@ module cpu(
       .stage4_value_B(stage4_value_B),
       .stage4_register_out_start(stage4_register_out_start),
       .stage4_register_length(stage4_register_length),
+      //register save
       .stage4_register_save(stage4_register_save),
       .stage4_register_save_ready(stage4_register_save_ready),
       .stage4_register_save_address(stage4_register_save_address),
       .stage4_register_save_data_in(stage4_register_save_data_in),
+      //register read
       .stage4_register_read(stage4_register_read),
       .stage4_register_read_ready(stage4_register_read_ready),
       .stage4_register_read_address(stage4_register_read_address),
@@ -298,7 +301,7 @@ module cpu(
       .stage5_source_register_start(stage5_source_register_start),
       .stage5_source_register_length(stage5_source_register_length),
       .stage5_target_ram_address(stage5_target_ram_address),
-      //registers 
+      //register read
       .stage5_register_read(stage5_register_read),
       .stage5_register_read_ready(stage5_register_read_ready),
       .stage5_register_read_address(stage5_register_read_address),
