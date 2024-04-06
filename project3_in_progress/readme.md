@@ -55,8 +55,8 @@ Every process in memory has the following structure:
 
   * address of next process (4 bytes)
   * PC register (4 bytes)
-  * registers used (4 bytes)
-  * registers (64 bytes)
+  * registers used (8 bytes, every bit contains info about one register)
+  * registers (64 bytes = 512 bits)
   * program (code and data)
 
 Program cannot access registers and everything below, they need to start with MMU segment, the same limit is with memory sharing (?).
