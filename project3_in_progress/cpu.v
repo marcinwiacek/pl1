@@ -297,9 +297,11 @@ module stage12(
   reg [7:0] instruction[0:3];
   reg [15:0] pc;
  
+ integer i;
+ 
 always @(process_address) begin
-	pc=process_address+64+8; //registers 64 + 4
-	$display($time," new pc ",pc, " ",process_address);
+	pc=process_address;
+	$display($time," new pc ",process_address);
   end
   
   always @(posedge stage12_exec) begin
@@ -551,11 +553,11 @@ module switcher(
   	input [7:0] switcher_ram_read_data_out);
 
   
-integer i;
+integer i,j ;
 
 always @(rst) begin
     	$display($time," reset2");
-    	process_address = 0;
+    	process_address = 12+64;
   end
   
   always @(posedge switcher_exec) begin
@@ -563,25 +565,36 @@ always @(rst) begin
 				
 	switcher_exec_ready <= 0;
 	for (i=0;i<64;i++) begin
-		switcher_register_read_address <= i+8;
+		switcher_register_read_address <= i+12;
 		switcher_register_read <= 1;
 		@(posedge switcher_register_read_ready)
 		switcher_register_read <= 0;
 		
-		switcher_ram_save_address <= i+8;
+		switcher_ram_save_address <= i+12;
 		switcher_ram_save_data_in <= switcher_register_read_data_out;
 		switcher_ram_save <= 1;
 		@(posedge switcher_ram_save_ready)
 		switcher_ram_save <= 0;
 	end
-	process_address = 100;
-	for (i=0;i<64;i++) begin
-		switcher_ram_read_address <= process_address+i+8;
+	j=0;
+	for (i=0;i<4;i++) begin
+	
+		switcher_ram_read_address <= 100+i+8;
 		switcher_ram_read <= 1;
 		@(posedge switcher_ram_read_ready)
 		switcher_ram_read <= 0;
 		
-		switcher_register_save_address <= i+8;
+		j+= switcher_ram_read_data_out*(2**i);
+	end
+	
+	process_address = j;
+	for (i=0;i<64;i++) begin
+		switcher_ram_read_address <= 100+i+12;
+		switcher_ram_read <= 1;
+		@(posedge switcher_ram_read_ready)
+		switcher_ram_read <= 0;
+		
+		switcher_register_save_address <= i+12;
 		switcher_register_save_data_in <= switcher_register_read_data_out;
 		switcher_register_save <= 1;
 		@(posedge switcher_register_save_ready)

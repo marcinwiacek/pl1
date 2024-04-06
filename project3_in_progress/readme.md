@@ -28,6 +28,25 @@ change exec ready to 1```
 ? (will we have to additionally something proove, that signal 1 and 2 were correctly
 changed?)
 
+# Task switching
+
+Process has got internal register set "registers_used", which is used during
+task switching only for saving/getting really used registers. We have 64 bytes
+of registers and in many cases can decrease amount or RAM  read/write operations
+(we just read/save 4 extra bytes and we know, what register should be saved/restored)
+
+Every process in memory has the following structure:
+
+  * address of next process (4 bytes)
+  * address of previous process (4 bytes)
+  * PC register (4 bytes)
+  * registers (64 bytes)
+  * program (code and data)
+
+Program cannot access registers and everything below.
+
+Processor has got two process lists - one for active process, one for suspended.
+
 # Instruction set
 
 Addresses are in the end and are process type (16, 32 or 64 bit) related

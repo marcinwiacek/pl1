@@ -1,5 +1,6 @@
-00 00 00 64 //next process address
-00 00 00 44 //pc
+64 00 00 00 //next process address
+64 00 00 00 //previous process address
+44 00 00 00 //pc
 00 00 00 00 //register
 00 00 00 00
 00 00 00 00
