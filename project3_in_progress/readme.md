@@ -1,3 +1,5 @@
+Work in progress
+
 Verilog simulation. I'm using here experiences from project 1 (mainly ideas related
 to instruction list and processing handling) and project 2 (blocks and signals among them)
 
@@ -10,6 +12,16 @@ I decided to go into plain code first and in the future it will probably end wit
 
 You can run Verilog code with run, I'm using Ubuntu.
 
+# Stages
+
+  * stage12 - fetching & decoding (TODO: splitting?)
+  * stage 3 - RAM reading
+  * stage 4 - ALU
+  * stage 5 - RAM saving
+
+Needs to resolve hazards and implement executing two processes in parallel (like
+discussed earlier)
+
 # Synchronous design
 Every block (excluding RAM) has got input "exec" signal on positive signal change
 from 0 to 1 (it means "start doing something") and output signal "exec ready"
@@ -21,9 +33,11 @@ used and it needs clock.
 Opened questions: will be this correctly synthetized in hardware? what about signal
 propagations and for example such situation:
 
-```change signal 1
+```
+change signal 1
 change signal 2
-change exec ready to 1```
+change exec ready to 1
+```
 
 ? (will we have to additionally something proove, that signal 1 and 2 were correctly
 changed?)
@@ -43,14 +57,14 @@ Every process in memory has the following structure:
   * registers (64 bytes)
   * program (code and data)
 
-Program cannot access registers and everything below.
+Program cannot access registers and everything below, they need to start with MMU segment, the same limit is with memory sharing (?).
 Processor has got two process lists - one for active process, one for suspended.
 
 # Instruction set
 
 Addresses are in the end and are process type (16, 32 or 64 bit) related
 
-Process and I/O related:
+## Process and I/O related:
 
 TODO:
 
@@ -65,7 +79,7 @@ TODO:
  9. OUTPORT - save to port
  10. REGOUTPORT
 
-Register load/save (needs simple and vector instructions):
+## Register load/save (needs simple and vector instructions):
 
 Done:
 
@@ -75,7 +89,7 @@ Done:
   * SAVETORAM - save to memory with address in register, params: source register number, length, register with target address
   * SETNUM8 - set registers
 
-Calculations: (needs simple and vector instructions)
+## Calculations: (needs simple and vector instructions)
 
 Done:
 
@@ -83,20 +97,22 @@ Done:
   * ADDNUM8 - add numeric value to registers
 
 Todo:
- 3. const DEC = 15; // decrease register with value, start, stop, value
- 4. const DIV = 16;
- 5. const MUL = 17;
- 6. //leftbit
- 7. //rightbit
- 8. //xor
- 9. //and
- 10. //or
- 11. //neg
- 12. //neg2
- 
-Jump:
+
+  3. const DEC = 15; // decrease register with value, start, stop, value
+  4. const DIV = 16;
+  5. const MUL = 17;
+  6. //leftbit
+  7. //rightbit
+  8. //xor
+  9. //and
+  10. //or
+  11. //neg
+  12. //neg2
+
+## Jump:
 
 Done:
+
   * JUMPPLUS howmany
   * JUMPMINUS howmany
 
@@ -108,3 +124,6 @@ When "register" has got "value", jump outside block else execute next block inst
 When "register" is different than "value", jump outside block else execute next block instructions. With this approach we can say to CPU "cache block instructions" (for normal used 1x it doesn't even have sence to write them into cache, with "howmany" 0 we have conditional jump)
 
 # Cache
+
+# MMU
+
