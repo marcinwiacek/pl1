@@ -1,3 +1,4 @@
+//process instruction codes
 `define OPCODE_LOADFROMRAM 1
 `define OPCODE_JUMPMINUS 2
 `define OPCODE_WRITETORAM 3
@@ -8,11 +9,19 @@
 `define OPCODE_SAVETORAM 8
 `define OPCODE_SET8 9
 
-
+//alu operations
 `define OPER_ADD 1
 `define OPER_ADDNUM 2
 `define OPER_SETNUM 3
 
+//offsets for process
+`define ADDRESS_NEXT_PROCESS 0
+`define ADDRESS_PC 4
+`define ADDRESS_REG_USED 8
+`define ADDRESS_REG 12
+`define ADDREES_PROGRAM `REGISTER_NUM+12
+
+//number of registers
 `define REGISTER_NUM 64
 
 //`define DEBUG_LEVEL 2 //higher=more info
@@ -25,11 +34,13 @@ module cpu(input rst, input ram_clk);
   //task switcher  
   reg switcher_exec;
   wire switcher_exec_ready;
-  wire [15:0] process_address;
+  wire [15:0] start_pc;
+  wire [`REGISTER_NUM-1:0] registers_used;
   reg[7:0] executed;
   switcher switcher(
   	.rst(rst),
-  	.process_address(process_address),
+  	.start_pc(start_pc),
+  	.registers_used(registers_used),
 	.switcher_exec(switcher_should_exec), .switcher_exec_ready(switcher_exec_ready), 
 	//registers
 	.switcher_register_save(switcher_register_save),  .switcher_register_save_ready(switcher_register_save_ready),
@@ -86,6 +97,8 @@ module cpu(input rst, input ram_clk);
   wire [7:0] switcher_register_read_data_out;
   
   registers registers(
+  	.start_pc(start_pc),
+  	.registers_used(registers_used),
   	.dump_reg(dump_reg),
 	.dump_reg_ready(dump_reg_ready),  
 	.stage12_read(stage12_register_read),  .stage12_read_ready(stage12_register_read_ready),  .stage12_read_address(stage12_register_read_address),  .stage12_read_data_out(stage12_register_read_data_out),
@@ -157,7 +170,7 @@ module cpu(input rst, input ram_clk);
   reg switcher_should_exec;
  
   stage12 stage12(
-  	.process_address(process_address), .stage12_exec(stage12_exec), .stage12_exec_ready(stage12_exec_ready),
+  	.start_pc(start_pc), .stage12_exec(stage12_exec), .stage12_exec_ready(stage12_exec_ready),
   	.stage3_should_exec(stage3_should_exec), .stage3_source_ram_address(stage3_source_ram_address),
   	.stage3_target_register_start(stage3_target_register_start), .stage3_target_register_length(stage3_target_register_length),
   	.stage4_should_exec(stage4_should_exec),
@@ -270,7 +283,7 @@ module cpu(input rst, input ram_clk);
 endmodule
 
 module stage12(
-	input [15:0] process_address,
+	input [15:0] start_pc,
 	input stage12_exec, output reg stage12_exec_ready, 
   	output reg stage3_should_exec, 
   	output reg [15:0]stage3_source_ram_address, 
@@ -301,9 +314,10 @@ module stage12(
  
  integer i;
  
-always @(process_address) begin
-	pc=process_address;
-	$display($time," new pc ",process_address);
+ //fixme, two processes can have the same start_pc
+always @(start_pc) begin
+	pc=start_pc;
+	$display($time," new pc ",start_pc);
   end
   
   always @(posedge stage12_exec) begin
@@ -538,7 +552,8 @@ endmodule
 module switcher(
 	input switcher_exec, output reg switcher_exec_ready, 
 	input rst,
-	output reg [15:0] process_address,
+	output reg [15:0] start_pc,
+	input [`REGISTER_NUM-1:0] registers_used,
 	//registers
 	output reg switcher_register_save,  input switcher_register_save_ready,
   	output reg [15:0] switcher_register_save_address,
@@ -557,52 +572,57 @@ module switcher(
   
 integer i,j ;
 
-always @(rst) begin
+  always @(rst) begin
     	$display($time," reset2");
-    	process_address = 12+`REGISTER_NUM;
+    	start_pc = 12+`REGISTER_NUM;
   end
   
+  
+  //`define ADDRESS_NEXT_PROCESS 0
+//`define ADDRESS_PC 4
+//`define ADDRESS_REG_USED 8
+//`define ADDRESS_REG 12
+//`define ADDREES_PROGRAM `REGISTER_NUM+12
+
   always @(posedge switcher_exec) begin
-	  $display($time,"switcher start");
-				
+	$display($time,"switcher start");			
 	switcher_exec_ready <= 0;
 	for (i=0;i<`REGISTER_NUM;i++) begin
-		switcher_register_read_address <= i+12;
-		switcher_register_read <= 1;
-		@(posedge switcher_register_read_ready)
-		switcher_register_read <= 0;
+		if (registers_used[i]) begin
+			switcher_register_read_address <= i;
+			switcher_register_read <= 1;
+			@(posedge switcher_register_read_ready)
+			switcher_register_read <= 0;
 		
-		switcher_ram_save_address <= i+12;
-		switcher_ram_save_data_in <= switcher_register_read_data_out;
-		switcher_ram_save <= 1;
-		@(posedge switcher_ram_save_ready)
-		switcher_ram_save <= 0;
+			switcher_ram_save_address <= i+`ADDRESS_REG;
+			switcher_ram_save_data_in <= switcher_register_read_data_out;
+			switcher_ram_save <= 1;
+			@(posedge switcher_ram_save_ready)
+			switcher_ram_save <= 0;
+		end
 	end
 	j=0;
 	for (i=0;i<4;i++) begin
-	
-		switcher_ram_read_address <= 100+i+8;
+		switcher_ram_read_address <= 100+i+`ADDRESS_PC;
 		switcher_ram_read <= 1;
 		@(posedge switcher_ram_read_ready)
 		switcher_ram_read <= 0;
 		
 		j+= switcher_ram_read_data_out*(2**i);
 	end
-	
-	process_address = j;
+	start_pc = j;
 	for (i=0;i<`REGISTER_NUM;i++) begin
-		switcher_ram_read_address <= 100+i+12;
+		switcher_ram_read_address <= 100+i+`ADDRESS_REG;
 		switcher_ram_read <= 1;
 		@(posedge switcher_ram_read_ready)
 		switcher_ram_read <= 0;
 		
-		switcher_register_save_address <= i+12;
+		switcher_register_save_address <= i;
 		switcher_register_save_data_in <= switcher_register_read_data_out;
 		switcher_register_save <= 1;
 		@(posedge switcher_register_save_ready)
 		switcher_register_save <= 0;
 	end
-	
 	switcher_exec_ready<=1;
   end
 endmodule
@@ -697,6 +717,7 @@ module ram(input ram_clk, input write_enable, input [15:0] address, input [7:0] 
 endmodule
 
 module registers(
+	input [15:0] start_pc,
 	input stage12_read, output reg stage12_read_ready, input [15:0] stage12_read_address, output reg [7:0] stage12_read_data_out,
 	input stage3_save,  output reg stage3_save_ready,  input [15:0] stage3_save_address,  input [7:0] stage3_save_data_in,
 	input stage4_save,  output reg stage4_save_ready,  input [15:0] stage4_save_address,  input [7:0] stage4_save_data_in,
@@ -704,13 +725,18 @@ module registers(
 	input stage5_read,  output reg stage5_read_ready,  input [15:0] stage5_read_address,  output reg [7:0] stage5_read_data_out,	
 	input switcher_save,  output reg switcher_save_ready,  input [15:0] switcher_save_address,  input [7:0] switcher_save_data_in,
 	input switcher_read,  output reg switcher_read_ready,  input [15:0] switcher_read_address,  output reg [7:0] switcher_read_data_out,	
-	input dump_reg,  output reg dump_reg_ready
+	input dump_reg,  output reg dump_reg_ready, output reg [`REGISTER_NUM-1:0] registers_used
 	);
   reg [7:0]registers_memory[`REGISTER_NUM-1:0];
   
   integer i;
   string s2;
 
+always @(start_pc) begin
+	for (i=0;i<`REGISTER_NUM;i++) begin
+		registers_used[i] = 0;
+	end
+  end
   always @(posedge stage12_read) begin
 	stage12_read_ready <= 0;
 	stage12_read_data_out = registers_memory[stage12_read_address];
@@ -719,11 +745,13 @@ module registers(
   always @(posedge stage3_save) begin
 	stage3_save_ready <= 0;
 	registers_memory[stage3_save_address] = stage3_save_data_in;
+	registers_used[stage3_save_address]=1;
 	stage3_save_ready<=1;
   end
   always @(posedge stage4_save) begin
 	stage4_save_ready <= 0;
 	registers_memory[stage4_save_address] = stage4_save_data_in;
+	registers_used[stage4_save_address]=1;
 	stage4_save_ready<=1;
   end
   always @(posedge stage4_read) begin
@@ -739,6 +767,7 @@ module registers(
   always @(posedge switcher_save) begin
 	switcher_save_ready <= 0;
 	registers_memory[switcher_save_address] = switcher_save_data_in;
+	registers_used[switcher_save_address]=1;
 	switcher_save_ready<=1;
   end
   always @(posedge switcher_read) begin
