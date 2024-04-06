@@ -132,6 +132,7 @@ module cpu(input rst, input ram_clk);
 	
   //fetch & decode
   reg [15:0] rst_process_address;
+  reg [7:0] executed;
   reg stage12_exec;
   wire stage12_exec_ready;
   wire stage3_should_exec; //should we do it?
@@ -149,10 +150,9 @@ module cpu(input rst, input ram_clk);
   wire [15:0]stage5_source_register_start;
   wire [15:0]stage5_source_register_length;
   wire [15:0]stage5_target_ram_address;
-  wire switcher_should_exec;
+  reg switcher_should_exec;
  
-  stage12 stage12(.rst(rst), .rst_process_address(rst_process_address), .stage12_exec(stage12_exec), .stage12_exec_ready(stage12_exec_ready),
-  	.switcher_should_exec(switcher_should_exec),
+  stage12 stage12(.executed(executed), .rst_process_address(rst_process_address), .stage12_exec(stage12_exec), .stage12_exec_ready(stage12_exec_ready),
   	.stage3_should_exec(stage3_should_exec), .stage3_source_ram_address(stage3_source_ram_address),
   	.stage3_target_register_start(stage3_target_register_start), .stage3_target_register_length(stage3_target_register_length),
   	.stage4_should_exec(stage4_should_exec),
@@ -209,14 +209,22 @@ module cpu(input rst, input ram_clk);
 	
   always @(rst) begin
     	$display($time," reset1");
+    	switcher_should_exec=0;
     	rst_process_address = 0;
+    	executed = 0;
     	stage12_exec=1; //start it
   end
   always @(negedge stage12_exec) begin
    	$display($time," negedge stage12exec");
    	$display($time," abc ",switcher_should_exec);
     	if (switcher_should_exec==0) begin
-    		stage12_exec=1; //force it to start again
+    		executed++;
+    		if (executed==4) begin
+			switcher_should_exec=1;
+			$display($time,"   switcher should exec");
+		end else begin
+    			stage12_exec=1; //force it to start again
+    		end
     	end
   end
   always @(posedge stage12_exec_ready) begin
@@ -258,9 +266,9 @@ module cpu(input rst, input ram_clk);
 endmodule
 
 module stage12(
-	input rst, input [15:0] rst_process_address,
+	input [7:0] executed,
+	input [15:0] rst_process_address,
 	input stage12_exec, output reg stage12_exec_ready, 
-	output reg switcher_should_exec,
   	output reg stage3_should_exec, 
   	output reg [15:0]stage3_source_ram_address, 
   	output reg [15:0]stage3_target_register_start, 
@@ -287,132 +295,111 @@ module stage12(
  
   reg [7:0] instruction[0:3];
   reg [15:0] pc;
-  reg [15:0] executed;
  
-  always @(rst) begin
-    	$display($time," reset2");
-    	executed=0;
-  end
   always @(posedge stage12_exec) begin
 	stage12_exec_ready <= 0;
 	if (executed==0) begin
 	    	pc=rst_process_address+64+8; //registers 64 + 4
 	end
-	executed++;
-	switcher_should_exec<=0;
-	if (executed==4) begin
-		switcher_should_exec<=1;
-		$display($time,"   switcher should exec");
-	end else begin
-		stage3_should_exec<=0;	
-		stage4_should_exec<=0;
-		stage5_should_exec<=0;
-		$display($time," executing pc ",pc, " ",executed);
+	stage3_should_exec<=0;	
+	stage4_should_exec<=0;
+	stage5_should_exec<=0;
+	$display($time," executing pc ",pc, " ",executed);
 	
-		stage12_ram_read_address <= pc;
+	stage12_ram_read_address <= pc;
+	stage12_ram_read <= 1;
+	@(posedge stage12_ram_read_ready)
+	stage12_ram_read <= 0;
+	instruction[0] = stage12_ram_read_data_out;
+
+	stage12_ram_read_address <= pc+1;
+	stage12_ram_read <= 1;
+	@(posedge stage12_ram_read_ready)
+	stage12_ram_read <= 0;
+	instruction[1] = stage12_ram_read_data_out;
+
+	if (instruction[0]==`OPCODE_JUMPMINUS) begin
+		$display($time,"   JUMPMINUS");
+		pc-=instruction[1]*4;
+	end if (instruction[0]==`OPCODE_JUMPPLUS) begin
+		$display($time,"   JUMPPLUS");
+		pc+=instruction[1]*4;
+	end else begin
+		stage12_ram_read_address <= pc+2;
 		stage12_ram_read <= 1;
 		@(posedge stage12_ram_read_ready)
 		stage12_ram_read <= 0;
-		instruction[0] = stage12_ram_read_data_out;
+		instruction[2] = stage12_ram_read_data_out;
 
-		stage12_ram_read_address <= pc+1;
+		stage12_ram_read_address <= pc+3;
 		stage12_ram_read <= 1;
 		@(posedge stage12_ram_read_ready)
 		stage12_ram_read <= 0;
-		instruction[1] = stage12_ram_read_data_out;
-
-		if (instruction[0]==`OPCODE_JUMPMINUS) begin
-			$display($time,"   JUMPMINUS");
-			pc-=instruction[1]*4;
-	       		executed++;
-		end if (instruction[0]==`OPCODE_JUMPPLUS) begin
-			$display($time,"   JUMPPLUS");
-			pc+=instruction[1]*4;
-	       		executed++;
-		end else begin
-			stage12_ram_read_address <= pc+2;
-			stage12_ram_read <= 1;
-			@(posedge stage12_ram_read_ready)
-			stage12_ram_read <= 0;
-			instruction[2] = stage12_ram_read_data_out;
-
-			stage12_ram_read_address <= pc+3;
-			stage12_ram_read <= 1;
-			@(posedge stage12_ram_read_ready)
-			stage12_ram_read <= 0;
-			instruction[3] = stage12_ram_read_data_out;
+		instruction[3] = stage12_ram_read_data_out;
 		
-			if (instruction[0]==`OPCODE_LOADFROMRAM) begin
-				stage3_target_register_start=instruction[1];
-	  			stage3_target_register_length=instruction[2];
-				stage3_source_ram_address=instruction[3];
-				$display($time,"   LOADFROMRAM ",stage3_target_register_length," bytes from RAM address ",stage3_source_ram_address,"+ and save to register ",stage3_target_register_start,"+");
-				stage3_should_exec<=1;
-				pc+=4;
-			end if (instruction[0]==`OPCODE_READFROMRAM) begin
-				stage12_register_read_address <= instruction[3];
-				stage12_register_read <= 1;
-				@(posedge stage12_register_read_ready)
-				stage12_register_read <= 0;
+		if (instruction[0]==`OPCODE_LOADFROMRAM) begin
+			stage3_target_register_start=instruction[1];
+	  		stage3_target_register_length=instruction[2];
+			stage3_source_ram_address=instruction[3];
+			$display($time,"   LOADFROMRAM ",stage3_target_register_length," bytes from RAM address ",stage3_source_ram_address,"+ and save to register ",stage3_target_register_start,"+");
+			stage3_should_exec<=1;		
+		end if (instruction[0]==`OPCODE_READFROMRAM) begin
+			stage12_register_read_address <= instruction[3];
+			stage12_register_read <= 1;
+			@(posedge stage12_register_read_ready)
+			stage12_register_read <= 0;
 
-				stage3_target_register_start=instruction[1];
-	  			stage3_target_register_length=instruction[2];
-				stage3_source_ram_address=stage12_register_read_data_out;
+			stage3_target_register_start=instruction[1];
+	  		stage3_target_register_length=instruction[2];
+			stage3_source_ram_address=stage12_register_read_data_out;
 
-				$display($time,"   READFROMRAM ",stage3_target_register_length," bytes from RAM address ",stage3_source_ram_address,"+ and save to register ",stage3_target_register_start,"+");
-				stage3_should_exec<=1;
-				pc+=4;
-			end else if (instruction[0]==`OPCODE_WRITETORAM) begin
-				stage5_source_register_start=instruction[1];
-	  			stage5_source_register_length=instruction[2];
-	  			stage5_target_ram_address=instruction[3];  
-				$display($time,"   WRITETORAM ",stage5_source_register_length," bytes from register ",stage5_source_register_start,"+ and save to RAM address ",stage5_target_ram_address,"+");
-				stage5_should_exec<=1;
-				pc+=4;
-			end else if (instruction[0]==`OPCODE_SAVETORAM) begin
-				stage12_register_read_address <= instruction[3];
-				stage12_register_read <= 1;
-				@(posedge stage12_register_read_ready)
-				stage12_register_read <= 0;
+			$display($time,"   READFROMRAM ",stage3_target_register_length," bytes from RAM address ",stage3_source_ram_address,"+ and save to register ",stage3_target_register_start,"+");
+			stage3_should_exec<=1;
+		end else if (instruction[0]==`OPCODE_WRITETORAM) begin
+			stage5_source_register_start=instruction[1];
+	  		stage5_source_register_length=instruction[2];
+	  		stage5_target_ram_address=instruction[3];  
+			$display($time,"   WRITETORAM ",stage5_source_register_length," bytes from register ",stage5_source_register_start,"+ and save to RAM address ",stage5_target_ram_address,"+");
+			stage5_should_exec<=1;
+		end else if (instruction[0]==`OPCODE_SAVETORAM) begin
+			stage12_register_read_address <= instruction[3];
+			stage12_register_read <= 1;
+			@(posedge stage12_register_read_ready)
+			stage12_register_read <= 0;
 			
-				stage5_source_register_start=instruction[1];
-	  			stage5_source_register_length=instruction[2];
-	  			stage5_target_ram_address=stage12_register_read_data_out;  
-				$display($time,"   SAVETORAM ",stage5_source_register_length," bytes from register ",stage5_source_register_start,"+ and save to RAM address ",stage5_target_ram_address,"+");
-				stage5_should_exec<=1;
-				pc+=4;
-			end else if (instruction[0]==`OPCODE_ADD8) begin
-			   	stage4_oper=`OPER_ADD;
-	  			stage4_register_A_start=instruction[1];
-				stage4_register_B_start=instruction[1];
-			  	stage4_register_out_start=instruction[2];
-			  	stage4_register_length=instruction[3];
-				$display($time,"   OPCODE_ADD8 add register ",stage4_register_A_start,"+ to register ",stage4_register_B_start," and save to register ",stage4_register_out_start,"+, len ",stage4_register_length);
-				stage4_should_exec<=1;
-				pc+=4;
-			end else if (instruction[0]==`OPCODE_ADDNUM8) begin
-			   	stage4_oper=`OPER_ADDNUM;
-	  			stage4_register_A_start=instruction[1];
-				stage4_value_B=instruction[1];
-			  	stage4_register_out_start=instruction[2];
-			  	stage4_register_length=instruction[3];
-				$display($time,"   OPCODE_ADDNUM8 add value ",stage4_value_B," to register ",stage4_register_A_start," and save to register ",stage4_register_out_start,"+, len ",stage4_register_length);
-				stage4_should_exec<=1;
-				pc+=4;
-			end else if (instruction[0]==`OPCODE_SET8) begin
-			   	stage4_oper=`OPER_SETNUM;
-	  			//stage4_register_A_start=instruction[1];
-				stage4_value_B=0;
-			  	stage4_register_out_start=instruction[1];
-			  	stage4_register_length=instruction[2];
+			stage5_source_register_start=instruction[1];
+	  		stage5_source_register_length=instruction[2];
+	  		stage5_target_ram_address=stage12_register_read_data_out;  
+			$display($time,"   SAVETORAM ",stage5_source_register_length," bytes from register ",stage5_source_register_start,"+ and save to RAM address ",stage5_target_ram_address,"+");
+			stage5_should_exec<=1;
+		end else if (instruction[0]==`OPCODE_ADD8) begin
+		   	stage4_oper=`OPER_ADD;
+	  		stage4_register_A_start=instruction[1];
+			stage4_register_B_start=instruction[1];
+		  	stage4_register_out_start=instruction[2];
+		  	stage4_register_length=instruction[3];
+			$display($time,"   OPCODE_ADD8 add register ",stage4_register_A_start,"+ to register ",stage4_register_B_start," and save to register ",stage4_register_out_start,"+, len ",stage4_register_length);
+			stage4_should_exec<=1;
+		end else if (instruction[0]==`OPCODE_ADDNUM8) begin
+		   	stage4_oper=`OPER_ADDNUM;
+	  		stage4_register_A_start=instruction[1];
+			stage4_value_B=instruction[1];
+		  	stage4_register_out_start=instruction[2];
+		  	stage4_register_length=instruction[3];
+			$display($time,"   OPCODE_ADDNUM8 add value ",stage4_value_B," to register ",stage4_register_A_start," and save to register ",stage4_register_out_start,"+, len ",stage4_register_length);
+			stage4_should_exec<=1;
+		end else if (instruction[0]==`OPCODE_SET8) begin
+		   	stage4_oper=`OPER_SETNUM;
+	  		//stage4_register_A_start=instruction[1];
+			stage4_value_B=0;
+		  	stage4_register_out_start=instruction[1];
+		  	stage4_register_length=instruction[2];
 				$display($time,"   OPCODE_SET8 add value ",stage4_value_B," to register ",stage4_register_A_start," and save to register ",stage4_register_out_start,"+, len ",stage4_register_length);
-				stage4_should_exec<=1;
-				pc+=4;
-			end
+			stage4_should_exec<=1;
 		end
-		$display($time,"   ",instruction[0], " ", instruction[1]," ",
-				instruction[2]," ",instruction[3]);
+		pc+=4;
 	end
+	$display($time,"   ",instruction[0], " ", instruction[1]," ", instruction[2]," ",instruction[3]);
 	stage12_exec_ready<=1;
   end
 endmodule
