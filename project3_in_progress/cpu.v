@@ -734,7 +734,6 @@ module switcher (
 
     //dump pc
     if (`DEBUG_LEVEL == 2) $display($time, "dump pc");
-
     temp[0] = pc[0]+pc[1]*2+pc[2]*4+pc[3]*8+pc[4]*16+pc[5]*32+pc[6]*64+pc[7]*128;
     temp[1] = pc[8]+pc[9]*2+pc[10]*4+pc[11]*8+pc[12]*16+pc[13]*32+pc[14]*64+pc[15]*128;
     for (i = 0; i < 2; i++) begin
@@ -744,6 +743,8 @@ module switcher (
       @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
     end
 
+    //dump registers used
+    if (`DEBUG_LEVEL == 2) $display($time, "dump reg used");
     temp[0] = registers_used[0]+registers_used[1]*2+registers_used[2]*4+registers_used[3]*8+registers_used[4]*16+registers_used[5]*32+registers_used[6]*64+registers_used[7]*128;
     temp[1] = registers_used[8]+registers_used[9]*2+registers_used[10]*4+registers_used[11]*8+registers_used[12]*16+registers_used[13]*32+registers_used[14]*64+registers_used[15]*128;
     temp[2] = registers_used[16]+registers_used[17]*2+registers_used[18]*4+registers_used[19]*8+registers_used[20]*16+registers_used[21]*32+registers_used[22]*64+registers_used[23]*128;
@@ -772,9 +773,6 @@ module switcher (
           " ",
           temp[7]
       );
-
-    //dump registers used
-    if (`DEBUG_LEVEL == 2) $display($time, "dump reg used");
 
     for (i = 0; i < 8; i++) begin
       if (old_reg_used[i] != temp[i]) begin
