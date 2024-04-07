@@ -23,6 +23,7 @@
 
 `define REGISTER_NUM 64 //number of registers
 `define OP_PER_TASK 4 // opcodes per task before switching
+`define MAX_BITS_IN_ADDRESS 31 //32-bit addresses
 
 `define DEBUG_LEVEL 1 //higher=more info
 
@@ -33,8 +34,8 @@ module cpu (
   //task switcher  
   reg switcher_exec;
   wire switcher_exec_ready;
-  wire [15:0] start_pc;
-  wire [15:0] pc;
+  wire [`MAX_BITS_IN_ADDRESS:0] start_pc;
+  wire [`MAX_BITS_IN_ADDRESS:0] pc;
   wire [`REGISTER_NUM-1:0] registers_used;
   reg [7:0] executed;
   switcher switcher (
@@ -70,37 +71,37 @@ module cpu (
 
   wire stage12_register_read;
   wire stage12_register_read_ready;
-  wire [15:0] stage12_register_read_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] stage12_register_read_address;
   wire [7:0] stage12_register_read_data_out;
 
   wire stage3_register_save;
   wire stage3_register_save_ready;
-  wire [15:0] stage3_register_save_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] stage3_register_save_address;
   wire [7:0] stage3_register_save_data_in;
 
   wire stage4_register_save;
   wire stage4_register_save_ready;
-  wire [15:0] stage4_register_save_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] stage4_register_save_address;
   wire [7:0] stage4_register_save_data_in;
 
   wire stage4_register_read;
   wire stage4_register_read_ready;
-  wire [15:0] stage4_register_read_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] stage4_register_read_address;
   wire [7:0] stage4_register_read_data_out;
 
   wire stage5_register_read;
   wire stage5_register_read_ready;
-  wire [15:0] stage5_register_read_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] stage5_register_read_address;
   wire [7:0] stage5_register_read_data_out;
 
   wire switcher_register_save;
   wire switcher_register_save_ready;
-  wire [15:0] switcher_register_save_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] switcher_register_save_address;
   wire [7:0] switcher_register_save_data_in;
 
   wire switcher_register_read;
   wire switcher_register_read_ready;
-  wire [15:0] switcher_register_read_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] switcher_register_read_address;
   wire [7:0] switcher_register_read_data_out;
 
   registers registers (
@@ -141,27 +142,27 @@ module cpu (
   // ram with extra prioritization
   wire stage12_ram_read;
   wire stage12_ram_read_ready;
-  wire [15:0] stage12_ram_read_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] stage12_ram_read_address;
   wire [7:0] stage12_ram_read_data_out;
 
   wire stage3_ram_read;
   wire stage3_ram_read_ready;
-  wire [15:0] stage3_ram_read_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] stage3_ram_read_address;
   wire [7:0] stage3_ram_read_data_out;
 
   wire stage5_ram_save;
   wire stage5_ram_save_ready;
-  wire [15:0] stage5_ram_save_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] stage5_ram_save_address;
   wire [7:0] stage5_ram_save_data_in;
 
   wire switcher_ram_read;
   wire switcher_ram_read_ready;
-  wire [15:0] switcher_ram_read_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] switcher_ram_read_address;
   wire [7:0] switcher_ram_read_data_out;
 
   wire switcher_ram_save;
   wire switcher_ram_save_ready;
-  wire [15:0] switcher_ram_save_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] switcher_ram_save_address;
   wire [7:0] switcher_ram_save_data_in;
 
   ram2 ram2 (
@@ -192,7 +193,7 @@ module cpu (
   reg stage12_exec;
   wire stage12_exec_ready;
   wire stage3_should_exec;  //should we do it?
-  wire [15:0] stage3_source_ram_address;  //address, which we should read
+  wire [`MAX_BITS_IN_ADDRESS:0] stage3_source_ram_address;  //address, which we should read
   wire [15:0] stage3_target_register_start;
   wire [15:0] stage3_target_register_length;
   wire stage4_should_exec;
@@ -205,7 +206,7 @@ module cpu (
   wire stage5_should_exec;  //should we do it?
   wire [15:0] stage5_source_register_start;
   wire [15:0] stage5_source_register_length;
-  wire [15:0] stage5_target_ram_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] stage5_target_ram_address;
 
   stage12 stage12 (
       .stage12_exec(stage12_exec),
@@ -386,12 +387,12 @@ module cpu (
 endmodule
 
 module stage12 (
-    input [15:0] start_pc,
-    output reg [15:0] pc,
+    input [`MAX_BITS_IN_ADDRESS:0] start_pc,
+    output reg [`MAX_BITS_IN_ADDRESS:0] pc,
     input stage12_exec,
     output reg stage12_exec_ready,
     output reg stage3_should_exec,
-    output reg [15:0] stage3_source_ram_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] stage3_source_ram_address,
     output reg [15:0] stage3_target_register_start,
     output reg [15:0] stage3_target_register_length,
     output reg stage4_should_exec,
@@ -404,7 +405,7 @@ module stage12 (
     output reg stage5_should_exec,
     output reg [15:0] stage5_source_register_start,
     output reg [15:0] stage5_source_register_length,
-    output reg [15:0] stage5_target_ram_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] stage5_target_ram_address,
     //registers
     output reg stage12_register_read,
     input stage12_register_read_ready,
@@ -554,7 +555,7 @@ endmodule
 module stage3 (
     input stage3_exec,
     output reg stage3_exec_ready,
-    input [15:0] stage3_source_ram_address,
+    input [`MAX_BITS_IN_ADDRESS:0] stage3_source_ram_address,
     input [15:0] stage3_target_register_start,
     input [15:0] stage3_target_register_length,
     //registers
@@ -565,7 +566,7 @@ module stage3 (
     //ram
     output reg stage3_ram_read,
     input stage3_ram_read_ready,
-    output reg [15:0] stage3_ram_read_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] stage3_ram_read_address,
     input [7:0] stage3_ram_read_data_out
 );
 
@@ -650,7 +651,7 @@ module stage5 (
     output reg stage5_exec_ready,
     input [15:0] stage5_source_register_start,
     input [15:0] stage5_source_register_length,
-    input [15:0] stage5_target_ram_address,
+    input [`MAX_BITS_IN_ADDRESS:0] stage5_target_ram_address,
     //registers
     output reg stage5_register_read,
     input stage5_register_read_ready,
@@ -659,7 +660,7 @@ module stage5 (
     //ram
     output reg stage5_ram_save,
     input stage5_ram_save_ready,
-    output reg [15:0] stage5_ram_save_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] stage5_ram_save_address,
     output reg [7:0] stage5_ram_save_data_in
 );
 
@@ -682,11 +683,11 @@ module stage5 (
 endmodule
 
 module switcher (
-    input [15:0] pc,
+    input [`MAX_BITS_IN_ADDRESS:0] pc,
     input switcher_exec,
     output reg switcher_exec_ready,
     input rst,
-    output reg [15:0] start_pc,
+    output reg [`MAX_BITS_IN_ADDRESS:0] start_pc,
     input [`REGISTER_NUM-1:0] registers_used,
     //registers
     output reg switcher_register_save,
@@ -700,18 +701,18 @@ module switcher (
     //ram
     output reg switcher_ram_save,
     input switcher_ram_save_ready,
-    output reg [15:0] switcher_ram_save_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] switcher_ram_save_address,
     output reg [7:0] switcher_ram_save_data_in,
     output reg switcher_ram_read,
     input switcher_ram_read_ready,
-    output reg [15:0] switcher_ram_read_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] switcher_ram_read_address,
     input [7:0] switcher_ram_read_data_out
 );
 
 
   integer i, j, z;
   string s2;
-  reg [15:0] process_address;
+  reg [`MAX_BITS_IN_ADDRESS:0] process_address;
   reg [7:0] temp[7:0];
   reg [7:0] old_reg_used[7:0];
   reg [`REGISTER_NUM-1:0] old_registers_used;
@@ -863,23 +864,23 @@ module ram2 (
     input ram_clk,
     input stage12_read,
     output reg stage12_read_ready,
-    input [15:0] stage12_read_address,
+    input [`MAX_BITS_IN_ADDRESS:0] stage12_read_address,
     output reg [7:0] stage12_read_data_out,
     input stage3_read,
     output reg stage3_read_ready,
-    input [15:0] stage3_read_address,
+    input [`MAX_BITS_IN_ADDRESS:0] stage3_read_address,
     output reg [7:0] stage3_read_data_out,
     input stage5_save,
     output reg stage5_save_ready,
-    input [15:0] stage5_save_address,
+    input [`MAX_BITS_IN_ADDRESS:0] stage5_save_address,
     input [7:0] stage5_save_data_in,
     input switcher_read,
     output reg switcher_read_ready,
-    input [15:0] switcher_read_address,
+    input [`MAX_BITS_IN_ADDRESS:0] switcher_read_address,
     output reg [7:0] switcher_read_data_out,
     input switcher_save,
     output reg switcher_save_ready,
-    input [15:0] switcher_save_address,
+    input [`MAX_BITS_IN_ADDRESS:0] switcher_save_address,
     input [7:0] switcher_save_data_in
 );
 
@@ -895,6 +896,8 @@ module ram2 (
       .data_in(ram_data_in),
       .data_out(ram_data_out)
   );
+
+//mme page 16384 bytes
 
   always @(posedge stage12_read or posedge stage3_read or posedge stage5_save or posedge switcher_save or posedge switcher_read) begin
     if (switcher_save) begin
@@ -972,11 +975,11 @@ endmodule
 module ram (
     input ram_clk,
     input write_enable,
-    input [15:0] address,
+    input [`MAX_BITS_IN_ADDRESS:0] address,
     input [7:0] data_in,
     output reg [7:0] data_out
 );
-  reg [7:0] ram_memory[0:65536];
+  reg [7:0] ram_memory[0:1048576];
 
   initial begin
     $readmemh("rom2.mem", ram_memory);
@@ -991,7 +994,7 @@ module ram (
 endmodule
 
 module registers (
-    input [15:0] start_pc,
+    input [`MAX_BITS_IN_ADDRESS:0] start_pc,
     input stage12_read,
     output reg stage12_read_ready,
     input [15:0] stage12_read_address,
@@ -1088,4 +1091,6 @@ module registers (
     dump_reg_ready <= 1;
   end
 endmodule
+
+
 
