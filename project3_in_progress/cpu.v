@@ -24,11 +24,7 @@
 //number of registers
 `define REGISTER_NUM 64
 
-//`define DEBUG_LEVEL 2 //higher=more info
-//`define DEBUG1(TXT) \
-//    	if (`DEBUG_LEVEL==1 || `DEBUG_LEVEL==2) $display($time,$sformatf TXT);
-//`define DEBUG2(TXT) \
-//    	if (`DEBUG_LEVEL==2) $display($time,TXT);
+`define DEBUG_LEVEL 1 //higher=more info
 
 module cpu(
     input rst,
@@ -313,21 +309,21 @@ module cpu(
   );
 
   always @(rst) begin
-    $display($time, " reset1");
+    if (`DEBUG_LEVEL == 2) $display($time, " reset1");
     switcher_exec = 0;
-    $display($time, "   switcher should exec ", switcher_exec);
+   if (`DEBUG_LEVEL == 2) $display($time, "   switcher should exec ", switcher_exec);
     executed = 0;
     stage12_exec = 1;  //start it
   end
   always @(negedge stage12_exec) begin
-    $display($time, " negedge stage12exec");
+if (`DEBUG_LEVEL == 2)    $display($time, " negedge stage12exec");
     if (executed < 4) begin
-      $display($time, " start 12 ", executed);
+if (`DEBUG_LEVEL == 2)      $display($time, " start 12 ", executed);
       stage12_exec = 1;  //force it to start again
     end
   end
   always @(posedge stage12_exec_ready) begin
-    $display($time, " posedge stage12execready");
+if (`DEBUG_LEVEL == 2)    $display($time, " posedge stage12execready");
     stage12_exec = 0;
     if (stage3_should_exec) begin
       stage3_exec = 1;  // start when necessary
@@ -339,48 +335,48 @@ module cpu(
     end else begin
       if (executed == 4) begin
         switcher_exec = 1;
-        $display($time, "   switcher should exec ", switcher_exec);
+if (`DEBUG_LEVEL == 2)        $display($time, "   switcher should exec ", switcher_exec);
       end else begin
       	executed++;
       end
     end
   end
   always @(posedge stage3_exec_ready) begin
-    $display($time, " posedge stage3execready");
+if (`DEBUG_LEVEL == 2)    $display($time, " posedge stage3execready");
     dump_reg <= 1;
     @(posedge dump_reg_ready) dump_reg <= 0;
       if (executed == 4) begin
         switcher_exec = 1;
-        $display($time, "   switcher should exec ", switcher_exec);
+if (`DEBUG_LEVEL == 2)        $display($time, "   switcher should exec ", switcher_exec);
       end else begin
       	executed++;
       end
     stage3_exec = 0;
   end
   always @(posedge stage4_exec_ready) begin
-    $display($time, " posedge stage4execready");
+if (`DEBUG_LEVEL == 2)    $display($time, " posedge stage4execready");
     dump_reg <= 1;
     @(posedge dump_reg_ready) dump_reg <= 0;
       if (executed == 4) begin
         switcher_exec = 1;
-        $display($time, "   switcher should exec ", switcher_exec);
+if (`DEBUG_LEVEL == 2)        $display($time, "   switcher should exec ", switcher_exec);
       end else begin
       	executed++;
       end
     stage4_exec = 0;
   end
   always @(posedge stage5_exec_ready) begin
-    $display($time, " posedge stage5execready");
+if (`DEBUG_LEVEL == 2)    $display($time, " posedge stage5execready");
       if (executed == 4) begin
         switcher_exec = 1;
-        $display($time, "   switcher should exec ", switcher_exec);
+if (`DEBUG_LEVEL == 2)        $display($time, "   switcher should exec ", switcher_exec);
       end else begin
       	executed++;
       end
     stage5_exec = 0;
   end
   always @(posedge switcher_exec_ready) begin
-    $display($time, " posedge switcherexecready");
+if (`DEBUG_LEVEL == 2)    $display($time, " posedge switcherexecready");
     executed=0;
     stage12_exec = 1;
     switcher_exec = 0;
@@ -434,7 +430,7 @@ module stage12 (
     stage3_should_exec <= 0;
     stage4_should_exec <= 0;
     stage5_should_exec <= 0;
-    $display($time, " executing pc ", pc);
+if (`DEBUG_LEVEL == 2)    $display($time, " executing pc ", pc);
 
     stage12_ram_read_address <= pc;
     stage12_ram_read <= 1;
@@ -572,7 +568,7 @@ module stage3 (
       stage3_ram_read <= 1;
       @(posedge stage3_ram_read_ready) stage3_ram_read <= 0;
 
-      stage3_register_save_address <= i;
+      stage3_register_save_address <= stage3_target_register_start + i;
       stage3_register_save_data_in <= stage3_ram_read_data_out;
       stage3_register_save <= 1;
       @(posedge stage3_register_save_ready) stage3_register_save <= 0;
@@ -709,7 +705,7 @@ module switcher (
   reg [7:0] temp[7:0];
 
   always @(rst) begin
-    $display($time, " reset2");
+if (`DEBUG_LEVEL == 2)    $display($time, " reset2");
     process_address = 0;
     start_pc = 12 + `REGISTER_NUM;
   end
@@ -721,10 +717,10 @@ module switcher (
   //`define ADDREES_PROGRAM `REGISTER_NUM+12
 
   always @(posedge switcher_exec) begin
-    $display($time, "switcher start");
+   $display($time, "switcher start");
     switcher_exec_ready <= 0;
 
-    s2 = " ";
+    s2 = " reg ";
     for (i = 0; i < 20; i++) begin
       s2 = {s2, $sformatf("%01x ", registers_used[i])};
     end
@@ -738,7 +734,7 @@ module switcher (
     temp[5] = registers_used[40]+registers_used[41]*2+registers_used[42]*4+registers_used[43]*8+registers_used[44]*16+registers_used[45]*32+registers_used[46]*64+registers_used[47]*128;
     temp[6] = registers_used[48]+registers_used[49]*2+registers_used[50]*4+registers_used[51]*8+registers_used[52]*16+registers_used[53]*32+registers_used[54]*64+registers_used[55]*128;
     temp[7] = registers_used[56]+registers_used[57]*2+registers_used[58]*4+registers_used[59]*8+registers_used[60]*16+registers_used[61]*32+registers_used[62]*64+registers_used[63]*128;
-    $display($time, "abcd ", temp[0], " ", temp[1], " ", temp[2], " ", temp[3]);
+if (`DEBUG_LEVEL == 2)    $display($time, "abcd ", temp[0], " ", temp[1], " ", temp[2], " ", temp[3]);
 
     //dump registers used
 
@@ -830,7 +826,7 @@ module ram2 (
       ram_write_enable <= 1;
       ram_address = switcher_save_address;
       ram_data_in = switcher_save_data_in;
-      $display($time, " saving RAM from switcher address ", switcher_save_address);
+if (`DEBUG_LEVEL == 2)       $display($time, " saving RAM from switcher address ", switcher_save_address);
       @(posedge ram_clk) @(negedge ram_clk) ram_write_enable <= 0;
       switcher_save_ready <= 1;
     end
@@ -839,7 +835,7 @@ module ram2 (
       ram_write_enable  <= 1;
       ram_address = stage5_save_address;
       ram_data_in = stage5_save_data_in;
-      $display($time, " saving RAM from stage5 address ", stage5_save_address);
+if (`DEBUG_LEVEL == 2)       $display($time, " saving RAM from stage5 address ", stage5_save_address);
       @(posedge ram_clk) @(negedge ram_clk) ram_write_enable <= 0;
       stage5_save_ready <= 1;
     end
@@ -849,7 +845,7 @@ module ram2 (
       ram_address = switcher_read_address;
       @(posedge ram_clk)
       @(negedge ram_clk)
-      $display(
+if (`DEBUG_LEVEL == 2)       $display(
           $time,
           " reading RAM from switcher address ",
           switcher_read_address,
@@ -865,7 +861,7 @@ module ram2 (
       ram_address = stage3_read_address;
       @(posedge ram_clk)
       @(negedge ram_clk)
-      $display(
+if (`DEBUG_LEVEL == 2)       $display(
           $time, " reading RAM from stage3 address ", stage3_read_address, " value ", ram_data_out
       );
       stage3_read_data_out <= ram_data_out;
@@ -877,7 +873,7 @@ module ram2 (
       ram_address = stage12_read_address;
       @(posedge ram_clk)
       @(negedge ram_clk)
-      $display(
+if (`DEBUG_LEVEL == 2)       $display(
           $time, " reading RAM from stage12 address ", stage12_read_address, " value ", ram_data_out
       );
       stage12_read_data_out <= ram_data_out;
@@ -993,16 +989,16 @@ module registers (
   end
   always @(posedge dump_reg) begin
     dump_reg_ready <= 0;
-    s2 = " ";
+    s2 = " reg ";
     for (i = 0; i < 20; i++) begin
       s2 = {s2, $sformatf("%02x ", registers_memory[i])};
     end
     $display($time, s2);
-    s2 = " ";
+    s2 = " reg used ";
     for (i = 0; i < 20; i++) begin
       s2 = {s2, $sformatf("%01x ", registers_used[i])};
     end
-    $display($time, s2);
+if (`DEBUG_LEVEL == 2)     $display($time, s2);
     dump_reg_ready <= 1;
   end
 endmodule

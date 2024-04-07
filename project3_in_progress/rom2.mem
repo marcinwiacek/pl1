@@ -18,7 +18,7 @@
 00 00 00 00
 00 00 00 00
 00 00 00 00
-01 04 04 04 //first instruction
+01 00 04 04 //first instruction
 03 02 01 03 //second
 04 00 05 04 //third
 06 05 05 03
