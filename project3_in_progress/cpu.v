@@ -785,20 +785,19 @@ if( old_registers_used[i]!=switcher_register_read_data_out) begin
     end
     
     //read next process address
-    j = 0;
+    process_address = 0;
     for (i = 0; i < 4; i++) begin
       switcher_ram_read_address <= process_address + i;
       switcher_ram_read <= 1;
       @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
-      j += switcher_ram_read_data_out * (256 ** i);
+      process_address += switcher_ram_read_data_out * (256 ** i);
     end
      if (`DEBUG_LEVEL == 2)
-      $display($time, "new process address ",j);
-      process_address=j;
+      $display($time, "new process address ",process_address);
 
  //read next registers used
-   /*  for (i = 0; i < 8; i++) begin
-          switcher_ram_read_address <= 100 + i + `ADDRESS_PC;
+     for (i = 0; i < 8; i++) begin
+          switcher_ram_read_address <= process_address + i + `ADDRESS_REG_USED;
       switcher_ram_read <= 1;
       @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
       j += switcher_ram_read_data_out * (2 ** i);
@@ -806,7 +805,7 @@ if( old_registers_used[i]!=switcher_register_read_data_out) begin
     
     //read next registsrs
     for (i = 0; i < `REGISTER_NUM; i++) begin
-      switcher_ram_read_address <= 100 + i + `ADDRESS_REG_USED;
+      switcher_ram_read_address <= process_address + i + `ADDRESS_REG;
       switcher_ram_read <= 1;
       @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
 
@@ -814,16 +813,9 @@ if( old_registers_used[i]!=switcher_register_read_data_out) begin
       switcher_register_save_data_in <= switcher_register_read_data_out;
       switcher_register_save <= 1;
       @(posedge switcher_register_save_ready) switcher_register_save <= 0;
-    end*/
-    
-    
- /*   j = 0;
-    for (i = 100; i < 200; i++) begin
-      switcher_ram_read_address <= i;
-      switcher_ram_read <= 1;
-      @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
     end
-   */ 
+    
+    
 //read next pc
     j = 0;
     for (i = 0; i < 4; i++) begin
