@@ -2,7 +2,8 @@ Version 2404*
 
 Work in progress
 
-Verilog simulation. I'm using here experiences from project 1 (mainly ideas related
+Verilog simulation with System Verilog 2005. 
+I'm using here experiences from project 1 (mainly ideas related
 to instruction list and processing handling) and project 2 (blocks and signals among them)
 
 Although for example in YouTube it's possible to find some tips about modeling in
@@ -16,7 +17,7 @@ You can run Verilog code with run, I'm using Ubuntu.
 
 # Stages
 
-  * stage12 - fetching & decoding (TODO: splitting?)
+  * stage12 - fetching & decoding (TODO: probably splitting)
   * stage 3 - RAM reading
   * stage 4 - ALU
   * stage 5 - RAM saving
@@ -46,11 +47,6 @@ changed?)
 
 # Task switching
 
-Process has got internal register set "registers_used", which is used during
-task switching only for saving/getting really used registers. We have 64 bytes
-of registers and in many cases can decrease amount or RAM  read/write operations
-(we just read/save 4 extra bytes and we know, what register should be saved/restored)
-
 Every process in memory has the following structure:
 
   * address of next process (4 bytes)
@@ -62,9 +58,16 @@ Every process in memory has the following structure:
 Program cannot access registers and everything below, they need to start with MMU segment, the same limit is with memory sharing (?).
 Processor has got two process lists - one for active process, one for suspended.
 
+We cache some values, for example task_switcher has got internal register set 
+"registers_used", which is used during task switching only for saving/getting
+really used registers. We have 64 bytes
+of registers and in many cases can decrease amount or RAM  read/write operations
+(we just read/save 4 extra bytes and we know, what register should be saved/restored)
+
 # Instruction set
 
 Addresses are in the end and are process type (16, 32 or 64 bit) related
+(status: todo)
 
 ## Process and I/O related:
 
