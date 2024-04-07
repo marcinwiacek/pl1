@@ -516,7 +516,7 @@ module stage12 (
         stage4_register_out_start = instruction[2];
         stage4_register_length = instruction[3];
         $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
-                 instruction[3], "    OPCODE_ADD8 add register ", stage4_register_A_start,
+                 instruction[3], "   ADD8 add register ", stage4_register_A_start,
                  "+ to register ", stage4_register_B_start, " and save to register ",
                  stage4_register_out_start, "+, len ", stage4_register_length);
         stage4_should_exec <= 1;
@@ -527,7 +527,7 @@ module stage12 (
         stage4_register_out_start = instruction[2];
         stage4_register_length = instruction[3];
         $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
-                 instruction[3], "   OPCODE_ADDNUM8 add value ", stage4_value_B, " to register "
+                 instruction[3], "   ADDNUM8 add value ", stage4_value_B, " to register "
                  , stage4_register_A_start, " and save to register ", stage4_register_out_start
                  , "+, len ", stage4_register_length);
         stage4_should_exec <= 1;
@@ -538,7 +538,7 @@ module stage12 (
         stage4_register_out_start = instruction[1];
         stage4_register_length = instruction[2];
         $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
-                 instruction[3], "   OPCODE_SET8 add value ", stage4_value_B, " to register ",
+                 instruction[3], "   SET8 add value ", stage4_value_B, " to register ",
                  stage4_register_A_start, " and save to register ", stage4_register_out_start
                  , "+, len ", stage4_register_length);
         stage4_should_exec <= 1;
@@ -613,7 +613,7 @@ module stage4 (
 
   always @(posedge stage4_exec) begin
     stage4_exec_ready <= 0;
-    $display($time, " stage 4 starting ", stage4_value_B);
+  if (`DEBUG_LEVEL == 2)  $display($time, " stage 4 starting ", stage4_value_B);
     for (i = 0; i < stage4_register_length; i++) begin
       if (stage4_oper == `OPER_SETNUM) begin
         temp = stage4_value_B;
@@ -729,7 +729,7 @@ module switcher (
   end
 
   always @(posedge switcher_exec) begin
-    $display($time, "switcher start");
+   if (`DEBUG_LEVEL == 2) $display($time, "switcher start");
     switcher_exec_ready <= 0;
 
     //dump pc
