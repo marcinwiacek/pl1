@@ -442,13 +442,13 @@ module stage12 (
     instruction[1] = stage12_ram_read_data_out;
 
     if (instruction[0] == `OPCODE_JUMPMINUS) begin
-$display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
-             instruction[3], "   JUMPMINUS");
+      $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
+               instruction[3], "   JUMPMINUS");
       pc -= instruction[1] * 4;
     end
     if (instruction[0] == `OPCODE_JUMPPLUS) begin
-$display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
-             instruction[3], "   JUMPPLUS");
+      $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
+               instruction[3], "   JUMPPLUS");
       pc += instruction[1] * 4;
     end else begin
       stage12_ram_read_address <= pc + 2;
@@ -465,10 +465,10 @@ $display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
         stage3_target_register_start = instruction[1];
         stage3_target_register_length = instruction[2];
         stage3_source_ram_address = instruction[3];
-$display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
-             instruction[3], "   LOADFROMRAM ", stage3_target_register_length
-                , " bytes from RAM address ", stage3_source_ram_address, "+ and save to register "
-,                 stage3_target_register_start, "+");
+        $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
+                 instruction[3], "   LOADFROMRAM ", stage3_target_register_length
+                 , " bytes from RAM address ", stage3_source_ram_address, "+ and save to register "
+                 , stage3_target_register_start, "+");
         stage3_should_exec <= 1;
       end
       if (instruction[0] == `OPCODE_READFROMRAM) begin
@@ -480,19 +480,19 @@ $display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
         stage3_target_register_length = instruction[2];
         stage3_source_ram_address = stage12_register_read_data_out;
 
-$display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
-             instruction[3], "   READFROMRAM ", stage3_target_register_length
+        $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
+                 instruction[3], "   READFROMRAM ", stage3_target_register_length
                  , " bytes from RAM address ", stage3_source_ram_address, "+ and save to register "
-,                 stage3_target_register_start, "+");
+                 , stage3_target_register_start, "+");
         stage3_should_exec <= 1;
       end else if (instruction[0] == `OPCODE_WRITETORAM) begin
         stage5_source_register_start = instruction[1];
         stage5_source_register_length = instruction[2];
         stage5_target_ram_address = instruction[3];
-$display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
-             instruction[3], "   WRITETORAM ",stage5_source_register_length, " bytes from register "
-,                 stage5_source_register_start, "+ and save to RAM address "
-,                 stage5_target_ram_address, "+");
+        $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
+                 instruction[3], "   WRITETORAM ", stage5_source_register_length,
+                 " bytes from register ", stage5_source_register_start,
+                 "+ and save to RAM address ", stage5_target_ram_address, "+");
         stage5_should_exec <= 1;
       end else if (instruction[0] == `OPCODE_SAVETORAM) begin
         stage12_register_read_address <= instruction[3];
@@ -502,10 +502,10 @@ $display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
         stage5_source_register_start = instruction[1];
         stage5_source_register_length = instruction[2];
         stage5_target_ram_address = stage12_register_read_data_out;
-$display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
-             instruction[3], "   SAVETORAM ", stage5_source_register_length, " bytes from register "
-,                 stage5_source_register_start, "+ and save to RAM address "
-,                 stage5_target_ram_address, "+");
+        $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
+                 instruction[3], "   SAVETORAM ", stage5_source_register_length,
+                 " bytes from register ", stage5_source_register_start,
+                 "+ and save to RAM address ", stage5_target_ram_address, "+");
         stage5_should_exec <= 1;
       end else if (instruction[0] == `OPCODE_ADD8) begin
         stage4_oper = `OPER_ADD;
@@ -513,10 +513,10 @@ $display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
         stage4_register_B_start = instruction[1];
         stage4_register_out_start = instruction[2];
         stage4_register_length = instruction[3];
-$display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
-             instruction[3], "    OPCODE_ADD8 add register ", stage4_register_A_start, "+ to register "
-,                 stage4_register_B_start," and save to register ", stage4_register_out_start
-,                 "+, len ", stage4_register_length);
+        $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
+                 instruction[3], "    OPCODE_ADD8 add register ", stage4_register_A_start,
+                 "+ to register ", stage4_register_B_start, " and save to register ",
+                 stage4_register_out_start, "+, len ", stage4_register_length);
         stage4_should_exec <= 1;
       end else if (instruction[0] == `OPCODE_ADDNUM8) begin
         stage4_oper = `OPER_ADDNUM;
@@ -524,10 +524,10 @@ $display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
         stage4_value_B = instruction[1];
         stage4_register_out_start = instruction[2];
         stage4_register_length = instruction[3];
-$display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
-             instruction[3], "   OPCODE_ADDNUM8 add value ", stage4_value_B, " to register "
-,                 stage4_register_A_start, " and save to register ",stage4_register_out_start
-,                 "+, len ", stage4_register_length);
+        $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
+                 instruction[3], "   OPCODE_ADDNUM8 add value ", stage4_value_B, " to register "
+                 , stage4_register_A_start, " and save to register ", stage4_register_out_start
+                 , "+, len ", stage4_register_length);
         stage4_should_exec <= 1;
       end else if (instruction[0] == `OPCODE_SET8) begin
         stage4_oper = `OPER_SETNUM;
@@ -535,10 +535,10 @@ $display($time,instruction[0], " ", instruction[1], " ", instruction[2], " ",
         stage4_value_B = 0;
         stage4_register_out_start = instruction[1];
         stage4_register_length = instruction[2];
-        $display($time,  instruction[0], " ", instruction[1], " ", instruction[2], " ",
-             instruction[3],"   OPCODE_SET8 add value ", stage4_value_B, " to register ",
+        $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
+                 instruction[3], "   OPCODE_SET8 add value ", stage4_value_B, " to register ",
                  stage4_register_A_start, " and save to register ", stage4_register_out_start
-        ,         "+, len ", stage4_register_length);
+                 , "+, len ", stage4_register_length);
         stage4_should_exec <= 1;
       end
       pc += 4;
