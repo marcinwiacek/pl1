@@ -148,10 +148,10 @@ module cpu (
   wire [7:0] stage12_ram_read_data_out;
 
   wire stage12_split_process;
-    wire stage12_plit_process_ready;
-    wire [`MAX_BITS_IN_ADDRESS:0] stage12_split_process_start;
-    wire [`MAX_BITS_IN_ADDRESS:0] stage12_split_process_end;
-    
+  wire stage12_plit_process_ready;
+  wire [`MAX_BITS_IN_ADDRESS:0] stage12_split_process_start;
+  wire [`MAX_BITS_IN_ADDRESS:0] stage12_split_process_end;
+
   wire stage3_ram_read;
   wire stage3_ram_read_ready;
   wire [`MAX_BITS_IN_ADDRESS:0] stage3_ram_read_address;
@@ -175,10 +175,10 @@ module cpu (
   ram2 ram2 (
       .ram_clk(ram_clk),
       .start_pc(start_pc),
-        .stage12_split_process(stage12_split_process),
-    .stage12_split_process_ready(stage12_split_process_ready),
-    .stage12_split_process_start(stage12_split_process_start),
-    .stage12_split_process_end(stage12_split_process_end),
+      .stage12_split_process(stage12_split_process),
+      .stage12_split_process_ready(stage12_split_process_ready),
+      .stage12_split_process_start(stage12_split_process_start),
+      .stage12_split_process_end(stage12_split_process_end),
       .stage12_read(stage12_ram_read),
       .stage12_read_ready(stage12_ram_read_ready),
       .stage12_read_address(stage12_ram_read_address),
@@ -225,10 +225,10 @@ module cpu (
       .stage12_exec_ready(stage12_exec_ready),
       .pc(pc),
       .start_pc(start_pc),
-       .stage12_split_process(stage12_split_process),
- .stage12_split_process_ready(stage12_plit_process_ready),
-    .stage12_split_process_start(stage12_split_process_start),
-.stage12_split_process_end(stage12_split_process_end),
+      .stage12_split_process(stage12_split_process),
+      .stage12_split_process_ready(stage12_plit_process_ready),
+      .stage12_split_process_start(stage12_split_process_start),
+      .stage12_split_process_end(stage12_split_process_end),
       .stage3_should_exec(stage3_should_exec),
       .stage3_source_ram_address(stage3_source_ram_address),
       .stage3_target_register_start(stage3_target_register_start),
@@ -407,10 +407,10 @@ module stage12 (
     output reg [`MAX_BITS_IN_ADDRESS:0] pc,
     input stage12_exec,
     output reg stage12_exec_ready,
-      output reg stage12_split_process,
-  input stage12_split_process_ready,
-output reg [`MAX_BITS_IN_ADDRESS:0] stage12_split_process_start,
-output reg [`MAX_BITS_IN_ADDRESS:0] stage12_split_process_end,
+    output reg stage12_split_process,
+    input stage12_split_process_ready,
+    output reg [`MAX_BITS_IN_ADDRESS:0] stage12_split_process_start,
+    output reg [`MAX_BITS_IN_ADDRESS:0] stage12_split_process_end,
     output reg stage3_should_exec,
     output reg [`MAX_BITS_IN_ADDRESS:0] stage3_source_ram_address,
     output reg [`MAX_BITS_IN_REGISTER_NUM:0] stage3_target_register_start,
@@ -564,14 +564,16 @@ output reg [`MAX_BITS_IN_ADDRESS:0] stage12_split_process_end,
                  , "+, len ", stage4_register_length);
         stage4_should_exec <= 1;
       end else if (instruction[0] == `OPCODE_PROC) begin
-       
-       stage12_split_process_start<=instruction[1];
-       stage12_split_process_end<=instruction[2];
+
+        stage12_split_process_start <= instruction[1];
+        stage12_split_process_end <= instruction[2];
         stage12_split_process <= 1;
         @(posedge stage12_split_process_ready) stage12_split_process <= 0;
 
         $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
-                 instruction[3], "   PROC create new process from current process, take memory segments ",instruction[1], "-",instruction[2]);
+                 instruction[3],
+                 "   PROC create new process from current process, take memory segments ",
+                 instruction[1], "-", instruction[2]);
       end
       pc += 4;
     end
@@ -912,7 +914,7 @@ module ram2 (
     output reg switcher_save_ready,
     input [`MAX_BITS_IN_ADDRESS:0] switcher_save_address,
     input [7:0] switcher_save_data_in,
-        input stage12_split_process,
+    input stage12_split_process,
     output stage12_split_process_ready,
     output reg [`MAX_BITS_IN_ADDRESS:0] stage12_split_process_start,
     output reg [`MAX_BITS_IN_ADDRESS:0] stage12_split_process_end
@@ -943,11 +945,11 @@ module ram2 (
       .physical_address(mmu_physical_address),
       .mmu_get_physical_address(mmu_get_physical_address),
       .mmu_get_physical_address_ready(mmu_get_physical_address_ready),
-         .mmu_split_process(stage12_split_process),
-    .mmu_split_process_ready(stage12_split_process_ready),
-    .mmu_split_process_start(stage12_split_process_start),
-    .mmu_split_process_end(stage12_split_process_end)
-    
+      .mmu_split_process(stage12_split_process),
+      .mmu_split_process_ready(stage12_split_process_ready),
+      .mmu_split_process_start(stage12_split_process_start),
+      .mmu_split_process_end(stage12_split_process_end)
+
   );
 
   always @(posedge stage12_read or posedge stage3_read or posedge stage5_save or posedge switcher_save or posedge switcher_read) begin
@@ -1042,18 +1044,18 @@ endmodule
 
 //in final project: mme page 16384 bytes = 65536 pages per 1GB
 module mmu (
-	    input mmu_get_physical_address,
+    input mmu_get_physical_address,
     output reg mmu_get_physical_address_ready,
     input [`MAX_BITS_IN_ADDRESS:0] physical_process_address,
     input [`MAX_BITS_IN_ADDRESS:0] logical_address,
     output reg [`MAX_BITS_IN_ADDRESS:0] physical_address,
-        input mmu_split_process,
+    input mmu_split_process,
     output reg mmu_split_process_ready,
     input [`MAX_BITS_IN_ADDRESS:0] mmu_split_process_start,
     input [`MAX_BITS_IN_ADDRESS:0] mmu_split_process_end
 
-    	  
-  );
+
+);
   reg [15:0] mmu_page_memory[0:65535];  //values = next physical start point for task
   reg [15:0] mmu_page_memory2[0:65535];  //values = logical page assign to this physical page
   reg [15:0] index_start;
@@ -1079,7 +1081,7 @@ module mmu (
   end
   always @(posedge mmu_split_process) begin
     mmu_split_process_ready <= 0;
-   mmu_split_process_ready <= 1;
+    mmu_split_process_ready <= 1;
   end
   always @(posedge mmu_get_physical_address) begin
     mmu_get_physical_address_ready <= 0;
@@ -1097,7 +1099,7 @@ module mmu (
           " logical page ",
           i
       );
-      
+
     while (mmu_page_memory[index] !== 0 && mmu_page_memory2[index] != i) begin
       index = mmu_page_memory[index];
     end
