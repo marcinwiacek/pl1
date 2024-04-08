@@ -409,12 +409,12 @@ module stage12 (
     //registers
     output reg stage12_register_read,
     input stage12_register_read_ready,
-    output reg [15:0] stage12_register_read_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] stage12_register_read_address,
     input [7:0] stage12_register_read_data_out,
     //ram
     output reg stage12_ram_read,
     input stage12_ram_read_ready,
-    output reg [15:0] stage12_ram_read_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] stage12_ram_read_address,
     input [7:0] stage12_ram_read_data_out
 );
 
@@ -561,7 +561,7 @@ module stage3 (
     //registers
     output reg stage3_register_save,
     input stage3_register_save_ready,
-    output reg [15:0] stage3_register_save_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] stage3_register_save_address,
     output reg [7:0] stage3_register_save_data_in,
     //ram
     output reg stage3_ram_read,
@@ -600,11 +600,11 @@ module stage4 (
     //registers
     output reg stage4_register_save,
     input stage4_register_save_ready,
-    output reg [15:0] stage4_register_save_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] stage4_register_save_address,
     output reg [7:0] stage4_register_save_data_in,
     output reg stage4_register_read,
     input stage4_register_read_ready,
-    output reg [15:0] stage4_register_read_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] stage4_register_read_address,
     input [7:0] stage4_register_read_data_out
 );
 
@@ -655,7 +655,7 @@ module stage5 (
     //registers
     output reg stage5_register_read,
     input stage5_register_read_ready,
-    output reg [15:0] stage5_register_read_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] stage5_register_read_address,
     input [7:0] stage5_register_read_data_out,
     //ram
     output reg stage5_ram_save,
@@ -692,11 +692,11 @@ module switcher (
     //registers
     output reg switcher_register_save,
     input switcher_register_save_ready,
-    output reg [15:0] switcher_register_save_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] switcher_register_save_address,
     output reg [7:0] switcher_register_save_data_in,
     output reg switcher_register_read,
     input switcher_register_read_ready,
-    output reg [15:0] switcher_register_read_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] switcher_register_read_address,
     input [7:0] switcher_register_read_data_out,
     //ram
     output reg switcher_ram_save,
@@ -885,7 +885,7 @@ module ram2 (
 );
 
   reg ram_write_enable;
-  reg [15:0] ram_address;
+  reg [`MAX_BITS_IN_ADDRESS:0] ram_address;
   reg [7:0] ram_data_in;
   wire [7:0] ram_data_out;
 
@@ -997,31 +997,31 @@ module registers (
     input [`MAX_BITS_IN_ADDRESS:0] start_pc,
     input stage12_read,
     output reg stage12_read_ready,
-    input [15:0] stage12_read_address,
+    input [`MAX_BITS_IN_ADDRESS:0] stage12_read_address,
     output reg [7:0] stage12_read_data_out,
     input stage3_save,
     output reg stage3_save_ready,
-    input [15:0] stage3_save_address,
+    input [`MAX_BITS_IN_ADDRESS:0] stage3_save_address,
     input [7:0] stage3_save_data_in,
     input stage4_save,
     output reg stage4_save_ready,
-    input [15:0] stage4_save_address,
+    input [`MAX_BITS_IN_ADDRESS:0] stage4_save_address,
     input [7:0] stage4_save_data_in,
     input stage4_read,
     output reg stage4_read_ready,
-    input [15:0] stage4_read_address,
+    input [`MAX_BITS_IN_ADDRESS:0] stage4_read_address,
     output reg [7:0] stage4_read_data_out,
     input stage5_read,
     output reg stage5_read_ready,
-    input [15:0] stage5_read_address,
+    input [`MAX_BITS_IN_ADDRESS:0] stage5_read_address,
     output reg [7:0] stage5_read_data_out,
     input switcher_save,
     output reg switcher_save_ready,
-    input [15:0] switcher_save_address,
+    input [`MAX_BITS_IN_ADDRESS:0] switcher_save_address,
     input [7:0] switcher_save_data_in,
     input switcher_read,
     output reg switcher_read_ready,
-    input [15:0] switcher_read_address,
+    input [`MAX_BITS_IN_ADDRESS:0] switcher_read_address,
     output reg [7:0] switcher_read_data_out,
     input dump_reg,
     output reg dump_reg_ready,
