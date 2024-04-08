@@ -920,6 +920,9 @@ module ram2 (
       ram_write_enable <= 1;
       ram_address = switcher_save_address;
       ram_data_in = switcher_save_data_in;
+   //   mmu_logical_address = switcher_save_address;
+//      mmu_get_physical_address <= 1;
+//      @(posedge mmu_get_physical_address_ready) mmu_get_physical_address <= 0;
       if (`DEBUG_LEVEL == 2)
         $display($time, " saving RAM from switcher address ", switcher_save_address);
       @(posedge ram_clk) @(negedge ram_clk) ram_write_enable <= 0;
@@ -930,6 +933,9 @@ module ram2 (
       ram_write_enable  <= 1;
       ram_address = stage5_save_address;
       ram_data_in = stage5_save_data_in;
+     mmu_logical_address = stage5_save_address;
+      mmu_get_physical_address <= 1;
+      @(posedge mmu_get_physical_address_ready) mmu_get_physical_address <= 0;      
       if (`DEBUG_LEVEL == 2)
         $display($time, " saving RAM from stage5 address ", stage5_save_address);
       @(posedge ram_clk) @(negedge ram_clk) ram_write_enable <= 0;
@@ -956,6 +962,10 @@ module ram2 (
       stage3_read_ready <= 0;
       ram_write_enable  <= 0;
       ram_address = stage3_read_address;
+                 mmu_logical_address = stage3_read_address;
+      mmu_get_physical_address <= 1;
+      @(posedge mmu_get_physical_address_ready) mmu_get_physical_address <= 0;
+
       @(posedge ram_clk)
       @(negedge ram_clk)
       if (`DEBUG_LEVEL == 2)
@@ -969,6 +979,10 @@ module ram2 (
       stage12_read_ready <= 0;
       ram_write_enable   <= 0;
       ram_address = stage12_read_address;
+                 mmu_logical_address = stage12_read_address;
+      mmu_get_physical_address <= 1;
+      @(posedge mmu_get_physical_address_ready) mmu_get_physical_address <= 0;
+
       @(posedge ram_clk)
       @(negedge ram_clk)
       if (`DEBUG_LEVEL == 2)
@@ -1003,32 +1017,42 @@ module mmu (
   //  reg[15:0] last_mmu_physical_page_index;
   //  reg[15:0] last_mmu_logical_page_index;
 
+string s;
   integer i, j, index;
 
   initial begin
     for (i = 0; i < 65536; i++) begin
+      //every new process cannot have one entry (mmu_page_memory==0) assigned to logical page 1 (first page must be assigned to logical page 0)
       mmu_page_memory[i]  = 0;
-      mmu_page_memory2[i] = 0;
+      mmu_page_memory2[i] = 1;
     end
     index_start = 1;
-    //for now we have two tasks in rom, remove when rom will be ready
-    mmu_page_memory[1] = 1;
+   // for now we have two tasks in rom, remove when rom will be ready
+    mmu_page_memory2[0] = 0;
+    mmu_page_memory2[1] = 0;
   end
   always @(posedge mmu_get_physical_address) begin
     mmu_get_physical_address_ready <= 0;
-
     index = physical_process_address / 171;
     i = logical_address / 171;
+      $display(
+            $time, " MMU  process ", physical_process_address, " process logical page ",index," logical address ",logical_address," logical page ",i
+        );
 
-    while (mmu_page_memory[index] != 0 || mmu_page_memory2[index] != i) begin
-      index = mmu_page_memory[index];
+    while (!(mmu_page_memory[index] == 0 || mmu_page_memory2[index] != i)) begin
+     
+       $display(
+            $time, " first loop ",index," ",mmu_page_memory[index] ," ",mmu_page_memory2[index]," ",i," ");
+             index = mmu_page_memory[index];
       //	if (mmu_memory_page2[index]==i) {      			
       //found; break;
       //	}
     end
     if (mmu_page_memory2[index] != i) begin
-      while (mmu_page_memory[index_start] != 0 || mmu_page_memory2[index_start] != 0) begin
+      while (!(mmu_page_memory[index_start] == 0 && mmu_page_memory2[index_start] == 1)) begin
         index_start++;
+       $display(
+            $time, " second loop");
       end
       //fixme: no free memory situation
       mmu_page_memory[index] = index_start;
@@ -1041,8 +1065,17 @@ module mmu (
       //  break;
     end
     physical_address = index * 171 + logical_address % 171;
+    $display(
+            $time, " MMU  physical address ", physical_address        );
     //    if (last_mmu_process_address==process_address && last_mmu_logical_page_index==i) begin
     //      	physical_address = last_mmu_logical_page_index*16384+logical_address%16384;
+    
+     s = " mmu reg ";
+    for (i = 0; i < 20; i++) begin
+      s = {s, $sformatf("%01x-%01x ", mmu_page_memory[i],mmu_page_memory2[i])};
+    end
+ $display($time, s);
+    
     mmu_get_physical_address_ready <= 1;
   end
 endmodule
