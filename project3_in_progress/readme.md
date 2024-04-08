@@ -17,12 +17,12 @@ You can run Verilog code with run, I'm using Ubuntu.
 
 Todo many things, for example:
 
-  1.PROC implementation
-  2.bug hunting
-  3.loops (with cache already when possible)
-  4.bug hunting
-  5.interrupts
-  6.bug reporting and process terminating
+  1. PROC implementation
+  2. bug hunting
+  3. loops (with cache already when possible)
+  4. bug hunting
+  5. interrupts
+  6. bug reporting and process terminating
 
 # Stages
 
