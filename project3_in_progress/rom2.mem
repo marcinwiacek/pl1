@@ -18,6 +18,7 @@ AC 00 00 00 //next process address
 00 00 00 00
 00 00 00 00
 00 00 00 00
+0a 01 02 00 //first instruction
 01 00 04 04 //first instruction
 03 02 01 03 //second
 04 00 05 04 //third
@@ -31,7 +32,6 @@ AC 00 00 00 //next process address
 01 02 03 04
 05 06 07 08
 01 02 03 04
-05 06 07 08
 01 02 03 04
 05 06 07 08
 01 02 03 04

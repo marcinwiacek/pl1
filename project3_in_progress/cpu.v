@@ -24,7 +24,7 @@
 
 `define REGISTER_NUM 64 //number of registers
 `define MAX_BITS_IN_REGISTER_NUM 6 //2^6=64
-`define OP_PER_TASK 8 // opcodes per task before switching
+`define OP_PER_TASK 7 // opcodes per task before switching
 `define MAX_BITS_IN_ADDRESS 31 //32-bit addresses
 
 `define DEBUG_LEVEL 1 //higher=more info
@@ -565,11 +565,11 @@ module stage12 (
         stage4_should_exec <= 1;
       end else if (instruction[0] == `OPCODE_PROC) begin
 
-        stage12_split_process_start <= instruction[1];
+    /*    stage12_split_process_start <= instruction[1];
         stage12_split_process_end <= instruction[2];
         stage12_split_process <= 1;
         @(posedge stage12_split_process_ready) stage12_split_process <= 0;
-
+*/
         $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
                  instruction[3],
                  "   PROC create new process from current process, take memory segments ",
@@ -1053,8 +1053,6 @@ module mmu (
     output reg mmu_split_process_ready,
     input [`MAX_BITS_IN_ADDRESS:0] mmu_split_process_start,
     input [`MAX_BITS_IN_ADDRESS:0] mmu_split_process_end
-
-
 );
   reg [15:0] mmu_page_memory[0:65535];  //values = next physical start point for task
   reg [15:0] mmu_page_memory2[0:65535];  //values = logical page assign to this physical page
@@ -1070,7 +1068,7 @@ module mmu (
 
   initial begin
     for (i = 0; i < 65536; i++) begin
-      //every new process cannot have one entry (mmu_page_memory==0) assigned to logical page 1 (first page must be assigned to logical page 0)
+      //every new process cannot have one entry (mmu_page_memory==0) assigned to logical page >0 (first page must be assigned to logical page 0)
       mmu_page_memory[i]  = 0;
       mmu_page_memory2[i] = 1;
     end
@@ -1078,9 +1076,33 @@ module mmu (
     // for now we have two tasks in rom, remove when rom will be ready
     mmu_page_memory2[0] = 0;
     mmu_page_memory2[1] = 0;
+    //mmu_page_memory[0] = 1;
+//    mmu_page_memory[1] = 2;
+//    mmu_page_memory[2] = 0;
+//    mmu_page_memory2[0] = 0;
+//    mmu_page_memory2[1] = 1;
+//    mmu_page_memory2[2] = 2;
   end
   always @(posedge mmu_split_process) begin
     mmu_split_process_ready <= 0;
+//index = physical_process_address / 171;
+   /* for (i=0;i<5;i++) begin
+          $display(
+          $time,"process chain ",mmu_page_memory[index]," ",index);
+      index = mmu_page_memory[index];
+    end*/
+ /*   
+      $display(
+          $time,"process chain ",mmu_page_memory[index]," ",index);
+    while (mmu_page_memory[index] !== 0) begin
+      
+      index = mmu_page_memory[index];
+  $display(
+          $time,"process chain ",mmu_page_memory[index]," ",index);
+    end
+    
+    for (i=mmu_split_process_start;i<=mmu_split_process_end;i++) begin
+    end*/
     mmu_split_process_ready <= 1;
   end
   always @(posedge mmu_get_physical_address) begin
