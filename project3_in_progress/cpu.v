@@ -23,7 +23,7 @@
 
 `define REGISTER_NUM 64 //number of registers
 `define MAX_BITS_IN_REGISTER_NUM 6 //2^6=64
-`define OP_PER_TASK 4 // opcodes per task before switching
+`define OP_PER_TASK 8 // opcodes per task before switching
 `define MAX_BITS_IN_ADDRESS 31 //32-bit addresses
 
 `define DEBUG_LEVEL 1 //higher=more info
