@@ -226,7 +226,7 @@ module cpu (
       .pc(pc),
       .start_pc(start_pc),
       .stage12_split_process(stage12_split_process),
-      .stage12_split_process_ready(stage12_plit_process_ready),
+      .stage12_split_process_ready(stage12_split_process_ready),
       .stage12_split_process_start(stage12_split_process_start),
       .stage12_split_process_end(stage12_split_process_end),
       .stage3_should_exec(stage3_should_exec),
@@ -1061,7 +1061,7 @@ module mmu (
   //  reg[15:0] last_mmu_logical_page_index;
 
   string s;
-  integer i, j, index, previndex, z;
+  integer i, j, index, previndex, z, newindex;
 
   initial begin
     for (i = 0; i < 65536; i++) begin
@@ -1087,7 +1087,7 @@ module mmu (
       s = {s, $sformatf("%01x-%01x ", mmu_page_memory[i], mmu_page_memory2[i])};
     end
     $display($time, s);
-    index = physical_process_address / 171;
+    newindex = physical_process_address / 171;
     /* for (i=0;i<5;i++) begin
           $display(
           $time,"process chain ",mmu_page_memory[index]," ",index);
@@ -1096,35 +1096,32 @@ module mmu (
     i = mmu_split_process_start;
     $display($time, " ", i, " ", mmu_split_process_start);
     j = 0;
-    $display($time, "process chain ", mmu_page_memory[index], " ", index);
-    while (mmu_page_memory[index] !== 0) begin
-      previndex = index;
-      index = mmu_page_memory[index];
+    $display($time, "process chain ", mmu_page_memory[newindex], " ", newindex);
+    while (mmu_page_memory[newindex] !== 0) begin
+      previndex = newindex;
+      newindex = mmu_page_memory[newindex];
 
-      $display($time, "process chain ", mmu_page_memory[index], " ", index);
-      if (i == mmu_page_memory2[index]) begin
+      $display($time, "process chain ", mmu_page_memory[newindex], " ", newindex);
+      if (i == mmu_page_memory2[newindex]) begin
         $display($time, "replacing");
-        mmu_page_memory[previndex] = mmu_page_memory[index];
-        z = mmu_page_memory[index];
-        mmu_page_memory[index] = 0;  //fixme in the future
-        mmu_page_memory2[index] = j;
+        mmu_page_memory[previndex] = mmu_page_memory[newindex];
+        z = mmu_page_memory[newindex];
+        mmu_page_memory[newindex] = 0;  //fixme in the future
+        mmu_page_memory2[newindex] = j;
         j++;
         if (i < mmu_split_process_end) i++;
-        index = z;
+        newindex = z;
       end
     end
-    if (i == mmu_page_memory2[index]) begin
+    if (i == mmu_page_memory2[newindex]) begin
       $display($time, "replacing");
-      mmu_page_memory[previndex] = mmu_page_memory[index];
-      z = mmu_page_memory[index];
-      mmu_page_memory[index] = 0;  //fixme in the future
-      mmu_page_memory2[index] = j;
+      mmu_page_memory[previndex] = mmu_page_memory[newindex];
+      z = mmu_page_memory[newindex];
+      mmu_page_memory[newindex] = 0;  //fixme in the future
+      mmu_page_memory2[newindex] = j;
       j++;
       if (i < mmu_split_process_end) i++;
-      index = z;
-    end
-
-    for (i = mmu_split_process_start; i <= mmu_split_process_end; i++) begin
+      newindex = z;
     end
     s = " mmu reg ";
     for (i = 0; i < 20; i++) begin
