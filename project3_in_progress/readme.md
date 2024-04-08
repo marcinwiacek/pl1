@@ -10,10 +10,19 @@ Although for example in YouTube it's possible to find some tips about modeling i
 concrete software (for example [channel](https://www.youtube.com/playlist?list=PLilenfQGj6CEG6iZ4TQJ10PI7pCWsy1AO)),
 I decided to go into plain code first and in the future it will probably end with:
 
-1. Verilog code
-2. software simulator in JavaScript
+  1. Verilog code
+  2. software simulator in JavaScript
 
 You can run Verilog code with run, I'm using Ubuntu.
+
+Todo many things, for example:
+
+  1.PROC implementation
+  2.bug hunting
+  3.loops (with cache already when possible)
+  4.bug hunting
+  5.interrupts
+  6.bug reporting and process terminating
 
 # Stages
 
