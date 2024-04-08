@@ -168,6 +168,7 @@ module cpu (
 
   ram2 ram2 (
       .ram_clk(ram_clk),
+      .start_pc(start_pc),
       .stage12_read(stage12_ram_read),
       .stage12_read_ready(stage12_ram_read_ready),
       .stage12_read_address(stage12_ram_read_address),
@@ -615,7 +616,7 @@ module stage4 (
 
   always @(posedge stage4_exec) begin
     stage4_exec_ready <= 0;
-  if (`DEBUG_LEVEL == 2)  $display($time, " stage 4 starting ", stage4_value_B);
+    if (`DEBUG_LEVEL == 2) $display($time, " stage 4 starting ", stage4_value_B);
     for (i = 0; i < stage4_register_length; i++) begin
       if (stage4_oper == `OPER_SETNUM) begin
         temp = stage4_value_B;
@@ -731,7 +732,7 @@ module switcher (
   end
 
   always @(posedge switcher_exec) begin
-   if (`DEBUG_LEVEL == 2) $display($time, "switcher start");
+    if (`DEBUG_LEVEL == 2) $display($time, "switcher start");
     switcher_exec_ready <= 0;
 
     //dump pc
@@ -863,6 +864,7 @@ endmodule
 
 module ram2 (
     input ram_clk,
+    input [`MAX_BITS_IN_ADDRESS:0] start_pc,
     input stage12_read,
     output reg stage12_read_ready,
     input [`MAX_BITS_IN_ADDRESS:0] stage12_read_address,
@@ -897,8 +899,20 @@ module ram2 (
       .data_in(ram_data_in),
       .data_out(ram_data_out)
   );
-
-//mme page 16384 bytes
+  
+   reg [`MAX_BITS_IN_ADDRESS:0] mmu_physical_process_address;
+   reg [`MAX_BITS_IN_ADDRESS:0] mmu_logical_address;
+  wire [`MAX_BITS_IN_ADDRESS:0] mmu_physical_address;
+    reg mmu_get_physical_address;
+   wire mmu_get_physical_address_ready;
+    
+  mmu mmu (
+    .physical_process_address(start_pc),
+    .logical_address(mmu_logical_address),
+    .physical_address(mmu_physical_address),
+    .mmu_get_physical_address(mmu_get_physical_address),
+    .mmu_get_physical_address_ready(mmu_get_physical_address_ready)
+);
 
   always @(posedge stage12_read or posedge stage3_read or posedge stage5_save or posedge switcher_save or posedge switcher_read) begin
     if (switcher_save) begin
@@ -969,6 +983,67 @@ module ram2 (
       stage12_read_ready <= 1;
     end
     //$display($time," ",stage3_read, " ",stage12_read," ",stage5_save);
+  end
+endmodule
+
+//in final project: mme page 16384 bytes = 65536 pages per 1GB
+module mmu (
+    input [`MAX_BITS_IN_ADDRESS:0] physical_process_address,
+    input [`MAX_BITS_IN_ADDRESS:0] logical_address,
+    output reg [`MAX_BITS_IN_ADDRESS:0] physical_address,
+    input mmu_get_physical_address,
+    output reg mmu_get_physical_address_ready
+);
+  reg [15:0] mmu_page_memory [0:65535];  //values = next physical start point for task
+  reg [15:0] mmu_page_memory2[0:65535];  //values = logical page assign to this physical page
+  reg [15:0] index_start;
+
+  //cache
+  // reg[`MAX_BITS_IN_ADDRESS:0] last_mmu_process_address;
+  //  reg[15:0] last_mmu_physical_page_index;
+  //  reg[15:0] last_mmu_logical_page_index;
+
+  integer i, j, index;
+
+  initial begin
+    for (i = 0; i < 65536; i++) begin
+      mmu_page_memory[i]  = 0;
+      mmu_page_memory2[i] = 0;
+    end
+    index_start = 1;
+    //for now we have two tasks in rom, remove when rom will be ready
+    mmu_page_memory[1] = 1;
+  end
+  always @(posedge mmu_get_physical_address) begin
+    mmu_get_physical_address_ready <= 0;
+
+    index = physical_process_address / 171;
+    i = logical_address / 171;
+
+    while (mmu_page_memory[index] != 0 || mmu_page_memory2[index] != i) begin
+      index = mmu_page_memory[index];
+      //	if (mmu_memory_page2[index]==i) {      			
+      //found; break;
+      //	}
+    end
+    if (mmu_page_memory2[index] != i) begin
+      while (mmu_page_memory[index_start] != 0 || mmu_page_memory2[index_start] != 0) begin
+        index_start++;
+      end
+      //fixme: no free memory situation
+      mmu_page_memory[index] = index_start;
+      index = index_start;
+      mmu_page_memory2[index] = i;
+      //  for (j=1;j<65536;j++) if mmupagememory[j] == 0 && mmu memory page2[j]==0 free
+      //  mmu_page_memory[index] = j;
+      //  index = j;
+      //  mmu_page_memory2[index]=i;
+      //  break;
+    end
+    physical_address = index * 171 + logical_address % 171;
+    //    if (last_mmu_process_address==process_address && last_mmu_logical_page_index==i) begin
+    //      	physical_address = last_mmu_logical_page_index*16384+logical_address%16384;
+    mmu_get_physical_address_ready <= 1;
   end
 endmodule
 
