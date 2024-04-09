@@ -27,7 +27,7 @@
 `define OP_PER_TASK 4 // opcodes per task - 1 before switching
 `define MAX_BITS_IN_ADDRESS 31 //32-bit addresses
 
-`define DEBUG_LEVEL 1 //higher=more info //DEBUG info
+`define DEBUG_LEVEL 2 //higher=more info //DEBUG info
 
 module cpu (
     input rst,
@@ -1044,8 +1044,8 @@ module mmu (
     input [`MAX_BITS_IN_ADDRESS:0] mmu_split_process_end
 );
 
-  reg [15:0] mmu_page_memory[0:65535];  //values = next physical start point for task
-  reg [15:0] mmu_page_memory2[0:65535];  //values = logical page assign to this physical page
+  reg [15:0] mmu_page_memory[0:65535];  //values = next physical start point for task; last entry = 0
+  reg [15:0] mmu_page_memory2[0:65535];  //values = logical page assign to this physical page; 0 means page is empty (in existing processes, where first page is 0, we setup here value > 0 and ignore it)
   reg [15:0] index_start;
 
   //cache
@@ -1054,26 +1054,28 @@ module mmu (
   //  reg[15:0] last_mmu_logical_page_index;
 
   string s;  //DEBUG info
-  integer i, j, index, previndex, z, newindex, previndex2, toprocess;
+  integer i, j, index, previndex, z, newindex, previndex2, toprocess, newindex2, newstartpoint;
 
   initial begin
     for (i = 0; i < 65536; i++) begin
-      //every new process cannot have one entry (mmu_page_memory==0) assigned to logical page >0 (first page must be assigned to logical page 0)
-      mmu_page_memory[i]  = 0;
-      mmu_page_memory2[i] = 1;
+      //value 0 means, that it's empty. in every process on first entry we setup something != 0 and ignore it (first process page is always from segment 0)
+      mmu_page_memory2[i] = 0;
     end
     index_start = 1;
     // for now we have two tasks in rom, remove when rom will be ready
     //  mmu_page_memory2[0] = 0;
     //  mmu_page_memory2[1] = 0;
     mmu_page_memory[0] = 1;
-    mmu_page_memory[1] = 2;
-    mmu_page_memory[2] = 3;
-    mmu_page_memory[3] = 0;
-    mmu_page_memory2[0] = 0;
-    mmu_page_memory2[1] = 1;
-    mmu_page_memory2[2] = 2;
+    mmu_page_memory[1] = 3;
+    mmu_page_memory[3] = 2;
+    mmu_page_memory[2] = 5;
+    mmu_page_memory[5] = 0;
+    mmu_page_memory2[0] = 1;
+    mmu_page_memory2[1] = 2;
+    mmu_page_memory2[2] = 4;
     mmu_page_memory2[3] = 3;
+    mmu_page_memory2[5] = 1;
+
   end
   always @(posedge mmu_split_process) begin
     mmu_split_process_ready <= 0;
@@ -1093,11 +1095,12 @@ module mmu (
             mmu_page_memory[newindex],  //DEBUG info
             " ",  //DEBUG info
             mmu_page_memory2[newindex],  //DEBUG info
-            newindex,  //DEBUG info
             " ",  //DEBUG info
             mmu_page_memory[previndex],  //DEBUG info
             " ",  //DEBUG info
             mmu_page_memory2[previndex],  //DEBUG info
+            " ", //DEBUG info
+            newindex,  //DEBUG info
             " ",  //DEBUG info
             previndex  //DEBUG info
         );  //DEBUG info
@@ -1105,7 +1108,7 @@ module mmu (
       newindex  = mmu_page_memory[previndex];  //DEBUG info
     end while (mmu_page_memory[previndex] !== 0);  //DEBUG info
 
-    //algo to fix, problem when segments in parent process are not in increasing order
+    newindex2 = 0;
     j = 0;
     for (i = mmu_split_process_start; i <= mmu_split_process_end; i++) begin
       newindex  = physical_process_address / 171;  //start point for existing process
@@ -1113,11 +1116,16 @@ module mmu (
       do begin
         if (mmu_page_memory2[newindex] == i) begin
           mmu_page_memory[previndex] = mmu_page_memory[newindex];
-          mmu_page_memory2[newindex] = j;
-          j++;
+          mmu_page_memory2[newindex] = j == 0 ? 255*255 : j; //some known value like 255*255 could be used for checking mmu validity
+          if (j == 0) newstartpoint = newindex;
+          if (newindex2 != 0) begin
+            mmu_page_memory[newindex2] = newindex;
+          end
+          newindex2 = newindex;
           if (j == mmu_split_process_end) begin
             mmu_page_memory[newindex] = 0;
           end
+          j++;
           s = " mmu reg ";  //DEBUG info
           for (z = 0; z < 10; z++) begin  //DEBUG info
             s = {s, $sformatf("%01x-%01x ", mmu_page_memory[z], mmu_page_memory2[z])};  //DEBUG info
@@ -1134,6 +1142,37 @@ module mmu (
       s = {s, $sformatf("%01x-%01x ", mmu_page_memory[i], mmu_page_memory2[i])};  //DEBUG info
     end  //DEBUG info
     if (`DEBUG_LEVEL == 2) $display($time, s);  //DEBUG info
+
+    s = " mmu reg ";  //DEBUG info
+    for (i = 0; i < 20; i++) begin  //DEBUG info
+      s = {s, $sformatf("%01x-%01x ", mmu_page_memory[i], mmu_page_memory2[i])};  //DEBUG info
+    end  //DEBUG info
+    if (`DEBUG_LEVEL == 2) $display($time, s);  //DEBUG info
+    newindex  = physical_process_address / 171;  //start point for existing process //DEBUG info
+    previndex = newindex;  //DEBUG info
+    do begin  //DEBUG info
+      if (`DEBUG_LEVEL == 2)  //DEBUG info
+        $display(  //DEBUG info
+            $time,  //DEBUG info
+            "process chain0 ",  //DEBUG info
+            mmu_page_memory[newindex],  //DEBUG info
+            " ",  //DEBUG info
+            mmu_page_memory2[newindex],  //DEBUG info
+            " ",  //DEBUG info
+            mmu_page_memory[previndex],  //DEBUG info
+            " ",  //DEBUG info
+            mmu_page_memory2[previndex],  //DEBUG info
+            " ",  //DEBUG info
+            newindex,  //DEBUG info
+            " ",  //DEBUG info
+            previndex  //DEBUG info
+        );  //DEBUG info
+      previndex = newindex;  //DEBUG info
+      newindex  = mmu_page_memory[previndex];  //DEBUG info
+    end while (mmu_page_memory[previndex] !== 0);  //DEBUG info
+
+    //setup pc in new process
+    //update process chain - get next from exeisting process and save into new one and in existing process point to new one
 
     mmu_split_process_ready <= 1;
   end
@@ -1159,7 +1198,7 @@ module mmu (
       index = mmu_page_memory[index];
     end
     if (mmu_page_memory2[index] != i) begin
-      while (mmu_page_memory[index_start] !== 0 || mmu_page_memory2[index_start] !== 1) begin
+      while (mmu_page_memory2[index_start] !== 0) begin
         index_start++;
       end
       //fixme: no free memory situation
