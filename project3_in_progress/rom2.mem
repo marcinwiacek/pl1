@@ -1,5 +1,5 @@
-AC 00 00 00 //next process address
-54 00 00 00 //pc (currently without MMU)
+AC 00 00 00 //next process address (without MMU)
+58 00 00 00 //pc (without MMU)
 00 00 00 00 //register used
 00 00 00 00
 00 00 00 00 //register
@@ -41,8 +41,8 @@ AC 00 00 00 //next process address
 01 02 03 04
 05 06 07 08
 01 02 03 04
-00 00 00 00 //next process address
-FC 00 00 00 //pc (currently without MMU)
+00 00 00 00 //next process address (without MMU)
+FC 00 00 00 //pc (without MMU)
 00 00 00 00 //register used
 00 00 00 00
 00 00 00 00 //register
