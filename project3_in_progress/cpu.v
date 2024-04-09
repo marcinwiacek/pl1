@@ -571,7 +571,7 @@ module stage12 (
         $display($time, instruction[0], " ", instruction[1], " ", instruction[2], " ",
                  instruction[3],
                  "   PROC create new process from current process, take memory segments ",
-                 instruction[1], "-", instruction[2]);
+                 instruction[1], " to ", instruction[2]);
       end
       pc += 4;
     end
@@ -743,7 +743,7 @@ module switcher (
   reg [`MAX_BITS_IN_ADDRESS:0] process_address;
   reg [7:0] temp[7:0];
   reg [7:0] old_reg_used[7:0];
-  reg [`REGISTER_NUM-1:0] old_registers_used;
+  reg [7:0] old_registers_memory[`REGISTER_NUM-1:0];
 
   always @(rst) begin
     if (`DEBUG_LEVEL == 2) $display($time, " reset2");
@@ -753,7 +753,7 @@ module switcher (
       old_reg_used[i] = 0;
     end
     for (i = 0; i < `REGISTER_NUM; i++) begin
-      old_registers_used[i] = 0;
+      old_registers_memory[i] = 0;
     end
   end
 
@@ -821,7 +821,7 @@ module switcher (
         switcher_register_read <= 1;
         @(posedge switcher_register_read_ready) switcher_register_read <= 0;
 
-        if (old_registers_used[i] != switcher_register_read_data_out) begin
+        if (old_registers_memory[i] != switcher_register_read_data_out) begin
           switcher_ram_save_address <= process_address + i + `ADDRESS_REG;
           switcher_ram_save_data_in <= switcher_register_read_data_out;
           switcher_ram_save <= 1;
@@ -858,12 +858,12 @@ module switcher (
           switcher_ram_read <= 1;
           @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
 
-          old_registers_used[i*8+j] = switcher_ram_read_data_out;
+          old_registers_memory[i*8+j] = switcher_ram_read_data_out;
         end else begin
-          old_registers_used[i*8+j] = 0;
+          old_registers_memory[i*8+j] = 0;
         end
         switcher_register_save_address <= i * 8 + j;
-        switcher_register_save_data_in <= old_registers_used[i*8+j];
+        switcher_register_save_data_in = old_registers_memory[i*8+j];
         switcher_register_save <= 1;
         @(posedge switcher_register_save_ready) switcher_register_save <= 0;
       end
@@ -988,7 +988,7 @@ module ram2 (
             " value ",
             ram_data_out
         );
-      switcher_read_data_out <= ram_data_out;
+      switcher_read_data_out = ram_data_out;
       switcher_read_ready <= 1;
     end
     if (stage3_read) begin
@@ -1268,6 +1268,7 @@ module registers (
   end
   always @(posedge switcher_save) begin
     switcher_save_ready <= 0;
+   // $display($time, " switcher save register address=", switcher_save_address," value=",switcher_save_data_in);
     registers_memory[switcher_save_address] = switcher_save_data_in;
     registers_used[switcher_save_address]   = switcher_save_data_in != 0;
     switcher_save_ready <= 1;
