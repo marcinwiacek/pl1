@@ -1,21 +1,21 @@
 //process instruction codes
 `define OPCODE_LOADFROMRAM 1 //load from memory with specified address, params: target register number, length, source memory address
-`define OPCODE_JUMPMINUS 2
+`define OPCODE_JUMPMINUS 2 //param: how many instructions
 `define OPCODE_WRITETORAM 3 //save to memory with specified address, params: source register number, length, target memory address
-`define OPCODE_ADD8 4 //add register A and B and save to register "out", 8-bit processing
-`define OPCODE_JUMPPLUS 5
-`define OPCODE_ADDNUM8 6 //add numeric value to registers
+`define OPCODE_ADD8 4 //add register A and B and save to register "out", 8-bit processing, params: register A and B start (now the same, later other), out register start, how many 8-bit elements
+`define OPCODE_JUMPPLUS 5 //param: how many instructions
+`define OPCODE_ADDNUM8 6 //add numeric value to registers, params: register A start/number (now the same, later other), out register start, how many 8-bit elements
 `define OPCODE_READFROMRAM 7 //load from memory from address in register to register, params: target register number, length, register with source address
 `define OPCODE_SAVETORAM 8 //save to memory with address in register, params: source register number, length, register with target address
-`define OPCODE_SET8 9 //set registers
-`define OPCODE_PROC 10 //new process
+`define OPCODE_SET8 9 //set registers to 0 (now, in the future any value), params: register start num, how many 8-bit elements
+`define OPCODE_PROC 10 //new process, params: start, end memory segment from existing process
 
 //alu operations
 `define OPER_ADD 1
 `define OPER_ADDNUM 2
 `define OPER_SETNUM 3
 
-//offsets for process
+//offsets for process info
 `define ADDRESS_NEXT_PROCESS 0
 `define ADDRESS_PC 4
 `define ADDRESS_REG_USED 8
@@ -23,8 +23,8 @@
 `define ADDRESS_PROGRAM `REGISTER_NUM+16
 
 `define REGISTER_NUM 64 //number of registers
-`define MAX_BITS_IN_REGISTER_NUM 6 //2^6=64
-`define OP_PER_TASK 4 // opcodes per task - 1 before switching
+`define MAX_BITS_IN_REGISTER_NUM 6 //64 registers = 2^6
+`define OP_PER_TASK 4 // opcodes per task before switching
 `define MAX_BITS_IN_ADDRESS 31 //32-bit addresses
 
 `define DEBUG_LEVEL 2 //higher=more info //DEBUG info
