@@ -74,6 +74,7 @@ module cpu (
   wire [7:0] switcher_register_read_data_out;
 
   registers registers (
+      .rst(rst),
       .start_pc(start_pc),
       .registers_used(registers_used),
       .dump_reg(dump_reg),  //DEBUG info
@@ -338,9 +339,9 @@ module cpu (
     stage12_exec = 1;  //force it to start again
   end
   always @(posedge stage12_exec_ready) begin
-    if (`DEBUG_LEVEL == 2) //DEBUG info
-      $display( //DEBUG info
-          $time, " posedge stage12execready ", executed, " ", stage12_exec_ready //DEBUG info
+    if (`DEBUG_LEVEL == 2)  //DEBUG info
+      $display(  //DEBUG info
+          $time, " posedge stage12execready ", executed, " ", stage12_exec_ready  //DEBUG info
       );  //DEBUG info
     executed++;
     if (stage3_should_exec) begin
@@ -352,7 +353,7 @@ module cpu (
     end else begin
       if (executed == `OP_PER_TASK) switcher_exec = 1;
     end
-    if (`DEBUG_LEVEL == 2) //DEBUG info
+    if (`DEBUG_LEVEL == 2)  //DEBUG info
       $display($time, "   switcher should exec12 ", executed, " ", switcher_exec);  //DEBUG info
     if (executed < `OP_PER_TASK) stage12_exec = 0;
   end
@@ -361,7 +362,7 @@ module cpu (
     dump_reg <= 1;  //DEBUG info
     @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
     if (executed == `OP_PER_TASK) switcher_exec = 1;
-    if (`DEBUG_LEVEL == 2) //DEBUG info
+    if (`DEBUG_LEVEL == 2)  //DEBUG info
       $display($time, "   switcher should exec3 ", executed, " ", switcher_exec);  //DEBUG info
     stage3_exec = 0;
   end
@@ -370,14 +371,14 @@ module cpu (
     dump_reg <= 1;  //DEBUG info
     @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
     if (executed == `OP_PER_TASK) switcher_exec = 1;
-    if (`DEBUG_LEVEL == 2) //DEBUG info
+    if (`DEBUG_LEVEL == 2)  //DEBUG info
       $display($time, "   switcher should exec4 ", executed, " ", switcher_exec);  //DEBUG info
     stage4_exec = 0;
   end
   always @(posedge stage5_exec_ready) begin
     if (`DEBUG_LEVEL == 2) $display($time, " posedge stage5execready");  //DEBUG info
     if (executed == `OP_PER_TASK) switcher_exec = 1;
-    if (`DEBUG_LEVEL == 2) //DEBUG info
+    if (`DEBUG_LEVEL == 2)  //DEBUG info
       $display($time, "   switcher should exec5 ", executed, " ", switcher_exec);  //DEBUG info
     stage5_exec = 0;
   end
@@ -566,7 +567,7 @@ module stage12 (
             instruction[3],  //DEBUG info
             "   PROC create new process from current process, take memory segments ",  //DEBUG info
             instruction[1], " to ", instruction[2]);  //DEBUG info
-      end else     if (  instruction[0] !== `OPCODE_JUMPMINUS && instruction[0] !== `OPCODE_JUMPPLUS) begin
+      end else if (  instruction[0] !== `OPCODE_JUMPMINUS && instruction[0] !== `OPCODE_JUMPPLUS) begin
         $display(  //DEBUG info
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
             instruction[3],  //DEBUG info
@@ -938,7 +939,6 @@ module ram2 (
       .mmu_split_process_ready(stage12_split_process_ready),
       .mmu_split_process_start(stage12_split_process_start),
       .mmu_split_process_end(stage12_split_process_end)
-
   );
 
   always @(posedge stage12_read or posedge stage3_read or posedge stage5_save or posedge switcher_save or posedge switcher_read) begin
@@ -1043,6 +1043,7 @@ module mmu (
     input [`MAX_BITS_IN_ADDRESS:0] mmu_split_process_start,
     input [`MAX_BITS_IN_ADDRESS:0] mmu_split_process_end
 );
+
   reg [15:0] mmu_page_memory[0:65535];  //values = next physical start point for task
   reg [15:0] mmu_page_memory2[0:65535];  //values = logical page assign to this physical page
   reg [15:0] index_start;
@@ -1085,20 +1086,20 @@ module mmu (
     newindex  = physical_process_address / 171;  //start point for existing process //DEBUG info
     previndex = newindex;  //DEBUG info
     do begin  //DEBUG info
-      if (`DEBUG_LEVEL == 2) //DEBUG info
-        $display( //DEBUG info
-            $time, //DEBUG info
-            "process chain0 ", //DEBUG info
-            mmu_page_memory[newindex], //DEBUG info
+      if (`DEBUG_LEVEL == 2)  //DEBUG info
+        $display(  //DEBUG info
+            $time,  //DEBUG info
+            "process chain0 ",  //DEBUG info
+            mmu_page_memory[newindex],  //DEBUG info
             " ",  //DEBUG info
-            mmu_page_memory2[newindex], //DEBUG info
-            newindex, //DEBUG info
-            " ", //DEBUG info
+            mmu_page_memory2[newindex],  //DEBUG info
+            newindex,  //DEBUG info
+            " ",  //DEBUG info
             mmu_page_memory[previndex],  //DEBUG info
             " ",  //DEBUG info
-            mmu_page_memory2[previndex], //DEBUG info
-            " ", //DEBUG info
-            previndex //DEBUG info
+            mmu_page_memory2[previndex],  //DEBUG info
+            " ",  //DEBUG info
+            previndex  //DEBUG info
         );  //DEBUG info
       previndex = newindex;  //DEBUG info
       newindex  = mmu_page_memory[previndex];  //DEBUG info
@@ -1190,6 +1191,7 @@ module ram (
     input [7:0] data_in,
     output reg [7:0] data_out
 );
+
   reg [7:0] ram_memory[0:1048576];
 
   initial begin
@@ -1205,6 +1207,7 @@ module ram (
 endmodule
 
 module registers (
+    input rst,
     input [`MAX_BITS_IN_ADDRESS:0] start_pc,
     input dump_reg,  //DEBUG info
     output reg dump_reg_ready,  //DEBUG info
@@ -1238,14 +1241,19 @@ module registers (
     output reg [7:0] switcher_read_data_out,
     output reg [`REGISTER_NUM-1:0] registers_used
 );
+
   reg [7:0] registers_memory[`REGISTER_NUM-1:0];
 
   integer i;
   string s2;
 
+  always @(rst) begin
+    for (i = 0; i < `REGISTER_NUM; i++) begin
+      registers_memory[i] = 0;
+    end
+  end
   always @(start_pc) begin
     for (i = 0; i < `REGISTER_NUM; i++) begin
-      //  registers_memory[i] = 0;
       registers_used[i] = 0;
     end
   end
