@@ -858,7 +858,7 @@ module switcher (
           switcher_ram_read <= 1;
           @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
 
-          old_registers_used[i*8+j] = switcher_register_read_data_out;
+          old_registers_used[i*8+j] = switcher_ram_read_data_out;
         end else begin
           old_registers_used[i*8+j] = 0;
         end
