@@ -858,19 +858,14 @@ module switcher (
           switcher_ram_read <= 1;
           @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
 
-          switcher_register_save_address <= i * 8 + j;
-          switcher_register_save_data_in <= switcher_ram_read_data_out;
-          switcher_register_save <= 1;
-          @(posedge switcher_register_save_ready) switcher_register_save <= 0;
-
           old_registers_used[i*8+j] = switcher_register_read_data_out;
         end else begin
-          switcher_register_save_address <= i * 8 + j;
-          switcher_register_save_data_in <= 0;
-          switcher_register_save <= 1;
-          @(posedge switcher_register_save_ready) switcher_register_save <= 0;
           old_registers_used[i*8+j] = 0;
         end
+        switcher_register_save_address <= i * 8 + j;
+        switcher_register_save_data_in <= old_registers_used[i*8+j];
+        switcher_register_save <= 1;
+        @(posedge switcher_register_save_ready) switcher_register_save <= 0;
       end
     end
 
@@ -1061,7 +1056,7 @@ module mmu (
   //  reg[15:0] last_mmu_logical_page_index;
 
   string s;
-  integer i, j, index, previndex, z, newindex;
+  integer i, j, index, previndex, z, newindex, previndex2, toprocess;
 
   initial begin
     for (i = 0; i < 65536; i++) begin
@@ -1075,59 +1070,61 @@ module mmu (
     //  mmu_page_memory2[1] = 0;
     mmu_page_memory[0] = 1;
     mmu_page_memory[1] = 2;
-    mmu_page_memory[2] = 0;
+    mmu_page_memory[2] = 3;
+    mmu_page_memory[3] = 0;
     mmu_page_memory2[0] = 0;
     mmu_page_memory2[1] = 1;
     mmu_page_memory2[2] = 2;
+    mmu_page_memory2[3] = 3;
   end
   always @(posedge mmu_split_process) begin
     mmu_split_process_ready <= 0;
-    s = " mmu reg ";
-    for (i = 0; i < 20; i++) begin
-      s = {s, $sformatf("%01x-%01x ", mmu_page_memory[i], mmu_page_memory2[i])};
-    end
-    $display($time, s);
-    newindex = physical_process_address / 171;
-    /* for (i=0;i<5;i++) begin
-          $display(
-          $time,"process chain ",mmu_page_memory[index]," ",index);
-      index = mmu_page_memory[index];
-    end*/
-    i = mmu_split_process_start;
-    $display($time, " ", i, " ", mmu_split_process_start);
-    j = 0;
-    $display($time, "process chain ", mmu_page_memory[newindex], " ", newindex);
-    while (mmu_page_memory[newindex] !== 0) begin
-      previndex = newindex;
-      newindex = mmu_page_memory[newindex];
 
-      $display($time, "process chain ", mmu_page_memory[newindex], " ", newindex);
-      if (i == mmu_page_memory2[newindex]) begin
-        $display($time, "replacing");
-        mmu_page_memory[previndex] = mmu_page_memory[newindex];
-        z = mmu_page_memory[newindex];
-        mmu_page_memory[newindex] = 0;  //fixme in the future
-        mmu_page_memory2[newindex] = j;
-        j++;
-        if (i < mmu_split_process_end) i++;
-        newindex = z;
-      end
-    end
-    if (i == mmu_page_memory2[newindex]) begin
-      $display($time, "replacing");
-      mmu_page_memory[previndex] = mmu_page_memory[newindex];
-      z = mmu_page_memory[newindex];
-      mmu_page_memory[newindex] = 0;  //fixme in the future
-      mmu_page_memory2[newindex] = j;
-      j++;
-      if (i < mmu_split_process_end) i++;
-      newindex = z;
-    end
     s = " mmu reg ";
     for (i = 0; i < 20; i++) begin
       s = {s, $sformatf("%01x-%01x ", mmu_page_memory[i], mmu_page_memory2[i])};
     end
     $display($time, s);
+    newindex  = physical_process_address / 171;  //start point for existing process
+    previndex = newindex;
+    do begin
+      $display($time, "process chain0 ", mmu_page_memory[newindex], " ",
+               mmu_page_memory2[newindex], newindex, " ", mmu_page_memory[previndex], " ",
+               mmu_page_memory2[previndex], " ", previndex);
+      previndex = newindex;
+      newindex  = mmu_page_memory[previndex];
+    end while (mmu_page_memory[previndex] !== 0);
+
+    //algo to fix, problem when segments in parent process are not in increasing order
+    j = 0;
+    for (i = mmu_split_process_start; i <= mmu_split_process_end; i++) begin
+      newindex  = physical_process_address / 171;  //start point for existing process
+      previndex = newindex;
+      do begin
+        if (mmu_page_memory2[newindex] == i) begin
+          mmu_page_memory[previndex] = mmu_page_memory[newindex];
+          mmu_page_memory2[newindex] = j;
+          j++;
+          if (j == mmu_split_process_end) begin
+            mmu_page_memory[newindex] = 0;
+          end
+          s = " mmu reg ";
+          for (z = 0; z < 10; z++) begin
+            s = {s, $sformatf("%01x-%01x ", mmu_page_memory[z], mmu_page_memory2[z])};
+          end
+          $display($time, s);
+        end
+        previndex = newindex;
+        newindex  = mmu_page_memory[previndex];
+      end while (mmu_page_memory[previndex] !== 0);
+    end
+
+    s = " mmu reg ";
+    for (i = 0; i < 20; i++) begin
+      s = {s, $sformatf("%01x-%01x ", mmu_page_memory[i], mmu_page_memory2[i])};
+    end
+    $display($time, s);
+
     mmu_split_process_ready <= 1;
   end
   //todo: caching last value
