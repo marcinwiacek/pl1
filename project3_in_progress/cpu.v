@@ -905,7 +905,7 @@ module ram2 (
     input [`MAX_BITS_IN_ADDRESS:0] switcher_save_address,
     input [7:0] switcher_save_data_in,
     input stage12_split_process,
-    output stage12_split_process_ready,
+    output reg stage12_split_process_ready,
     input [`MAX_BITS_IN_ADDRESS:0] stage12_split_process_start,
     input [`MAX_BITS_IN_ADDRESS:0] stage12_split_process_end
 );
@@ -928,6 +928,8 @@ module ram2 (
   wire [`MAX_BITS_IN_ADDRESS:0] mmu_physical_address;
   reg mmu_get_physical_address;
   wire mmu_get_physical_address_ready;
+  reg mmu_split_process;
+  wire mmu_split_process_ready;
 
   mmu mmu (
       .physical_process_address(start_pc),
@@ -935,11 +937,28 @@ module ram2 (
       .physical_address(mmu_physical_address),
       .mmu_get_physical_address(mmu_get_physical_address),
       .mmu_get_physical_address_ready(mmu_get_physical_address_ready),
-      .mmu_split_process(stage12_split_process),
-      .mmu_split_process_ready(stage12_split_process_ready),
+      .mmu_split_process(mmu_split_process),
+      .mmu_split_process_ready(mmu_split_process_ready),
       .mmu_split_process_start(stage12_split_process_start),
       .mmu_split_process_end(stage12_split_process_end)
   );
+
+  always @(posedge stage12_split_process) begin
+    stage12_split_process_ready<=0;
+    mmu_split_process <= 1;
+      @(posedge mmu_split_process_ready) mmu_split_process <= 0;
+    //setup pc in new process
+    //update process chain - get next from exeisting process and save into new one and in existing process point to new one
+    //read next process address
+/*    j = 0;
+    for (i = 0; i < 4; i++) begin
+      switcher_ram_read_address <= process_address + i;
+      switcher_ram_read <= 1;
+      @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
+      j += switcher_ram_read_data_out * (256 ** i);
+    end*/
+    stage12_split_process_ready<=1;
+  end
 
   always @(posedge stage12_read or posedge stage3_read or posedge stage5_save or posedge switcher_save or posedge switcher_read) begin
     if (switcher_save) begin
@@ -1081,10 +1100,10 @@ module mmu (
     mmu_split_process_ready <= 0;
 
     s = " mmu reg ";  //DEBUG info
-    for (i = 0; i < 20; i++) begin  //DEBUG info
+    for (i = 0; i < 15; i++) begin  //DEBUG info
       s = {s, $sformatf("%01x-%01x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])};  //DEBUG info
     end  //DEBUG info
-    if (`DEBUG_LEVEL == 2) $display($time, s);  //DEBUG info
+    if (`DEBUG_LEVEL == 2) $display($time, s," ...");  //DEBUG info
     newindex  = physical_process_address / 171;  //start point for existing process //DEBUG info
     previndex = newindex;  //DEBUG info
     do begin  //DEBUG info
@@ -1141,13 +1160,13 @@ module mmu (
     for (i = 0; i < 20; i++) begin  //DEBUG info
       s = {s, $sformatf("%01x-%01x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])};  //DEBUG info
     end  //DEBUG info
-    if (`DEBUG_LEVEL == 2) $display($time, s);  //DEBUG info
+    if (`DEBUG_LEVEL == 2) $display($time, s," ...");  //DEBUG info
 
     s = " mmu reg ";  //DEBUG info
-    for (i = 0; i < 20; i++) begin  //DEBUG info
+    for (i = 0; i < 15; i++) begin  //DEBUG info
       s = {s, $sformatf("%01x-%01x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])};  //DEBUG info
     end  //DEBUG info
-    if (`DEBUG_LEVEL == 2) $display($time, s);  //DEBUG info
+    if (`DEBUG_LEVEL == 2) $display($time, s," ...");  //DEBUG info
     newindex  = physical_process_address / 171;  //start point for existing process //DEBUG info
     previndex = newindex;  //DEBUG info
     do begin  //DEBUG info
@@ -1170,9 +1189,6 @@ module mmu (
       previndex = newindex;  //DEBUG info
       newindex  = mmu_chain_memory[previndex];  //DEBUG info
     end while (mmu_chain_memory[previndex] !== 0);  //DEBUG info
-
-    //setup pc in new process
-    //update process chain - get next from exeisting process and save into new one and in existing process point to new one
 
     mmu_split_process_ready <= 1;
   end
@@ -1219,10 +1235,10 @@ end
     //      	physical_address = last_mmu_logical_page_index*16384+logical_address%16384;
 
     s = " mmu reg ";  //DEBUG info
-    for (i = 0; i < 20; i++) begin  //DEBUG info
+    for (i = 0; i < 15; i++) begin  //DEBUG info
       s = {s, $sformatf("%01x-%01x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])};  //DEBUG info
     end  //DEBUG info
-    if (`DEBUG_LEVEL == 2) $display($time, s);  //DEBUG info
+    if (`DEBUG_LEVEL == 2) $display($time, s, " ...");  //DEBUG info
 
     mmu_get_physical_address_ready <= 1;
   end
