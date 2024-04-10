@@ -944,20 +944,20 @@ module ram2 (
   );
 
   always @(posedge stage12_split_process) begin
-    stage12_split_process_ready<=0;
+    stage12_split_process_ready <= 0;
     mmu_split_process <= 1;
-      @(posedge mmu_split_process_ready) mmu_split_process <= 0;
+    @(posedge mmu_split_process_ready) mmu_split_process <= 0;
     //setup pc in new process
     //update process chain - get next from exeisting process and save into new one and in existing process point to new one
     //read next process address
-/*    j = 0;
+    /*    j = 0;
     for (i = 0; i < 4; i++) begin
       switcher_ram_read_address <= process_address + i;
       switcher_ram_read <= 1;
       @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
       j += switcher_ram_read_data_out * (256 ** i);
     end*/
-    stage12_split_process_ready<=1;
+    stage12_split_process_ready <= 1;
   end
 
   always @(posedge stage12_read or posedge stage3_read or posedge stage5_save or posedge switcher_save or posedge switcher_read) begin
@@ -1101,9 +1101,11 @@ module mmu (
 
     s = " mmu reg ";  //DEBUG info
     for (i = 0; i < 15; i++) begin  //DEBUG info
-      s = {s, $sformatf("%01x-%01x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])};  //DEBUG info
+      s = { //DEBUG info
+        s, $sformatf("%01x-%01x ", mmu_chain_memory[i], mmu_logical_pages_memory[i]) //DEBUG info
+      };  //DEBUG info
     end  //DEBUG info
-    if (`DEBUG_LEVEL == 2) $display($time, s," ...");  //DEBUG info
+    if (`DEBUG_LEVEL == 2) $display($time, s, " ...");  //DEBUG info
     newindex  = physical_process_address / 171;  //start point for existing process //DEBUG info
     previndex = newindex;  //DEBUG info
     do begin  //DEBUG info
@@ -1118,7 +1120,7 @@ module mmu (
             mmu_chain_memory[previndex],  //DEBUG info
             " ",  //DEBUG info
             mmu_logical_pages_memory[previndex],  //DEBUG info
-            " ", //DEBUG info
+            " ",  //DEBUG info
             newindex,  //DEBUG info
             " ",  //DEBUG info
             previndex  //DEBUG info
@@ -1147,7 +1149,9 @@ module mmu (
           j++;
           s = " mmu reg ";  //DEBUG info
           for (z = 0; z < 10; z++) begin  //DEBUG info
-            s = {s, $sformatf("%01x-%01x ", mmu_chain_memory[z], mmu_logical_pages_memory[z])};  //DEBUG info
+            s = { //DEBUG info
+              s, $sformatf("%01x-%01x ", mmu_chain_memory[z], mmu_logical_pages_memory[z]) //DEBUG info
+            };  //DEBUG info
           end  //DEBUG info
           if (`DEBUG_LEVEL == 2) $display($time, s);  //DEBUG info
         end
@@ -1158,15 +1162,19 @@ module mmu (
 
     s = " mmu reg ";  //DEBUG info
     for (i = 0; i < 20; i++) begin  //DEBUG info
-      s = {s, $sformatf("%01x-%01x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])};  //DEBUG info
+      s = { //DEBUG info
+        s, $sformatf("%01x-%01x ", mmu_chain_memory[i], mmu_logical_pages_memory[i]) //DEBUG info
+      };  //DEBUG info
     end  //DEBUG info
-    if (`DEBUG_LEVEL == 2) $display($time, s," ...");  //DEBUG info
+    if (`DEBUG_LEVEL == 2) $display($time, s, " ...");  //DEBUG info
 
     s = " mmu reg ";  //DEBUG info
     for (i = 0; i < 15; i++) begin  //DEBUG info
-      s = {s, $sformatf("%01x-%01x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])};  //DEBUG info
+      s = { //DEBUG info
+        s, $sformatf("%01x-%01x ", mmu_chain_memory[i], mmu_logical_pages_memory[i]) //DEBUG info
+      };  //DEBUG info
     end  //DEBUG info
-    if (`DEBUG_LEVEL == 2) $display($time, s," ...");  //DEBUG info
+    if (`DEBUG_LEVEL == 2) $display($time, s, " ...");  //DEBUG info
     newindex  = physical_process_address / 171;  //start point for existing process //DEBUG info
     previndex = newindex;  //DEBUG info
     do begin  //DEBUG info
@@ -1210,23 +1218,23 @@ module mmu (
           i  //DEBUG info
       );  //DEBUG info
 
-if (i!=0) begin
-    while (mmu_chain_memory[index] !== 0 && mmu_logical_pages_memory[index] != i) begin
-      index = mmu_chain_memory[index];
-    end
-      $display($time, " index0  ", index);  //DEBUG info
-    if (mmu_logical_pages_memory[index] != i) begin
-      while (mmu_logical_pages_memory[index_start] !== 0) begin
-        index_start++;
+    if (i != 0) begin
+      while (mmu_chain_memory[index] !== 0 && mmu_logical_pages_memory[index] != i) begin
+        index = mmu_chain_memory[index];
       end
-      //fixme: no free memory situation
-      mmu_chain_memory[index] = index_start;
-      index = index_start;
-      $display($time, " assigining  ", index);  //DEBUG info
-      mmu_logical_pages_memory[index] = i;
+      $display($time, " index0  ", index);  //DEBUG info
+      if (mmu_logical_pages_memory[index] != i) begin
+        while (mmu_logical_pages_memory[index_start] !== 0) begin
+          index_start++;
+        end
+        //fixme: no free memory situation
+        mmu_chain_memory[index] = index_start;
+        index = index_start;
+        $display($time, " assigining  ", index);  //DEBUG info
+        mmu_logical_pages_memory[index] = i;
+      end
     end
-end
-      $display($time, " MMU calculated index  ", index);  //DEBUG info
+    $display($time, " MMU calculated index  ", index);  //DEBUG info
 
     physical_address = index * 171 + logical_address % 171;
     if (`DEBUG_LEVEL == 2)  //DEBUG info
@@ -1236,7 +1244,9 @@ end
 
     s = " mmu reg ";  //DEBUG info
     for (i = 0; i < 15; i++) begin  //DEBUG info
-      s = {s, $sformatf("%01x-%01x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])};  //DEBUG info
+      s = {//DEBUG info
+        s, $sformatf("%01x-%01x ", mmu_chain_memory[i], mmu_logical_pages_memory[i]) //DEBUG info
+      };  //DEBUG info
     end  //DEBUG info
     if (`DEBUG_LEVEL == 2) $display($time, s, " ...");  //DEBUG info
 
