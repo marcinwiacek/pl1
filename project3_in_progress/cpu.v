@@ -1184,19 +1184,21 @@ module mmu (
     if (`DEBUG_LEVEL == 2)  //DEBUG info
       $display(  //DEBUG info
           $time,  //DEBUG info
-          " MMU  process ",  //DEBUG info
+          " MMU  process start point ",  //DEBUG info
           physical_process_address,  //DEBUG info
           " process logical page ",  //DEBUG info
           index,  //DEBUG info
           " logical address ",  //DEBUG info
           logical_address,  //DEBUG info
-          " logical page ",  //DEBUG info
+          " logical address page ",  //DEBUG info
           i  //DEBUG info
       );  //DEBUG info
 
+if (i!=0) begin
     while (mmu_chain_memory[index] !== 0 && mmu_logical_pages_memory[index] != i) begin
       index = mmu_chain_memory[index];
     end
+      $display($time, " index0  ", index);  //DEBUG info
     if (mmu_logical_pages_memory[index] != i) begin
       while (mmu_logical_pages_memory[index_start] !== 0) begin
         index_start++;
@@ -1204,8 +1206,12 @@ module mmu (
       //fixme: no free memory situation
       mmu_chain_memory[index] = index_start;
       index = index_start;
+      $display($time, " assigining  ", index);  //DEBUG info
       mmu_logical_pages_memory[index] = i;
     end
+end
+      $display($time, " MMU calculated index  ", index);  //DEBUG info
+
     physical_address = index * 171 + logical_address % 171;
     if (`DEBUG_LEVEL == 2)  //DEBUG info
       $display($time, " MMU  physical address ", physical_address);  //DEBUG info
