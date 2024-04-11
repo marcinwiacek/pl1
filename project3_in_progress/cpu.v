@@ -1389,7 +1389,6 @@ module registers (
   end
   always @(posedge switcher_save) begin
     switcher_save_ready <= 0;
-    // $display($time, " switcher save register address=", switcher_save_address," value=",switcher_save_data_in);
     registers_memory[switcher_save_address] = switcher_save_data_in;
     registers_used[switcher_save_address]   = switcher_save_data_in != 0;
     switcher_save_ready <= 1;
