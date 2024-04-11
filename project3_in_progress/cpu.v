@@ -353,16 +353,17 @@ module cpu (
     executed++;
     if (stage3_should_exec) begin
       stage3_exec = 1;  // start when necessary
-    end else if (stage4_should_exec) begin
+    end
+    if (stage4_should_exec) begin
       stage4_exec = 1;  // start when necessary
-    end else if (stage5_should_exec) begin
+    end
+    if (stage5_should_exec) begin
       stage5_exec = 1;  // start when necessary
-    end else begin
-      if (executed == `OP_PER_TASK) begin
+    end
+    if (!stage3_should_exec && !stage4_should_exec && !stage5_should_exec && executed == `OP_PER_TASK) begin
         if (`DEBUG_LEVEL == 2)  //DEBUG info
           $display($time, "   switcher should exec12 ", executed, " ", switcher_exec);  //DEBUG info
         switcher_exec = 1;  //engage
-      end
     end
     if (executed < `OP_PER_TASK) stage12_exec = 0;
   end
