@@ -26,8 +26,9 @@
 `define MAX_BITS_IN_REGISTER_NUM 6 //64 registers = 2^6
 `define OP_PER_TASK 4 // opcodes per task before switching
 `define MAX_BITS_IN_ADDRESS 31 //32-bit addresses
+`define MMU_PAGE_SIZE 172 //size of every MMU page, can be divided by 4
 
-`define DEBUG_LEVEL 2 //higher=more info //DEBUG info
+`define DEBUG_LEVEL 1 //higher=more info //DEBUG info
 
 module cpu (
     input rst,
@@ -112,6 +113,7 @@ module cpu (
   // ram with extra prioritization
   wire stage12_ram_read;
   wire stage12_ram_read_ready;
+  wire stage12_ram_read_read_with_mmu;
   wire [`MAX_BITS_IN_ADDRESS:0] stage12_ram_read_address;
   wire [7:0] stage12_ram_read_data_out;
 
@@ -149,6 +151,7 @@ module cpu (
       .stage12_split_process_end(stage12_split_process_end),
       .stage12_read(stage12_ram_read),
       .stage12_read_ready(stage12_ram_read_ready),
+      .stage12_read_with_mmu(stage12_ram_read_read_with_mmu),
       .stage12_read_address(stage12_ram_read_address),
       .stage12_read_data_out(stage12_ram_read_data_out),
       .stage3_read(stage3_ram_read),
@@ -259,6 +262,7 @@ module cpu (
       .stage12_ram_read(stage12_ram_read),
       .stage12_ram_read_ready(stage12_ram_read_ready),
       .stage12_ram_read_address(stage12_ram_read_address),
+      .stage12_ram_read_with_mmu(stage12_ram_read_read_with_mmu),
       .stage12_ram_read_data_out(stage12_ram_read_data_out)
   );
 
@@ -436,6 +440,7 @@ module stage12 (
     //ram
     output reg stage12_ram_read,
     input stage12_ram_read_ready,
+    output reg stage12_ram_read_with_mmu,
     output reg [`MAX_BITS_IN_ADDRESS:0] stage12_ram_read_address,
     input [7:0] stage12_ram_read_data_out
 );
@@ -455,11 +460,13 @@ module stage12 (
     if (`DEBUG_LEVEL == 2) $display($time, " executing pc ", pc);  //DEBUG info
 
     stage12_ram_read_address <= pc;
+    stage12_ram_read_with_mmu <= 1;
     stage12_ram_read <= 1;
     @(posedge stage12_ram_read_ready) stage12_ram_read <= 0;
     instruction[0] = stage12_ram_read_data_out;
 
     stage12_ram_read_address <= pc + 1;
+    stage12_ram_read_with_mmu <= 0;
     stage12_ram_read <= 1;
     @(posedge stage12_ram_read_ready) stage12_ram_read <= 0;
     instruction[1] = stage12_ram_read_data_out;
@@ -474,11 +481,13 @@ module stage12 (
       pc += instruction[1] * 4;
     end else begin
       stage12_ram_read_address <= pc + 2;
+      stage12_ram_read_with_mmu <= 0;
       stage12_ram_read <= 1;
       @(posedge stage12_ram_read_ready) stage12_ram_read <= 0;
       instruction[2] = stage12_ram_read_data_out;
 
       stage12_ram_read_address <= pc + 3;
+      stage12_ram_read_with_mmu <= 0;
       stage12_ram_read <= 1;
       @(posedge stage12_ram_read_ready) stage12_ram_read <= 0;
       instruction[3] = stage12_ram_read_data_out;
@@ -908,6 +917,7 @@ module ram2 (
     input [`MAX_BITS_IN_ADDRESS:0] physical_process_address,
     input stage12_read,
     output reg stage12_read_ready,
+    input stage12_read_with_mmu,
     input [`MAX_BITS_IN_ADDRESS:0] stage12_read_address,
     output reg [7:0] stage12_read_data_out,
     input stage3_read,
@@ -1056,8 +1066,16 @@ module ram2 (
     end
     if (stage12_read) begin
       stage12_read_ready <= 0;
-      ram_write_enable   <= 0;
-      ram_address = stage12_read_address;
+      if (stage12_read_with_mmu) begin
+	      mmu_logical_address = stage12_read_address;
+	      mmu_get_physical_address <= 1;
+	      @(posedge mmu_get_physical_address_ready) mmu_get_physical_address <= 0;
+	      ram_address = mmu_physical_address;
+      end else begin
+	      ram_address = stage12_read_address;
+      end
+      ram_write_enable <= 0;
+      
       @(posedge ram_clk)
       @(negedge ram_clk)
       if (`DEBUG_LEVEL == 2)  //DEBUG info
@@ -1131,7 +1149,7 @@ module mmu (
       };  //DEBUG info
     end  //DEBUG info
     if (`DEBUG_LEVEL == 2) $display($time, s, " ...");  //DEBUG info
-    newindex  = physical_process_address / 171;  //start point for existing process //DEBUG info
+    newindex  = physical_process_address / `MMU_PAGE_SIZE;  //start point for existing process //DEBUG info
     previndex = newindex;  //DEBUG info
     do begin  //DEBUG info
       if (`DEBUG_LEVEL == 2)  //DEBUG info
@@ -1157,11 +1175,11 @@ module mmu (
     newindex2 = 0;
     j = 255 * 255;  //some known value like 255*255 could be used for checking mmu validity
     for (i = mmu_split_process_start; i <= mmu_split_process_end; i++) begin
-      newindex  = physical_process_address / 171;  //start point for existing process
+      newindex  = physical_process_address / `MMU_PAGE_SIZE;  //start point for existing process
       previndex = newindex;
       do begin
-        if (mmu_logical_pages_memory[newindex] == i && newindex != physical_process_address / 171) begin
-          $display($time, "first page", i, " ", j, " ", newindex); //DEBUG info
+        if (mmu_logical_pages_memory[newindex] == i && newindex != physical_process_address / `MMU_PAGE_SIZE) begin
+          if (`DEBUG_LEVEL == 2) $display($time, " first page", i, " ", j, " ", newindex); //DEBUG info
           mmu_chain_memory[previndex] = mmu_chain_memory[newindex];
           mmu_logical_pages_memory[newindex] = j;
           if (j == 0) newstartpoint = newindex;
@@ -1199,9 +1217,9 @@ module mmu (
         s, $sformatf("%01x-%01x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])  //DEBUG info
       };  //DEBUG info
     end  //DEBUG info
-    if (`DEBUG_LEVEL == 2) $display($time, s, " ...");  //DEBUG info
+    $display($time, s, " ...");  //DEBUG info
 
-    newindex  = physical_process_address / 171;  //start point for existing process //DEBUG info
+    newindex  = physical_process_address / `MMU_PAGE_SIZE;  //start point for existing process //DEBUG info
     previndex = newindex;  //DEBUG info
     do begin  //DEBUG info
       if (`DEBUG_LEVEL == 2)  //DEBUG info
@@ -1229,8 +1247,8 @@ module mmu (
   //todo: caching last value
   always @(posedge mmu_get_physical_address) begin
     mmu_get_physical_address_ready <= 0;
-    index = physical_process_address / 171;
-    i = logical_address / 171;
+    index = physical_process_address / `MMU_PAGE_SIZE;
+    i = logical_address / `MMU_PAGE_SIZE;
     //  if (`DEBUG_LEVEL == 2)  //DEBUG info
     //  $display(  //DEBUG info
     //     $time,  //DEBUG info
@@ -1262,7 +1280,7 @@ module mmu (
     end
     // $display($time, " MMU calculated index  ", index);  //DEBUG info
 
-    physical_address = index * 171 + logical_address % 171;
+    physical_address = index * `MMU_PAGE_SIZE + logical_address % `MMU_PAGE_SIZE;
     if (`DEBUG_LEVEL == 2)  //DEBUG info
       $display(  //DEBUG info
           $time,  //DEBUG info
