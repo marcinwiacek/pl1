@@ -361,9 +361,9 @@ module cpu (
       stage5_exec = 1;  // start when necessary
     end
     if (!stage3_should_exec && !stage4_should_exec && !stage5_should_exec && executed == `OP_PER_TASK) begin
-        if (`DEBUG_LEVEL == 2)  //DEBUG info
-          $display($time, "   switcher should exec12 ", executed, " ", switcher_exec);  //DEBUG info
-        switcher_exec = 1;  //engage
+      if (`DEBUG_LEVEL == 2)  //DEBUG info
+        $display($time, "   switcher should exec12 ", executed, " ", switcher_exec);  //DEBUG info
+      switcher_exec = 1;  //engage
     end
     if (executed < `OP_PER_TASK) stage12_exec = 0;
   end
@@ -769,7 +769,7 @@ module switcher (
 );
 
   integer i, j, z;
-  string s2; //DEBUG info
+  string s2;  //DEBUG info
   reg [7:0] temp[7:0];
   reg [7:0] old_reg_used[7:0];
   reg [7:0] old_registers_memory[`REGISTER_NUM-1:0];
@@ -868,45 +868,55 @@ module switcher (
       j += switcher_ram_read_data_out * (256 ** i);
     end
     physical_process_address = j;
-    if (`DEBUG_LEVEL == 2) $display($time, " new process address ", physical_process_address);  //DEBUG info
+    if (`DEBUG_LEVEL == 2) //DEBUG info
+      $display($time, " new process address ", physical_process_address);  //DEBUG info
     $display($time, "");  //DEBUG info
     $display($time, "");  //DEBUG info
     $display($time, "");  //DEBUG info
     $display($time, "");  //DEBUG info
-
-    //read next registers used and next registers
-    for (i = 0; i < 8; i++) begin
-      switcher_ram_read_address <= physical_process_address + i + `ADDRESS_REG_USED;
-      switcher_ram_read <= 1;
-      @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
-      old_reg_used[i] = switcher_ram_read_data_out;
-
-      for (j = 0; j < 8; j++) begin
-        if ((old_reg_used[i] & (2 ** j)) != 0) begin
-          switcher_ram_read_address <= physical_process_address + i * 8 + j + `ADDRESS_REG;
-          switcher_ram_read <= 1;
-          @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
-
-          old_registers_memory[i*8+j] = switcher_ram_read_data_out;
-        end else begin
-          old_registers_memory[i*8+j] = 0;
-        end
-        switcher_register_save_address <= i * 8 + j;
-        switcher_register_save_data_in = old_registers_memory[i*8+j];
-        switcher_register_save <= 1;
-        @(posedge switcher_register_save_ready) switcher_register_save <= 0;
-      end
-    end
 
     //read next pc
-    j = 0;
+    z = 0;
     for (i = 0; i < 4; i++) begin
       switcher_ram_read_address <= physical_process_address + i + `ADDRESS_PC;
       switcher_ram_read <= 1;
       @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
-      j += switcher_ram_read_data_out * (256 ** i);
+      z += switcher_ram_read_data_out * (256 ** i);
     end
-    start_pc = j;
+    if (z == 0) begin
+      for (i = 0; i < 8; i++) begin
+        old_reg_used[i] = 0;
+      end
+      for (i = 0; i < `REGISTER_NUM; i++) begin
+        old_registers_memory[i] = 0;
+      end
+      start_pc = `ADDRESS_PROGRAM;
+    end else begin
+      //read next registers used and next registers
+      for (i = 0; i < 8; i++) begin
+        switcher_ram_read_address <= physical_process_address + i + `ADDRESS_REG_USED;
+        switcher_ram_read <= 1;
+        @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
+        old_reg_used[i] = switcher_ram_read_data_out;
+
+        for (j = 0; j < 8; j++) begin
+          if ((old_reg_used[i] & (2 ** j)) != 0) begin
+            switcher_ram_read_address <= physical_process_address + i * 8 + j + `ADDRESS_REG;
+            switcher_ram_read <= 1;
+            @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
+
+            old_registers_memory[i*8+j] = switcher_ram_read_data_out;
+          end else begin
+            old_registers_memory[i*8+j] = 0;
+          end
+          switcher_register_save_address <= i * 8 + j;
+          switcher_register_save_data_in = old_registers_memory[i*8+j];
+          switcher_register_save <= 1;
+          @(posedge switcher_register_save_ready) switcher_register_save <= 0;
+        end
+      end
+      start_pc = z;
+    end
 
     $display($time, " switcher end");  //DEBUG info
     switcher_exec_ready <= 1;
@@ -1068,15 +1078,15 @@ module ram2 (
     if (stage12_read) begin
       stage12_read_ready <= 0;
       if (stage12_read_with_mmu) begin
-	      mmu_logical_address = stage12_read_address;
-	      mmu_get_physical_address <= 1;
-	      @(posedge mmu_get_physical_address_ready) mmu_get_physical_address <= 0;
-	      ram_address = mmu_physical_address;
+        mmu_logical_address = stage12_read_address;
+        mmu_get_physical_address <= 1;
+        @(posedge mmu_get_physical_address_ready) mmu_get_physical_address <= 0;
+        ram_address = mmu_physical_address;
       end else begin
-	      ram_address = stage12_read_address;
+        ram_address = stage12_read_address;
       end
       ram_write_enable <= 0;
-      
+
       @(posedge ram_clk)
       @(negedge ram_clk)
       if (`DEBUG_LEVEL == 2)  //DEBUG info
@@ -1133,7 +1143,7 @@ module mmu (
     mmu_chain_memory[3] = 2;
     mmu_chain_memory[2] = 5;
     mmu_chain_memory[5] = 0;
-    mmu_logical_pages_memory[0] = 255*255;
+    mmu_logical_pages_memory[0] = 255 * 255;
     mmu_logical_pages_memory[1] = 2;
     mmu_logical_pages_memory[2] = 4;
     mmu_logical_pages_memory[3] = 3;
@@ -1180,7 +1190,8 @@ module mmu (
       previndex = newindex;
       do begin
         if (mmu_logical_pages_memory[newindex] == i && newindex != physical_process_address / `MMU_PAGE_SIZE) begin
-          if (`DEBUG_LEVEL == 2) $display($time, " first page", i, " ", j, " ", newindex); //DEBUG info
+          if (`DEBUG_LEVEL == 2) //DEBUG info
+            $display($time, " first page", i, " ", j, " ", newindex);  //DEBUG info
           mmu_chain_memory[previndex] = mmu_chain_memory[newindex];
           mmu_logical_pages_memory[newindex] = j;
           if (j == 0) newstartpoint = newindex;
@@ -1199,9 +1210,9 @@ module mmu (
           s = " MMU ";  //DEBUG info
           for (z = 0; z < 10; z++) begin  //DEBUG info
             s = {  //DEBUG info
-              s, //DEBUG info
-              $sformatf( //DEBUG info
-                  "%01x-%01x ", mmu_chain_memory[z], mmu_logical_pages_memory[z] //DEBUG info
+              s,  //DEBUG info
+              $sformatf(  //DEBUG info
+                  "%01x-%01x ", mmu_chain_memory[z], mmu_logical_pages_memory[z]  //DEBUG info
               )  //DEBUG info
             };  //DEBUG info
           end  //DEBUG info
@@ -1293,8 +1304,8 @@ module mmu (
           logical_address,  //DEBUG info
           " (page ",  //DEBUG info
           i,  //DEBUG info
-          ") MMU physical address ",//DEBUG info
-          physical_address //DEBUG info
+          ") MMU physical address ",  //DEBUG info
+          physical_address  //DEBUG info
       );  //DEBUG info
 
     s = " MMU ";  //DEBUG info
@@ -1371,7 +1382,7 @@ module registers (
   reg [7:0] registers_memory[`REGISTER_NUM-1:0];
 
   integer i;
-  string s2; //DEBUG info
+  string s2;  //DEBUG info
 
   always @(rst) begin
     for (i = 0; i < `REGISTER_NUM; i++) begin

@@ -42,7 +42,7 @@ AC 00 00 00 //next process address (without MMU)
 05 06 07 08
 01 02 03 04
 00 00 00 00 //next process address (without MMU)
-54 00 00 00 //pc
+00 00 00 00 //pc
 00 00 00 00 //register used
 00 00 00 00
 00 00 00 00 //register
