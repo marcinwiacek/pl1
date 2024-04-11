@@ -1127,7 +1127,7 @@ module mmu (
   //  reg[15:0] last_mmu_logical_page_index;
 
   string s;  //DEBUG info
-  integer i, j, index, previndex, z, newindex, previndex2, toprocess, newindex2, newstartpoint;
+  integer i, j, index, previndex, z, newindex, newindex2, newstartpoint;
 
   initial begin
     for (i = 0; i < 65536; i++) begin
@@ -1148,7 +1148,6 @@ module mmu (
     mmu_logical_pages_memory[2] = 4;
     mmu_logical_pages_memory[3] = 3;
     mmu_logical_pages_memory[5] = 1;
-
   end
   always @(posedge mmu_split_process) begin
     mmu_split_process_ready <= 0;
