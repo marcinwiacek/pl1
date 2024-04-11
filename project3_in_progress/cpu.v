@@ -75,7 +75,7 @@ module cpu (
 
   registers registers (
       .rst(rst),
-      .start_pc(start_pc),
+      .physical_process_address(physical_process_address),
       .registers_used(registers_used),
       .dump_reg(dump_reg),  //DEBUG info
       .dump_reg_ready(dump_reg_ready),  //DEBUG info
@@ -142,7 +142,7 @@ module cpu (
 
   ram2 ram2 (
       .ram_clk(ram_clk),
-      .start_pc(start_pc),
+      .physical_process_address(physical_process_address),
       .stage12_split_process(stage12_split_process),
       .stage12_split_process_ready(stage12_split_process_ready),
       .stage12_split_process_start(stage12_split_process_start),
@@ -173,6 +173,7 @@ module cpu (
 
   wire [`MAX_BITS_IN_ADDRESS:0] start_pc;
   wire [`MAX_BITS_IN_ADDRESS:0] pc;
+  wire [`MAX_BITS_IN_ADDRESS:0] physical_process_address;
   wire [`REGISTER_NUM-1:0] registers_used;
   reg [7:0] executed;
   reg switcher_exec;
@@ -181,6 +182,7 @@ module cpu (
       .rst(rst),
       .start_pc(start_pc),
       .pc(pc),
+      .physical_process_address(physical_process_address),
       .registers_used(registers_used),
       .switcher_exec(switcher_exec),
       .switcher_exec_ready(switcher_exec_ready),
@@ -228,6 +230,7 @@ module cpu (
       .stage12_exec_ready(stage12_exec_ready),
       .pc(pc),
       .start_pc(start_pc),
+      .physical_process_address(physical_process_address),
       .stage12_split_process(stage12_split_process),
       .stage12_split_process_ready(stage12_split_process_ready),
       .stage12_split_process_start(stage12_split_process_start),
@@ -402,6 +405,7 @@ endmodule
 
 module stage12 (
     input [`MAX_BITS_IN_ADDRESS:0] start_pc,
+    input [`MAX_BITS_IN_ADDRESS:0] physical_process_address,
     output reg [`MAX_BITS_IN_ADDRESS:0] pc,
     input stage12_exec,
     output reg stage12_exec_ready,
@@ -438,8 +442,7 @@ module stage12 (
 
   reg [7:0] instruction[0:3];
 
-  //fixme, two processes can have the same start_pc
-  always @(start_pc) begin
+  always @(physical_process_address) begin
     pc = start_pc;
     if (`DEBUG_LEVEL == 2) $display($time, " new pc ", start_pc);  //DEBUG info
   end
@@ -733,6 +736,7 @@ module switcher (
     output reg switcher_exec_ready,
     input rst,
     output reg [`MAX_BITS_IN_ADDRESS:0] start_pc,
+    output reg [`MAX_BITS_IN_ADDRESS:0] physical_process_address,
     input [`REGISTER_NUM-1:0] registers_used,
     //registers
     output reg switcher_register_save,
@@ -756,14 +760,13 @@ module switcher (
 
   integer i, j, z;
   string s2; //DEBUG info
-  reg [`MAX_BITS_IN_ADDRESS:0] process_address;
   reg [7:0] temp[7:0];
   reg [7:0] old_reg_used[7:0];
   reg [7:0] old_registers_memory[`REGISTER_NUM-1:0];
 
   always @(rst) begin
     if (`DEBUG_LEVEL == 2) $display($time, " reset2");  //DEBUG info
-    process_address = 0;
+    physical_process_address = 0;
     start_pc = `ADDRESS_PROGRAM;
     for (i = 0; i < 8; i++) begin
       old_reg_used[i] = 0;
@@ -774,7 +777,7 @@ module switcher (
   end
 
   always @(posedge switcher_exec) begin
-    if (`DEBUG_LEVEL == 2) $display($time, " switcher start");  //DEBUG info
+    $display($time, " switcher start");  //DEBUG info
     switcher_exec_ready <= 0;
 
     //dump pc
@@ -782,7 +785,7 @@ module switcher (
     temp[0] = pc[0]+pc[1]*2+pc[2]*4+pc[3]*8+pc[4]*16+pc[5]*32+pc[6]*64+pc[7]*128;
     temp[1] = pc[8]+pc[9]*2+pc[10]*4+pc[11]*8+pc[12]*16+pc[13]*32+pc[14]*64+pc[15]*128;
     for (i = 0; i < 2; i++) begin
-      switcher_ram_save_address <= process_address + `ADDRESS_PC + i;
+      switcher_ram_save_address <= physical_process_address + `ADDRESS_PC + i;
       switcher_ram_save_data_in <= temp[i];
       switcher_ram_save <= 1;
       @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
@@ -821,7 +824,7 @@ module switcher (
 
     for (i = 0; i < 8; i++) begin
       if (old_reg_used[i] != temp[i]) begin
-        switcher_ram_save_address <= process_address + `ADDRESS_REG_USED + i;
+        switcher_ram_save_address <= physical_process_address + `ADDRESS_REG_USED + i;
         switcher_ram_save_data_in <= temp[i];
         switcher_ram_save <= 1;
         @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
@@ -838,7 +841,7 @@ module switcher (
         @(posedge switcher_register_read_ready) switcher_register_read <= 0;
 
         if (old_registers_memory[i] != switcher_register_read_data_out) begin
-          switcher_ram_save_address <= process_address + i + `ADDRESS_REG;
+          switcher_ram_save_address <= physical_process_address + i + `ADDRESS_REG;
           switcher_ram_save_data_in <= switcher_register_read_data_out;
           switcher_ram_save <= 1;
           @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
@@ -849,13 +852,13 @@ module switcher (
     //read next process address
     j = 0;
     for (i = 0; i < 4; i++) begin
-      switcher_ram_read_address <= process_address + i;
+      switcher_ram_read_address <= physical_process_address + i;
       switcher_ram_read <= 1;
       @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
       j += switcher_ram_read_data_out * (256 ** i);
     end
-    process_address = j;
-    if (`DEBUG_LEVEL == 2) $display($time, " new process address ", process_address);  //DEBUG info
+    physical_process_address = j;
+    if (`DEBUG_LEVEL == 2) $display($time, " new process address ", physical_process_address);  //DEBUG info
     $display($time, "");  //DEBUG info
     $display($time, "");  //DEBUG info
     $display($time, "");  //DEBUG info
@@ -863,14 +866,14 @@ module switcher (
 
     //read next registers used and next registers
     for (i = 0; i < 8; i++) begin
-      switcher_ram_read_address <= process_address + i + `ADDRESS_REG_USED;
+      switcher_ram_read_address <= physical_process_address + i + `ADDRESS_REG_USED;
       switcher_ram_read <= 1;
       @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
       old_reg_used[i] = switcher_ram_read_data_out;
 
       for (j = 0; j < 8; j++) begin
         if ((old_reg_used[i] & (2 ** j)) != 0) begin
-          switcher_ram_read_address <= process_address + i * 8 + j + `ADDRESS_REG;
+          switcher_ram_read_address <= physical_process_address + i * 8 + j + `ADDRESS_REG;
           switcher_ram_read <= 1;
           @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
 
@@ -888,20 +891,21 @@ module switcher (
     //read next pc
     j = 0;
     for (i = 0; i < 4; i++) begin
-      switcher_ram_read_address <= process_address + i + `ADDRESS_PC;
+      switcher_ram_read_address <= physical_process_address + i + `ADDRESS_PC;
       switcher_ram_read <= 1;
       @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
       j += switcher_ram_read_data_out * (256 ** i);
     end
     start_pc = j;
 
+    $display($time, " switcher end");  //DEBUG info
     switcher_exec_ready <= 1;
   end
 endmodule
 
 module ram2 (
     input ram_clk,
-    input [`MAX_BITS_IN_ADDRESS:0] start_pc,
+    input [`MAX_BITS_IN_ADDRESS:0] physical_process_address,
     input stage12_read,
     output reg stage12_read_ready,
     input [`MAX_BITS_IN_ADDRESS:0] stage12_read_address,
@@ -950,7 +954,7 @@ module ram2 (
   wire mmu_split_process_ready;
 
   mmu mmu (
-      .physical_process_address(start_pc),
+      .physical_process_address(physical_process_address),
       .logical_address(mmu_logical_address),
       .physical_address(mmu_physical_address),
       .mmu_get_physical_address(mmu_get_physical_address),
@@ -1110,7 +1114,7 @@ module mmu (
     mmu_chain_memory[3] = 2;
     mmu_chain_memory[2] = 5;
     mmu_chain_memory[5] = 0;
-    mmu_logical_pages_memory[0] = 1;
+    mmu_logical_pages_memory[0] = 255*255;
     mmu_logical_pages_memory[1] = 2;
     mmu_logical_pages_memory[2] = 4;
     mmu_logical_pages_memory[3] = 3;
@@ -1311,7 +1315,7 @@ endmodule
 
 module registers (
     input rst,
-    input [`MAX_BITS_IN_ADDRESS:0] start_pc,
+    input [`MAX_BITS_IN_ADDRESS:0] physical_process_address,
     input dump_reg,  //DEBUG info
     output reg dump_reg_ready,  //DEBUG info
     input stage12_read,
@@ -1355,7 +1359,7 @@ module registers (
       registers_memory[i] = 0;
     end
   end
-  always @(start_pc) begin
+  always @(physical_process_address) begin
     for (i = 0; i < `REGISTER_NUM; i++) begin
       registers_used[i] = 0;
     end
