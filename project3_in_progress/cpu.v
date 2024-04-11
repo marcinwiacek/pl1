@@ -437,7 +437,6 @@ module stage12 (
 );
 
   reg [7:0] instruction[0:3];
-  integer i;
 
   //fixme, two processes can have the same start_pc
   always @(start_pc) begin
@@ -658,7 +657,6 @@ module stage4 (
 );
 
   integer i;
-  string s2;
   reg [7:0] temp;
 
   always @(posedge stage4_exec) begin
@@ -757,7 +755,7 @@ module switcher (
 );
 
   integer i, j, z;
-  string s2;
+  string s2; //DEBUG info
   reg [`MAX_BITS_IN_ADDRESS:0] process_address;
   reg [7:0] temp[7:0];
   reg [7:0] old_reg_used[7:0];
@@ -1350,7 +1348,7 @@ module registers (
   reg [7:0] registers_memory[`REGISTER_NUM-1:0];
 
   integer i;
-  string s2;
+  string s2; //DEBUG info
 
   always @(rst) begin
     for (i = 0; i < `REGISTER_NUM; i++) begin
