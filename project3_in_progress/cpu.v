@@ -113,7 +113,6 @@ module cpu (
   // ram with extra prioritization
   wire stage12_ram_read;
   wire stage12_ram_read_ready;
-  wire stage12_ram_read_read_with_mmu;
   wire [`MAX_BITS_IN_ADDRESS:0] stage12_ram_read_address;
   wire [7:0] stage12_ram_read_data_out;
 
@@ -158,7 +157,6 @@ module cpu (
       .mmu_split_new_process_address(mmu_split_new_process_address),
       .stage12_read(stage12_ram_read),
       .stage12_read_ready(stage12_ram_read_ready),
-      .stage12_read_with_mmu(stage12_ram_read_read_with_mmu),
       .stage12_read_address(stage12_ram_read_address),
       .stage12_read_data_out(stage12_ram_read_data_out),
       .stage3_read(stage3_ram_read),
@@ -275,7 +273,6 @@ module cpu (
       .stage12_ram_read(stage12_ram_read),
       .stage12_ram_read_ready(stage12_ram_read_ready),
       .stage12_ram_read_address(stage12_ram_read_address),
-      .stage12_ram_read_with_mmu(stage12_ram_read_read_with_mmu),
       .stage12_ram_read_data_out(stage12_ram_read_data_out)
   );
 
@@ -375,7 +372,7 @@ module cpu (
     end
     if (!stage3_should_exec && !stage4_should_exec && !stage5_should_exec && executed == `OP_PER_TASK) begin
       if (`DEBUG_LEVEL > 1)  //DEBUG info
-        $display($time, "   switcher should exec12 ", executed, " ", switcher_exec);  //DEBUG info
+        $display($time, " switcher should exec12 ", executed, " ", switcher_exec);  //DEBUG info
       switcher_exec = 1;  //engage
     end
     if (executed < `OP_PER_TASK) stage12_exec = 0;
@@ -387,7 +384,7 @@ module cpu (
     if (executed == `OP_PER_TASK) begin
       switcher_exec = 1;  //make it so
       if (`DEBUG_LEVEL > 1)  //DEBUG info
-        $display($time, "   switcher should exec3 ", executed, " ", switcher_exec);  //DEBUG info
+        $display($time, " switcher should exec3 ", executed, " ", switcher_exec);  //DEBUG info
     end
     stage3_exec = 0;
   end
@@ -398,7 +395,7 @@ module cpu (
     if (executed == `OP_PER_TASK) begin
       switcher_exec = 1;
       if (`DEBUG_LEVEL > 1)  //DEBUG info
-        $display($time, "   switcher should exec4 ", executed, " ", switcher_exec);  //DEBUG info
+        $display($time, " switcher should exec4 ", executed, " ", switcher_exec);  //DEBUG info
     end
     stage4_exec = 0;
   end
@@ -407,7 +404,7 @@ module cpu (
     if (executed == `OP_PER_TASK) begin
       switcher_exec = 1;
       if (`DEBUG_LEVEL > 1)  //DEBUG info
-        $display($time, "   switcher should exec5 ", executed, " ", switcher_exec);  //DEBUG info
+        $display($time, " switcher should exec5 ", executed, " ", switcher_exec);  //DEBUG info
     end
     stage5_exec = 0;
   end
@@ -461,7 +458,6 @@ module stage12 (
     //ram
     output reg stage12_ram_read,
     input stage12_ram_read_ready,
-    output reg stage12_ram_read_with_mmu,
     output reg [`MAX_BITS_IN_ADDRESS:0] stage12_ram_read_address,
     input [7:0] stage12_ram_read_data_out
 );
@@ -481,34 +477,30 @@ module stage12 (
     if (`DEBUG_LEVEL > 1) $display($time, " executing pc ", pc);  //DEBUG info
 
     stage12_ram_read_address <= pc;
-    stage12_ram_read_with_mmu <= 1;
     stage12_ram_read <= 1;
     @(posedge stage12_ram_read_ready) stage12_ram_read <= 0;
     instruction[0] = stage12_ram_read_data_out;
 
     stage12_ram_read_address <= pc + 1;
-    stage12_ram_read_with_mmu <= 0;
     stage12_ram_read <= 1;
     @(posedge stage12_ram_read_ready) stage12_ram_read <= 0;
     instruction[1] = stage12_ram_read_data_out;
 
     if (instruction[0] == `OPCODE_JUMPMINUS) begin
-      $display($time, instruction[0], " ",   //DEBUG info
-               instruction[1], "   JUMPMINUS");  //DEBUG info
+      $display($time, instruction[0], " ",  //DEBUG info
+               instruction[1], "   x   x   JUMPMINUS");  //DEBUG info
       pc -= instruction[1] * 4;
     end else if (instruction[0] == `OPCODE_JUMPPLUS) begin
       $display($time, instruction[0], " ",  //DEBUG info
-               instruction[1], "   JUMPPLUS");  //DEBUG info
+               instruction[1], "   x   x   JUMPPLUS");  //DEBUG info
       pc += instruction[1] * 4;
     end else begin
       stage12_ram_read_address <= pc + 2;
-      stage12_ram_read_with_mmu <= 0;
       stage12_ram_read <= 1;
       @(posedge stage12_ram_read_ready) stage12_ram_read <= 0;
       instruction[2] = stage12_ram_read_data_out;
 
       stage12_ram_read_address <= pc + 3;
-      stage12_ram_read_with_mmu <= 0;
       stage12_ram_read <= 1;
       @(posedge stage12_ram_read_ready) stage12_ram_read <= 0;
       instruction[3] = stage12_ram_read_data_out;
@@ -619,8 +611,6 @@ module stage12 (
       end
       pc += 4;
     end
-    // $display($time, "  OPCODE ", instruction[0], " ", instruction[1], " ", instruction[2], " ",
-    //        instruction[3]);
     stage12_exec_ready <= 1;
   end
 endmodule
@@ -787,7 +777,7 @@ module switcher (
     input [7:0] switcher_ram_read_data_out
 );
 
-  integer i, j, z,temp_new_process_address;
+  integer i, j, z, temp_new_process_address;
   string s2;  //DEBUG info
   reg [7:0] temp[7:0];
   reg [7:0] old_reg_used[7:0];
@@ -846,7 +836,7 @@ module switcher (
 
   //fixme: to track, if dont have problems because of assuming that reg and reg_used are initially setup to 0
   always @(posedge switcher_exec) begin
-    $display($time, " switcher start");  //DEBUG info
+    $display($time, " switcher start - process address ", physical_process_address);  //DEBUG info
     switcher_exec_ready <= 0;
 
     //dump pc
@@ -941,21 +931,21 @@ module switcher (
       z += switcher_ram_read_data_out * (256 ** i);
     end
     if (z == 0) begin
-      $display($time, "defualt registers");  //DEBUG info
+      if (`DEBUG_LEVEL > 1) $display($time, " default registers");  //DEBUG info
       for (i = 0; i < 8; i++) begin
         old_reg_used[i] = 0;
       end
       for (i = 0; i < `REGISTER_NUM; i++) begin
         old_registers_memory[i] = 0;
 
-          switcher_register_save_address <= i;
-          switcher_register_save_data_in = 0;
-          switcher_register_save <= 1;
-          @(posedge switcher_register_save_ready) switcher_register_save <= 0;
+        switcher_register_save_address <= i;
+        switcher_register_save_data_in = 0;
+        switcher_register_save <= 1;
+        @(posedge switcher_register_save_ready) switcher_register_save <= 0;
       end
       start_pc_after_task_switch = `ADDRESS_PROGRAM;  //this is later recalculated with mmu
     end else begin
-      $display($time, "non defualt registers");  //DEBUG info
+      if (`DEBUG_LEVEL > 1) $display($time, " non default registers");  //DEBUG info
       //read next registers used and next registers
       for (i = 0; i < 8; i++) begin
         switcher_ram_read_address <= temp_new_process_address + i + `ADDRESS_REG_USED;
@@ -980,13 +970,11 @@ module switcher (
         end
       end
       start_pc_after_task_switch = z;
-      $display($time, "non defualt registers ",start_pc_after_task_switch," ",z);  //DEBUG info
     end
     physical_process_address = temp_new_process_address;
-    if (`DEBUG_LEVEL > 1)  //DEBUG info
-      $display($time, " new process address ", physical_process_address);  //DEBUG info
+    $display($time, " switcher end - process address ", physical_process_address, //DEBUG info
+             " start pc after ", start_pc_after_task_switch);  //DEBUG info
 
-    $display($time, " switcher end");  //DEBUG info
     switcher_exec_ready <= 1;
   end
 endmodule
@@ -996,7 +984,6 @@ module ram2 (
     input [`MAX_BITS_IN_ADDRESS:0] physical_process_address,
     input stage12_read,
     output reg stage12_read_ready,
-    input stage12_read_with_mmu,
     input [`MAX_BITS_IN_ADDRESS:0] stage12_read_address,
     output reg [7:0] stage12_read_data_out,
     input stage3_read,
@@ -1061,12 +1048,12 @@ module ram2 (
       ram_address = switcher_save_address;
       ram_data_in = switcher_save_data_in;
       if (`DEBUG_LEVEL > 1)  //DEBUG info
-        $display( //DEBUG info
-            $time, //DEBUG info
-            " saving RAM from switcher address ", //DEBUG info
-            switcher_save_address, //DEBUG info
-            " ", //DEBUG info
-            switcher_save_data_in //DEBUG info
+        $display(  //DEBUG info
+            $time,  //DEBUG info
+            " saving RAM from switcher address ",  //DEBUG info
+            switcher_save_address,  //DEBUG info
+            " ",  //DEBUG info
+            switcher_save_data_in  //DEBUG info
         );  //DEBUG info
       @(posedge ram_clk) @(negedge ram_clk) ram_write_enable <= 0;
       switcher_save_ready <= 1;
@@ -1131,14 +1118,10 @@ module ram2 (
     end
     if (stage12_read) begin
       stage12_read_ready <= 0;
-      if (stage12_read_with_mmu) begin
-        mmu_logical_address = stage12_read_address;
-        mmu_get_physical_address <= 1;
-        @(posedge mmu_get_physical_address_ready) mmu_get_physical_address <= 0;
-        ram_address = mmu_physical_address;
-      end else begin
-        ram_address = stage12_read_address;
-      end
+      mmu_logical_address = stage12_read_address;
+      mmu_get_physical_address <= 1;
+      @(posedge mmu_get_physical_address_ready) mmu_get_physical_address <= 0;
+      ram_address = mmu_physical_address;
       ram_write_enable <= 0;
       @(posedge ram_clk)
       @(negedge ram_clk)
@@ -1148,14 +1131,11 @@ module ram2 (
             " reading RAM from stage12 address ",  //DEBUG info
             stage12_read_address,  //DEBUG info
             " value ",  //DEBUG info
-            ram_data_out,  //DEBUG info
-            " with mmu ", //DEBUG info
-            stage12_read_with_mmu //DEBUG info
+            ram_data_out  //DEBUG info
         );  //DEBUG info
       stage12_read_data_out <= ram_data_out;
       stage12_read_ready <= 1;
     end
-    //$display($time," ",stage3_read, " ",stage12_read," ",stage5_save);
   end
 endmodule
 
