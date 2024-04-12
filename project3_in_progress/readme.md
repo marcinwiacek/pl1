@@ -80,12 +80,16 @@ Addresses are in the end and are process type (16, 32 or 64 bit) related
 
 ## Process and I/O related:
 
+Done:
+
+ * PROC - new process (todo: We need to say, if process is 16, 32 or 64 bit, additionally need to select data and code border)
+ * PROC_END - end process
+ 
 TODO:
 
  1. REGINT - register interrupt for current process
  2. INT - execute interrupt
  3. INTRET - return from interrupt
- 4. PROC - new process. We need to say, if process is 16, 32 or 64 bit, additionally need to select data and code border
  5. FREERAMBLOCK
  6. REGINPORT - register code for input port support
  7. INPORTRET - return from input port support
