@@ -10,6 +10,8 @@
 `define OPCODE_SET8 9 //set registers to 0 (now, in the future any value), params: register start num, how many 8-bit elements
 `define OPCODE_PROC 10 //new process, params: start, end memory segment from existing process
 `define OPCODE_PROC_END 11//remove current process
+`define OPCODE_PROC_SUSPEND 12 //code for test instruction for suspending task //DEBUG info
+`define OPCODE_PROC_RESUME 14 //code for test instruction for resuming task //DEBUG info
 
 //alu operations
 `define OPER_ADD 1
@@ -636,6 +638,16 @@ module stage12 (
         //update task list, etc.
         switcher_split_process <= 1;
         @(posedge switcher_split_process_ready) switcher_split_process <= 0;
+      end else if (instruction[0] == `OPCODE_PROC_SUSPEND) begin //DEBUG info
+        $display(  //DEBUG info
+            $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
+            instruction[3],  //DEBUG info
+            "   PROC_SUSPEND suspend this process");  //DEBUG info  
+      end else if (instruction[0] == `OPCODE_PROC_RESUME) begin //DEBUG info
+        $display(  //DEBUG info
+            $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
+            instruction[3],  //DEBUG info
+            "   PROC_RESUME resume process");  //DEBUG info     
       end else if (  instruction[0] !== `OPCODE_JUMP_MINUS && instruction[0] !== `OPCODE_JUMP_PLUS && instruction[0] !== `OPCODE_PROC_END) begin
         $display(  //DEBUG info
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
@@ -815,10 +827,16 @@ module switcher (
   integer i, j, z, temp_new_process_address;
   string s2;  //DEBUG info
   reg [7:0] temp[7:0];
+  
+  //cache
   reg [7:0] old_reg_used[7:0];
   reg [7:0] old_registers_memory[`REGISTER_NUM-1:0];
   reg [`MAX_BITS_IN_ADDRESS:0] old_physical_process_address;
-  reg [7:0] active_task_num;
+  
+  reg [7:0] active_task_num; //we could replace it with boolean sying, if have >1 active tasks
+  
+  reg [7:0] suspended_task_address;
+  reg suspended_task_available;
 
   always @(rst) begin
     if (`DEBUG_LEVEL > 1) $display($time, " reset2");  //DEBUG info
@@ -1232,7 +1250,7 @@ module mmu (
 
   reg [15:0] mmu_chain_memory[0:65535];  //values = next physical start point for task; last entry = 0
   reg [15:0] mmu_logical_pages_memory[0:65535];  //values = logical page assign to this physical page; 0 means page is empty (in existing processes, where first page is 0, we setup here value > 0 and ignore it)
-  reg [15:0] index_start;
+  reg [15:0] index_start; // this is start index of the loop searching for free mmeory page; when reserving pages, increase; when deleting, setup to lowest free value
   reg mmu_dump;  //DEBUG info
   reg mmu_dump_ready;  //DEBUG info
   reg [2:0] mmu_dump_level;  //DEBUG info
@@ -1305,6 +1323,7 @@ module mmu (
     //todo: caching last value
     if (mmu_get_physical_address) begin
       mmu_get_physical_address_ready <= 0;
+      
       index = physical_process_address / `MMU_PAGE_SIZE;
       i = logical_address / `MMU_PAGE_SIZE;
 
@@ -1318,7 +1337,7 @@ module mmu (
           while (mmu_logical_pages_memory[index_start] !== 0) begin
             index_start++;
           end
-          //fixme: no free memory situation
+          //fixme: support for 100% memory usage
           mmu_chain_memory[index] = index_start;
           index = index_start;
           $display($time, " MMU assigning new page ", index);  //DEBUG info
@@ -1415,8 +1434,8 @@ module mmu (
       @(posedge mmu_show_process_chain_ready) mmu_show_process_chain <= 0;  //DEBUG info
 
       newindex  = physical_process_address / `MMU_PAGE_SIZE;  //start point for existing process
-      previndex = newindex;
       do begin
+        if (newindex<index_start) index_start = newindex;
         mmu_logical_pages_memory[newindex] = 0;
         previndex = newindex;
         newindex = mmu_chain_memory[previndex];
