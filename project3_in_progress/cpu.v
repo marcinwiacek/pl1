@@ -875,6 +875,12 @@ module switcher (
     switcher_split_process_ready <= 1;
   end
 
+`define SWITCHER_RAM_SAVE(ADDRESS,VALUE) \
+   switcher_ram_save_address <= ADDRESS; \
+   switcher_ram_save_data_in <= VALUE; \
+   switcher_ram_save <= 1; \
+   @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
+
   //fixme: to track, if dont have problems because of assuming that reg and reg_used are initially setup to 0
   always @(posedge switcher_exec) begin
     $display($time, " switcher start - process address ", physical_process_address,  //DEBUG info
@@ -890,10 +896,7 @@ module switcher (
         temp[0] = pc[0]+pc[1]*2+pc[2]*4+pc[3]*8+pc[4]*16+pc[5]*32+pc[6]*64+pc[7]*128;
         temp[1] = pc[8]+pc[9]*2+pc[10]*4+pc[11]*8+pc[12]*16+pc[13]*32+pc[14]*64+pc[15]*128;
         for (i = 0; i < 2; i++) begin
-          switcher_ram_save_address <= physical_process_address + `ADDRESS_PC + i;
-          switcher_ram_save_data_in <= temp[i];
-          switcher_ram_save <= 1;
-          @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
+          `SWITCHER_RAM_SAVE(physical_process_address + `ADDRESS_PC + i, temp[i]);
         end
 
         //dump registers used
