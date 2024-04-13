@@ -896,6 +896,7 @@ module switcher (
         temp[0] = pc[0]+pc[1]*2+pc[2]*4+pc[3]*8+pc[4]*16+pc[5]*32+pc[6]*64+pc[7]*128;
         temp[1] = pc[8]+pc[9]*2+pc[10]*4+pc[11]*8+pc[12]*16+pc[13]*32+pc[14]*64+pc[15]*128;
         for (i = 0; i < 2; i++) begin
+          //should I go this way?
           `SWITCHER_RAM_SAVE(physical_process_address + `ADDRESS_PC + i, temp[i]);
         end
 
