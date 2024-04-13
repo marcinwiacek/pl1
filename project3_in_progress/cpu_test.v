@@ -13,6 +13,7 @@ initial begin
     ram_clk=0;
     rst=1;
     #250
+    //$stop();
     $finish();
 end
 

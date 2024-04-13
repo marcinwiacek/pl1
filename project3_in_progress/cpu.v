@@ -1361,12 +1361,12 @@ module mmu (
               $display($time, " first page", i, " ", j, " ", newindex);  //DEBUG info
             mmu_chain_memory[previndex] = mmu_chain_memory[newindex];
             mmu_logical_pages_memory[newindex] = j;
-            if (j == 255 * 255) newstartpoint = newindex;
             if (newindex2 != 0) begin
               mmu_chain_memory[newindex2] = newindex;
             end
             newindex2 = newindex;
             if (j == 255 * 255) begin
+              newstartpoint = newindex;
               j = 1;
             end else begin
               j++;
