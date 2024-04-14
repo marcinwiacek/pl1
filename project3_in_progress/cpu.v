@@ -25,8 +25,8 @@
 `define ADDRESS_NEXT_PROCESS 0
 `define ADDRESS_PC 4
 `define ADDRESS_REG_USED 8
-`define ADDRESS_REG 16
-`define ADDRESS_PROGRAM `REGISTER_NUM+16
+`define ADDRESS_REG 20
+`define ADDRESS_PROGRAM `REGISTER_NUM+`ADDRESS_REG
 
 `define REGISTER_NUM 64 //number of registers in bytes, for example 64 bytes = 512 bits like in AVX-512
 `define MAX_BITS_IN_REGISTER_NUM 6 //64 registers = 2^6
@@ -853,12 +853,12 @@ module switcher (
     input [7:0] switcher_ram_read_data_out
 );
 
-  integer i, j, z, temp_new_process_address;
+  integer i, j, z, p, temp_new_process_address;
   string s2;  //DEBUG info
-  reg [7:0] temp[7:0];
+  reg [7:0] temp[8:0];
 
   //cache
-  reg [7:0] old_reg_used[7:0];
+  reg [7:0] old_reg_used[8:0];
   reg [7:0] old_registers_memory[`REGISTER_NUM-1:0];
   reg [`MAX_BITS_IN_ADDRESS:0] old_physical_process_address;
 
@@ -876,7 +876,7 @@ module switcher (
     old_physical_process_address = 0;
     active_task_num = 1;
     start_pc_after_task_switch = `ADDRESS_PROGRAM;
-    for (i = 0; i < 8; i++) begin
+    for (i = 0; i < 9; i++) begin
       old_reg_used[i] = 0;
     end
     for (i = 0; i < `REGISTER_NUM; i++) begin
@@ -980,41 +980,32 @@ module switcher (
 
         //dump registers used
         if (`DEBUG_LEVEL > 1) $display($time, " dump reg used");  //DEBUG info
-        temp[0] = registers_used[0]+registers_used[1]*2+registers_used[2]*4+registers_used[3]*8+registers_used[4]*16+registers_used[5]*32+registers_used[6]*64+registers_used[7]*128;
-        temp[1] = registers_used[8]+registers_used[9]*2+registers_used[10]*4+registers_used[11]*8+registers_used[12]*16+registers_used[13]*32+registers_used[14]*64+registers_used[15]*128;
-        temp[2] = registers_used[16]+registers_used[17]*2+registers_used[18]*4+registers_used[19]*8+registers_used[20]*16+registers_used[21]*32+registers_used[22]*64+registers_used[23]*128;
-        temp[3] = registers_used[24]+registers_used[25]*2+registers_used[26]*4+registers_used[27]*8+registers_used[28]*16+registers_used[29]*32+registers_used[30]*64+registers_used[31]*128;
-        temp[4] = registers_used[32]+registers_used[33]*2+registers_used[34]*4+registers_used[35]*8+registers_used[36]*16+registers_used[37]*32+registers_used[38]*64+registers_used[39]*128;
-        temp[5] = registers_used[40]+registers_used[41]*2+registers_used[42]*4+registers_used[43]*8+registers_used[44]*16+registers_used[45]*32+registers_used[46]*64+registers_used[47]*128;
-        temp[6] = registers_used[48]+registers_used[49]*2+registers_used[50]*4+registers_used[51]*8+registers_used[52]*16+registers_used[53]*32+registers_used[54]*64+registers_used[55]*128;
-        temp[7] = registers_used[56]+registers_used[57]*2+registers_used[58]*4+registers_used[59]*8+registers_used[60]*16+registers_used[61]*32+registers_used[62]*64+registers_used[63]*128;
-        if (`DEBUG_LEVEL > 1)  //DEBUG info
-          $display(  //DEBUG info
-              $time,  //DEBUG info
-              " reg used ",  //DEBUG info
-              temp[0],  //DEBUG info
-              " ",  //DEBUG info
-              temp[1],  //DEBUG info
-              " ",  //DEBUG info
-              temp[2],  //DEBUG info
-              " ",  //DEBUG info
-              temp[3],  //DEBUG info
-              " ",  //DEBUG info
-              temp[4],  //DEBUG info
-              " ",  //DEBUG info
-              temp[5],  //DEBUG info
-              " ",  //DEBUG info
-              temp[6],  //DEBUG info
-              " ",  //DEBUG info
-              temp[7]  //DEBUG info
-          );  //DEBUG info
+        temp[0] = registers_used[0]*2+registers_used[1]*4+registers_used[2]*8+registers_used[3]*16+registers_used[4]*32+registers_used[5]*64+registers_used[6]*128;
+        temp[1] = registers_used[7]*2+registers_used[8]*4+registers_used[9]*8+registers_used[10]*16+registers_used[11]*32+registers_used[12]*64+registers_used[13]*128;
+        temp[2] = registers_used[14]*2+registers_used[15]*4+registers_used[16]*8+registers_used[17]*16+registers_used[18]*32+registers_used[19]*64+registers_used[20]*128;
+        temp[3] = registers_used[21]*2+registers_used[22]*4+registers_used[23]*8+registers_used[24]*16+registers_used[25]*32+registers_used[26]*64+registers_used[27]*128;
+        temp[4] = registers_used[28]*2+registers_used[29]*4+registers_used[30]*8+registers_used[31]*16+registers_used[32]*32+registers_used[33]*64+registers_used[34]*128;
+        temp[5] = registers_used[35]*2+registers_used[36]*4+registers_used[37]*8+registers_used[38]*16+registers_used[39]*32+registers_used[40]*64+registers_used[41]*128;
+        temp[6] = registers_used[42]*2+registers_used[43]*4+registers_used[44]*8+registers_used[45]*16+registers_used[46]*32+registers_used[47]*64+registers_used[48]*128;
+        temp[7] = registers_used[49]*2+registers_used[50]*4+registers_used[51]*8+registers_used[52]*16+registers_used[53]*32+registers_used[54]*64+registers_used[55]*128;
+        temp[8] = registers_used[56]+registers_used[57]*2+registers_used[58]*4+registers_used[59]*8+registers_used[60]*16+registers_used[61]*32+registers_used[62]*64+registers_used[63]*128;
 
-        for (i = 0; i < 8; i++) begin
+        s2 = " reg used ";  //DEBUG info
+        for (i = 0; i < 9; i++) begin  //DEBUG info
+          s2 = {s2, $sformatf("%01x ", temp[i])};  //DEBUG info
+        end  //DEBUG info
+        if (`DEBUG_LEVEL > 1) $display($time, s2);  //DEBUG info
+
+        for (i = 7; i >= 0; i--) begin
+          if (temp[i+1] !== 0) begin
+            temp[i] += 1;
+          end
           if (old_reg_used[i] != temp[i]) begin
             switcher_ram_save_address <= physical_process_address + `ADDRESS_REG_USED + i;
             switcher_ram_save_data_in <= temp[i];
             switcher_ram_save <= 1;
             @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
+
           end
         end
 
@@ -1059,11 +1050,12 @@ module switcher (
         @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
         z += switcher_ram_read_data_out * (256 ** i);
       end
+      for (i = 0; i < 9; i++) begin
+        old_reg_used[i] = 0;
+      end
       if (z == 0) begin
         if (`DEBUG_LEVEL > 1) $display($time, " default registers");  //DEBUG info
-        for (i = 0; i < 8; i++) begin
-          old_reg_used[i] = 0;
-        end
+
         for (i = 0; i < `REGISTER_NUM; i++) begin
           old_registers_memory[i] = 0;
 
@@ -1076,26 +1068,35 @@ module switcher (
       end else begin
         if (`DEBUG_LEVEL > 1) $display($time, " non default registers");  //DEBUG info
         //read next registers used and next registers
-        for (i = 0; i < 8; i++) begin
+        i = 0;
+        do begin
           switcher_ram_read_address <= temp_new_process_address + i + `ADDRESS_REG_USED;
           switcher_ram_read <= 1;
           @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
           old_reg_used[i] = switcher_ram_read_data_out;
+          i++;
+        end while ((old_reg_used[i-1] & (2 ** 0)) !== 0 || i == 9);
+        i = 0;
+        j = 1;
+        for (p = 0; p < 64; p++) begin
+          if ((old_reg_used[i] & (2 ** j)) != 0) begin
+            switcher_ram_read_address <= temp_new_process_address + p + `ADDRESS_REG;
+            switcher_ram_read <= 1;
+            @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
 
-          for (j = 0; j < 8; j++) begin
-            if ((old_reg_used[i] & (2 ** j)) != 0) begin
-              switcher_ram_read_address <= temp_new_process_address + i * 8 + j + `ADDRESS_REG;
-              switcher_ram_read <= 1;
-              @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
+            old_registers_memory[p] = switcher_ram_read_data_out;
+          end else begin
+            old_registers_memory[p] = 0;
+          end
+          switcher_register_save_address <= p;
+          switcher_register_save_data_in = old_registers_memory[p];
+          switcher_register_save <= 1;
+          @(posedge switcher_register_save_ready) switcher_register_save <= 0;
 
-              old_registers_memory[i*8+j] = switcher_ram_read_data_out;
-            end else begin
-              old_registers_memory[i*8+j] = 0;
-            end
-            switcher_register_save_address <= i * 8 + j;
-            switcher_register_save_data_in = old_registers_memory[i*8+j];
-            switcher_register_save <= 1;
-            @(posedge switcher_register_save_ready) switcher_register_save <= 0;
+          j++;
+          if (j == 8) begin
+            j = i == 8 ? 0 : 1;
+            i++;
           end
         end
         start_pc_after_task_switch = z;
@@ -1307,7 +1308,10 @@ module mmu (
     input [`MAX_BITS_IN_ADDRESS:0] mmu_split_process_end,
     output reg [`MAX_BITS_IN_ADDRESS:0] mmu_split_new_process_address,
     input mmu_remove_process,
-    output reg mmu_remove_process_ready
+    output reg mmu_remove_process_ready,
+    input mmu_setup_int_sharing,
+    input mmu_start_int_sharing,
+    input mmu_stop_int_sharing
 );
 
   reg [15:0] mmu_chain_memory[0:65535];  //values = next physical start point for task; last entry = 0
@@ -1350,6 +1354,15 @@ module mmu (
     mmu_logical_pages_memory[2] = 4;
     mmu_logical_pages_memory[3] = 3;
     mmu_logical_pages_memory[5] = 2;
+  end
+
+  always @(posedge mmu_setup_int_sharing) begin
+  end
+
+  always @(posedge mmu_start_int_sharing) begin
+  end
+
+  always @(posedge mmu_stop_int_sharing) begin
   end
 
   always @(posedge mmu_dump) begin  //DEBUG info

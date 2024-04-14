@@ -149,13 +149,13 @@ When "register" is different than "value", jump outside block else execute next 
 
 int process:
 
-* int_reg - remove from normal list and add address to the int table
+* int_reg - remove from normal list and add address to the int table, register int memory sharing
 
 Calling process:
 
-* int - replace current process with int process in the int table
+* int - replace current process with int process in the int table, setup int memory sharing
 
 Int process:
 
   * execute
-  * int_ret - return to int address and replace int process with normal process
+  * int_ret - return to int address and replace int process with normal process, delete int memory sharing
