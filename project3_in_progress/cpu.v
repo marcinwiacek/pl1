@@ -12,6 +12,9 @@
 `define OPCODE_PROC_END 11//remove current process
 `define OPCODE_PROC_SUSPEND 12 //code for test instruction for suspending task //DEBUG info
 `define OPCODE_PROC_RESUME 14 //code for test instruction for resuming task //DEBUG info
+`define OPCODE_REG_INT 15
+`define OPCODE_INT 16
+`define OPCODE_INT_RET 17
 
 //alu operations
 `define OPER_ADD 1
@@ -35,7 +38,7 @@
 
 module cpu (
     input rst,
-    input sim_end, //DEBUG info
+    input sim_end,  //DEBUG info
     input ram_clk
 );
 
@@ -156,7 +159,7 @@ module cpu (
 
   ram2 ram2 (
       .ram_clk(ram_clk),
-      .sim_end(sim_end), //DEBUG info
+      .sim_end(sim_end),  //DEBUG info
       .physical_process_address(physical_process_address),
       .mmu_split_process(mmu_split_process),
       .mmu_split_process_ready(mmu_split_process_ready),
@@ -640,16 +643,31 @@ module stage12 (
         //update task list, etc.
         switcher_split_process <= 1;
         @(posedge switcher_split_process_ready) switcher_split_process <= 0;
-      end else if (instruction[0] == `OPCODE_PROC_SUSPEND) begin //DEBUG info
+      end else if (instruction[0] == `OPCODE_PROC_SUSPEND) begin  //DEBUG info
         $display(  //DEBUG info
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
             instruction[3],  //DEBUG info
             "   PROC_SUSPEND suspend this process");  //DEBUG info  
-      end else if (instruction[0] == `OPCODE_PROC_RESUME) begin //DEBUG info
+      end else if (instruction[0] == `OPCODE_PROC_RESUME) begin  //DEBUG info
         $display(  //DEBUG info
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
             instruction[3],  //DEBUG info
-            "   PROC_RESUME resume process");  //DEBUG info     
+            "   PROC_RESUME resume process");  //DEBUG info  
+      end else if (instruction[0] == `OPCODE_REG_INT) begin
+        $display(  //DEBUG info
+            $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
+            instruction[3],  //DEBUG info
+            "   REGINT register interrupt ");  //DEBUG info
+      end else if (instruction[0] == `OPCODE_INT) begin
+        $display(  //DEBUG info
+            $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
+            instruction[3],  //DEBUG info
+            "   INT interrupt ");  //DEBUG info
+      end else if (instruction[0] == `OPCODE_INT_RET) begin
+        $display(  //DEBUG info
+            $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
+            instruction[3],  //DEBUG info
+            "   INTRET return from interrupt ");  //DEBUG info            
       end else if (  instruction[0] !== `OPCODE_JUMP_MINUS && instruction[0] !== `OPCODE_JUMP_PLUS && instruction[0] !== `OPCODE_PROC_END) begin
         $display(  //DEBUG info
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
@@ -814,7 +832,7 @@ module switcher (
     input switcher_register_read_ready,
     output reg [`MAX_BITS_IN_REGISTER_NUM:0] switcher_register_read_address,
     input [7:0] switcher_register_read_data_out,
-    
+
     //ram
     output reg switcher_ram_save,
     input switcher_ram_save_ready,
@@ -830,17 +848,17 @@ module switcher (
   integer i, j, z, temp_new_process_address;
   string s2;  //DEBUG info
   reg [7:0] temp[7:0];
-  
+
   //cache
   reg [7:0] old_reg_used[7:0];
   reg [7:0] old_registers_memory[`REGISTER_NUM-1:0];
   reg [`MAX_BITS_IN_ADDRESS:0] old_physical_process_address;
-  
-  reg [7:0] active_task_num; //we could replace it with boolean sying, if have >1 active tasks
-  
+
+  reg [7:0] active_task_num;  //we could replace it with boolean sying, if have >1 active tasks
+
   reg [7:0] suspended_task_address;
   reg suspended_task_available;
-  
+
   reg [`MAX_BITS_IN_ADDRESS:0] int_process_address[255:0];
   reg [`MAX_BITS_IN_ADDRESS:0] int_process_pc[255:0];
   reg [`MAX_BITS_IN_ADDRESS:0] int_process_ret_address[255:0];
@@ -900,7 +918,7 @@ module switcher (
     switcher_split_process_ready <= 1;
   end
 
-`define SWITCHER_RAM_SAVE(ADDRESS,VALUE) \
+  `define SWITCHER_RAM_SAVE(ADDRESS, VALUE) \
    switcher_ram_save_address <= ADDRESS; \
    switcher_ram_save_data_in <= VALUE; \
    switcher_ram_save <= 1; \
@@ -1077,7 +1095,7 @@ endmodule
 
 module ram2 (
     input ram_clk,
-    input sim_end, //DEBUG info
+    input sim_end,  //DEBUG info
     input [`MAX_BITS_IN_ADDRESS:0] physical_process_address,
     input stage12_read,
     output reg stage12_read_ready,
@@ -1114,7 +1132,7 @@ module ram2 (
   wire [7:0] ram_data_out;
 
   ram ram (
-      .sim_end(sim_end), //DEBUG info
+      .sim_end(sim_end),  //DEBUG info
       .ram_clk(ram_clk),
       .write_enable(ram_write_enable),
       .address(ram_address),
@@ -1260,7 +1278,8 @@ module mmu (
   reg [15:0] mmu_chain_memory[0:65535];  //values = next physical start point for task; last entry = 0
   reg [15:0] mmu_logical_pages_memory[0:65535];  //values = logical page assign to this physical page; 0 means page is empty (in existing processes, where first page is 0, we setup here value > 0 and ignore it)
   reg [15:0] index_start; // this is start index of the loop searching for free mmeory page; when reserving pages, increase; when deleting, setup to lowest free value
-  
+  reg [15:0] start_process_segment;
+
   reg [`MAX_BITS_IN_ADDRESS:0] int_process_shared_mem_start_segment[255:0];
   reg [`MAX_BITS_IN_ADDRESS:0] int_process_shared_mem_end_segment[255:0];
   reg [`MAX_BITS_IN_ADDRESS:0] int_process_shared_ret_mem_start_segment[255:0];
@@ -1274,6 +1293,9 @@ module mmu (
   string s;  //DEBUG info
   integer i, j, index, previndex, z, newindex, newindex2, newstartpoint;
 
+  always @(physical_process_address) begin
+    start_process_segment = physical_process_address / `MMU_PAGE_SIZE;
+  end
   initial begin
     for (i = 0; i < 65536; i++) begin
       //value 0 means, that it's empty. in every process on first entry we setup something != 0 and ignore it (first process page is always from segment 0)
@@ -1337,8 +1359,8 @@ module mmu (
     //todo: caching last value
     if (mmu_get_physical_address) begin
       mmu_get_physical_address_ready <= 0;
-      
-      index = physical_process_address / `MMU_PAGE_SIZE;
+
+      index = start_process_segment;
       i = logical_address / `MMU_PAGE_SIZE;
 
       //we don't need to calculate it for first segment - it's always equal to process address segment
@@ -1383,17 +1405,17 @@ module mmu (
       mmu_dump <= 1;  //DEBUG info
       @(posedge mmu_dump_ready) mmu_dump <= 0;  //DEBUG info
 
-      newindex  = physical_process_address / `MMU_PAGE_SIZE;  //start point for existing process //DEBUG info
+      newindex = start_process_segment;  //start point for existing process //DEBUG info
       mmu_show_process_chain <= 1;  //DEBUG info
       @(posedge mmu_show_process_chain_ready) mmu_show_process_chain <= 0;  //DEBUG info
 
       newindex2 = 0;
       j = 255 * 255;  //some known value like 255*255 could be used for checking mmu validity
       for (i = mmu_split_process_start; i <= mmu_split_process_end; i++) begin
-        newindex  = physical_process_address / `MMU_PAGE_SIZE;  //start point for existing process
+        newindex  = start_process_segment;  //start point for existing process
         previndex = newindex;
         do begin
-          if (mmu_logical_pages_memory[newindex] == i && newindex != physical_process_address / `MMU_PAGE_SIZE) begin
+          if (mmu_logical_pages_memory[newindex] == i && newindex != start_process_segment) begin
             if (`DEBUG_LEVEL > 2)  //DEBUG info
               $display($time, " first page", i, " ", j, " ", newindex);  //DEBUG info
             mmu_chain_memory[previndex] = mmu_chain_memory[newindex];
@@ -1424,7 +1446,7 @@ module mmu (
       mmu_dump <= 1;  //DEBUG info
       @(posedge mmu_dump_ready) mmu_dump <= 0;  //DEBUG info
 
-      newindex  = physical_process_address / `MMU_PAGE_SIZE;  //start point for existing process //DEBUG info
+      newindex = start_process_segment;  //start point for existing process //DEBUG info
       mmu_show_process_chain <= 1;  //DEBUG info
       @(posedge mmu_show_process_chain_ready) mmu_show_process_chain <= 0;  //DEBUG info
 
@@ -1439,17 +1461,18 @@ module mmu (
       mmu_split_process_ready <= 1;
     end else if (mmu_remove_process) begin
       mmu_remove_process_ready <= 0;
+
       mmu_dump_level <= 0;  //DEBUG info
       mmu_dump <= 1;  //DEBUG info
       @(posedge mmu_dump_ready) mmu_dump <= 0;  //DEBUG info
 
-      newindex  = physical_process_address / `MMU_PAGE_SIZE;  //start point for existing process //DEBUG info
+      newindex = start_process_segment;  //start point for existing process //DEBUG info
       mmu_show_process_chain <= 1;  //DEBUG info
       @(posedge mmu_show_process_chain_ready) mmu_show_process_chain <= 0;  //DEBUG info
 
-      newindex  = physical_process_address / `MMU_PAGE_SIZE;  //start point for existing process
+      newindex = start_process_segment;  //start point for existing process
       do begin
-        if (newindex<index_start) index_start = newindex;
+        if (newindex < index_start) index_start = newindex;
         mmu_logical_pages_memory[newindex] = 0;
         previndex = newindex;
         newindex = mmu_chain_memory[previndex];
@@ -1467,7 +1490,7 @@ endmodule
 // we have to use standard RAM = definition is "as is"
 module ram (
     input ram_clk,
-    input sim_end, //DEBUG info
+    input sim_end,  //DEBUG info
     input write_enable,
     input [`MAX_BITS_IN_ADDRESS:0] address,
     input [7:0] data_in,
@@ -1476,11 +1499,11 @@ module ram (
 
   reg [7:0] ram_memory[0:1048576];
 
-  initial begin //DEBUG info
-    $readmemh("rom2.mem", ram_memory); //DEBUG info
-  end //DEBUG info
-  always @(sim_end) begin //DEBUG info
-  end //DEBUG info
+  initial begin  //DEBUG info
+    $readmemh("rom2.mem", ram_memory);  //DEBUG info
+  end  //DEBUG info
+  always @(sim_end) begin  //DEBUG info
+  end  //DEBUG info
   always @(posedge ram_clk) begin
     if (write_enable) begin
       ram_memory[address] <= data_in;
