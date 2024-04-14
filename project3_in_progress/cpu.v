@@ -16,6 +16,9 @@
 `define OPCODE_INT 16
 `define OPCODE_INT_RET 17
 
+//invalidate registers
+//invalidate registers after x instructions - delete all in cycles before switcher
+
 //alu operations
 `define OPER_ADD 1
 `define OPER_ADDNUM 2
@@ -201,10 +204,10 @@ module cpu (
   reg switcher_with_removal;
   wire switcher_split_process;
   wire switcher_split_process_ready;
-  
-   wire switcher_setup_int;
-    wire switcher_setup_int_ready;
-    wire [7:0] switcher_setup_int_number;
+
+  wire switcher_setup_int;
+  wire switcher_setup_int_ready;
+  wire [7:0] switcher_setup_int_number;
 
   switcher switcher (
       .rst(rst),
@@ -269,7 +272,7 @@ module cpu (
       .physical_process_address(physical_process_address),
       .switcher_split_process(switcher_split_process),
       .switcher_split_process_ready(switcher_split_process_ready),
-       .switcher_setup_int(witcher_setup_int),
+      .switcher_setup_int(witcher_setup_int),
       .switcher_setup_int_ready(switcher_setup_int_ready),
       .switcher_setup_int_number(switcher_setup_int_number),
       .mmu_split_process(mmu_split_process),
@@ -475,7 +478,7 @@ module stage12 (
     input switcher_split_process_ready,
 
     output reg mmu_remove_should_exec,
-    
+
     output reg switcher_setup_int,
     input switcher_setup_int_ready,
     output reg [7:0] switcher_setup_int_number,
@@ -673,8 +676,8 @@ module stage12 (
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
             instruction[3],  //DEBUG info
             "   REGINT register interrupt ");  //DEBUG info
-            switcher_setup_int_number = instruction[1];
-            switcher_setup_int<=1;
+        switcher_setup_int_number = instruction[1];
+        switcher_setup_int <= 1;
         @(posedge switcher_setup_int_ready) switcher_setup_int <= 0;
       end else if (instruction[0] == `OPCODE_INT) begin
         $display(  //DEBUG info
@@ -939,7 +942,6 @@ module switcher (
         switcher_ram_save_data_in <= temp[i];
         switcher_ram_save <= 1;
         @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
-
       end
     end
 
@@ -1001,7 +1003,7 @@ module switcher (
       end while ((old_reg_used[i-1] & (2 ** 0)) !== 0 || i == 9);
       i = 0;
       j = 1;
-      for (p = 0; p < 64; p++) begin
+      for (p = 0; p < `REGISTER_NUM; p++) begin
         if ((old_reg_used[i] & (2 ** j)) != 0) begin
           switcher_ram_read_address <= temp_new_process_address + p + `ADDRESS_REG;
           switcher_ram_read <= 1;
@@ -1067,9 +1069,9 @@ module switcher (
 
   always @(posedge switcher_setup_int) begin
     switcher_setup_int_ready <= 0;
-     $display($time, " setup int");
+    $display($time, " setup int");
     if (int_process_address[switcher_setup_int_number] == 1) begin
-     $display($time, " setup int");
+      $display($time, " setup int");
       int_process_address[switcher_setup_int_number] = physical_process_address;
 
       //save current process state
@@ -1092,7 +1094,7 @@ module switcher (
       //switch to next process
       physical_process_address = temp_new_process_address;
     end
-     $display($time, " end setup int");
+    $display($time, " end setup int");
     switcher_setup_int_ready <= 1;
   end
 
@@ -1100,7 +1102,7 @@ module switcher (
     switcher_execute_return_int_ready <= 0;
     if (int_process_address[switcher_execute_return_int_number] !== 1) begin
 
-      $display($time, " execute/return int - process address ", //DEBUG info
+      $display($time, " execute/return int - process address ",  //DEBUG info
                physical_process_address,  //DEBUG info
                " int process - ",  //DEBUG info
                int_process_address[switcher_execute_return_int_number]);  //DEBUG info
@@ -1150,7 +1152,7 @@ module switcher (
       int_process_address[switcher_setup_int_number] = physical_process_address;
       physical_process_address = temp_new_process_address;
     end
-    $display($time, " end execute/return int - process address ", //DEBUG info
+    $display($time, " end execute/return int - process address ",  //DEBUG info
              physical_process_address,  //DEBUG info
              " int process - ",  //DEBUG info
              int_process_address[switcher_execute_return_int_number]);  //DEBUG info
@@ -1664,7 +1666,7 @@ module ram (
   reg [7:0] ram_memory[0:1048576];
 
   initial begin  //DEBUG info
-    $readmemh("rom2.mem", ram_memory);  //DEBUG info
+    $readmemh("rom3.mem", ram_memory);  //DEBUG info
   end  //DEBUG info
   always @(sim_end) begin  //DEBUG info
   end  //DEBUG info
