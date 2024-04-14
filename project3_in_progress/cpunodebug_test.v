@@ -2,9 +2,8 @@ module cpu_test;
 
 reg rst;
 reg ram_clk;
-reg sim_end;
 
-cpu cpu(rst,sim_end,ram_clk);
+cpu cpu(rst,ram_clk);
 
 always #1 ram_clk = ~ram_clk;
 
@@ -15,7 +14,6 @@ initial begin
     rst=1;
     #250
     //$stop();
-    sim_end=1;
     $finish();
 end
 

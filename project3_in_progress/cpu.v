@@ -35,6 +35,7 @@
 
 module cpu (
     input rst,
+    input sim_end, //DEBUG info
     input ram_clk
 );
 
@@ -155,6 +156,7 @@ module cpu (
 
   ram2 ram2 (
       .ram_clk(ram_clk),
+      .sim_end(sim_end), //DEBUG info
       .physical_process_address(physical_process_address),
       .mmu_split_process(mmu_split_process),
       .mmu_split_process_ready(mmu_split_process_ready),
@@ -812,6 +814,7 @@ module switcher (
     input switcher_register_read_ready,
     output reg [`MAX_BITS_IN_REGISTER_NUM:0] switcher_register_read_address,
     input [7:0] switcher_register_read_data_out,
+    
     //ram
     output reg switcher_ram_save,
     input switcher_ram_save_ready,
@@ -837,6 +840,10 @@ module switcher (
   
   reg [7:0] suspended_task_address;
   reg suspended_task_available;
+  
+  reg [`MAX_BITS_IN_ADDRESS:0] int_process_address[255:0];
+  reg [`MAX_BITS_IN_ADDRESS:0] int_process_pc[255:0];
+  reg [`MAX_BITS_IN_ADDRESS:0] int_process_ret_address[255:0];
 
   always @(rst) begin
     if (`DEBUG_LEVEL > 1) $display($time, " reset2");  //DEBUG info
@@ -1070,6 +1077,7 @@ endmodule
 
 module ram2 (
     input ram_clk,
+    input sim_end, //DEBUG info
     input [`MAX_BITS_IN_ADDRESS:0] physical_process_address,
     input stage12_read,
     output reg stage12_read_ready,
@@ -1106,6 +1114,7 @@ module ram2 (
   wire [7:0] ram_data_out;
 
   ram ram (
+      .sim_end(sim_end), //DEBUG info
       .ram_clk(ram_clk),
       .write_enable(ram_write_enable),
       .address(ram_address),
@@ -1251,6 +1260,11 @@ module mmu (
   reg [15:0] mmu_chain_memory[0:65535];  //values = next physical start point for task; last entry = 0
   reg [15:0] mmu_logical_pages_memory[0:65535];  //values = logical page assign to this physical page; 0 means page is empty (in existing processes, where first page is 0, we setup here value > 0 and ignore it)
   reg [15:0] index_start; // this is start index of the loop searching for free mmeory page; when reserving pages, increase; when deleting, setup to lowest free value
+  
+  reg [`MAX_BITS_IN_ADDRESS:0] int_process_shared_mem_start_segment[255:0];
+  reg [`MAX_BITS_IN_ADDRESS:0] int_process_shared_mem_end_segment[255:0];
+  reg [`MAX_BITS_IN_ADDRESS:0] int_process_shared_ret_mem_start_segment[255:0];
+
   reg mmu_dump;  //DEBUG info
   reg mmu_dump_ready;  //DEBUG info
   reg [2:0] mmu_dump_level;  //DEBUG info
@@ -1453,6 +1467,7 @@ endmodule
 // we have to use standard RAM = definition is "as is"
 module ram (
     input ram_clk,
+    input sim_end, //DEBUG info
     input write_enable,
     input [`MAX_BITS_IN_ADDRESS:0] address,
     input [7:0] data_in,
@@ -1461,9 +1476,11 @@ module ram (
 
   reg [7:0] ram_memory[0:1048576];
 
-  initial begin
-    $readmemh("rom2.mem", ram_memory);
-  end
+  initial begin //DEBUG info
+    $readmemh("rom2.mem", ram_memory); //DEBUG info
+  end //DEBUG info
+  always @(sim_end) begin //DEBUG info
+  end //DEBUG info
   always @(posedge ram_clk) begin
     if (write_enable) begin
       ram_memory[address] <= data_in;

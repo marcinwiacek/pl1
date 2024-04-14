@@ -4,10 +4,8 @@
 rm ./cpu 2> /dev/null
 rm ./cpu.vcd 2> /dev/null
 sed '/DEBUG info/d' cpu.v > cpunodebug.v
-cp cpu_test.v cpunodebug_test.v
 iverilog -g2005-sv -o cpu cpunodebug.v cpunodebug_test.v
 vvp cpu
 #gtkwave cpu.vcd &
 rm ./cpu
 rm ./cpu.vcd
-rm ./cpunodebug_test.v
