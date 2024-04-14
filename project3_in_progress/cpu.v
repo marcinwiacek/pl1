@@ -1599,7 +1599,7 @@ module registers (
 
   reg [7:0] registers_memory[`REGISTER_NUM-1:0];
 
-  integer i;
+  integer i,j;
   string s2;  //DEBUG info
 
   always @(rst) begin
@@ -1653,10 +1653,15 @@ module registers (
   always @(posedge dump_reg) begin  //DEBUG info
     dump_reg_ready <= 0;  //DEBUG info
     s2 = " reg ";  //DEBUG info
-    for (i = 0; i < 20; i++) begin  //DEBUG info
+    j=64;
+    do begin
+	j--;
+    end while (registers_memory[j]==0);
+    for (i = 0; i <= j; i++) begin  //DEBUG info
       s2 = {s2, $sformatf("%02x ", registers_memory[i])};  //DEBUG info
     end  //DEBUG info
     $display($time, s2, " ...");  //DEBUG info
+
     s2 = " reg used ";  //DEBUG info
     for (i = 0; i < 20; i++) begin  //DEBUG info
       s2 = {s2, $sformatf("%01x ", registers_used[i])};  //DEBUG info
