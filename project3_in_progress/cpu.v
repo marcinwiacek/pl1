@@ -828,6 +828,7 @@ module switcher (
 
     input switcher_execute_return_int,
     output reg switcher_execute_return_int_ready,
+    input [7:0] switcher_execute_return_int_number,
 
     //registers
     output reg switcher_register_save,
@@ -900,7 +901,7 @@ module switcher (
 
   always @(posedge switcher_execute_return_int) begin
     switcher_execute_return_int_ready <= 0;
-    if (int_process_address[switcher_setup_int_number] !== 1) begin
+    if (int_process_address[switcher_execute_return_int_number] !== 1) begin
       //save current process state
       //int process address = current process address
       //previous process -> next = int_process_address
