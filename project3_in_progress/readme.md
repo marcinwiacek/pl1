@@ -145,3 +145,17 @@ When "register" is different than "value", jump outside block else execute next 
 
 # MMU
 
+# INT
+
+int process:
+
+* int_reg - remove from normal list and add address to the int table
+
+Calling process:
+
+* int - replace current process with int process in the int table
+
+Int process:
+
+  * execute
+  * int_ret - return to int address and replace int process with normal process

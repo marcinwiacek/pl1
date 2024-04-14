@@ -822,6 +822,13 @@ module switcher (
     input [`MAX_BITS_IN_ADDRESS:0] switcher_split_new_process_address,
     input [`REGISTER_NUM-1:0] registers_used,
 
+    input switcher_setup_int,
+    output reg switcher_setup_int_ready,
+    input [7:0] switcher_setup_int_number,
+
+    input switcher_execute_return_int,
+    output reg switcher_execute_return_int_ready,
+
     //registers
     output reg switcher_register_save,
     input switcher_register_save_ready,
@@ -859,9 +866,8 @@ module switcher (
   reg [7:0] suspended_task_address;
   reg suspended_task_available;
 
-  reg [`MAX_BITS_IN_ADDRESS:0] int_process_address[255:0];
-  reg [`MAX_BITS_IN_ADDRESS:0] int_process_pc[255:0];
-  reg [`MAX_BITS_IN_ADDRESS:0] int_process_ret_address[255:0];
+  reg [`MAX_BITS_IN_ADDRESS:0] int_process_address[7:0];
+
 
   always @(rst) begin
     if (`DEBUG_LEVEL > 1) $display($time, " reset2");  //DEBUG info
@@ -875,7 +881,35 @@ module switcher (
     for (i = 0; i < `REGISTER_NUM; i++) begin
       old_registers_memory[i] = 0;
     end
+    for (i = 0; i < 256; i++) begin
+      int_process_address[i] = 1;
+    end
   end
+
+  always @(posedge switcher_setup_int) begin
+    switcher_setup_int_ready <= 0;
+    if (int_process_address[switcher_setup_int_number] == 1) begin
+      int_process_address[switcher_setup_int_number] = physical_process_address;
+
+      //save current process state
+      //switch with removal to next process
+
+    end
+    switcher_setup_int_ready <= 1;
+  end
+
+  always @(posedge switcher_execute_return_int) begin
+    switcher_execute_return_int_ready <= 0;
+    if (int_process_address[switcher_setup_int_number] !== 1) begin
+      //save current process state
+      //int process address = current process address
+      //previous process -> next = int_process_address
+      //int_process_address->next = current_process->next;
+      //switch to next process
+    end
+    switcher_execute_return_int_ready <= 1;
+  end
+
 
   always @(posedge switcher_split_process) begin
     switcher_split_process_ready <= 0;
