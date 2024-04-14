@@ -201,6 +201,11 @@ module cpu (
   reg switcher_with_removal;
   wire switcher_split_process;
   wire switcher_split_process_ready;
+  
+   wire switcher_setup_int;
+    wire switcher_setup_int_ready;
+    wire [7:0] switcher_setup_int_number;
+
   switcher switcher (
       .rst(rst),
       .start_pc_after_task_switch(start_pc_after_task_switch),
@@ -213,6 +218,9 @@ module cpu (
       .switcher_split_process(switcher_split_process),
       .switcher_split_process_ready(switcher_split_process_ready),
       .switcher_split_new_process_address(mmu_split_new_process_address),
+      .switcher_setup_int(witcher_setup_int),
+      .switcher_setup_int_ready(switcher_setup_int_ready),
+      .switcher_setup_int_number(switcher_setup_int_number),
       //registers
       .switcher_register_save(switcher_register_save),
       .switcher_register_save_ready(switcher_register_save_ready),
@@ -261,6 +269,9 @@ module cpu (
       .physical_process_address(physical_process_address),
       .switcher_split_process(switcher_split_process),
       .switcher_split_process_ready(switcher_split_process_ready),
+       .switcher_setup_int(witcher_setup_int),
+      .switcher_setup_int_ready(switcher_setup_int_ready),
+      .switcher_setup_int_number(switcher_setup_int_number),
       .mmu_split_process(mmu_split_process),
       .mmu_split_process_ready(mmu_split_process_ready),
       .mmu_split_process_start(mmu_split_process_start),
@@ -464,6 +475,10 @@ module stage12 (
     input switcher_split_process_ready,
 
     output reg mmu_remove_should_exec,
+    
+    output reg switcher_setup_int,
+    input switcher_setup_int_ready,
+    output reg [7:0] switcher_setup_int_number,
 
     output reg stage3_should_exec,
     output reg [`MAX_BITS_IN_ADDRESS:0] stage3_source_ram_address,
@@ -658,6 +673,9 @@ module stage12 (
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
             instruction[3],  //DEBUG info
             "   REGINT register interrupt ");  //DEBUG info
+            switcher_setup_int_number = instruction[1];
+            switcher_setup_int<=1;
+        @(posedge switcher_setup_int_ready) switcher_setup_int <= 0;
       end else if (instruction[0] == `OPCODE_INT) begin
         $display(  //DEBUG info
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
@@ -1049,7 +1067,9 @@ module switcher (
 
   always @(posedge switcher_setup_int) begin
     switcher_setup_int_ready <= 0;
+     $display($time, " setup int");
     if (int_process_address[switcher_setup_int_number] == 1) begin
+     $display($time, " setup int");
       int_process_address[switcher_setup_int_number] = physical_process_address;
 
       //save current process state
@@ -1072,6 +1092,7 @@ module switcher (
       //switch to next process
       physical_process_address = temp_new_process_address;
     end
+     $display($time, " end setup int");
     switcher_setup_int_ready <= 1;
   end
 
