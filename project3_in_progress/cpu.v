@@ -869,6 +869,99 @@ module switcher (
 
   reg [`MAX_BITS_IN_ADDRESS:0] int_process_address[7:0];
 
+  reg dump_process_state;
+  reg dump_process_state_ready;
+
+  reg remove_process_from_chain;
+  reg remove_process_from_chain_ready;
+
+  `define SWITCHER_RAM_SAVE(ADDRESS, VALUE) \
+   switcher_ram_save_address <= ADDRESS; \
+   switcher_ram_save_data_in <= VALUE; \
+   switcher_ram_save <= 1; \
+   @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
+
+  always @(posedge dump_process_state) begin
+    dump_process_state_ready <= 0;
+    //dump pc
+    if (`DEBUG_LEVEL > 1) $display($time, " dump pc");  //DEBUG info
+    temp[0] = pc[0]+pc[1]*2+pc[2]*4+pc[3]*8+pc[4]*16+pc[5]*32+pc[6]*64+pc[7]*128;
+    temp[1] = pc[8]+pc[9]*2+pc[10]*4+pc[11]*8+pc[12]*16+pc[13]*32+pc[14]*64+pc[15]*128;
+    for (i = 0; i < 2; i++) begin
+      //should I go this way?
+      `SWITCHER_RAM_SAVE(physical_process_address + `ADDRESS_PC + i, temp[i]);
+    end
+
+    //dump registers used
+    if (`DEBUG_LEVEL > 1) $display($time, " dump reg used");  //DEBUG info
+    temp[0] = registers_used[0]*2+registers_used[1]*4+registers_used[2]*8+registers_used[3]*16+registers_used[4]*32+registers_used[5]*64+registers_used[6]*128;
+    temp[1] = registers_used[7]*2+registers_used[8]*4+registers_used[9]*8+registers_used[10]*16+registers_used[11]*32+registers_used[12]*64+registers_used[13]*128;
+    temp[2] = registers_used[14]*2+registers_used[15]*4+registers_used[16]*8+registers_used[17]*16+registers_used[18]*32+registers_used[19]*64+registers_used[20]*128;
+    temp[3] = registers_used[21]*2+registers_used[22]*4+registers_used[23]*8+registers_used[24]*16+registers_used[25]*32+registers_used[26]*64+registers_used[27]*128;
+    temp[4] = registers_used[28]*2+registers_used[29]*4+registers_used[30]*8+registers_used[31]*16+registers_used[32]*32+registers_used[33]*64+registers_used[34]*128;
+    temp[5] = registers_used[35]*2+registers_used[36]*4+registers_used[37]*8+registers_used[38]*16+registers_used[39]*32+registers_used[40]*64+registers_used[41]*128;
+    temp[6] = registers_used[42]*2+registers_used[43]*4+registers_used[44]*8+registers_used[45]*16+registers_used[46]*32+registers_used[47]*64+registers_used[48]*128;
+    temp[7] = registers_used[49]*2+registers_used[50]*4+registers_used[51]*8+registers_used[52]*16+registers_used[53]*32+registers_used[54]*64+registers_used[55]*128;
+    temp[8] = registers_used[56]+registers_used[57]*2+registers_used[58]*4+registers_used[59]*8+registers_used[60]*16+registers_used[61]*32+registers_used[62]*64+registers_used[63]*128;
+
+    s2 = " reg used ";  //DEBUG info
+    for (i = 0; i < 9; i++) begin  //DEBUG info
+      s2 = {s2, $sformatf("%01x ", temp[i])};  //DEBUG info
+    end  //DEBUG info
+    if (`DEBUG_LEVEL > 1) $display($time, s2);  //DEBUG info
+
+    for (i = 7; i >= 0; i--) begin
+      if (temp[i+1] !== 0) begin
+        temp[i] += 1;
+      end
+      if (old_reg_used[i] != temp[i]) begin
+        switcher_ram_save_address <= physical_process_address + `ADDRESS_REG_USED + i;
+        switcher_ram_save_data_in <= temp[i];
+        switcher_ram_save <= 1;
+        @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
+
+      end
+    end
+
+    //dump registers
+    if (`DEBUG_LEVEL > 1) $display($time, " dump reg");  //DEBUG info
+
+    for (i = 0; i < `REGISTER_NUM; i++) begin
+      if (registers_used[i]) begin
+        switcher_register_read_address <= i;
+        switcher_register_read <= 1;
+        @(posedge switcher_register_read_ready) switcher_register_read <= 0;
+
+        if (old_registers_memory[i] != switcher_register_read_data_out) begin
+          switcher_ram_save_address <= physical_process_address + i + `ADDRESS_REG;
+          switcher_ram_save_data_in <= switcher_register_read_data_out;
+          switcher_ram_save <= 1;
+          @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
+        end
+      end
+    end
+    dump_process_state_ready <= 1;
+  end
+
+  always @(posedge remove_process_from_chain) begin
+    remove_process_from_chain_ready <= 0;
+
+    //update chain of command
+    for (i = 0; i < 4; i++) begin
+      switcher_ram_read_address <= physical_process_address + i + `ADDRESS_NEXT_PROCESS;
+      switcher_ram_read <= 1;
+      @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
+
+      switcher_ram_save_address <= old_physical_process_address + `ADDRESS_NEXT_PROCESS + i;
+      switcher_ram_save_data_in <= switcher_ram_read_data_out;
+      switcher_ram_save <= 1;
+      @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
+    end
+
+    active_task_num--;
+
+    remove_process_from_chain_ready <= 1;
+  end
 
   always @(rst) begin
     if (`DEBUG_LEVEL > 1) $display($time, " reset2");  //DEBUG info
@@ -893,8 +986,25 @@ module switcher (
       int_process_address[switcher_setup_int_number] = physical_process_address;
 
       //save current process state
-      //switch with removal to next process
+      dump_process_state <= 1;
+      @(posedge dump_process_state_ready) dump_process_state <= 0;
 
+      //read next process address
+      j = 0;
+      for (i = 0; i < 4; i++) begin
+        switcher_ram_read_address <= physical_process_address + i;
+        switcher_ram_read <= 1;
+        @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
+        j += switcher_ram_read_data_out * (256 ** i);
+      end
+      temp_new_process_address = j;
+
+      remove_process_from_chain <= 1;
+      @(posedge remove_process_from_chain_ready) remove_process_from_chain <= 0;
+
+      //switch to next process
+      old_physical_process_address = physical_process_address;
+      physical_process_address = temp_new_process_address;
     end
     switcher_setup_int_ready <= 1;
   end
@@ -903,14 +1013,30 @@ module switcher (
     switcher_execute_return_int_ready <= 0;
     if (int_process_address[switcher_execute_return_int_number] !== 1) begin
       //save current process state
-      //int process address = current process address
+      dump_process_state <= 1;
+      @(posedge dump_process_state_ready) dump_process_state <= 0;
+
+      //read next process address
+      j = 0;
+      for (i = 0; i < 4; i++) begin
+        switcher_ram_read_address <= physical_process_address + i;
+        switcher_ram_read <= 1;
+        @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
+        j += switcher_ram_read_data_out * (256 ** i);
+      end
+      temp_new_process_address = j;
+
+      int_process_address[switcher_setup_int_number] = physical_process_address;
+
       //previous process -> next = int_process_address
       //int_process_address->next = current_process->next;
+
       //switch to next process
+      old_physical_process_address = physical_process_address;
+      physical_process_address = temp_new_process_address;
     end
     switcher_execute_return_int_ready <= 1;
   end
-
 
   always @(posedge switcher_split_process) begin
     switcher_split_process_ready <= 0;
@@ -953,12 +1079,6 @@ module switcher (
     switcher_split_process_ready <= 1;
   end
 
-  `define SWITCHER_RAM_SAVE(ADDRESS, VALUE) \
-   switcher_ram_save_address <= ADDRESS; \
-   switcher_ram_save_data_in <= VALUE; \
-   switcher_ram_save <= 1; \
-   @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
-
   //fixme: to track, if dont have problems because of assuming that reg and reg_used are initially setup to 0
   always @(posedge switcher_exec) begin
     $display($time, " switcher start - process address ", physical_process_address,  //DEBUG info
@@ -969,63 +1089,8 @@ module switcher (
     if (active_task_num > 1) begin
 
       if (switcher_with_removal == 0) begin
-        //dump pc
-        if (`DEBUG_LEVEL > 1) $display($time, " dump pc");  //DEBUG info
-        temp[0] = pc[0]+pc[1]*2+pc[2]*4+pc[3]*8+pc[4]*16+pc[5]*32+pc[6]*64+pc[7]*128;
-        temp[1] = pc[8]+pc[9]*2+pc[10]*4+pc[11]*8+pc[12]*16+pc[13]*32+pc[14]*64+pc[15]*128;
-        for (i = 0; i < 2; i++) begin
-          //should I go this way?
-          `SWITCHER_RAM_SAVE(physical_process_address + `ADDRESS_PC + i, temp[i]);
-        end
-
-        //dump registers used
-        if (`DEBUG_LEVEL > 1) $display($time, " dump reg used");  //DEBUG info
-        temp[0] = registers_used[0]*2+registers_used[1]*4+registers_used[2]*8+registers_used[3]*16+registers_used[4]*32+registers_used[5]*64+registers_used[6]*128;
-        temp[1] = registers_used[7]*2+registers_used[8]*4+registers_used[9]*8+registers_used[10]*16+registers_used[11]*32+registers_used[12]*64+registers_used[13]*128;
-        temp[2] = registers_used[14]*2+registers_used[15]*4+registers_used[16]*8+registers_used[17]*16+registers_used[18]*32+registers_used[19]*64+registers_used[20]*128;
-        temp[3] = registers_used[21]*2+registers_used[22]*4+registers_used[23]*8+registers_used[24]*16+registers_used[25]*32+registers_used[26]*64+registers_used[27]*128;
-        temp[4] = registers_used[28]*2+registers_used[29]*4+registers_used[30]*8+registers_used[31]*16+registers_used[32]*32+registers_used[33]*64+registers_used[34]*128;
-        temp[5] = registers_used[35]*2+registers_used[36]*4+registers_used[37]*8+registers_used[38]*16+registers_used[39]*32+registers_used[40]*64+registers_used[41]*128;
-        temp[6] = registers_used[42]*2+registers_used[43]*4+registers_used[44]*8+registers_used[45]*16+registers_used[46]*32+registers_used[47]*64+registers_used[48]*128;
-        temp[7] = registers_used[49]*2+registers_used[50]*4+registers_used[51]*8+registers_used[52]*16+registers_used[53]*32+registers_used[54]*64+registers_used[55]*128;
-        temp[8] = registers_used[56]+registers_used[57]*2+registers_used[58]*4+registers_used[59]*8+registers_used[60]*16+registers_used[61]*32+registers_used[62]*64+registers_used[63]*128;
-
-        s2 = " reg used ";  //DEBUG info
-        for (i = 0; i < 9; i++) begin  //DEBUG info
-          s2 = {s2, $sformatf("%01x ", temp[i])};  //DEBUG info
-        end  //DEBUG info
-        if (`DEBUG_LEVEL > 1) $display($time, s2);  //DEBUG info
-
-        for (i = 7; i >= 0; i--) begin
-          if (temp[i+1] !== 0) begin
-            temp[i] += 1;
-          end
-          if (old_reg_used[i] != temp[i]) begin
-            switcher_ram_save_address <= physical_process_address + `ADDRESS_REG_USED + i;
-            switcher_ram_save_data_in <= temp[i];
-            switcher_ram_save <= 1;
-            @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
-
-          end
-        end
-
-        //dump registers
-        if (`DEBUG_LEVEL > 1) $display($time, " dump reg");  //DEBUG info
-
-        for (i = 0; i < `REGISTER_NUM; i++) begin
-          if (registers_used[i]) begin
-            switcher_register_read_address <= i;
-            switcher_register_read <= 1;
-            @(posedge switcher_register_read_ready) switcher_register_read <= 0;
-
-            if (old_registers_memory[i] != switcher_register_read_data_out) begin
-              switcher_ram_save_address <= physical_process_address + i + `ADDRESS_REG;
-              switcher_ram_save_data_in <= switcher_register_read_data_out;
-              switcher_ram_save <= 1;
-              @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
-            end
-          end
-        end
+        dump_process_state <= 1;
+        @(posedge dump_process_state_ready) dump_process_state <= 0;
       end
 
       //read next process address
@@ -1103,19 +1168,10 @@ module switcher (
       end
 
       if (switcher_with_removal == 1) begin
-        //update chain of command
-        for (i = 0; i < 4; i++) begin
-          switcher_ram_read_address <= physical_process_address + i + `ADDRESS_NEXT_PROCESS;
-          switcher_ram_read <= 1;
-          @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
 
-          switcher_ram_save_address <= old_physical_process_address + `ADDRESS_NEXT_PROCESS + i;
-          switcher_ram_save_data_in <= switcher_ram_read_data_out;
-          switcher_ram_save <= 1;
-          @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
-        end
+        remove_process_from_chain <= 1;
+        @(posedge remove_process_from_chain_ready) remove_process_from_chain <= 0;
 
-        active_task_num--;
       end
 
       old_physical_process_address = physical_process_address;
@@ -1599,7 +1655,7 @@ module registers (
 
   reg [7:0] registers_memory[`REGISTER_NUM-1:0];
 
-  integer i,j;
+  integer i, j;
   string s2;  //DEBUG info
 
   always @(rst) begin
@@ -1653,10 +1709,10 @@ module registers (
   always @(posedge dump_reg) begin  //DEBUG info
     dump_reg_ready <= 0;  //DEBUG info
     s2 = " reg ";  //DEBUG info
-    j=64;
-    do begin
-	j--;
-    end while (registers_memory[j]==0);
+    j  = 64; //DEBUG info
+    do begin //DEBUG info
+      j--; //DEBUG info
+    end while (registers_memory[j] == 0); //DEBUG info
     for (i = 0; i <= j; i++) begin  //DEBUG info
       s2 = {s2, $sformatf("%02x ", registers_memory[i])};  //DEBUG info
     end  //DEBUG info
