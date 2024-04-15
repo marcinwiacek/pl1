@@ -84,7 +84,7 @@ Done:
 
  * PROC - new process (todo: We need to say, if process is 16, 32 or 64 bit, additionally need to select data and code border)
  * PROC_END - end process
- * REGINT - register interrupt for current process (partially)
+ * REGINT - register interrupt for current process (partially, without memory sharing)
  * INT - execute interrupt (partially)
  * INTRET - return from interrupt (partially)
  
