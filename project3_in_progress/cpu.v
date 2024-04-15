@@ -15,7 +15,6 @@
 `define OPCODE_REG_INT 15
 `define OPCODE_INT 16
 `define OPCODE_INT_RET 17
-
 //invalidate registers
 //invalidate registers after x instructions - delete all in cycles before switcher
 
@@ -447,18 +446,11 @@ module cpu (
       if (started == completed) begin
         mmu_remove_process = 1;
       end
-    end else if (switcher_execute_return_int_should_exec && switcher_execute_return_int == 0) begin
-      if (started == completed) begin
-        switcher_execute_return_int <= 1;
-        @(posedge switcher_execute_return_int_ready)
-        if (started == `OP_PER_TASK && started == completed) begin
-          switcher_with_removal = 0;
-          switcher_exec = 1;  //engage
-        end else if (started < `OP_PER_TASK) begin
-          stage12_exec = 0;
-        end
-      end
     end else begin
+      if (switcher_execute_return_int_should_exec && switcher_execute_return_int == 0 && started == completed) begin
+        switcher_execute_return_int = 1;
+        @(posedge switcher_execute_return_int_ready) switcher_execute_return_int = 1;
+      end
       if (started == `OP_PER_TASK && started == completed) begin
         switcher_with_removal = 0;
         switcher_exec = 1;  //engage
