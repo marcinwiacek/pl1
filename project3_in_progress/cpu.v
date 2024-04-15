@@ -415,7 +415,7 @@ module cpu (
     //    $display($time, " stage12exec completed=", completed, " started=", started);  //DEBUG info
   end
   always @(posedge stage12_exec_ready) begin
-    //if (`DEBUG_LEVEL > 1) 
+    //if (`DEBUG_LEVEL > 1) //DEBUG info
     // $display($time, " posedge stage12execready");  //DEBUG info
     if (complete_instruction) begin
       completed++;
@@ -442,7 +442,6 @@ module cpu (
         switcher_setup_int = 1;
         @(posedge switcher_setup_int_ready) switcher_setup_int = 0;
         stage12_exec = 0;
-        //  $display($time, " switcher setup int should exec");
       end
     end else if (mmu_remove_should_exec) begin
       if (started == completed) begin
@@ -474,7 +473,7 @@ module cpu (
     switcher_exec = 1;  //punch it
   end
   always @(posedge switcher_exec_ready) begin
-    //if (`DEBUG_LEVEL > 1) 
+    //if (`DEBUG_LEVEL > 1) //DEBUG info
     //  $display($time, " posedge switcherexecready");  //DEBUG info
     switcher_exec = 0;
     started = 0;
