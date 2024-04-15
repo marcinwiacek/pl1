@@ -198,7 +198,6 @@ module cpu (
   wire [`MAX_BITS_IN_ADDRESS:0] pc;
   wire [`MAX_BITS_IN_ADDRESS:0] physical_process_address;
   wire [`REGISTER_NUM-1:0] registers_used;
-  reg [7:0] executed;
   reg switcher_exec;
   wire switcher_exec_ready;
   reg switcher_with_removal;
@@ -212,6 +211,9 @@ module cpu (
   wire switcher_execute_return_int;
   wire switcher_execute_return_int_ready;
   wire [7:0] switcher_execute_return_int_number;
+
+  reg [4:0] started;
+  reg [4:0] completed;
 
   switcher switcher (
       .rst(rst),
@@ -252,28 +254,17 @@ module cpu (
   );
 
   //fetch & decode
-  reg stage12_exec;
+  reg  stage12_exec;
   wire stage12_exec_ready;
-  wire [`MAX_BITS_IN_ADDRESS:0] stage3_source_ram_address;  //address, which we should read
-  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage3_target_register_start;
-  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage3_target_register_length;
-  wire stage4_should_exec;
-  wire [15:0] stage4_oper;
-  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage4_register_A_start;
-  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage4_register_B_start;
-  wire [15:0] stage4_value_B;
-  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage4_register_out_start;
-  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage4_register_length;
-  wire stage5_should_exec;  //should we do it?
-  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage5_source_register_start;
-  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage5_source_register_length;
-  wire [`MAX_BITS_IN_ADDRESS:0] stage5_target_ram_address;
+
+  wire complete_instruction;
   wire mmu_remove_should_exec;
 
   stage12 stage12 (
-  .rst(rst),
+      .rst(rst),
       .stage12_exec(stage12_exec),
       .stage12_exec_ready(stage12_exec_ready),
+      .complete_instruction(complete_instruction),
       .pc(pc),
       .start_pc_after_task_switch(start_pc_after_task_switch),
       .physical_process_address(physical_process_address),
@@ -290,19 +281,21 @@ module cpu (
       .mmu_split_process_start(mmu_split_process_start),
       .mmu_split_process_end(mmu_split_process_end),
       .mmu_remove_should_exec(mmu_remove_should_exec),
-        .stage3_exec(stage3_exec),
+      .stage3_exec(stage3_exec),
       .stage3_exec_ready(stage3_exec_ready),
       .stage3_source_ram_address(stage3_source_ram_address),
       .stage3_target_register_start(stage3_target_register_start),
       .stage3_target_register_length(stage3_target_register_length),
-      .stage4_should_exec(stage4_should_exec),
+      .stage4_exec(stage4_exec),
+      .stage4_exec_ready(stage4_exec_ready),
       .stage4_oper(stage4_oper),
       .stage4_register_A_start(stage4_register_A_start),
       .stage4_register_B_start(stage4_register_B_start),
       .stage4_value_B(stage4_value_B),
       .stage4_register_out_start(stage4_register_out_start),
       .stage4_register_length(stage4_register_length),
-      .stage5_should_exec(stage5_should_exec),
+      .stage5_exec(stage5_exec),
+      .stage5_exec_ready(stage5_exec_ready),
       .stage5_source_register_start(stage5_source_register_start),
       .stage5_source_register_length(stage5_source_register_length),
       .stage5_target_ram_address(stage5_target_ram_address),
@@ -319,7 +312,12 @@ module cpu (
   );
 
   //ram read
+  wire stage3_exec;
   wire stage3_exec_ready;
+
+  wire [`MAX_BITS_IN_ADDRESS:0] stage3_source_ram_address;  //address, which we should read
+  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage3_target_register_start;
+  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage3_target_register_length;
 
   stage3 stage3 (
       .stage3_exec(stage3_exec),
@@ -340,8 +338,15 @@ module cpu (
   );
 
   //alu
-  reg  stage4_exec;
+  wire stage4_exec;
   wire stage4_exec_ready;
+
+  wire [15:0] stage4_oper;
+  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage4_register_A_start;
+  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage4_register_B_start;
+  wire [15:0] stage4_value_B;
+  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage4_register_out_start;
+  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage4_register_length;
 
   stage4 stage4 (
       .stage4_exec(stage4_exec),
@@ -365,8 +370,12 @@ module cpu (
   );
 
   //ram save
-  reg  stage5_exec;
+  wire stage5_exec;
   wire stage5_exec_ready;
+
+  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage5_source_register_start;
+  wire [`MAX_BITS_IN_REGISTER_NUM:0] stage5_source_register_length;
+  wire [`MAX_BITS_IN_ADDRESS:0] stage5_target_ram_address;
 
   stage5 stage5 (
       .stage5_exec(stage5_exec),
@@ -388,92 +397,62 @@ module cpu (
 
   always @(rst) begin
     if (`DEBUG_LEVEL > 1) $display($time, " reset1");  //DEBUG info
-    executed = 0;
     switcher_exec = 0;
-    stage12_exec = 1;  //punch it
+    started = 0;
+    completed = 0;
   end
   always @(negedge stage12_exec) begin
     if (`DEBUG_LEVEL > 1) $display($time, " negedge stage12exec");  //DEBUG info
-    stage12_exec = 1;  //force it to start again
+    stage12_exec = 1;  //make it so
+    started++;
   end
   always @(posedge stage12_exec_ready) begin
-    if (`DEBUG_LEVEL > 1)  //DEBUG info
-      $display(  //DEBUG info
-          $time, " posedge stage12execready "  //DEBUG info
-      );  //DEBUG info
-    if (mmu_remove_should_exec) begin
-      mmu_remove_process = 1;
-    end else begin
-      executed++;
-     // if (stage3_should_exec) begin
-//        stage3_exec = 1;  // start when necessary
-//      end
-      if (stage4_should_exec) begin
-        stage4_exec = 1;  // start when necessary
-      end
-      if (stage5_should_exec) begin
-        stage5_exec = 1;  // start when necessary
-      end
-      if (!stage4_should_exec && !stage5_should_exec && executed == `OP_PER_TASK) begin
-        if (`DEBUG_LEVEL > 1)  //DEBUG info
-          $display($time, " switcher should exec12 ", executed, " ", switcher_exec);  //DEBUG info
-        switcher_with_removal = 0;
-        switcher_exec = 1;  //engage
-      end
-      if (executed < `OP_PER_TASK) stage12_exec = 0;
+    if (`DEBUG_LEVEL > 1) $display($time, " posedge stage12execready");  //DEBUG info
+    if (complete_instruction) begin
+      completed++;
     end
   end
   always @(posedge stage3_exec_ready) begin
-    if (`DEBUG_LEVEL > 1) $display($time, " posedge stage3execready");  //DEBUG info
-    dump_reg <= 1;  //DEBUG info
-    @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
-    if (executed == `OP_PER_TASK) begin
-      switcher_with_removal = 0;
-      switcher_exec = 1;  //make it so
-      if (`DEBUG_LEVEL > 1)  //DEBUG info
-        $display($time, " switcher should exec3 ", executed, " ", switcher_exec);  //DEBUG info
-    end
-   // stage3_exec = 0;
+    completed++;
   end
   always @(posedge stage4_exec_ready) begin
-    if (`DEBUG_LEVEL > 1) $display($time, " posedge stage4execready");  //DEBUG info
-    dump_reg <= 1;  //DEBUG info
-    @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
-    if (executed == `OP_PER_TASK) begin
-      switcher_with_removal = 0;
-      switcher_exec = 1;
-      if (`DEBUG_LEVEL > 1)  //DEBUG info
-        $display($time, " switcher should exec4 ", executed, " ", switcher_exec);  //DEBUG info
-    end
-    stage4_exec = 0;
+    completed++;
   end
   always @(posedge stage5_exec_ready) begin
-    if (`DEBUG_LEVEL > 1) $display($time, " posedge stage5execready");  //DEBUG info
-    if (executed == `OP_PER_TASK) begin
+    completed++;
+  end
+  always @(completed) begin
+    if (`DEBUG_LEVEL > 1) //DEBUG info
+      $display($time, " completed=", completed, " started=", started);  //DEBUG info
+    if (mmu_remove_should_exec && started == completed) begin
+      mmu_remove_process = 1;
+    end else if (started == `OP_PER_TASK && started == completed) begin
+      dump_reg <= 1;  //DEBUG info
+      @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
       switcher_with_removal = 0;
-      switcher_exec = 1;
-      if (`DEBUG_LEVEL > 1)  //DEBUG info
-        $display($time, " switcher should exec5 ", executed, " ", switcher_exec);  //DEBUG info
+      switcher_exec = 1;  //engage
+    end else if (started < `OP_PER_TASK) begin
+      stage12_exec = 0;
     end
-    stage5_exec = 0;
+  end
+  always @(posedge mmu_remove_process_ready) begin
+    if (`DEBUG_LEVEL > 1) $display($time, " posedge mmuremoveexecready");  //DEBUG info
+    switcher_with_removal = 1;
+    switcher_exec = 1;  //punch it
   end
   always @(posedge switcher_exec_ready) begin
     if (`DEBUG_LEVEL > 1) $display($time, " posedge switcherexecready");  //DEBUG info
     dump_reg <= 1;  //DEBUG info
     @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
-    executed = 0;
     switcher_exec = 0;
+    started = 0;
+    completed = 0;
     stage12_exec = 0;
-  end
-  always @(posedge mmu_remove_process_ready) begin
-    if (`DEBUG_LEVEL > 1) $display($time, " posedge mmuremoveexecready");  //DEBUG info
-    switcher_with_removal = 1;
-    switcher_exec = 1;
   end
 endmodule
 
 module stage12 (
-input rst,
+    input rst,
 
     input [`MAX_BITS_IN_ADDRESS:0] start_pc_after_task_switch,
     input [`MAX_BITS_IN_ADDRESS:0] physical_process_address,
@@ -481,6 +460,7 @@ input rst,
 
     input stage12_exec,
     output reg stage12_exec_ready,
+    output reg complete_instruction,
 
     output reg mmu_split_process,
     input mmu_split_process_ready,
@@ -505,7 +485,8 @@ input rst,
     output reg [`MAX_BITS_IN_REGISTER_NUM:0] stage3_target_register_start,
     output reg [`MAX_BITS_IN_REGISTER_NUM:0] stage3_target_register_length,
 
-    output reg stage4_should_exec,
+    output reg stage4_exec,
+    input stage4_exec_ready,
     output reg [15:0] stage4_oper,
     output reg [`MAX_BITS_IN_REGISTER_NUM:0] stage4_register_A_start,
     output reg [`MAX_BITS_IN_REGISTER_NUM:0] stage4_register_B_start,
@@ -513,7 +494,8 @@ input rst,
     output reg [`MAX_BITS_IN_REGISTER_NUM:0] stage4_register_out_start,
     output reg [`MAX_BITS_IN_REGISTER_NUM:0] stage4_register_length,
 
-    output reg stage5_should_exec,
+    output reg stage5_exec,
+    input stage5_exec_ready,
     output reg [`MAX_BITS_IN_REGISTER_NUM:0] stage5_source_register_start,
     output reg [`MAX_BITS_IN_REGISTER_NUM:0] stage5_source_register_length,
     output reg [`MAX_BITS_IN_ADDRESS:0] stage5_target_ram_address,
@@ -531,24 +513,34 @@ input rst,
 
   reg [7:0] instruction[0:3];
 
- always @(rst) begin
+  always @(rst) begin
     stage3_exec = 0;
+    stage4_exec = 0;
+    stage5_exec = 0;
   end
-  
+
   always @(physical_process_address) begin
     pc = start_pc_after_task_switch;
     if (`DEBUG_LEVEL > 1) $display($time, " new pc ", start_pc_after_task_switch);  //DEBUG info
   end
-  
-   always @(posedge stage3_exec_ready) begin
-     stage3_exec = 0;
+
+  always @(posedge stage3_exec_ready) begin
+    if (`DEBUG_LEVEL > 1) $display($time, " posedge stage3execready");  //DEBUG info
+    stage3_exec = 0;
+  end
+  always @(posedge stage4_exec_ready) begin
+    if (`DEBUG_LEVEL > 1) $display($time, " posedge stage4execready");  //DEBUG info
+    stage4_exec = 0;
+  end
+  always @(posedge stage5_exec_ready) begin
+    if (`DEBUG_LEVEL > 1) $display($time, " posedge stage5execready");  //DEBUG info
+    stage5_exec = 0;
   end
 
   always @(posedge stage12_exec) begin
     stage12_exec_ready <= 0;
-    stage4_should_exec <= 0;
-    stage5_should_exec <= 0;
     mmu_remove_should_exec <= 0;
+    complete_instruction = 1;
     if (`DEBUG_LEVEL > 1) $display($time, " executing pc ", pc);  //DEBUG info
 
     stage12_ram_read_address <= pc;
@@ -588,8 +580,7 @@ input rst,
       instruction[3] = stage12_ram_read_data_out;
 
       if (instruction[0] == `OPCODE_LOAD_FROM_RAM) begin
-        if (stage3_exec) @(stage3_exec_ready)
-        stage3_exec = 0;
+        if (stage3_exec) @(stage3_exec_ready) stage3_exec = 0;
         stage3_target_register_start = instruction[1];
         stage3_target_register_length = instruction[2];
         stage3_source_ram_address = instruction[3];
@@ -598,14 +589,14 @@ input rst,
                  , " bytes from RAM address ", stage3_source_ram_address,  //DEBUG info
                  "+ and save to register "  //DEBUG info
                  , stage3_target_register_start, "+");  //DEBUG info
+        complete_instruction = 0;
         stage3_exec = 1;
       end else if (instruction[0] == `OPCODE_READ_FROM_RAM) begin
         stage12_register_read_address <= instruction[3];
         stage12_register_read <= 1;
         @(posedge stage12_register_read_ready) stage12_register_read <= 0;
 
-	if (stage3_exec) @(stage3_exec_ready)
-	stage3_exec = 0;
+        if (stage3_exec) @(stage3_exec_ready) stage3_exec = 0;
         stage3_target_register_start = instruction[1];
         stage3_target_register_length = instruction[2];
         stage3_source_ram_address = stage12_register_read_data_out;
@@ -615,8 +606,10 @@ input rst,
                  , " bytes from RAM address ", stage3_source_ram_address,  //DEBUG info
                  "+ and save to register "  //DEBUG info
                  , stage3_target_register_start, "+");  //DEBUG info
+        complete_instruction = 0;
         stage3_exec = 1;
       end else if (instruction[0] == `OPCODE_WRITE_TO_RAM) begin
+        if (stage5_exec) @(stage5_exec_ready) stage5_exec = 0;
         stage5_source_register_start = instruction[1];
         stage5_source_register_length = instruction[2];
         stage5_target_ram_address = instruction[3];
@@ -624,12 +617,14 @@ input rst,
                  instruction[3], "   WRITETORAM ", stage5_source_register_length,  //DEBUG info
                  " bytes from register ", stage5_source_register_start,  //DEBUG info
                  "+ and save to RAM address ", stage5_target_ram_address, "+");  //DEBUG info
-        stage5_should_exec <= 1;
+        complete_instruction = 0;
+        stage5_exec = 1;
       end else if (instruction[0] == `OPCODE_SAVE_TO_RAM) begin
         stage12_register_read_address <= instruction[3];
         stage12_register_read <= 1;
         @(posedge stage12_register_read_ready) stage12_register_read <= 0;
 
+        if (stage5_exec) @(stage5_exec_ready) stage5_exec = 0;
         stage5_source_register_start = instruction[1];
         stage5_source_register_length = instruction[2];
         stage5_target_ram_address = stage12_register_read_data_out;
@@ -637,8 +632,10 @@ input rst,
                  instruction[3], "   SAVETORAM ", stage5_source_register_length,  //DEBUG info
                  " bytes from register ", stage5_source_register_start,  //DEBUG info
                  "+ and save to RAM address ", stage5_target_ram_address, "+");  //DEBUG info
-        stage5_should_exec <= 1;
+        complete_instruction = 0;
+        stage5_exec = 1;
       end else if (instruction[0] == `OPCODE_ADD8) begin
+        if (stage4_exec) @(stage4_exec_ready) stage4_exec = 0;
         stage4_oper = `OPER_ADD;
         stage4_register_A_start = instruction[1];
         stage4_register_B_start = instruction[1];
@@ -648,8 +645,10 @@ input rst,
                  instruction[3], "   ADD8 add register ", stage4_register_A_start,  //DEBUG info
                  "+ to register ", stage4_register_B_start, " and save to register ",  //DEBUG info
                  stage4_register_out_start, "+, len ", stage4_register_length);  //DEBUG info
-        stage4_should_exec <= 1;
+        complete_instruction = 0;
+        stage4_exec = 1;
       end else if (instruction[0] == `OPCODE_ADD_NUM8) begin
+        if (stage4_exec) @(stage4_exec_ready) stage4_exec = 0;
         stage4_oper = `OPER_ADDNUM;
         stage4_register_A_start = instruction[1];
         stage4_value_B = instruction[1];
@@ -661,8 +660,10 @@ input rst,
             , stage4_register_A_start, " and save to register ",  //DEBUG info
             stage4_register_out_start  //DEBUG info
             , "+, len ", stage4_register_length);  //DEBUG info
-        stage4_should_exec <= 1;
+        complete_instruction = 0;
+        stage4_exec = 1;
       end else if (instruction[0] == `OPCODE_SET8) begin
+        if (stage4_exec) @(stage4_exec_ready) stage4_exec = 0;
         stage4_oper = `OPER_SETNUM;
         //stage4_register_A_start=instruction[1];
         stage4_value_B = 0;
@@ -674,7 +675,8 @@ input rst,
             stage4_register_A_start, " and save to register ",  //DEBUG info
             stage4_register_out_start  //DEBUG info
             , "+, len ", stage4_register_length);  //DEBUG info
-        stage4_should_exec <= 1;
+        complete_instruction = 0;
+        stage4_exec = 1;
       end else if (instruction[0] == `OPCODE_PROC) begin
         $display(  //DEBUG info
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
