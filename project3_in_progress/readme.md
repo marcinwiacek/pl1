@@ -84,12 +84,11 @@ Done:
 
  * PROC - new process (todo: We need to say, if process is 16, 32 or 64 bit, additionally need to select data and code border)
  * PROC_END - end process
+ * REGINT - register interrupt for current process (partially)
+ * INT - execute interrupt (partially)
+ * INTRET - return from interrupt (partially)
  
 TODO:
-
- 1. REGINT - register interrupt for current process
- 2. INT - execute interrupt
- 3. INTRET - return from interrupt
  5. FREERAMBLOCK
  6. REGINPORT - register code for input port support
  7. INPORTRET - return from input port support
