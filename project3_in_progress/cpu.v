@@ -1089,9 +1089,8 @@ module switcher (
 
   always @(posedge switcher_setup_int) begin
     switcher_setup_int_ready <= 0;
-    $display($time, " setup int");
     if (int_process_address[switcher_setup_int_number] == 1) begin
-      $display($time, " setup int");
+      $display($time, " setup int ",switcher_setup_int_number," with process with address ",physical_process_address);
       int_process_address[switcher_setup_int_number] = physical_process_address;
 
       //save current process state
@@ -1114,7 +1113,7 @@ module switcher (
       //switch to next process
       physical_process_address = temp_new_process_address;
     end
-    $display($time, " end setup int");
+    $display($time, " end setup int, returned to process ",physical_process_address);
     switcher_setup_int_ready <= 1;
   end
 
@@ -1122,15 +1121,17 @@ module switcher (
     switcher_execute_return_int_ready <= 0;
     if (int_process_address[switcher_execute_return_int_number] !== 1) begin
 
-      $display($time, " execute/return int - process address ",  //DEBUG info
+      $display($time, " execute/return int - calling process address ",  //DEBUG info
                physical_process_address,  //DEBUG info
                " int process - ",  //DEBUG info
                int_process_address[switcher_execute_return_int_number]);  //DEBUG info
 
+  $display($time, " end execute/return inta");
       //save current process state
       dump_process_state <= 1;
       @(posedge dump_process_state_ready) dump_process_state <= 0;
 
+  $display($time, " end execute/return intb");
       //read next process address
       j = 0;
       for (i = 0; i < 4; i++) begin
@@ -1141,36 +1142,42 @@ module switcher (
       end
       temp_new_process_address = j;
 
-      //update chain of command
-      for (i = 0; i < 4; i++) begin
-        switcher_ram_read_address <= physical_process_address + i;
-        switcher_ram_read <= 1;
-        @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
-
-        switcher_ram_save_address <= int_process_address[switcher_execute_return_int_number] + `ADDRESS_NEXT_PROCESS + i;
-        switcher_ram_save_data_in <= switcher_ram_read_data_out;
-        switcher_ram_save <= 1;
-        @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
-      end
-
-      //fixme! - update all 4 bytes
+  $display($time, " end execute/return int1");
+ //fixme! - update all 4 bytes
       switcher_ram_save_address <= old_physical_process_address + `ADDRESS_NEXT_PROCESS + 0;
-      switcher_ram_save_data_in <= physical_process_address % 256;
+      switcher_ram_save_data_in <= int_process_address[switcher_execute_return_int_number] % 256;
       switcher_ram_save <= 1;
       @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
 
       switcher_ram_save_address <= old_physical_process_address + `ADDRESS_NEXT_PROCESS + 1;
-      switcher_ram_save_data_in <= physical_process_address / 256;
+      switcher_ram_save_data_in <= int_process_address[switcher_execute_return_int_number] / 256;
       switcher_ram_save <= 1;
       @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
 
-      read_new_process_state <= 1;
-      @(posedge read_new_process_state_ready) read_new_process_state <= 0;
+  $display($time, " end execute/return int2");
+
+      //fixme! update all 4 bytes
+        switcher_ram_save_address <= int_process_address[switcher_execute_return_int_number] + `ADDRESS_NEXT_PROCESS + 0;
+        switcher_ram_save_data_in <= temp_new_process_address % 256;
+        switcher_ram_save <= 1;
+        @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
+        
+         switcher_ram_save_address <= int_process_address[switcher_execute_return_int_number] + `ADDRESS_NEXT_PROCESS + 1;
+        switcher_ram_save_data_in <= temp_new_process_address / 256;
+        switcher_ram_save <= 1;
+        @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
+
+  $display($time, " end execute/return int3");
 
       //switch to next process and change int vector
-      old_physical_process_address = int_process_address[switcher_setup_int_number];
+   temp_new_process_address =  int_process_address[switcher_setup_int_number];
       int_process_address[switcher_setup_int_number] = physical_process_address;
       physical_process_address = temp_new_process_address;
+      
+        $display($time, " end execute/return int4");
+
+        read_new_process_state <= 1;
+      @(posedge read_new_process_state_ready) read_new_process_state <= 0;
     end
     $display($time, " end execute/return int - process address ",  //DEBUG info
              physical_process_address,  //DEBUG info
