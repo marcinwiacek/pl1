@@ -209,6 +209,10 @@ module cpu (
   wire switcher_setup_int_ready;
   wire [7:0] switcher_setup_int_number;
 
+  wire switcher_execute_return_int;
+  wire switcher_execute_return_int_ready;
+  wire [7:0] switcher_execute_return_int_number;
+
   switcher switcher (
       .rst(rst),
       .start_pc_after_task_switch(start_pc_after_task_switch),
@@ -224,6 +228,9 @@ module cpu (
       .switcher_setup_int(witcher_setup_int),
       .switcher_setup_int_ready(switcher_setup_int_ready),
       .switcher_setup_int_number(switcher_setup_int_number),
+      .switcher_execute_return_int(switcher_execute_return_int),
+      .switcher_execute_return_int_ready(switcher_execute_return_int_ready),
+      .switcher_execute_return_int_number(switcher_execute_return_int_number),
       //registers
       .switcher_register_save(switcher_register_save),
       .switcher_register_save_ready(switcher_register_save_ready),
@@ -275,6 +282,9 @@ module cpu (
       .switcher_setup_int(witcher_setup_int),
       .switcher_setup_int_ready(switcher_setup_int_ready),
       .switcher_setup_int_number(switcher_setup_int_number),
+      .switcher_execute_return_int(switcher_execute_return_int),
+      .switcher_execute_return_int_ready(switcher_execute_return_int_ready),
+      .switcher_execute_return_int_number(switcher_execute_return_int_number),
       .mmu_split_process(mmu_split_process),
       .mmu_split_process_ready(mmu_split_process_ready),
       .mmu_split_process_start(mmu_split_process_start),
@@ -483,6 +493,10 @@ module stage12 (
     input switcher_setup_int_ready,
     output reg [7:0] switcher_setup_int_number,
 
+    output reg switcher_execute_return_int,
+    input switcher_execute_return_int_ready,
+    output reg [7:0] switcher_execute_return_int_number,
+
     output reg stage3_should_exec,
     output reg [`MAX_BITS_IN_ADDRESS:0] stage3_source_ram_address,
     output reg [`MAX_BITS_IN_REGISTER_NUM:0] stage3_target_register_start,
@@ -675,7 +689,7 @@ module stage12 (
         $display(  //DEBUG info
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
             instruction[3],  //DEBUG info
-            "   REGINT register interrupt ");  //DEBUG info
+            "   REGINT register interrupt ", instruction[1]);  //DEBUG info
         switcher_setup_int_number = instruction[1];
         switcher_setup_int <= 1;
         @(posedge switcher_setup_int_ready) switcher_setup_int <= 0;
@@ -683,12 +697,18 @@ module stage12 (
         $display(  //DEBUG info
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
             instruction[3],  //DEBUG info
-            "   INT interrupt ");  //DEBUG info
+            "   INT interrupt ", instruction[1]);  //DEBUG info
+        switcher_execute_return_int_number = instruction[1];
+        switcher_execute_return_int <= 1;
+        @(posedge switcher_execute_return_int_ready) switcher_execute_return_int <= 0;
       end else if (instruction[0] == `OPCODE_INT_RET) begin
         $display(  //DEBUG info
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
             instruction[3],  //DEBUG info
-            "   INTRET return from interrupt ");  //DEBUG info            
+            "   INTRET return from interrupt ", instruction[1]);  //DEBUG info            
+        switcher_execute_return_int_number = instruction[1];
+        switcher_execute_return_int <= 1;
+        @(posedge switcher_execute_return_int_ready) switcher_execute_return_int <= 0;
       end else if (  instruction[0] !== `OPCODE_JUMP_MINUS && instruction[0] !== `OPCODE_JUMP_PLUS && instruction[0] !== `OPCODE_PROC_END) begin
         $display(  //DEBUG info
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
