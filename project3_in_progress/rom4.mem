@@ -1,4 +1,4 @@
-//two concurrent tasks
+//example with int / int_ret
 00 00 00 00 //next process address (physical, without MMU)
 54 00 00 00 //pc address (logical)
 00 00 00 00 //register used
@@ -26,7 +26,7 @@
 04 00 05 04 //ADD8
 06 05 05 03 //ADD_NUM8
 //09 0a 05 00 //SET8
-//10 01 00 00 //INT
+10 01 00 00 //INT
 02 04 07 08 //JUMP_MINUS to LOAD_FROM_RAM
 01 02 03 04
 05 06 07 08
@@ -64,11 +64,11 @@
 00 00 00 00
 00 00 00 00
 00 00 00 00
-00 00 00 00
 //0b 00 00 00 //PROC_END
-//0f 01 00 00 //REG_INT
+0f 01 00 00 //REG_INT
 01 00 05 05 //LOAD_FROM_RAM
-//11 01 02 00 //INT_RET
+01 00 06 06 //LOAD_FROM_RAM
+11 01 02 00 //INT_RET
 01 00 04 04 //LOAD_FROM_RAM
 03 02 01 30 //WRITE_TO_RAM
 04 00 05 04 //ADD8

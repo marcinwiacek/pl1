@@ -208,8 +208,8 @@ module cpu (
   reg switcher_setup_int_ready;
   wire [7:0] switcher_setup_int_number;
 
-  wire switcher_execute_return_int;
-  wire switcher_execute_return_int_ready;
+  reg switcher_execute_return_int;
+  reg switcher_execute_return_int_ready;
   wire [7:0] switcher_execute_return_int_number;
 
   reg [4:0] started;
@@ -234,7 +234,7 @@ module cpu (
       .switcher_execute_return_int_ready(switcher_execute_return_int_ready),
       .switcher_execute_return_int_number(switcher_execute_return_int_number),
       //registers
-        .dump_reg(dump_reg),  //DEBUG info
+      .dump_reg(dump_reg),  //DEBUG info
       .dump_reg_ready(dump_reg_ready),  //DEBUG info
       .switcher_register_save(switcher_register_save),
       .switcher_register_save_ready(switcher_register_save_ready),
@@ -262,6 +262,7 @@ module cpu (
   wire complete_instruction;
   wire mmu_remove_should_exec;
   wire switcher_setup_int_should_exec;
+  wire switcher_execute_return_int_should_exec;
 
   stage12 stage12 (
       .rst(rst),
@@ -271,13 +272,16 @@ module cpu (
       .pc(pc),
       .start_pc_after_task_switch(start_pc_after_task_switch),
       .physical_process_address(physical_process_address),
+
       .switcher_split_process(switcher_split_process),
       .switcher_split_process_ready(switcher_split_process_ready),
+
       .switcher_setup_int_should_exec(switcher_setup_int_should_exec),
       .switcher_setup_int_number(switcher_setup_int_number),
-      .switcher_execute_return_int(switcher_execute_return_int),
-      .switcher_execute_return_int_ready(switcher_execute_return_int_ready),
+
+      .switcher_execute_return_int_should_exec(switcher_execute_return_int_should_exec),
       .switcher_execute_return_int_number(switcher_execute_return_int_number),
+
       .mmu_split_process(mmu_split_process),
       .mmu_split_process_ready(mmu_split_process_ready),
       .mmu_split_process_start(mmu_split_process_start),
@@ -405,42 +409,63 @@ module cpu (
   end
   always @(negedge stage12_exec) begin
     if (`DEBUG_LEVEL > 1) $display($time, " negedge stage12exec");  //DEBUG info
+    switcher_execute_return_int = 0;
     stage12_exec = 1;  //make it so
     started++;
+    //    $display($time, " stage12exec completed=", completed, " started=", started);  //DEBUG info
   end
   always @(posedge stage12_exec_ready) begin
-    if (`DEBUG_LEVEL > 1) $display($time, " posedge stage12execready");  //DEBUG info
+    //if (`DEBUG_LEVEL > 1) 
+    // $display($time, " posedge stage12execready");  //DEBUG info
     if (complete_instruction) begin
       completed++;
+      //     $display($time, " stage12execready completed=", completed, " started=", started);  //DEBUG info
     end
   end
   always @(posedge stage3_exec_ready) begin
     completed++;
+    //  $display($time, " stage3exec completed=", completed, " started=", started);  //DEBUG info
   end
   always @(posedge stage4_exec_ready) begin
     completed++;
+    //  $display($time, " stage4exec completed=", completed, " started=", started);  //DEBUG info
   end
   always @(posedge stage5_exec_ready) begin
     completed++;
+    //  $display($time, " stage5exec completed=", completed, " started=", started);  //DEBUG info
   end
   always @(completed) begin
-    if (`DEBUG_LEVEL > 1) //DEBUG info
-      $display($time, " completed=", completed, " started=", started);  //DEBUG info
+    //  if (`DEBUG_LEVEL > 1)  //DEBUG info
+    //  $display($time, " completed completed=", completed, " started=", started);  //DEBUG info
     if (switcher_setup_int_should_exec) begin
-    $display($time, " strating");
-    switcher_setup_int = 1;
-      @(posedge switcher_setup_int_ready) switcher_setup_int = 0;
-       started = 0;
-	completed = 0;
-	    stage12_exec = 0;
-    $display($time, " strating");
-    end else if (mmu_remove_should_exec && started == completed) begin
-      mmu_remove_process = 1;
-    end else if (started == `OP_PER_TASK && started == completed) begin
-      switcher_with_removal = 0;
-      switcher_exec = 1;  //engage
-    end else if (started < `OP_PER_TASK) begin
-      stage12_exec = 0;
+      if (started == completed) begin
+        switcher_setup_int = 1;
+        @(posedge switcher_setup_int_ready) switcher_setup_int = 0;
+        stage12_exec = 0;
+        //  $display($time, " switcher setup int should exec");
+      end
+    end else if (mmu_remove_should_exec) begin
+      if (started == completed) begin
+        mmu_remove_process = 1;
+      end
+    end else if (switcher_execute_return_int_should_exec && switcher_execute_return_int == 0) begin
+      if (started == completed) begin
+        switcher_execute_return_int <= 1;
+        @(posedge switcher_execute_return_int_ready)
+        if (started == `OP_PER_TASK && started == completed) begin
+          switcher_with_removal = 0;
+          switcher_exec = 1;  //engage
+        end else if (started < `OP_PER_TASK) begin
+          stage12_exec = 0;
+        end
+      end
+    end else begin
+      if (started == `OP_PER_TASK && started == completed) begin
+        switcher_with_removal = 0;
+        switcher_exec = 1;  //engage
+      end else if (started < `OP_PER_TASK) begin
+        stage12_exec = 0;
+      end
     end
   end
   always @(posedge mmu_remove_process_ready) begin
@@ -449,7 +474,8 @@ module cpu (
     switcher_exec = 1;  //punch it
   end
   always @(posedge switcher_exec_ready) begin
-    if (`DEBUG_LEVEL > 1) $display($time, " posedge switcherexecready");  //DEBUG info
+    //if (`DEBUG_LEVEL > 1) 
+    //  $display($time, " posedge switcherexecready");  //DEBUG info
     switcher_exec = 0;
     started = 0;
     completed = 0;
@@ -480,8 +506,7 @@ module stage12 (
     output reg switcher_setup_int_should_exec,
     output reg [7:0] switcher_setup_int_number,
 
-    output reg switcher_execute_return_int,
-    input switcher_execute_return_int_ready,
+    output reg switcher_execute_return_int_should_exec,
     output reg [7:0] switcher_execute_return_int_number,
 
     output reg stage3_exec,
@@ -545,7 +570,8 @@ module stage12 (
   always @(posedge stage12_exec) begin
     stage12_exec_ready <= 0;
     mmu_remove_should_exec <= 0;
-        switcher_setup_int_should_exec = 0;
+    switcher_setup_int_should_exec = 0;
+    switcher_execute_return_int_should_exec = 0;
     complete_instruction = 1;
     if (`DEBUG_LEVEL > 1) $display($time, " executing pc ", pc);  //DEBUG info
 
@@ -720,16 +746,15 @@ module stage12 (
             instruction[3],  //DEBUG info
             "   INT interrupt ", instruction[1]);  //DEBUG info
         switcher_execute_return_int_number = instruction[1];
-        switcher_execute_return_int <= 1;
-        @(posedge switcher_execute_return_int_ready) switcher_execute_return_int <= 0;
+        switcher_execute_return_int_should_exec = 1;
       end else if (instruction[0] == `OPCODE_INT_RET) begin
         $display(  //DEBUG info
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
             instruction[3],  //DEBUG info
             "   INTRET return from interrupt ", instruction[1]);  //DEBUG info            
+        pc -= (4 + instruction[2] * 4);
         switcher_execute_return_int_number = instruction[1];
-        switcher_execute_return_int <= 1;
-        @(posedge switcher_execute_return_int_ready) switcher_execute_return_int <= 0;
+        switcher_execute_return_int_should_exec = 1;
       end else if (  instruction[0] !== `OPCODE_JUMP_MINUS && instruction[0] !== `OPCODE_JUMP_PLUS && instruction[0] !== `OPCODE_PROC_END) begin
         $display(  //DEBUG info
             $time, instruction[0], " ", instruction[1], " ", instruction[2], " ",  //DEBUG info
@@ -895,7 +920,7 @@ module switcher (
     //registers
     output reg dump_reg,  //DEBUG info
     input dump_reg_ready,  //DEBUG info
-    
+
     output reg switcher_register_save,
     input switcher_register_save_ready,
     output reg [`MAX_BITS_IN_REGISTER_NUM:0] switcher_register_save_address,
@@ -947,6 +972,23 @@ module switcher (
    switcher_ram_save_data_in <= VALUE; \
    switcher_ram_save <= 1; \
    @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
+
+  always @(rst) begin
+    if (`DEBUG_LEVEL > 1) $display($time, " reset2");  //DEBUG info
+    physical_process_address = 0;
+    old_physical_process_address = 0;
+    active_task_num = 1;
+    start_pc_after_task_switch = `ADDRESS_PROGRAM;
+    for (i = 0; i < 9; i++) begin
+      old_reg_used[i] = 0;
+    end
+    for (i = 0; i < `REGISTER_NUM; i++) begin
+      old_registers_memory[i] = 0;
+    end
+    for (i = 0; i < 256; i++) begin
+      int_process_address[i] = 1;
+    end
+  end
 
   always @(posedge dump_process_state) begin
     dump_process_state_ready <= 0;
@@ -1073,7 +1115,6 @@ module switcher (
     read_new_process_state_ready <= 1;
   end
 
-
   always @(posedge remove_process_from_chain) begin
     remove_process_from_chain_ready <= 0;
 
@@ -1094,25 +1135,7 @@ module switcher (
     remove_process_from_chain_ready <= 1;
   end
 
-  always @(rst) begin
-    if (`DEBUG_LEVEL > 1) $display($time, " reset2");  //DEBUG info
-    physical_process_address = 0;
-    old_physical_process_address = 0;
-    active_task_num = 1;
-    start_pc_after_task_switch = `ADDRESS_PROGRAM;
-    for (i = 0; i < 9; i++) begin
-      old_reg_used[i] = 0;
-    end
-    for (i = 0; i < `REGISTER_NUM; i++) begin
-      old_registers_memory[i] = 0;
-    end
-    for (i = 0; i < 256; i++) begin
-      int_process_address[i] = 1;
-    end
-  end
-
   always @(posedge switcher_setup_int) begin
-   $display($time, " strating2");
     switcher_setup_int_ready <= 0;
     if (int_process_address[switcher_setup_int_number] == 1) begin
       $display($time, " setup int ", switcher_setup_int_number, " with process with address ",
@@ -1136,16 +1159,17 @@ module switcher (
       remove_process_from_chain <= 1;
       @(posedge remove_process_from_chain_ready) remove_process_from_chain <= 0;
 
+      read_new_process_state <= 1;
+      @(posedge read_new_process_state_ready) read_new_process_state <= 0;
+
       //switch to next process
       physical_process_address = temp_new_process_address;
-      
-         read_new_process_state <= 1;
-      @(posedge read_new_process_state_ready) read_new_process_state <= 0;
-      
-         dump_reg <= 1;  //DEBUG info
-    @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
+
+      dump_reg <= 1;  //DEBUG info
+      @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
     end
-    $display($time, " end setup int, returned to process ", physical_process_address);
+    $display($time, " end setup int, returned to process ", physical_process_address,
+             " start pc after ", start_pc_after_task_switch);
     switcher_setup_int_ready <= 1;
   end
 
@@ -1160,19 +1184,12 @@ module switcher (
       //save current process state
       dump_process_state <= 1;
       @(posedge dump_process_state_ready) dump_process_state <= 0;
-      
-         dump_reg <= 1;  //DEBUG info
-    @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
 
-      //read next process address
-      j = 0;
-      for (i = 0; i < 4; i++) begin
-        switcher_ram_read_address <= physical_process_address + i;
-        switcher_ram_read <= 1;
-        @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
-        j += switcher_ram_read_data_out * (256 ** i);
-      end
-      temp_new_process_address = j;
+      dump_reg <= 1;  //DEBUG info
+      @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
+
+      //next process address
+      temp_new_process_address = int_process_address[switcher_execute_return_int_number];
 
       //fixme! - update all 4 bytes
       switcher_ram_save_address <= old_physical_process_address + `ADDRESS_NEXT_PROCESS + 0;
@@ -1196,16 +1213,16 @@ module switcher (
       switcher_ram_save <= 1;
       @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
 
-      //switch to next process and change int vector
-      temp_new_process_address = int_process_address[switcher_setup_int_number];
-      int_process_address[switcher_setup_int_number] = physical_process_address;
-      physical_process_address = temp_new_process_address;
-
       read_new_process_state <= 1;
       @(posedge read_new_process_state_ready) read_new_process_state <= 0;
-      
-         dump_reg <= 1;  //DEBUG info
-    @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
+
+      //switch to next process and change int vector
+      j = int_process_address[switcher_setup_int_number];
+      int_process_address[switcher_setup_int_number] = physical_process_address;
+      physical_process_address = j;
+
+      dump_reg <= 1;  //DEBUG info
+      @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
     end
     $display($time, " end execute/return int - process address ",  //DEBUG info
              physical_process_address,  //DEBUG info
@@ -1267,9 +1284,9 @@ module switcher (
       if (switcher_with_removal == 0) begin
         dump_process_state <= 1;
         @(posedge dump_process_state_ready) dump_process_state <= 0;
-        
-           dump_reg <= 1;  //DEBUG info
-    @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
+
+        dump_reg <= 1;  //DEBUG info
+        @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
       end
 
       $display($time, "");  //DEBUG info
@@ -1289,9 +1306,9 @@ module switcher (
 
       read_new_process_state <= 1;
       @(posedge read_new_process_state_ready) read_new_process_state <= 0;
-   dump_reg <= 1;  //DEBUG info
-    @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
-    
+      dump_reg <= 1;  //DEBUG info
+      @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
+
       if (switcher_with_removal == 1) begin
         remove_process_from_chain <= 1;
         @(posedge remove_process_from_chain_ready) remove_process_from_chain <= 0;
@@ -1726,7 +1743,7 @@ module ram (
   reg [7:0] ram_memory[0:1048576];
 
   initial begin  //DEBUG info
-    $readmemh("rom3.mem", ram_memory);  //DEBUG info
+    $readmemh("rom4.mem", ram_memory);  //DEBUG info
   end  //DEBUG info
   always @(sim_end) begin  //DEBUG info
   end  //DEBUG info
@@ -1838,7 +1855,7 @@ module registers (
     for (i = 0; i <= j; i++) begin  //DEBUG info
       s2 = {s2, $sformatf("%02x ", registers_memory[i])};  //DEBUG info
     end  //DEBUG info
-    $display($time, s2, " ...");  //DEBUG info
+    $display($time, physical_process_address, " ", s2, " ...");  //DEBUG info
 
     s2 = " reg used ";  //DEBUG info
     for (i = 0; i < 20; i++) begin  //DEBUG info
