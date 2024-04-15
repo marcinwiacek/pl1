@@ -13,7 +13,7 @@ initial begin
     $dumpvars(0,cpu_test);
     ram_clk=0;
     rst=1;
-    #600
+    #400
     //$stop();
     sim_end=1;
     $finish();
