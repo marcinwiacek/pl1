@@ -38,11 +38,11 @@
 `define MAX_BITS_IN_ADDRESS 31 //32-bit addresses
 `define MMU_PAGE_SIZE 172 //size of every MMU page (in the future important, if this can be divided by 4)
 
-`define DEBUG_LEVEL 3 //higher=more info, 1 - simple, 2 - more detailed, 3- more, 4 - with MMU info //DEBUG info
+`define DEBUG_LEVEL 1 //higher=more info, 1 - simple, 2 - more detailed, 3- more, 4 - with MMU info //DEBUG info
 
 module cpu (
     input rst,
-    input sim_end, //DEBUG info
+    input sim_end,  //DEBUG info
     input ram_clk
 );
 
@@ -407,7 +407,6 @@ module cpu (
     switcher_exec = 0;
     instruction_started_num = 0;
     instruction_completed_num = 0;
-//        stage12_exec = 0;
   end
   always @(negedge stage12_exec) begin
     if (`DEBUG_LEVEL > 2) $display($time, " negedge stage12exec");  //DEBUG info
@@ -420,20 +419,13 @@ module cpu (
       $display($time, " posedge stage12execready");  //DEBUG info
     if (complete_instruction) begin
       instruction_completed_num++;
-    end 
-// if (!mmu_remove_should_exec && !switcher_setup_int_should_exec && !switcher_execute_return_int_should_exec && instruction_started_num < `OP_PER_TASK) begin
-//        stage12_exec = 0;
-//    end
+    end
   end
   always @(posedge stage3_exec_ready) begin
     instruction_completed_num++;
-    //   dump_reg <= 1;  //DEBUG info
-    //  @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
   end
   always @(posedge stage4_exec_ready) begin
     instruction_completed_num++;
-    //  dump_reg <= 1;  //DEBUG info
-    //@(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
   end
   always @(posedge stage5_exec_ready) begin
     instruction_completed_num++;
@@ -738,7 +730,7 @@ module stage12 (
         //update task list, etc.
         switcher_split_process <= 1;
         @(posedge switcher_split_process_ready) switcher_split_process <= 0;
-/*      end else if (instruction[0] == `OPCODE_PROC_SUSPEND) begin  //DEBUG info
+        /*      end else if (instruction[0] == `OPCODE_PROC_SUSPEND) begin  //DEBUG info
         $display(  //DEBUG info
             $time, physical_process_address, " ", pc, " code ", instruction[0], " ",  //DEBUG info
             instruction[1], " ", instruction[2], " ",  //DEBUG info
@@ -988,11 +980,12 @@ module switcher (
   reg remove_process_from_chain;
   reg remove_process_from_chain_ready;
 
-  `define SWITCHER_RAM_SAVE(ADDRESS, VALUE) \
-   switcher_ram_save_address <= ADDRESS; \
-   switcher_ram_save_data_in <= VALUE; \
-   switcher_ram_save <= 1; \
-   @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
+  //execution       `SWITCHER_RAM_SAVE(physical_process_address + `ADDRESS_PC + i, temp[i]); //DEBUG info
+  //  `define SWITCHER_RAM_SAVE(ADDRESS, VALUE) \ //DEBUG info
+  //   switcher_ram_save_address <= ADDRESS; \ //DEBUG info
+  //   switcher_ram_save_data_in <= VALUE; \ //DEBUG info
+  //   switcher_ram_save <= 1; \ //DEBUG info
+  //   @(posedge switcher_ram_save_ready) switcher_ram_save <= 0; //DEBUG info
 
   always @(rst) begin
     if (`DEBUG_LEVEL > 2) $display($time, " reset2");  //DEBUG info
@@ -1018,8 +1011,10 @@ module switcher (
     temp[0] = pc[0]+pc[1]*2+pc[2]*4+pc[3]*8+pc[4]*16+pc[5]*32+pc[6]*64+pc[7]*128;
     temp[1] = pc[8]+pc[9]*2+pc[10]*4+pc[11]*8+pc[12]*16+pc[13]*32+pc[14]*64+pc[15]*128;
     for (i = 0; i < 2; i++) begin
-      //should I go this way?
-      `SWITCHER_RAM_SAVE(physical_process_address + `ADDRESS_PC + i, temp[i]);
+      switcher_ram_save_address <= physical_process_address + `ADDRESS_PC + i;
+      switcher_ram_save_data_in <= temp[i];
+      switcher_ram_save <= 1;
+      @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
     end
 
     //dump registers used
@@ -1139,17 +1134,21 @@ module switcher (
   always @(posedge remove_process_from_chain) begin
     remove_process_from_chain_ready <= 0;
 
-    //update chain of command
+    j = 0;
+    //update chain of command and save next address in the temp_new_process_address
     for (i = 0; i < 4; i++) begin
       switcher_ram_read_address <= physical_process_address + i + `ADDRESS_NEXT_PROCESS;
       switcher_ram_read <= 1;
       @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
+
+      j += switcher_ram_read_data_out * (256 ** i);
 
       switcher_ram_save_address <= old_physical_process_address + `ADDRESS_NEXT_PROCESS + i;
       switcher_ram_save_data_in <= switcher_ram_read_data_out;
       switcher_ram_save <= 1;
       @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
     end
+    temp_new_process_address = j;
 
     active_task_num--;
 
@@ -1173,19 +1172,11 @@ module switcher (
       dump_process_state <= 1;
       @(posedge dump_process_state_ready) dump_process_state <= 0;
 
-      //read next process address
-      j = 0;
-      for (i = 0; i < 4; i++) begin
-        switcher_ram_read_address <= physical_process_address + i;
-        switcher_ram_read <= 1;
-        @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
-        j += switcher_ram_read_data_out * (256 ** i);
-      end
-      temp_new_process_address = j;
-
+      //update chain of command and save next address in the temp_new_process_address
       remove_process_from_chain <= 1;
       @(posedge remove_process_from_chain_ready) remove_process_from_chain <= 0;
 
+      //use temp_new_process_address
       read_new_process_state <= 1;
       @(posedge read_new_process_state_ready) read_new_process_state <= 0;
 
@@ -1222,7 +1213,14 @@ module switcher (
       @(posedge dump_reg_ready) dump_reg <= 0;  //DEBUG info
 
       //next process address
-      temp_new_process_address = int_process_address[switcher_execute_return_int_number];
+      j = 0;
+      for (i = 0; i < 4; i++) begin
+        switcher_ram_read_address <= physical_process_address + i + `ADDRESS_NEXT_PROCESS;
+        switcher_ram_read <= 1;
+        @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
+        j += switcher_ram_read_data_out * (256 ** i);
+      end
+      temp_new_process_address = j;
 
       //fixme! - update all 4 bytes
       switcher_ram_save_address <= old_physical_process_address + `ADDRESS_NEXT_PROCESS + 0;
@@ -1246,6 +1244,9 @@ module switcher (
       switcher_ram_save <= 1;
       @(posedge switcher_ram_save_ready) switcher_ram_save <= 0;
 
+      temp_new_process_address = int_process_address[switcher_execute_return_int_number];
+
+      //use temp_new_process_address inside
       read_new_process_state <= 1;
       @(posedge read_new_process_state_ready) read_new_process_state <= 0;
 
@@ -1339,13 +1340,14 @@ module switcher (
       //read next process address
       j = 0;
       for (i = 0; i < 4; i++) begin
-        switcher_ram_read_address <= physical_process_address + i;
+        switcher_ram_read_address <= physical_process_address + i + `ADDRESS_NEXT_PROCESS;
         switcher_ram_read <= 1;
         @(posedge switcher_ram_read_ready) switcher_ram_read <= 0;
         j += switcher_ram_read_data_out * (256 ** i);
       end
       temp_new_process_address = j;
 
+      //use temp_new_process_address inside
       read_new_process_state <= 1;
       @(posedge read_new_process_state_ready) read_new_process_state <= 0;
 
