@@ -1,0 +1,10 @@
+#starts CPU with debug
+#
+#sudo apt install iverilog gtkwave
+#rm ./cpu 2> /dev/null
+#rm ./cpu.vcd 2> /dev/null
+iverilog -g2005-sv -o cpu5 cpu5.v cpu5_test.v
+vvp cpu5
+gtkwave cpu.vcd &
+rm ./cpu5
+#rm ./cpu.vcd
