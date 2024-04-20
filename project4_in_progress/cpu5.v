@@ -49,7 +49,11 @@ module stage1 (
   reg [7:0] stage1_input = 0;
   reg stage1_start = 0;
 
-  always @(posedge rst or posedge stage2_ack) begin
+  always @(posedge rst ) begin
+    stage1_start <= 1;
+  end
+  
+  always @(posedge stage2_ack) begin
     stage1_start <= 1;
   end
 
