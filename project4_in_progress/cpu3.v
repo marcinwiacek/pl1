@@ -1,5 +1,8 @@
+`timescale 1ns / 1ps
+
 module cpu3 (
-    input rst
+    input rst,
+    output reg stage4_data
 );
 
   wire [7:0] stage2_input;
@@ -27,6 +30,7 @@ module cpu3 (
       .stage3_exec(stage3_exec),
       .stage3_input(stage3_input),
       .stage3_exec_ready(stage3_exec_ready)
+      
   );
 
 endmodule
@@ -40,12 +44,21 @@ module stage1 (
 
   reg [7:0] inp = 0;
 
-  always @(posedge rst, posedge stage2_exec_ready) begin
+  always @( posedge rst) begin
     stage2_exec = 0;
-    $display($time, " stage1 start ", inp);
-    #1 $display($time, " stage1 end   ", inp);
+    $display( " stage1 start ", inp);
+    #1 $display( " stage1 end   ", inp);
     stage2_input = inp;
-    inp++;
+    inp=inp+1;
+    stage2_exec = 1;
+  end
+  
+  always @( posedge stage2_exec_ready) begin
+    stage2_exec = 0;
+    $display( " stage1 start ", inp);
+    #1 $display( " stage1 end   ", inp);
+    stage2_input = inp;
+    inp=inp+1;
     stage2_exec = 1;
   end
 endmodule
@@ -63,7 +76,12 @@ module stage2 (
   reg first_run = 1;
   reg inp;
 
-  always @(posedge stage2_exec, posedge stage3_exec_ready) begin
+  always @(posedge stage2_exec ) begin
+    if ((stage3_exec_ready || first_run) && stage2_exec) stage2_start = 1;
+    first_run = 0;
+  end
+  
+  always @(posedge stage3_exec_ready) begin
     if ((stage3_exec_ready || first_run) && stage2_exec) stage2_start = 1;
     first_run = 0;
   end
@@ -74,8 +92,8 @@ module stage2 (
     stage2_exec_ready = 0;
     inp = stage2_input;
     stage2_exec_ready = 1;
-    $display($time, " stage2 start ", inp);
-    #1 $display($time, " stage2 end   ", inp);
+    $display( " stage2 start ", inp);
+    #3 $display( " stage2 end   ", inp);
     stage3_input = inp;
     stage3_exec  = 1;
   end
@@ -85,14 +103,15 @@ module stage3 (
     input stage3_exec,
     input [7:0] stage3_input,
     output reg stage3_exec_ready
+   
 );
 
   reg inp;
   always @(posedge stage3_exec) begin
     stage3_exec_ready <= 0;
     inp = stage3_input;
-    $display($time, " stage3 start ", inp);
+    $display( " stage3 start ", inp);
     stage3_exec_ready <= 1;
-    #1 $display($time, " stage3 end   ", inp, "*");
+    #2 $display( " stage3 end   ", inp, "*");
   end
 endmodule
