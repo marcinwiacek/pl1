@@ -59,7 +59,7 @@ module stage1 (
   wire [7:0] op;
   wire [7:0] inst;
 
-  assign op = instruction[0][15:8];
+  assign op   = instruction[0][15:8];
   assign inst = instruction[0][7:0];
 
   `define STAGE_READ_PC1_REQUEST 0
@@ -92,7 +92,7 @@ module stage1 (
     end else if (stage == `STAGE_DECODE) begin
       if (op == `OPCODE_JMP) begin
         $display($time, " opcode = jmp to ", instruction[1]);
-        address <=0;
+        address <= 0;
         stage   <= `STAGE_READ_PC1_REQUEST;
       end else if (op == `OPCODE_RAM2REG) begin
         $display($time, " opcode = ram2reg address ", instruction[1], " to reg ", inst);
@@ -125,16 +125,12 @@ module stage1 (
 
   always @(negedge clkb) begin
     if (stage == `STAGE_READ_PC1_RESPONSE) begin
-//      $display($time, " ", address, 
-//	    "=",
-//             dob / 256, " ", dob % 256);
       instruction[0] <= dob;
       address <= address + 1;
       stage <= `STAGE_READ_PC2_REQUEST;
     end else if (stage == `STAGE_READ_PC2_RESPONSE) begin
-      $display($time, " ", address, 
-	    "=", instruction[0] / 256, instruction[0] % 256,
-               dob / 256, " ", dob % 256);
+      $display($time, " ", address, "=", instruction[0] / 256, instruction[0] % 256, dob / 256,
+               " ", dob % 256);
       instruction[1] <= dob;
       address <= address + 1;
       stage <= `STAGE_DECODE;
@@ -168,13 +164,13 @@ module simple_dual_two_clocks (
   always @(posedge clka) begin
     if (ena) begin
       if (wea) ram[addra] <= dia;
-//      if (wea) $display($time, " writing ", dia, " to ",addra);
+      //      if (wea) $display($time, " writing ", dia, " to ",addra);
     end
   end
   always @(posedge clkb) begin
     if (enb) begin
       dob <= ram[addrb];
-//      $display($time, " reading ", ram[addrb], " from ",addrb);
+      //      $display($time, " reading ", ram[addrb], " from ",addrb);
     end
   end
 endmodule
