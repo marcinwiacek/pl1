@@ -51,16 +51,13 @@ module stage1 (
     input      [15:0] dob
 );
 
-  reg [9:0] address = 0;
+  reg [9:0] address_pc = 0;
   reg [7:0] stage;
-  reg [15:0] registers[31:0];
+  reg [15:0] registers[5:0]; //64 registers
 
-  reg [15:0] instruction[1:0];
-  wire [7:0] op;
-  wire [7:0] inst;
-
-  assign op   = instruction[0][15:8];
-  assign inst = instruction[0][7:0];
+  reg [7:0] inst_op;
+  reg [7:0] inst_regnum;
+  reg [15:0] inst_address_num;
 
   `define STAGE_READ_PC1_REQUEST 0
   `define STAGE_READ_PC1_RESPONSE 1
@@ -70,10 +67,13 @@ module stage1 (
   `define STAGE_READ_RAM2REG 5
   `define STAGE_SAVE_REG2RAM 6
 
-  `define OPCODE_JMP 1 //.., 16 bit address
+  `define OPCODE_JMP 1     //x, 16 bit address
   `define OPCODE_RAM2REG 2 //register num, 16 bit source addr
   `define OPCODE_REG2RAM 3 //register num, 16 bit source addr
   `define OPCODE_NUM2REG 4 //register num, 16 bit value
+  `define OPCODE_REGPLUSNUM 5 //register num, 16 bit value
+  `define OPCODE_REGMINUSNUM 6 //register num, 16 bit value
+  `define OPCODE_LOOPEQ 7   //register num, 16 bit value
 
   always @(posedge rst) begin
     $display($time, "rst");
@@ -84,33 +84,41 @@ module stage1 (
 
   always @(stage) begin
     if (stage == `STAGE_READ_PC1_REQUEST) begin
-      addrb <= address;
+      addrb <= address_pc;
       stage <= `STAGE_READ_PC1_RESPONSE;
     end else if (stage == `STAGE_READ_PC2_REQUEST) begin
-      addrb <= address;
+      addrb <= address_pc;
       stage <= `STAGE_READ_PC2_RESPONSE;
     end else if (stage == `STAGE_DECODE) begin
-      if (op == `OPCODE_JMP) begin
-        $display($time, " opcode = jmp to ", instruction[1]);
-        address <= 0;
+      if (inst_op == `OPCODE_JMP) begin
+        $display($time, " opcode = jmp to ", inst_address_num);
+        address_pc <= inst_address_num;
         stage   <= `STAGE_READ_PC1_REQUEST;
-      end else if (op == `OPCODE_RAM2REG) begin
-        $display($time, " opcode = ram2reg address ", instruction[1], " to reg ", inst);
-        addrb <= instruction[1][9:0];
+      end else if (inst_op == `OPCODE_RAM2REG) begin
+        $display($time, " opcode = ram2reg address ", inst_address_num, " to reg ", inst_regnum);
+        addrb <= inst_address_num;
         stage <= `STAGE_READ_RAM2REG;
-      end else if (op == `OPCODE_REG2RAM) begin
-        $display($time, " opcode = reg2ram value ", registers[inst], " to address ",
-                 instruction[1]);
-        addra <= instruction[1][9:0];
-        dia   <= registers[inst];
+      end else if (inst_op == `OPCODE_REG2RAM) begin
+        $display($time, " opcode = reg2ram value ", registers[inst_regnum], " to address ",
+                 inst_address_num);
+        addra <= inst_address_num;
+        dia   <= registers[inst_regnum];
         wea   <= 1;
         stage <= `STAGE_SAVE_REG2RAM;
-      end else if (op == `OPCODE_NUM2REG) begin
-        $display($time, " opcode = num2reg value ", instruction[1], " to reg ", inst);
-        registers[inst] <= instruction[1];
+      end else if (inst_op == `OPCODE_NUM2REG) begin
+        $display($time, " opcode = num2reg value ", inst_address_num, " to reg ", inst_regnum);
+        registers[inst_regnum] <= inst_address_num;
+        stage <= `STAGE_READ_PC1_REQUEST;
+      end else if (inst_op == `OPCODE_REGPLUSNUM) begin
+        $display($time, " opcode = regplusnum value ", inst_address_num, " to reg ", inst_regnum);
+        registers[inst_regnum] <= registers[inst_regnum] + inst_address_num;
+        stage <= `STAGE_READ_PC1_REQUEST;
+      end else if (inst_op == `OPCODE_REGMINUSNUM) begin
+        $display($time, " opcode = regminusnum value ", inst_address_num, " to reg ", inst_regnum);
+        registers[inst_regnum] <= registers[inst_regnum] - inst_address_num;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else begin
-        $display($time, " opcode = ", op);
+        $display($time, " opcode = ", inst_op);
         stage <= `STAGE_READ_PC1_REQUEST;
       end
     end
@@ -125,18 +133,19 @@ module stage1 (
 
   always @(negedge clkb) begin
     if (stage == `STAGE_READ_PC1_RESPONSE) begin
-      instruction[0] <= dob;
-      address <= address + 1;
+      inst_op <= dob[15:8];
+      inst_regnum <= dob[7:0];
+      address_pc <= address_pc + 1;
       stage <= `STAGE_READ_PC2_REQUEST;
     end else if (stage == `STAGE_READ_PC2_RESPONSE) begin
-      $display($time, " ", address, "=", instruction[0] / 256, instruction[0] % 256, dob / 256,
+      $display($time, " ", (address_pc-1), "=", inst_op,inst_regnum, dob / 256,
                " ", dob % 256);
-      instruction[1] <= dob;
-      address <= address + 1;
+      inst_address_num <= dob;
+      address_pc <= address_pc + 1;
       stage <= `STAGE_DECODE;
     end else if (stage == `STAGE_READ_RAM2REG) begin
-      $display($time, "          reg ", inst, " = ", dob);
-      registers[inst] <= dob;
+      $display($time, "          reg ", inst_regnum, " = ", dob);
+      registers[inst_regnum] <= dob;
       stage <= `STAGE_READ_PC1_REQUEST;
     end
   end
