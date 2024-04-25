@@ -1,5 +1,5 @@
 0402 0004 //num2reg
-0702 0002 //loop with cache: loopeqzero
+0902 0002 //loop with cache: loopeqvalue
 0602 0001 //regminusnum
 0602 0000 //regminusnum
 0201 0001 //after loop: ram2reg
