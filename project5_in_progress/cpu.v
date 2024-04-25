@@ -97,10 +97,10 @@ module stage1 (
   `define OPCODE_INT_RET 16
 
   always @(posedge rst) begin
-    $display($time, "rst");
-    stage <= `STAGE_READ_PC1_REQUEST;
+    $display($time, "rst"); //DEBUG info
     enb   <= 1;
     ena   <= 1;
+    stage <= `STAGE_READ_PC1_REQUEST;
   end
 
   always @(stage) begin
@@ -111,8 +111,8 @@ module stage1 (
         inst_address_num <= inst_address_num_cache[loop_counter_max];
         loop_counter_max <= loop_counter_max + 1;
         address_pc <= address_pc + 2;
-        $display($time, (address_pc), "=", inst_op, inst_regnum, inst_address_num / 256,
-                 inst_address_num % 256, " (cache)");
+        $display($time, (address_pc), "=", inst_op, inst_regnum, inst_address_num / 256, //DEBUG info
+                 inst_address_num % 256, " (cache)"); //DEBUG info
         stage <= `STAGE_DECODE;
       end else begin
         addrb <= address_pc;
@@ -123,35 +123,35 @@ module stage1 (
       stage <= `STAGE_READ_PC2_RESPONSE;
     end else if (stage == `STAGE_DECODE) begin
       if (inst_op == `OPCODE_JMP) begin
-        $display($time, " opcode = jmp to ", inst_address_num);
+        $display($time, " opcode = jmp to ", inst_address_num); //DEBUG info
         address_pc <= inst_address_num;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else if (inst_op == `OPCODE_RAM2REG) begin
-        $display($time, " opcode = ram2reg address ", inst_address_num, " to reg ", inst_regnum);
+        $display($time, " opcode = ram2reg address ", inst_address_num, " to reg ", inst_regnum); //DEBUG info
         addrb <= inst_address_num;
         stage <= `STAGE_READ_RAM2REG;
       end else if (inst_op == `OPCODE_REG2RAM) begin
-        $display($time, " opcode = reg2ram value ", registers[inst_regnum], " to address ",
-                 inst_address_num);
+        $display($time, " opcode = reg2ram value ", registers[inst_regnum], " to address ", //DEBUG info
+                 inst_address_num); //DEBUG info
         addra <= inst_address_num;
         dia   <= registers[inst_regnum];
         wea   <= 1;
         stage <= `STAGE_SAVE_REG2RAM;
       end else if (inst_op == `OPCODE_NUM2REG) begin
-        $display($time, " opcode = num2reg value ", inst_address_num, " to reg ", inst_regnum);
+        $display($time, " opcode = num2reg value ", inst_address_num, " to reg ", inst_regnum); //DEBUG info
         registers[inst_regnum] <= inst_address_num;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else if (inst_op == `OPCODE_REG_PLUS) begin
-        $display($time, " opcode = regplusnum value ", inst_address_num, " to reg ", inst_regnum);
+        $display($time, " opcode = regplusnum value ", inst_address_num, " to reg ", inst_regnum); //DEBUG info
         registers[inst_regnum] <= registers[inst_regnum] + inst_address_num;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else if (inst_op == `OPCODE_REG_MINUS) begin
-        $display($time, " opcode = regminusnum value ", inst_address_num, " to reg ", inst_regnum);
+        $display($time, " opcode = regminusnum value ", inst_address_num, " to reg ", inst_regnum); //DEBUG info
         registers[inst_regnum] <= registers[inst_regnum] - inst_address_num;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else if (inst_op == `OPCODE_TILL_VALUE) begin
-        $display($time, " opcode = looptillvalue ", inst_address_num % 256, " instruction, reg ",
-                 inst_regnum);
+        $display($time, " opcode = looptillvalue ", inst_address_num % 256, " instruction, reg ", //DEBUG info
+                 inst_regnum); //DEBUG info
         loop_counter <= 0;
         loop_regnum <= inst_regnum;
         loop_value <= inst_address_num / 256;
@@ -159,8 +159,8 @@ module stage1 (
         loop_type <= `LOOP_TILL_VALUE;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else if (inst_op == `OPCODE_TILL_NON_VALUE) begin
-        $display($time, " opcode = looptillnonvalue ", inst_address_num % 256,
-                 " instruction, reg ", inst_regnum);
+        $display($time, " opcode = looptillnonvalue ", inst_address_num % 256, //DEBUG info
+                 " instruction, reg ", inst_regnum); //DEBUG info
         loop_counter <= 0;
         loop_regnum <= inst_regnum;
         loop_value <= inst_address_num / 256;
@@ -168,15 +168,15 @@ module stage1 (
         loop_type <= `LOOP_TILL_NON_VALUE;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else if (inst_op == `OPCODE_LOOP) begin
-        $display($time, " opcode = looploop ", inst_address_num % 256, " instruction, reg ",
-                 inst_regnum);
+        $display($time, " opcode = looploop ", inst_address_num % 256, " instruction, reg ", //DEBUG info
+                 inst_regnum); //DEBUG info
         loop_counter <= 0;
         loop_value <= inst_address_num / 256;
         loop_counter_max <= inst_address_num % 256;
         loop_type <= `LOOP_FOR;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else begin
-        $display($time, " opcode = ", inst_op);
+        $display($time, " opcode = ", inst_op); //DEBUG info
         stage <= `STAGE_READ_PC1_REQUEST;
       end
       if (loop_counter_max != 0 && loop_counter_max == loop_counter) begin
@@ -213,7 +213,7 @@ module stage1 (
       end
       stage <= `STAGE_READ_PC2_REQUEST;
     end else if (stage == `STAGE_READ_PC2_RESPONSE) begin
-      $display($time, " ", (address_pc - 1), "=", inst_op, inst_regnum, dob / 256, dob % 256);
+      $display($time, " ", (address_pc - 1), "=", inst_op, inst_regnum, dob / 256, dob % 256); //DEBUG info
       inst_address_num <= dob;
       if (loop_counter_max != 0) begin
         inst_address_num_cache[loop_counter] <= dob;
@@ -222,7 +222,7 @@ module stage1 (
       address_pc <= address_pc + 1;
       stage <= `STAGE_DECODE;
     end else if (stage == `STAGE_READ_RAM2REG) begin
-      $display($time, "          reg ", inst_regnum, " = ", dob);
+      $display($time, "          reg ", inst_regnum, " = ", dob); //DEBUG info
       registers[inst_regnum] <= dob;
       stage <= `STAGE_READ_PC1_REQUEST;
     end
@@ -251,13 +251,13 @@ module simple_dual_two_clocks (
   always @(posedge clka) begin
     if (ena) begin
       if (wea) ram[addra] <= dia;
-      //      if (wea) $display($time, " writing ", dia, " to ",addra);
+      //      if (wea) $display($time, " writing ", dia, " to ",addra); //DEBUG info
     end
   end
   always @(posedge clkb) begin
     if (enb) begin
       dob <= ram[addrb];
-      //      $display($time, " reading ", ram[addrb], " from ",addrb);
+      //      $display($time, " reading ", ram[addrb], " from ",addrb); //DEBUG info
     end
   end
 endmodule
