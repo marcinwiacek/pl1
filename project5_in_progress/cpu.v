@@ -51,27 +51,29 @@ module stage1 (
     input      [15:0] dob
 );
 
-  reg [7:0] stage;
+//process related. We cache data about n=8 processes - here we save index values for concrete tables
+  reg [2:0] process_index = 0;
+  reg [8:0] registers_process_index = 0;
+  reg [8:0] inst_cache_process_index = 0;
+  
+  reg [7:0] stage; //it doesn't need process index - we switch to other process after completing instruction
 
-  //process related. We cache data about 8 processes
-  reg [2:0] address_pc_index = 0;
-  reg [9:0] address_pc[2:0];
-  reg [8:0] registers_index = 0;
-  reg [15:0] registers[8:0];  //64 registers * 8 processes = 512 registers
+  reg [9:0] address_pc[2:0]; //n=8 addresses
+  reg [15:0] registers[8:0];  //64 registers * n=8 processes = 512 registers
 
-  //instruction
+  //current instruction - we don't need to multiply it among processes
   reg [7:0] inst_op;
   reg [7:0] inst_regnum;
   reg [15:0] inst_address_num;
 
-  //cache used in all loops
-  reg [7:0] inst_op_cache[255:0];
-  reg [7:0] inst_regnum_cache[255:0];
-  reg [15:0] inst_address_num_cache[255:0];
+  //cache used in all loops - needs to be separate for every process
+  reg [7:0] inst_op_cache[2047:0];
+  reg [7:0] inst_regnum_cache[2047:0];
+  reg [15:0] inst_address_num_cache[2047:0];
 
-  //loops
-  reg [7:0] loop_counter = 0;
-  reg [7:0] loop_counter_max = 0;
+  //loops - need to be separate for every process
+  reg [7:0] loop_counter[2:0];
+  reg [7:0] loop_counter_max[2:0];
   reg [5:0] loop_regnum;
   reg [7:0] loop_comp_value;
   reg [1:0] loop_type;
@@ -111,12 +113,14 @@ module stage1 (
     enb   <= 1;
     ena   <= 1;
     stage <= `STAGE_READ_PC1_REQUEST;
-    address_pc[address_pc_index] <= 0;
+    address_pc[address_index] <= 0;
+    loop_counter[process_index] <= 0;
+    loop_counter_max[process_index] <= 0;
   end
 
   always @(stage) begin
     if (stage == `STAGE_READ_PC1_REQUEST) begin
-      if (loop_counter > loop_counter_max) begin
+      if (loop_counter[process_index] > loop_counter_max[process_index]) begin
         inst_op <= inst_op_cache[loop_counter_max];
         inst_regnum <= inst_regnum_cache[loop_counter_max];
         inst_address_num <= inst_address_num_cache[loop_counter_max];
