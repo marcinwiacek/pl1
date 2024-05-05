@@ -144,7 +144,7 @@ module stage1 (
         addrb <= inst_address_num;
         stage <= `STAGE_READ_RAM2REG;
       end else if (inst_op == `OPCODE_REG2RAM) begin
-        $display($time, " opcode = reg2ram value ",
+        $display($time, " opcode = reg2ram value ", //DEBUG info
                  registers[process_index][inst_regnum],  //DEBUG info
                  " to address ",  //DEBUG info
                  inst_address_num);  //DEBUG info
@@ -218,7 +218,7 @@ module stage1 (
       end
       stage <= `STAGE_READ_PC2_REQUEST;
     end else if (stage == `STAGE_READ_PC2_RESPONSE) begin
-      $display($time, " ", (address_pc[process_index] - 1), "=", inst_op, inst_regnum,
+      $display($time, " ", (address_pc[process_index] - 1), "=", inst_op, inst_regnum, //DEBUG info
                dob / 256,  //DEBUG info
                dob % 256);  //DEBUG info
       inst_address_num <= dob;
