@@ -56,7 +56,8 @@ module stage1 (
   reg [7:0] inst_regnum;
   reg [15:0] inst_address_num;
 
-  reg [7:0] stage; //it doesn't need process index - we switch to other process after completing instruction
+  reg [3:0] stage; //it doesn't need process index - we switch to other process after completing instruction
+  reg [3:0] stage_after_mmu;
 
   //process related. We cache data about n=8 processes - here we save index values for concrete tables
   reg [2:0] process_index = 0;
@@ -87,6 +88,8 @@ module stage1 (
   `define STAGE_DECODE 4
   `define STAGE_READ_RAM2REG 5
   `define STAGE_SAVE_REG2RAM 6
+  `define STAGE_MMU_B 7
+  `define STAGE_MMU_A 8
 
   `define OPCODE_JMP 1     //x, 16 bit address
   `define OPCODE_RAM2REG 2 //register num, 16 bit source addr //ram -> reg
@@ -128,11 +131,19 @@ module stage1 (
         stage <= `STAGE_DECODE;
       end else begin
         addrb <= address_pc[process_index];
-        stage <= `STAGE_READ_PC1_RESPONSE;
+        stage_after_mmu <= `STAGE_READ_PC1_RESPONSE;
+        stage <= `STAGE_MMU_B;
       end
     end else if (stage == `STAGE_READ_PC2_REQUEST) begin
       addrb <= address_pc[process_index];
-      stage <= `STAGE_READ_PC2_RESPONSE;
+      stage_after_mmu <= `STAGE_READ_PC2_RESPONSE;
+      stage <= `STAGE_MMU_B;
+    end else if (stage == `STAGE_MMU_B) begin
+      //fixme: modify addrb
+      stage <= stage_after_mmu;
+    end else if (stage == `STAGE_MMU_A) begin
+      //fixme: modify addra
+      stage <= stage_after_mmu;
     end else if (stage == `STAGE_DECODE) begin
       if (inst_op == `OPCODE_JMP) begin
         $display($time, " opcode = jmp to ", inst_address_num);  //DEBUG info
@@ -142,7 +153,8 @@ module stage1 (
         $display($time, " opcode = ram2reg address ", inst_address_num, " to reg ",  //DEBUG info
                  inst_regnum);  //DEBUG info
         addrb <= inst_address_num;
-        stage <= `STAGE_READ_RAM2REG;
+        stage_after_mmu <= `STAGE_READ_RAM2REG;
+        stage <= `STAGE_MMU_B;
       end else if (inst_op == `OPCODE_REG2RAM) begin
         $display($time, " opcode = reg2ram value ", //DEBUG info
                  registers[process_index][inst_regnum],  //DEBUG info
