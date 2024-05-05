@@ -51,32 +51,30 @@ module stage1 (
     input      [15:0] dob
 );
 
-//process related. We cache data about n=8 processes - here we save index values for concrete tables
-  reg [2:0] process_index = 0;
-  reg [8:0] registers_process_index = 0;
-  reg [8:0] inst_cache_process_index = 0;
-  
-  reg [7:0] stage; //it doesn't need process index - we switch to other process after completing instruction
-
-  reg [9:0] address_pc[2:0]; //n=8 addresses
-  reg [15:0] registers[8:0];  //64 registers * n=8 processes = 512 registers
-
   //current instruction - we don't need to multiply it among processes
   reg [7:0] inst_op;
   reg [7:0] inst_regnum;
   reg [15:0] inst_address_num;
 
-  //cache used in all loops - needs to be separate for every process
-  reg [7:0] inst_op_cache[2047:0];
-  reg [7:0] inst_regnum_cache[2047:0];
-  reg [15:0] inst_address_num_cache[2047:0];
+  reg [7:0] stage; //it doesn't need process index - we switch to other process after completing instruction
+
+  //process related. We cache data about n=8 processes - here we save index values for concrete tables
+  reg [2:0] process_index = 0;
+
+  reg [9:0] address_pc[2:0];  //n=8 addresses
+  reg [15:0] registers[2:0][5:0];  //64 registers * n=8 processes = 512 16-bit registers
+
+  //cache used in all loops - needs to be separated for every process
+  reg [7:0] inst_op_cache[2:0][255:0];  // 256 * n=8 processes = 2048
+  reg [7:0] inst_regnum_cache[2:0][255:0];
+  reg [15:0] inst_address_num_cache[2:0][255:0];
 
   //loops - need to be separate for every process
   reg [7:0] loop_counter[2:0];
   reg [7:0] loop_counter_max[2:0];
-  reg [5:0] loop_regnum;
-  reg [7:0] loop_comp_value;
-  reg [1:0] loop_type;
+  reg [5:0] loop_regnum[2:0];
+  reg [7:0] loop_comp_value[2:0];
+  reg [1:0] loop_type[2:0];
 
   `define LOOP_TILL_VALUE 0
   `define LOOP_TILL_NON_VALUE 1
@@ -106,14 +104,12 @@ module stage1 (
   `define OPCODE_INT 15
   `define OPCODE_INT_RET 16
 
-  integer i;
-
   always @(posedge rst) begin
     $display($time, "rst");  //DEBUG info
-    enb   <= 1;
-    ena   <= 1;
+    enb <= 1;
+    ena <= 1;
     stage <= `STAGE_READ_PC1_REQUEST;
-    address_pc[address_index] <= 0;
+    address_pc[process_index] <= 0;
     loop_counter[process_index] <= 0;
     loop_counter_max[process_index] <= 0;
   end
@@ -121,82 +117,84 @@ module stage1 (
   always @(stage) begin
     if (stage == `STAGE_READ_PC1_REQUEST) begin
       if (loop_counter[process_index] > loop_counter_max[process_index]) begin
-        inst_op <= inst_op_cache[loop_counter_max];
-        inst_regnum <= inst_regnum_cache[loop_counter_max];
-        inst_address_num <= inst_address_num_cache[loop_counter_max];
-        loop_counter_max <= loop_counter_max + 1;
-        address_pc[address_pc_index] <= address_pc[address_pc_index] + 2;
-        $display($time, (address_pc[address_pc_index]), "=", inst_op, inst_regnum, //DEBUG info
+        inst_op <= inst_op_cache[process_index][loop_counter_max[process_index]];
+        inst_regnum <= inst_regnum_cache[process_index][loop_counter_max[process_index]];
+        inst_address_num <= inst_address_num_cache[process_index][loop_counter_max[process_index]];
+        loop_counter_max[process_index] <= loop_counter_max[process_index] + 1;
+        address_pc[process_index] <= address_pc[process_index] + 2;
+        $display($time, (address_pc[process_index]), "=", inst_op, inst_regnum,  //DEBUG info
                  inst_address_num / 256,  //DEBUG info
                  inst_address_num % 256, " (cache)");  //DEBUG info
         stage <= `STAGE_DECODE;
       end else begin
-        addrb <= address_pc[address_pc_index];
+        addrb <= address_pc[process_index];
         stage <= `STAGE_READ_PC1_RESPONSE;
       end
     end else if (stage == `STAGE_READ_PC2_REQUEST) begin
-      addrb <= address_pc[address_pc_index];
+      addrb <= address_pc[process_index];
       stage <= `STAGE_READ_PC2_RESPONSE;
     end else if (stage == `STAGE_DECODE) begin
       if (inst_op == `OPCODE_JMP) begin
         $display($time, " opcode = jmp to ", inst_address_num);  //DEBUG info
-        address_pc[address_pc_index] <= inst_address_num;
+        address_pc[process_index] <= inst_address_num;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else if (inst_op == `OPCODE_RAM2REG) begin
-        $display($time, " opcode = ram2reg address ", inst_address_num, " to reg ", //DEBUG info
+        $display($time, " opcode = ram2reg address ", inst_address_num, " to reg ",  //DEBUG info
                  inst_regnum);  //DEBUG info
         addrb <= inst_address_num;
         stage <= `STAGE_READ_RAM2REG;
       end else if (inst_op == `OPCODE_REG2RAM) begin
-        $display($time, " opcode = reg2ram value ", registers[inst_regnum], //DEBUG info
+        $display($time, " opcode = reg2ram value ",
+                 registers[process_index][inst_regnum],  //DEBUG info
                  " to address ",  //DEBUG info
                  inst_address_num);  //DEBUG info
         addra <= inst_address_num;
-        dia   <= registers[inst_regnum];
+        dia   <= registers[process_index][inst_regnum];
         wea   <= 1;
         stage <= `STAGE_SAVE_REG2RAM;
       end else if (inst_op == `OPCODE_NUM2REG) begin
-        $display($time, " opcode = num2reg value ", inst_address_num, " to reg ", //DEBUG info
+        $display($time, " opcode = num2reg value ", inst_address_num, " to reg ",  //DEBUG info
                  inst_regnum);  //DEBUG info
-        registers[inst_regnum] <= inst_address_num;
+        registers[process_index][inst_regnum] <= inst_address_num;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else if (inst_op == `OPCODE_REG_PLUS) begin
-        $display($time, " opcode = regplusnum value ", inst_address_num, " to reg ", //DEBUG info
+        $display($time, " opcode = regplusnum value ", inst_address_num, " to reg ",  //DEBUG info
                  inst_regnum);  //DEBUG info
-        registers[inst_regnum] <= registers[inst_regnum] + inst_address_num;
+        registers[process_index][inst_regnum] <= registers[process_index][inst_regnum] + inst_address_num;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else if (inst_op == `OPCODE_REG_MINUS) begin
-        $display($time, " opcode = regminusnum value ", inst_address_num, " to reg ", //DEBUG info
+        $display($time, " opcode = regminusnum value ", inst_address_num, " to reg ",  //DEBUG info
                  inst_regnum);  //DEBUG info
-        registers[inst_regnum] <= registers[inst_regnum] - inst_address_num;
+        registers[process_index][inst_regnum] <= registers[process_index][inst_regnum] - inst_address_num;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else if (inst_op == `OPCODE_TILL_VALUE || 
         inst_op == `OPCODE_TILL_NON_VALUE || 
         inst_op == `OPCODE_LOOP) begin
-        $display($time, " opcode = tillorloop ", inst_address_num % 256, //DEBUG info
-                 " instructions, comp. value ", inst_address_num / 256, //DEBUG info
+        $display($time, " opcode = tillorloop ", inst_address_num % 256,  //DEBUG info
+                 " instructions, comp. value ", inst_address_num / 256,  //DEBUG info
                  " reg/loop value ",  //DEBUG info
                  inst_address_num % 256);  //DEBUG info
-        loop_regnum <= inst_regnum;
-        loop_comp_value <= inst_address_num / 256;
-        loop_counter_max <= inst_address_num % 256;
-        loop_type <= inst_op - `OPCODE_TILL_VALUE;
+        loop_regnum[process_index] <= inst_regnum;
+        loop_comp_value[process_index] <= inst_address_num / 256;
+        loop_counter_max[process_index] <= inst_address_num % 256;
+        loop_type[process_index] <= inst_op - `OPCODE_TILL_VALUE;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else begin
         $display($time, " opcode = ", inst_op);  //DEBUG info
         stage <= `STAGE_READ_PC1_REQUEST;
       end
-      if (loop_counter_max != 0 && loop_counter_max == loop_counter) begin
-        if ((loop_type == `LOOP_TILL_VALUE && registers[loop_regnum] != loop_comp_value) ||
-        (loop_type == `LOOP_TILL_NON_VALUE && registers[loop_regnum] == loop_comp_value) ||
-        (loop_type == `LOOP_FOR && loop_comp_value>0)) begin
-          address_pc[address_pc_index] <= address_pc[address_pc_index] - loop_counter * 2;
-          loop_counter_max <= 0;
-          if (loop_type == `LOOP_FOR) loop_comp_value <= loop_comp_value - 1;
+      if (loop_counter_max[process_index] != 0 && loop_counter_max[process_index] == loop_counter[process_index]) begin
+        if ((loop_type[process_index] == `LOOP_TILL_VALUE && registers[process_index][loop_regnum[process_index]] != loop_comp_value[process_index]) ||
+        (loop_type[process_index] == `LOOP_TILL_NON_VALUE && registers[process_index][loop_regnum[process_index]] == loop_comp_value[process_index]) ||
+        (loop_type[process_index] == `LOOP_FOR && loop_comp_value[process_index]>0)) begin
+          address_pc[process_index] <= address_pc[process_index] - loop_counter[process_index] * 2;
+          loop_counter_max[process_index] <= 0;
+          if (loop_type[process_index] == `LOOP_FOR)
+            loop_comp_value[process_index] <= loop_comp_value[process_index] - 1;
         end else begin
-          loop_counter <= 0;
-          loop_counter_max <= 0;
-          address_pc[address_pc_index] <= address_pc[address_pc_index] + 2;
+          loop_counter[process_index] <= 0;
+          loop_counter_max[process_index] <= 0;
+          address_pc[process_index] <= address_pc[process_index] + 2;
         end
       end
     end
@@ -213,25 +211,26 @@ module stage1 (
     if (stage == `STAGE_READ_PC1_RESPONSE) begin
       inst_op <= dob[15:8];
       inst_regnum <= dob[7:0];
-      address_pc[address_pc_index] <= address_pc[ address_pc_index] + 1;
-      if (loop_counter_max != 0) begin
-        inst_op_cache[loop_counter] <= dob[15:8];
-        inst_regnum_cache[loop_counter] <= dob[7:0];
+      address_pc[process_index] <= address_pc[process_index] + 1;
+      if (loop_counter_max[process_index] != 0) begin
+        inst_op_cache[process_index][loop_counter[process_index]] <= dob[15:8];
+        inst_regnum_cache[process_index][loop_counter[process_index]] <= dob[7:0];
       end
       stage <= `STAGE_READ_PC2_REQUEST;
     end else if (stage == `STAGE_READ_PC2_RESPONSE) begin
-      $display($time, " ", (address_pc[address_pc_index] - 1), "=", inst_op, inst_regnum, dob / 256, //DEBUG info
+      $display($time, " ", (address_pc[process_index] - 1), "=", inst_op, inst_regnum,
+               dob / 256,  //DEBUG info
                dob % 256);  //DEBUG info
       inst_address_num <= dob;
-      if (loop_counter_max != 0) begin
-        inst_address_num_cache[loop_counter] <= dob;
-        loop_counter <= loop_counter + 1;
+      if (loop_counter_max[process_index] != 0) begin
+        inst_address_num_cache[process_index][loop_counter[process_index]] <= dob;
+        loop_counter[process_index] <= loop_counter[process_index] + 1;
       end
-      address_pc[address_pc_index] <= address_pc[address_pc_index] + 1;
+      address_pc[process_index] <= address_pc[process_index] + 1;
       stage <= `STAGE_DECODE;
     end else if (stage == `STAGE_READ_RAM2REG) begin
       $display($time, "          reg ", inst_regnum, " = ", dob);  //DEBUG info
-      registers[inst_regnum] <= dob;
+      registers[process_index][inst_regnum] <= dob;
       stage <= `STAGE_READ_PC1_REQUEST;
     end
   end
