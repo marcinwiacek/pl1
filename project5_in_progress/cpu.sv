@@ -51,17 +51,16 @@ module stage1 (
     input      [15:0] dob
 );
 
-  //current instruction - we don't need to multiply it among processes
-  reg [7:0] inst_op; //instruction / operation code
-  reg [7:0] inst_reg_num; //in majority cases: processed / affected register number
-  reg [15:0] inst_address_num; //in majority caes: processed / affected memory address
-
+  //current instruction - we don't need to multiply it among processes, because we don't support partially executed op. before process switch
   reg [3:0] stage; //it doesn't need process index - we switch to other process after completing instruction
-  reg [3:0] stage_after_mmu;
+  reg [3:0] stage_after_mmu; //temporary value - after MMU related stage we switch to another "correct one"
+  reg [7:0] inst_op;  //instruction / operation code
+  reg [7:0] inst_reg_num;  //in majority cases: processed / affected register number
+  reg [15:0] inst_address_num;  //in majority caes: processed / affected memory address
 
-  //process related. We cache data about n=8 processes - here we save index values for concrete tables
-  reg [2:0] process_index = 0;
+  reg [2:0] process_index = 0; //process related. We cache data about n=8 processes - here we save index value for other tables
 
+  //values for all processes - need to be separated for every process
   reg [9:0] address_pc[2:0];  //n=2^3=8 addresses
   reg [15:0] registers[2:0][5:0];  //64 registers * n=8 processes = 512 16-bit registers
 
@@ -70,12 +69,22 @@ module stage1 (
   reg [7:0] inst_reg_num_cache[2:0][255:0];
   reg [15:0] inst_address_num_cache[2:0][255:0];
 
-  //loops - need to be separate for every process
+  //loop executions - need to be separate for every process
   reg [7:0] loop_counter[2:0];
   reg [7:0] loop_counter_max[2:0];
   reg [5:0] loop_reg_num[2:0];
   reg [7:0] loop_comp_value[2:0];
   reg [1:0] loop_type[2:0];
+
+  //MMU (Memory Management Unit)
+  reg [15:0] mmu_chain_memory[0:65535];  //values = next physical start point for task; last entry = 0
+  reg [15:0] mmu_logical_pages_memory[0:65535];  //values = logical page assign to this physical page; 0 means page is empty (in existing processes - when first page is 0, we setup here value > 0 and ignore it)
+  reg [15:0] mmu_index_start; // this is start index of the loop searching for free memory page; when reserving pages, increase; when deleting, setup to lowest free value
+  reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
+  reg [15:0] mmu_i;
+  reg [15:0] mmu_index;
+
+  `define MMU_PAGE_SIZE 5
 
   `define LOOP_TILL_VALUE 0
   `define LOOP_TILL_NON_VALUE 1
@@ -115,6 +124,14 @@ module stage1 (
     address_pc[process_index] <= 0;
     loop_counter[process_index] <= 0;
     loop_counter_max[process_index] <= 0;
+    mmu_start_process_segment <= 0;
+    mmu_index_start <= 1;
+    for (mmu_i = 0; mmu_i < 20000; mmu_i = mmu_i + 1) begin
+      //value 0 means, that it's empty. in every process on first entry we setup something != 0 and ignore it
+      // (first process page is always from segment 0)
+      mmu_logical_pages_memory[mmu_i] = 0;
+    end
+    mmu_chain_memory[0] <= 0;
   end
 
   always @(stage) begin
@@ -138,12 +155,36 @@ module stage1 (
       addrb <= address_pc[process_index];
       stage_after_mmu <= `STAGE_READ_PC2_RESPONSE;
       stage <= `STAGE_MMU_B;
-    end else if (stage == `STAGE_MMU_B) begin
-      //fixme: modify addrb
-      stage <= stage_after_mmu;
-    end else if (stage == `STAGE_MMU_A) begin
-      //fixme: modify addra
-      stage <= stage_after_mmu;
+    end else if (stage == `STAGE_MMU_B || stage == `STAGE_MMU_A) begin
+      mmu_index = mmu_start_process_segment;
+      mmu_i = (stage == `STAGE_MMU_A ? addra : addrb) / `MMU_PAGE_SIZE;
+      //we don't need to calculate it for first segment - it's always equal to process address segment
+      if (mmu_i != 0) begin
+        while (mmu_chain_memory[mmu_index] != 0 && mmu_logical_pages_memory[mmu_index] != mmu_i) begin
+          mmu_index = mmu_chain_memory[mmu_index];
+        end
+        if (mmu_logical_pages_memory[mmu_index] != mmu_i) begin
+          //we need to reserve new page & this must be first free one
+          //fixme: support for 100% memory usage and virtual memory
+          while (mmu_logical_pages_memory[mmu_index_start] != 0) begin
+            mmu_index_start = mmu_index_start + 1;
+          end
+          mmu_chain_memory[mmu_index] = mmu_index_start;
+          mmu_index = mmu_index_start;
+          mmu_logical_pages_memory[mmu_index] = mmu_i;
+        end
+      end
+      if (stage == `STAGE_MMU_A) begin
+        addra = mmu_index * `MMU_PAGE_SIZE + addra % `MMU_PAGE_SIZE;
+        wea   = 1;
+        $display($time, " write mmu from ", addra, " to ",  //DEBUG info
+                 (mmu_index * `MMU_PAGE_SIZE + addra % `MMU_PAGE_SIZE));  //DEBUG info
+      end else begin
+        addrb = mmu_index * `MMU_PAGE_SIZE + addrb % `MMU_PAGE_SIZE;
+        $display($time, " read mmu from ", addrb, " to ",  //DEBUG info
+                 (mmu_index * `MMU_PAGE_SIZE + addrb % `MMU_PAGE_SIZE));  //DEBUG info
+      end
+      stage = stage_after_mmu;
     end else if (stage == `STAGE_DECODE) begin
       if (inst_op == `OPCODE_JMP) begin
         $display($time, " opcode = jmp to ", inst_address_num);  //DEBUG info
@@ -156,14 +197,14 @@ module stage1 (
         stage_after_mmu <= `STAGE_READ_RAM2REG;
         stage <= `STAGE_MMU_B;
       end else if (inst_op == `OPCODE_REG2RAM) begin
-        $display($time, " opcode = reg2ram value ", //DEBUG info
+        $display($time, " opcode = reg2ram value ",  //DEBUG info
                  registers[process_index][inst_reg_num],  //DEBUG info
                  " to address ",  //DEBUG info
                  inst_address_num);  //DEBUG info
         addra <= inst_address_num;
-        dia   <= registers[process_index][inst_reg_num];
-        wea   <= 1;
-        stage <= `STAGE_SAVE_REG2RAM;
+        dia <= registers[process_index][inst_reg_num];
+        stage_after_mmu <= `STAGE_SAVE_REG2RAM;
+        stage <= `STAGE_MMU_A;
       end else if (inst_op == `OPCODE_NUM2REG) begin
         $display($time, " opcode = num2reg value ", inst_address_num, " to reg ",  //DEBUG info
                  inst_reg_num);  //DEBUG info
@@ -230,7 +271,8 @@ module stage1 (
       end
       stage <= `STAGE_READ_PC2_REQUEST;
     end else if (stage == `STAGE_READ_PC2_RESPONSE) begin
-      $display($time, " ", (address_pc[process_index] - 1), "=", inst_op, inst_reg_num, //DEBUG info
+      $display($time, " ", (address_pc[process_index] - 1), "=", inst_op,  //DEBUG info
+               inst_reg_num,  //DEBUG info
                dob / 256,  //DEBUG info
                dob % 256);  //DEBUG info
       inst_address_num <= dob;
