@@ -175,6 +175,7 @@ module stage1 (
         mmu_physical_index_old <= mmu_index_start;
         stage <= stage + 1;
       end else begin
+        //FIXME: support for lack of free memory
         mmu_index_start <= mmu_index_start + 1;
       end
     end
