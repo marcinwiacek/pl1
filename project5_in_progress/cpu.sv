@@ -83,14 +83,11 @@ module stage1 (
   reg [15:0] mmu_index_start; // this is start index of the loop searching for free memory page; when reserving pages, increase;
                               // when deleting, setup to lowest free value
   reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
-   // reg [15:0] mmu_processing;
-
   reg [15:0] mmu_logical_index_new;
- //   reg [15:0] mmu_physical_index_new;
   reg [15:0] mmu_logical_index_old;
   reg [15:0] mmu_physical_index_old;
-  reg [ 9:0] addr;
-   reg [15:0] last_physical;
+  reg [9:0] addr;
+  reg [15:0] last_physical;
 
   `define MMU_PAGE_SIZE 5
 
@@ -127,9 +124,6 @@ module stage1 (
   `define OPCODE_REG_INT 14
   `define OPCODE_INT 15
   `define OPCODE_INT_RET 16
-  
-  `define STAGEMMU_FIRST 1
-  `define STAGEMMU_SECOND 2
 
   always @(posedge rst) begin
     $display($time, "rst");  //DEBUG info
@@ -142,9 +136,12 @@ module stage1 (
     mmu_start_process_segment <= 0;
     mmu_index_start <= 0;
     mmu_chain_memory[0] <= 0;
-   // mmu_logical_index_old <= 0;
     //problem: we shouldn't mix blocking and non-blocking
-    for (mmu_logical_index_new = 0; mmu_logical_index_new < 1000; mmu_logical_index_new = mmu_logical_index_new + 1) begin
+    for (
+        mmu_logical_index_new = 0;
+        mmu_logical_index_new < 1000;
+        mmu_logical_index_new = mmu_logical_index_new + 1
+    ) begin
       //value 0 means, that it's empty. in every process on first entry we setup something != 0 and ignore it
       // (first process page is always from segment 0)
       mmu_logical_pages_memory[mmu_logical_index_new] = 0;
@@ -153,36 +150,29 @@ module stage1 (
   end
 
   always @(mmu_logical_index_old) begin
-      //    $display($time, " mmu_logical_index_old ", mmu_logical_index_new, " ", mmu_logical_index_old, " ",mmu_physical_index_old," ",mmu_start_process_segment);
     if (mmu_logical_index_new === 0 && mmu_physical_index_old === mmu_start_process_segment) begin
-   //  $display($time, " first address ok ");
-        stage <= stage + 1;
+      stage <= stage + 1;
     end else if (mmu_physical_index_old !== mmu_start_process_segment && mmu_logical_pages_memory[mmu_physical_index_old]===mmu_logical_index_new) begin
-    // $display($time, " next address ok ");
-        stage <= stage + 1;
-    end else if (mmu_chain_memory[mmu_physical_index_old] === 0) begin    
-    // $display($time, " przechodzi do nowej page ", mmu_physical_index_old, " ",mmu_index_start);
-        last_physical <= mmu_physical_index_old;
-        mmu_index_start <= mmu_index_start + 1;
+      stage <= stage + 1;
+    end else if (mmu_chain_memory[mmu_physical_index_old] === 0) begin
+      last_physical   <= mmu_physical_index_old;
+      mmu_index_start <= mmu_index_start + 1;
     end else begin
-   //  $display($time, " traversing ");
-        mmu_physical_index_old <= mmu_chain_memory[mmu_physical_index_old];
-        mmu_logical_index_old <= mmu_logical_pages_memory[mmu_chain_memory[mmu_physical_index_old]];
+      mmu_physical_index_old <= mmu_chain_memory[mmu_physical_index_old];
+      mmu_logical_index_old  <= mmu_logical_pages_memory[mmu_chain_memory[mmu_physical_index_old]];
     end
   end
-  
+
   always @(mmu_index_start) begin
-     if (!rst) begin
-       //   $display($time, " mmu_index_start ");
+    if (!rst) begin
       if (mmu_logical_pages_memory[mmu_index_start] === 0) begin
-          $display($time, " new page ");
+        $display($time, " new page ");  //DEBUG info
         mmu_chain_memory[last_physical] <= mmu_index_start;
         mmu_chain_memory[mmu_index_start] <= 0;
         mmu_logical_pages_memory[mmu_index_start] <= mmu_logical_index_new;
         mmu_physical_index_old <= mmu_index_start;
-        stage <= stage+1;
+        stage <= stage + 1;
       end else begin
-       // $display($time, " increase mmu_index_start ");
         mmu_index_start <= mmu_index_start + 1;
       end
     end
@@ -217,20 +207,19 @@ module stage1 (
         //we have already translated address. We can us it
         stage <= stage + 1;
       end else begin
-          mmu_physical_index_old <= mmu_start_process_segment;
-          mmu_logical_index_old <=  mmu_logical_index_new;
-      end      
+        mmu_physical_index_old <= mmu_start_process_segment;
+        mmu_logical_index_old  <= mmu_logical_index_new;
+      end
     end else if (stage == `STAGE_MMU_BBB || stage == `STAGE_MMU_AAA) begin
-        if (stage == `STAGE_MMU_AAA) begin
-          addra <= mmu_physical_index_old * `MMU_PAGE_SIZE + addr % `MMU_PAGE_SIZE;
-          wea   <= 1;
-        end else begin
-          addrb <= mmu_physical_index_old * `MMU_PAGE_SIZE + addr % `MMU_PAGE_SIZE;
-        end
-        stage <= stage_after_mmu;
-        $display(
-              $time, " mmu from ", addr, " to ",  //DEBUG info
-              (mmu_physical_index_old * `MMU_PAGE_SIZE + addr % `MMU_PAGE_SIZE));  //DEBUG info    
+      if (stage == `STAGE_MMU_AAA) begin
+        addra <= mmu_physical_index_old * `MMU_PAGE_SIZE + addr % `MMU_PAGE_SIZE;
+        wea   <= 1;
+      end else begin
+        addrb <= mmu_physical_index_old * `MMU_PAGE_SIZE + addr % `MMU_PAGE_SIZE;
+      end
+      stage <= stage_after_mmu;
+      $display($time, " mmu from ", addr, " to ",  //DEBUG info
+               (mmu_physical_index_old * `MMU_PAGE_SIZE + addr % `MMU_PAGE_SIZE));  //DEBUG info    
     end else if (stage == `STAGE_DECODE) begin
       if (inst_op == `OPCODE_JMP) begin
         $display($time, " opcode = jmp to ", inst_address_num);  //DEBUG info
