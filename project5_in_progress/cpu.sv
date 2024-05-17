@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 
-`define MMU_DEBUG 0
+`define MMU_DEBUG 1 //1 enabled, 0 disabled
+`define MMU_PAGE_SIZE 200 //how many bytes are assigned to one memory page in MMU
 
 module cpu (
     input rst,
@@ -53,6 +54,9 @@ module stage1 (
     input      [15:0] dob
 );
 
+  integer i;  //DEBUG info
+  string s;  //DEBUG info
+
   //current instruction - we don't need to multiply it among processes, because we don't support partially executed op. before process switch
   reg [4:0] stage; //it doesn't need process index - we switch to other process after completing instruction
   reg [4:0] stage_after_mmu; //temporary value - after MMU related stage we switch to another "correct one"
@@ -79,21 +83,6 @@ module stage1 (
   reg [7:0] loop_comp_value[2:0];
   reg [1:0] loop_type[2:0];
 
-  //MMU (Memory Management Unit)
-  reg [9:0] mmu_input_addr;  //address to translate
-  reg [15:0] mmu_chain_memory[0:1000];  //values = next physical page index for process; last entry = 0
-  reg [15:0] mmu_logical_pages_memory[0:1000];  //values = logical process page assigned to physical page; 0 means empty oage
-                                                //(in existing processes - we setup here value > 0 for first page with index 0 and ignore it)
-  reg [15:0] mmu_index_start; // this is start index of the loop searching for free memory page; when reserving pages, increase;
-                              // when deleting, setup to lowest free value
-  reg [15:0] mmu_logical_index_new;
-  reg [15:0] mmu_logical_index_old;
-  reg [15:0] mmu_physical_index_old;
-  reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
-  reg [15:0] mmu_last_process_segment;  //used during search for finding last process segment
-
-  `define MMU_PAGE_SIZE 200
-
   //offsets for process info
   `define ADDRESS_NEXT_PROCESS 0
   `define ADDRESS_PC 4
@@ -112,12 +101,8 @@ module stage1 (
   `define STAGE_DECODE 4
   `define STAGE_READ_RAM2REG 5
   `define STAGE_SAVE_REG2RAM 6
-  `define STAGE_MMU_B 7
-  `define STAGE_MMU_BB 8
-  `define STAGE_MMU_BBB 9
-  `define STAGE_MMU_A 10
-  `define STAGE_MMU_AA 11
-  `define STAGE_MMU_AAA 12
+  `define STAGE_MMU_TRANSLATE_A 7
+  `define STAGE_MMU_TRANSLATE_B 8
 
   `define OPCODE_JMP 1     //256 or register num for first 16-bits of the address, 16 bit address
   `define OPCODE_RAM2REG 2 //register num, 16 bit source addr //ram -> reg
@@ -158,46 +143,9 @@ module stage1 (
       mmu_logical_pages_memory[mmu_logical_index_new] = 0;
     end
     mmu_logical_pages_memory[0] = 1;
+    mmu_stage <= 0;
     stage <= `STAGE_READ_PC1_REQUEST;
   end
-
-  always @(mmu_logical_index_old) begin
-    if (mmu_logical_index_new === 0 && mmu_physical_index_old === mmu_start_process_segment) begin
-      //value found in current process chain
-      stage <= stage + 1;
-    end else if (mmu_physical_index_old !== mmu_start_process_segment && mmu_logical_pages_memory[mmu_physical_index_old]===mmu_logical_index_new) begin
-      //value found in current process chain
-      stage <= stage + 1;
-    end else if (mmu_chain_memory[mmu_physical_index_old] === 0) begin
-      //we need to start searching first free memory page and allocate it
-      mmu_last_process_segment <= mmu_physical_index_old;
-      mmu_index_start <= mmu_index_start + 1;
-    end else begin
-      //go into next memory page in process chain
-      mmu_physical_index_old <= mmu_chain_memory[mmu_physical_index_old];
-      mmu_logical_index_old  <= mmu_logical_pages_memory[mmu_chain_memory[mmu_physical_index_old]];
-    end
-  end
-
-  always @(mmu_index_start) begin
-    if (!rst) begin
-      if (mmu_logical_pages_memory[mmu_index_start] === 0) begin
-        //we have free memory page. Let's allocate it and add to process chain
-        if (`MMU_DEBUG === 1) $display($time, " mmu new page ");  //DEBUG info
-        mmu_chain_memory[mmu_last_process_segment] <= mmu_index_start;
-        mmu_chain_memory[mmu_index_start] <= 0;
-        mmu_logical_pages_memory[mmu_index_start] <= mmu_logical_index_new;
-        mmu_physical_index_old <= mmu_index_start;
-        stage <= stage + 1;
-      end else begin
-        //FIXME: support for lack of free memory
-        mmu_index_start <= mmu_index_start + 1;
-      end
-    end
-  end
-
-  integer i;  //DEBUG info
-  string  s;  //DEBUG info
 
   always @(stage) begin
     if (stage == `STAGE_READ_PC1_REQUEST) begin
@@ -214,48 +162,15 @@ module stage1 (
       end else begin
         mmu_input_addr <= address_pc[process_index];
         stage_after_mmu <= `STAGE_READ_PC1_RESPONSE;
-        stage <= `STAGE_MMU_B;
+        stage <= `STAGE_MMU_TRANSLATE_B;
       end
     end else if (stage == `STAGE_READ_PC2_REQUEST) begin
       mmu_input_addr <= address_pc[process_index];
       stage_after_mmu <= `STAGE_READ_PC2_RESPONSE;
-      stage <= `STAGE_MMU_B;
-    end else if (stage == `STAGE_MMU_B || stage == `STAGE_MMU_A) begin
+      stage <= `STAGE_MMU_TRANSLATE_B;
+    end else if (stage == `STAGE_MMU_TRANSLATE_A || stage == `STAGE_MMU_TRANSLATE_B) begin
       mmu_logical_index_new <= mmu_input_addr / `MMU_PAGE_SIZE; //FIXME: it's enough just to take concrete bits
-      stage <= stage + 1;
-    end else if (stage == `STAGE_MMU_BB || stage == `STAGE_MMU_AA) begin
-      if (mmu_logical_index_old == mmu_logical_index_new) begin
-        //we have already translated address. We can us it
-        stage <= stage + 1;
-      end else begin
-        //start for searching page
-        mmu_physical_index_old <= mmu_start_process_segment;
-        mmu_logical_index_old  <= mmu_logical_index_new;
-      end
-    end else if (stage == `STAGE_MMU_BBB || stage == `STAGE_MMU_AAA) begin
-      //page found, we can create translated address
-      if (stage == `STAGE_MMU_AAA) begin
-        addra <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE; //FIXME: bits moving and concatenation
-        wea <= 1;
-      end else begin
-        addrb <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE;
-      end
-      stage <= stage_after_mmu;
-      if (`MMU_DEBUG === 1)  //DEBUG info
-        $display(  //DEBUG info
-            $time,  //DEBUG info
-            " mmu from ",  //DEBUG info
-            addr,  //DEBUG info
-            " to ",  //DEBUG info
-            (mmu_physical_index_old * `MMU_PAGE_SIZE + addr % `MMU_PAGE_SIZE)  //DEBUG info
-        );  //DEBUG info
-      s = " mmu ";  //DEBUG info
-      for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-        s = {  //DEBUG info
-          s, $sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])  //DEBUG info
-        };  //DEBUG info
-      end  //DEBUG info
-      if (`MMU_DEBUG === 1) $display($time, s);  //DEBUG info
+      mmu_stage <= 1;
     end else if (stage == `STAGE_DECODE) begin
       if (inst_op == `OPCODE_JMP) begin
         $display($time, " opcode = jmp to ", inst_address_num);  //DEBUG info
@@ -266,7 +181,7 @@ module stage1 (
                  inst_reg_num);  //DEBUG info
         mmu_input_addr <= inst_address_num;
         stage_after_mmu <= `STAGE_READ_RAM2REG;
-        stage <= `STAGE_MMU_B;
+        stage <= `STAGE_MMU_TRANSLATE_B;
       end else if (inst_op == `OPCODE_REG2RAM) begin
         $display($time, " opcode = reg2ram value ",  //DEBUG info
                  registers[process_index][inst_reg_num],  //DEBUG info
@@ -275,7 +190,7 @@ module stage1 (
         dia <= registers[process_index][inst_reg_num];
         mmu_input_addr <= inst_address_num;
         stage_after_mmu <= `STAGE_SAVE_REG2RAM;
-        stage <= `STAGE_MMU_A;
+        stage <= `STAGE_MMU_TRANSLATE_A;
       end else if (inst_op == `OPCODE_NUM2REG) begin
         $display($time, " opcode = num2reg value ", inst_address_num, " to reg ",  //DEBUG info
                  inst_reg_num);  //DEBUG info
@@ -364,6 +279,92 @@ module stage1 (
     end
   end
 
+  //MMU (Memory Management Unit)
+  reg [9:0] mmu_input_addr;  //address to translate
+  reg [15:0] mmu_chain_memory[0:1000];  //values = next physical page index for process; last entry = 0
+  reg [15:0] mmu_logical_pages_memory[0:1000];  //values = logical process page assigned to physical page; 0 means empty oage
+                                                //(in existing processes - we setup here value > 0 for first page with index 0 and ignore it)
+  reg [15:0] mmu_index_start; // this is start index of the loop searching for free memory page; when reserving pages, increase;
+                              // when deleting, setup to lowest free value
+  reg [15:0] mmu_logical_index_new;
+  reg [15:0] mmu_logical_index_old;
+  reg [15:0] mmu_physical_index_old;
+  reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
+  reg [15:0] mmu_last_process_segment;  //used during search for finding last process segment
+  reg [4:0] mmu_stage;
+
+  always @(mmu_stage) begin
+    if (mmu_stage == 1) begin
+      if (mmu_logical_index_old == mmu_logical_index_new) begin
+        //we have already translated address. We can us it
+        mmu_stage <= mmu_stage + 1;
+      end else begin
+        //start for searching page
+        mmu_physical_index_old <= mmu_start_process_segment;
+        mmu_logical_index_old  <= mmu_logical_index_new;
+      end
+    end else if (mmu_stage == 2) begin
+      //page found, we can create translated address
+      if (stage == `STAGE_MMU_TRANSLATE_A) begin
+        addra <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE; //FIXME: bits moving and concatenation
+        wea <= 1;
+      end else begin
+        addrb <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE;
+      end
+      stage <= stage_after_mmu;
+      mmu_stage <= 0;
+      if (`MMU_DEBUG === 1)  //DEBUG info
+        $display(  //DEBUG info
+            $time,  //DEBUG info
+            " mmu from ",  //DEBUG info
+            mmu_input_addr,  //DEBUG info
+            " to ",  //DEBUG info
+            (mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE)  //DEBUG info
+        );  //DEBUG info
+      s = " mmu ";  //DEBUG info
+      for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
+        s = {  //DEBUG info
+          s, $sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])  //DEBUG info
+        };  //DEBUG info
+      end  //DEBUG info
+      if (`MMU_DEBUG === 1) $display($time, s);  //DEBUG info
+    end
+  end
+
+  always @(mmu_logical_index_old) begin
+    if (mmu_logical_index_new === 0 && mmu_physical_index_old === mmu_start_process_segment) begin
+      //value found in current process chain
+      mmu_stage <= mmu_stage + 1;
+    end else if (mmu_physical_index_old !== mmu_start_process_segment && mmu_logical_pages_memory[mmu_physical_index_old]===mmu_logical_index_new) begin
+      //value found in current process chain
+      mmu_stage <= mmu_stage + 1;
+    end else if (mmu_chain_memory[mmu_physical_index_old] === 0) begin
+      //we need to start searching first free memory page and allocate it
+      mmu_last_process_segment <= mmu_physical_index_old;
+      mmu_index_start <= mmu_index_start + 1;
+    end else begin
+      //go into next memory page in process chain
+      mmu_physical_index_old <= mmu_chain_memory[mmu_physical_index_old];
+      mmu_logical_index_old  <= mmu_logical_pages_memory[mmu_chain_memory[mmu_physical_index_old]];
+    end
+  end
+
+  always @(mmu_index_start) begin
+    if (!rst) begin
+      if (mmu_logical_pages_memory[mmu_index_start] === 0) begin
+        //we have free memory page. Let's allocate it and add to process chain
+        if (`MMU_DEBUG === 1) $display($time, " mmu new page ");  //DEBUG info
+        mmu_chain_memory[mmu_last_process_segment] <= mmu_index_start;
+        mmu_chain_memory[mmu_index_start] <= 0;
+        mmu_logical_pages_memory[mmu_index_start] <= mmu_logical_index_new;
+        mmu_physical_index_old <= mmu_index_start;
+        mmu_stage <= mmu_stage + 1;
+      end else begin
+        //FIXME: support for lack of free memory
+        mmu_index_start <= mmu_index_start + 1;
+      end
+    end
+  end
 endmodule
 
 // Simple Dual-Port Block RAM with Two Clocks
