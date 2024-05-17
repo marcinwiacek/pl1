@@ -119,7 +119,7 @@ module stage1 (
   `define STAGE_MMU_AA 11
   `define STAGE_MMU_AAA 12
 
-  `define OPCODE_JMP 1     //x, 16 bit address
+  `define OPCODE_JMP 1     //256 or register num for first 16-bits of the address, 16 bit address
   `define OPCODE_RAM2REG 2 //register num, 16 bit source addr //ram -> reg
   `define OPCODE_REG2RAM 3 //register num, 16 bit source addr //reg -> ram
   `define OPCODE_NUM2REG 4 //register num, 16 bit value //value -> reg
@@ -134,6 +134,8 @@ module stage1 (
   `define OPCODE_REG_INT 14
   `define OPCODE_INT 15
   `define OPCODE_INT_RET 16
+  `define OPCODE_JMP_PLUS 17
+  `define OPCODE_JMP_MINUS 18
 
   always @(posedge rst) begin
     $display($time, "rst");  //DEBUG info
