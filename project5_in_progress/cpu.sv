@@ -61,10 +61,11 @@ module stage1 (
   reg [15:0] inst_address_num;  //in majority caes: processed / affected memory address
 
   reg [2:0] process_index = 0; //process related. We cache data about n=8 processes - here we save index value for other tables
+  reg [2:0] process_instruction_done = 0; //process related. how many instructions were done for current process
 
   //values for all processes - need to be separated for every process
   reg [9:0] address_pc[2:0];  //n=2^3=8 addresses
-  reg [15:0] registers[2:0][5:0];  //64 registers * n=8 processes = 512 16-bit registers
+  reg [15:0] registers[2:0][5:0];  //64 8-bit registers * n=8 processes = 512 16-bit registers
 
   //cache used in all loops - needs to be separated for every process
   reg [7:0] inst_op_cache[2:0][255:0];  // 256 * n=8 processes = 2048
@@ -91,7 +92,14 @@ module stage1 (
   reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
   reg [15:0] mmu_last_process_segment;  //used during search for finding last process segment
 
-  `define MMU_PAGE_SIZE 5
+  `define MMU_PAGE_SIZE 200
+  
+  //offsets for process info
+`define ADDRESS_NEXT_PROCESS 0
+`define ADDRESS_PC 4
+`define ADDRESS_REG_USED 8
+`define ADDRESS_REG 14
+`define ADDRESS_PROGRAM `ADDRESS_REG+32
 
   `define LOOP_TILL_VALUE 0
   `define LOOP_TILL_NON_VALUE 1
@@ -131,8 +139,7 @@ module stage1 (
     $display($time, "rst");  //DEBUG info
     enb <= 1;
     ena <= 1;
-    stage <= `STAGE_READ_PC1_REQUEST;
-    address_pc[process_index] <= 0;
+    address_pc[process_index] <= `ADDRESS_PROGRAM;
     loop_counter[process_index] <= 0;
     loop_counter_max[process_index] <= 0;
     mmu_start_process_segment <= 0;
@@ -149,17 +156,22 @@ module stage1 (
       mmu_logical_pages_memory[mmu_logical_index_new] = 0;
     end
     mmu_logical_pages_memory[0] = 1;
+    stage <= `STAGE_READ_PC1_REQUEST;
   end
 
   always @(mmu_logical_index_old) begin
     if (mmu_logical_index_new === 0 && mmu_physical_index_old === mmu_start_process_segment) begin
+      //value found in current process chain
       stage <= stage + 1;
     end else if (mmu_physical_index_old !== mmu_start_process_segment && mmu_logical_pages_memory[mmu_physical_index_old]===mmu_logical_index_new) begin
+      //value found in current process chain
       stage <= stage + 1;
     end else if (mmu_chain_memory[mmu_physical_index_old] === 0) begin
+      //we need to start searching first free memory page and allocate it
       mmu_last_process_segment <= mmu_physical_index_old;
       mmu_index_start <= mmu_index_start + 1;
     end else begin
+      //go into next memory page in process chain
       mmu_physical_index_old <= mmu_chain_memory[mmu_physical_index_old];
       mmu_logical_index_old  <= mmu_logical_pages_memory[mmu_chain_memory[mmu_physical_index_old]];
     end
@@ -168,6 +180,7 @@ module stage1 (
   always @(mmu_index_start) begin
     if (!rst) begin
       if (mmu_logical_pages_memory[mmu_index_start] === 0) begin
+        //we have free memory page. Let's allocate it and add to process chain
         if (`MMU_DEBUG === 1) $display($time, " mmu new page ");  //DEBUG info
         mmu_chain_memory[mmu_last_process_segment] <= mmu_index_start;
         mmu_chain_memory[mmu_index_start] <= 0;
@@ -213,10 +226,12 @@ module stage1 (
         //we have already translated address. We can us it
         stage <= stage + 1;
       end else begin
+        //start for searching page
         mmu_physical_index_old <= mmu_start_process_segment;
         mmu_logical_index_old  <= mmu_logical_index_new;
       end
     end else if (stage == `STAGE_MMU_BBB || stage == `STAGE_MMU_AAA) begin
+      //page found, we can create translated address
       if (stage == `STAGE_MMU_AAA) begin
         addra <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE; //FIXME: bits moving and concatenation
         wea <= 1;
@@ -302,6 +317,11 @@ module stage1 (
           loop_counter[process_index] <= 0;
           loop_counter_max[process_index] <= 0;
         end
+      end
+      process_instruction_done <= process_instruction_done+1;
+      if (process_instruction_done === 7) begin
+         //time to switch process
+         process_instruction_done <= 0;
       end
     end
   end
