@@ -93,13 +93,13 @@ module stage1 (
   reg [15:0] mmu_last_process_segment;  //used during search for finding last process segment
 
   `define MMU_PAGE_SIZE 200
-  
+
   //offsets for process info
-`define ADDRESS_NEXT_PROCESS 0
-`define ADDRESS_PC 4
-`define ADDRESS_REG_USED 8
-`define ADDRESS_REG 14
-`define ADDRESS_PROGRAM `ADDRESS_REG+32
+  `define ADDRESS_NEXT_PROCESS 0
+  `define ADDRESS_PC 4
+  `define ADDRESS_REG_USED 8
+  `define ADDRESS_REG 14
+  `define ADDRESS_PROGRAM `ADDRESS_REG+32
 
   `define LOOP_TILL_VALUE 0
   `define LOOP_TILL_NON_VALUE 1
@@ -239,18 +239,18 @@ module stage1 (
         addrb <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE;
       end
       stage <= stage_after_mmu;
-      if (`MMU_DEBUG === 1) //DEBUG info
-        $display( //DEBUG info
-            $time, //DEBUG info
-            " mmu from ", //DEBUG info
-            addr, //DEBUG info
+      if (`MMU_DEBUG === 1)  //DEBUG info
+        $display(  //DEBUG info
+            $time,  //DEBUG info
+            " mmu from ",  //DEBUG info
+            addr,  //DEBUG info
             " to ",  //DEBUG info
-            (mmu_physical_index_old * `MMU_PAGE_SIZE + addr % `MMU_PAGE_SIZE) //DEBUG info
+            (mmu_physical_index_old * `MMU_PAGE_SIZE + addr % `MMU_PAGE_SIZE)  //DEBUG info
         );  //DEBUG info
       s = " mmu ";  //DEBUG info
       for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-        s = { //DEBUG info
-          s, $sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i]) //DEBUG info
+        s = {  //DEBUG info
+          s, $sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])  //DEBUG info
         };  //DEBUG info
       end  //DEBUG info
       if (`MMU_DEBUG === 1) $display($time, s);  //DEBUG info
@@ -318,10 +318,10 @@ module stage1 (
           loop_counter_max[process_index] <= 0;
         end
       end
-      process_instruction_done <= process_instruction_done+1;
+      process_instruction_done <= process_instruction_done + 1;
       if (process_instruction_done === 7) begin
-         //time to switch process
-         process_instruction_done <= 0;
+        //time to switch process
+        process_instruction_done <= 0;
       end
     end
   end
