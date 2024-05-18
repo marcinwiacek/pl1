@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 
-`define MMU_DEBUG 1 //1 enabled, 0 disabled
+`define MMU_DEBUG 0 //1 enabled, 0 disabled
+`define REG_DEBUG 1 //1 enabled, 0 disabled
 `define MMU_PAGE_SIZE 200 //how many bytes are assigned to one memory page in MMU
 
 module cpu (
@@ -56,6 +57,9 @@ module stage1 (
 
   integer i;  //DEBUG info
 
+  reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
+  reg [15:0] start_process_address;  //needs to be updated on process switch
+
   //current instruction - we don't need to multiply it among processes, because we don't support partially executed op. before process switch
   reg [4:0] stage; //it doesn't need process index - we switch to other process after completing instruction
   reg [4:0] stage_after_mmu; //temporary value - after MMU related stage we switch to another "correct one"
@@ -82,6 +86,8 @@ module stage1 (
   reg [7:0] loop_comp_value[2:0];
   reg [1:0] loop_type[2:0];
 
+  reg [15:0] task_switcher_stage;
+
   //offsets for process info
   `define ADDRESS_NEXT_PROCESS 0
   `define ADDRESS_PC 4
@@ -103,10 +109,17 @@ module stage1 (
   `define STAGE_MMU_TRANSLATE_A 7
   `define STAGE_MMU_TRANSLATE_B 8
   `define STAGE_TASK_SWITCHER 9
-  
-  `define SWITCHER_STAGE_READ_NEXT_1 1 //read next process address byte 1
-  `define SWITCHER_STAGE_READ_NEXT_2 2 //read next process address byte 2
-  
+
+  `define SWITCHER_STAGE_SAVE_PC 1 //save current pc
+  `define SWITCHER_STAGE_SAVE_REG_0 2
+  //...
+  `define SWITCHER_STAGE_SAVE_REG_31 33
+  `define SWITCHER_STAGE_READ_NEW_PROCESS_ADDR 34
+  `define SWITCHER_STAGE_READ_NEW_PC 35
+  `define SWITCHER_STAGE_READ_NEW_REG_0 36
+  //...
+  `define SWITCHER_STAGE_READ_NEW_REG_31 37
+
   `define OPCODE_JMP 1     //256 or register num for first 16-bits of the address, 16 bit address
   `define OPCODE_RAM2REG 2 //register num, 16 bit source addr //ram -> reg
   `define OPCODE_REG2RAM 3 //register num, 16 bit source addr //reg -> ram
@@ -132,6 +145,7 @@ module stage1 (
     address_pc[process_index] <= `ADDRESS_PROGRAM;
     loop_counter[process_index] <= 0;
     loop_counter_max[process_index] <= 0;
+    start_process_address <= 0;
     mmu_start_process_segment <= 0;
     mmu_index_start <= 0;
     mmu_chain_memory[0] <= 0;
@@ -155,20 +169,37 @@ module stage1 (
       mmu_logical_index_new <= mmu_input_addr / `MMU_PAGE_SIZE; //FIXME: it's enough just to take concrete bits
       mmu_stage <= 1;
     end else if (stage == `STAGE_READ_PC1_REQUEST) begin
-      if (loop_counter[process_index] > loop_counter_max[process_index]) begin
-        inst_op <= inst_op_cache[process_index][loop_counter_max[process_index]];
-        inst_reg_num <= inst_reg_num_cache[process_index][loop_counter_max[process_index]];
-        inst_address_num <= inst_address_num_cache[process_index][loop_counter_max[process_index]];
-        loop_counter_max[process_index] <= loop_counter_max[process_index] + 1;
-        address_pc[process_index] <= address_pc[process_index] + 2;
-        $display($time, (address_pc[process_index]), "=", inst_op, inst_reg_num,  //DEBUG info
-                 inst_address_num / 256,  //DEBUG info
-                 inst_address_num % 256, " (cache)");  //DEBUG info
-        stage <= `STAGE_DECODE;
+      process_instruction_done <= process_instruction_done + 1;
+      if (process_instruction_done == 2) begin
+        //time to switch process
+        stage <= `STAGE_TASK_SWITCHER;
+        if (`REG_DEBUG === 1) $write($time, " reg ");  //DEBUG info
+        for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
+          if (`REG_DEBUG === 1)
+            $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
+        end  //DEBUG info
+        if (`REG_DEBUG === 1) $display("");  //DEBUG info      
+        //first save PC
+        addra <= start_process_address + `ADDRESS_PC;
+        dia <= address_pc[process_index];
+        wea <= 1;
+        task_switcher_stage <= `SWITCHER_STAGE_SAVE_PC;
       end else begin
-        mmu_input_addr <= address_pc[process_index];
-        stage_after_mmu <= `STAGE_READ_PC1_RESPONSE;
-        stage <= `STAGE_MMU_TRANSLATE_B;
+        if (loop_counter[process_index] > loop_counter_max[process_index]) begin
+          inst_op <= inst_op_cache[process_index][loop_counter_max[process_index]];
+          inst_reg_num <= inst_reg_num_cache[process_index][loop_counter_max[process_index]];
+          inst_address_num <= inst_address_num_cache[process_index][loop_counter_max[process_index]];
+          loop_counter_max[process_index] <= loop_counter_max[process_index] + 1;
+          address_pc[process_index] <= address_pc[process_index] + 2;
+          $display($time, (address_pc[process_index]), "=", inst_op, inst_reg_num,  //DEBUG info
+                   inst_address_num / 256,  //DEBUG info
+                   inst_address_num % 256, " (cache)");  //DEBUG info
+          stage <= `STAGE_DECODE;
+        end else begin
+          mmu_input_addr <= address_pc[process_index];
+          stage_after_mmu <= `STAGE_READ_PC1_RESPONSE;
+          stage <= `STAGE_MMU_TRANSLATE_B;
+        end
       end
     end else if (stage == `STAGE_READ_PC2_REQUEST) begin
       mmu_input_addr <= address_pc[process_index];
@@ -238,25 +269,32 @@ module stage1 (
           loop_counter_max[process_index] <= 0;
         end
       end
-      process_instruction_done <= process_instruction_done + 1;
-      if (process_instruction_done === 7) begin
-        //time to switch process
-        addrb <= mmu_start_process_segment * `MMU_PAGE_SIZE;
-        task_switcher_stage <= `SWITCHER_STAGE_READ_NEXT_1;
-        stage <= `STAGE_TASK_SWITCHER;
-        process_instruction_done <= 0;
-      end
     end
   end
 
+  //writing to RAM
   always @(posedge clka) begin
     if (stage == `STAGE_SAVE_REG2RAM) begin
       wea   <= 0;
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
+      //$display($time, "          switcher save ", task_switcher_stage);
+      if (task_switcher_stage == `SWITCHER_STAGE_SAVE_PC) begin
+        addra <= start_process_address + `ADDRESS_REG;
+        dia <= registers[process_index][0];
+        task_switcher_stage <= `SWITCHER_STAGE_SAVE_REG_0;
+      end else if (task_switcher_stage >= `SWITCHER_STAGE_SAVE_REG_0 && task_switcher_stage < `SWITCHER_STAGE_SAVE_REG_31) begin
+        addra <= addra + 1;
+        dia <= registers[process_index][task_switcher_stage-`SWITCHER_STAGE_SAVE_REG_0];
+        task_switcher_stage <= task_switcher_stage + 1;
+      end else if (task_switcher_stage == `SWITCHER_STAGE_SAVE_REG_31) begin
+        addrb <= start_process_address + `ADDRESS_NEXT_PROCESS;
+        task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
+      end
     end
   end
 
+  //reading from RAM
   always @(negedge clkb) begin
     if (stage == `STAGE_READ_PC1_RESPONSE) begin
       inst_op <= dob[15:8];
@@ -284,15 +322,38 @@ module stage1 (
       registers[process_index][inst_reg_num] <= dob;
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
-      if (task_switcher_stage == `SWITCHER_STAGE_READ_NEXT_1) begin
-      end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEXT_2) begin
+      //$display($time, "          switcher read ", task_switcher_stage);
+      if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
+        start_process_address <= dob;
+        mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
+        task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
+      end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PC) begin
+        address_pc[process_index] <= dob;
+        addrb <= start_process_address + `ADDRESS_REG;
+        task_switcher_stage = `SWITCHER_STAGE_READ_NEW_REG_0;
+      end else if (task_switcher_stage >= `SWITCHER_STAGE_READ_NEW_REG_0 && task_switcher_stage < `SWITCHER_STAGE_READ_NEW_REG_31) begin
+        registers[process_index][task_switcher_stage-`SWITCHER_STAGE_READ_NEW_REG_0] <= dob;
+        addrb <= addrb + 1;
+        task_switcher_stage <= task_switcher_stage + 1;
+      end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_REG_31) begin
+        if (`MMU_DEBUG === 1) $write($time, " mmu ");  //DEBUG info
+        for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
+          if (`MMU_DEBUG === 1)
+            $write(
+                $sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])
+            );  //DEBUG info
+        end  //DEBUG info
+        if (`MMU_DEBUG === 1) $display("");  //DEBUG info
+        if (`REG_DEBUG === 1) $write($time, " reg ");  //DEBUG info
+        for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
+          if (`REG_DEBUG === 1)
+            $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
+        end  //DEBUG info
+        if (`REG_DEBUG === 1) $display("");  //DEBUG info
+        process_instruction_done <= 0;
+        stage <= `STAGE_READ_PC1_REQUEST;
       end
     end
-  end
-  
-  reg [15:0] task_switcher_stage;
-  
-  always @(posedge task_switcher_stage) begin
   end
 
   //MMU (Memory Management Unit)
@@ -305,7 +366,6 @@ module stage1 (
   reg [15:0] mmu_logical_index_new;
   reg [15:0] mmu_logical_index_old;
   reg [15:0] mmu_physical_index_old;
-  reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
   reg [15:0] mmu_last_process_segment;  //used during search for finding last process segment
   reg [4:0] mmu_stage;
 
@@ -339,9 +399,12 @@ module stage1 (
         );  //DEBUG info
       if (`MMU_DEBUG === 1) $write($time, " mmu ");  //DEBUG info
       for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-        if (`MMU_DEBUG === 1) $write($sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i]));  //DEBUG info
+        if (`MMU_DEBUG === 1)
+          $write(
+              $sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])
+          );  //DEBUG info
       end  //DEBUG info
-      if (`MMU_DEBUG === 1) $display(""); //DEBUG info
+      if (`MMU_DEBUG === 1) $display("");  //DEBUG info
     end
   end
 
