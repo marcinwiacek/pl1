@@ -251,7 +251,7 @@ module stage1 (
           loop_comp_value[process_index] <= inst_address_num / 256;
           loop_counter_max[process_index] <= inst_address_num % 256;
           loop_type[process_index] <= inst_op - `OPCODE_TILL_VALUE;
-        end else if (inst_op == `OPCODE_REG_PROC) begin
+        end else if (inst_op == `OPCODE_PROC) begin
           $display($time, " opcode = proc ",inst_reg_num," memory segments starting from ",inst_address_num); //DEBUG info
         end else begin
           $display($time, " opcode = ", inst_op);  //DEBUG info
