@@ -110,6 +110,7 @@ module stage1 (
   `define STAGE_MMU_TRANSLATE_B 8
   `define STAGE_TASK_SWITCHER 9
 
+  `define SWITCHER_STAGE_WAIT 0
   `define SWITCHER_STAGE_SAVE_PC 1 //save current pc
   `define SWITCHER_STAGE_SAVE_REG_0 2
   //...
@@ -164,7 +165,8 @@ module stage1 (
       mmu_logical_pages_memory[mmu_logical_index_new] = 0;
     end
     mmu_logical_pages_memory[0] = 1;
-    mmu_stage <= 0;
+    mmu_stage <= `MMU_STAGE_WAIT;
+    task_switcher_stage <= `SWITCHER_STAGE_WAIT;
     stage <= `STAGE_READ_PC1_REQUEST;
   end
 
@@ -183,6 +185,8 @@ module stage1 (
             $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
         end  //DEBUG info
         if (`REG_DEBUG === 1) $display("");  //DEBUG info
+        $display($time, " pc ",address_pc[process_index]);
+        $display($time, " process ",mmu_start_process_segment, start_process_address);
         //first save PC
         addra <= start_process_address + `ADDRESS_PC;
         dia <= address_pc[process_index];
@@ -333,6 +337,7 @@ module stage1 (
       if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
         start_process_address <= dob;
         mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
+         addrb <= start_process_address + `ADDRESS_PC;
         task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PC) begin
         address_pc[process_index] <= dob;
@@ -357,8 +362,10 @@ module stage1 (
             $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
         end  //DEBUG info
         if (`REG_DEBUG === 1) $display("");  //DEBUG info
+        $display($time, " pc ",address_pc[process_index]);
+        $display($time, " process ",mmu_start_process_segment, start_process_address);
         process_instruction_done <= 0;
-        task_switcher_stage <= 0;
+        task_switcher_stage <= `SWITCHER_STAGE_WAIT;
         stage <= `STAGE_READ_PC1_REQUEST;
       end
     end
