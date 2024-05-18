@@ -434,6 +434,7 @@ module stage1 (
     end
   end
 
+  //searching in the process memory and exiting with translated address or switching to searching free memory
   always @(mmu_logical_index_old) begin
     if (mmu_logical_index_new === 0 && mmu_physical_index_old === mmu_start_process_segment) begin
       //value found in current process chain
@@ -452,6 +453,7 @@ module stage1 (
     end
   end
 
+  //allocating new memory for process
   always @(mmu_index_start) begin
     if (!rst) begin
       if (mmu_logical_pages_memory[mmu_index_start] === 0) begin
