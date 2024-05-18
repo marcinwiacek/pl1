@@ -55,7 +55,6 @@ module stage1 (
 );
 
   integer i;  //DEBUG info
-  string s;  //DEBUG info
 
   //current instruction - we don't need to multiply it among processes, because we don't support partially executed op. before process switch
   reg [4:0] stage; //it doesn't need process index - we switch to other process after completing instruction
@@ -103,7 +102,11 @@ module stage1 (
   `define STAGE_SAVE_REG2RAM 6
   `define STAGE_MMU_TRANSLATE_A 7
   `define STAGE_MMU_TRANSLATE_B 8
-
+  `define STAGE_TASK_SWITCHER 9
+  
+  `define SWITCHER_STAGE_READ_NEXT_1 1 //read next process address byte 1
+  `define SWITCHER_STAGE_READ_NEXT_2 2 //read next process address byte 2
+  
   `define OPCODE_JMP 1     //256 or register num for first 16-bits of the address, 16 bit address
   `define OPCODE_RAM2REG 2 //register num, 16 bit source addr //ram -> reg
   `define OPCODE_REG2RAM 3 //register num, 16 bit source addr //reg -> ram
@@ -148,7 +151,10 @@ module stage1 (
   end
 
   always @(stage) begin
-    if (stage == `STAGE_READ_PC1_REQUEST) begin
+    if (stage == `STAGE_MMU_TRANSLATE_A || stage == `STAGE_MMU_TRANSLATE_B) begin
+      mmu_logical_index_new <= mmu_input_addr / `MMU_PAGE_SIZE; //FIXME: it's enough just to take concrete bits
+      mmu_stage <= 1;
+    end else if (stage == `STAGE_READ_PC1_REQUEST) begin
       if (loop_counter[process_index] > loop_counter_max[process_index]) begin
         inst_op <= inst_op_cache[process_index][loop_counter_max[process_index]];
         inst_reg_num <= inst_reg_num_cache[process_index][loop_counter_max[process_index]];
@@ -168,9 +174,6 @@ module stage1 (
       mmu_input_addr <= address_pc[process_index];
       stage_after_mmu <= `STAGE_READ_PC2_RESPONSE;
       stage <= `STAGE_MMU_TRANSLATE_B;
-    end else if (stage == `STAGE_MMU_TRANSLATE_A || stage == `STAGE_MMU_TRANSLATE_B) begin
-      mmu_logical_index_new <= mmu_input_addr / `MMU_PAGE_SIZE; //FIXME: it's enough just to take concrete bits
-      mmu_stage <= 1;
     end else if (stage == `STAGE_DECODE) begin
       if (inst_op == `OPCODE_JMP) begin
         $display($time, " opcode = jmp to ", inst_address_num);  //DEBUG info
@@ -238,6 +241,9 @@ module stage1 (
       process_instruction_done <= process_instruction_done + 1;
       if (process_instruction_done === 7) begin
         //time to switch process
+        addrb <= mmu_start_process_segment * `MMU_PAGE_SIZE;
+        task_switcher_stage <= `SWITCHER_STAGE_READ_NEXT_1;
+        stage <= `STAGE_TASK_SWITCHER;
         process_instruction_done <= 0;
       end
     end
@@ -247,6 +253,7 @@ module stage1 (
     if (stage == `STAGE_SAVE_REG2RAM) begin
       wea   <= 0;
       stage <= `STAGE_READ_PC1_REQUEST;
+    end else if (stage == `STAGE_TASK_SWITCHER) begin
     end
   end
 
@@ -276,7 +283,16 @@ module stage1 (
       $display($time, "          reg ", inst_reg_num, " = ", dob);  //DEBUG info
       registers[process_index][inst_reg_num] <= dob;
       stage <= `STAGE_READ_PC1_REQUEST;
+    end else if (stage == `STAGE_TASK_SWITCHER) begin
+      if (task_switcher_stage == `SWITCHER_STAGE_READ_NEXT_1) begin
+      end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEXT_2) begin
+      end
     end
+  end
+  
+  reg [15:0] task_switcher_stage;
+  
+  always @(posedge task_switcher_stage) begin
   end
 
   //MMU (Memory Management Unit)
@@ -296,15 +312,15 @@ module stage1 (
   always @(mmu_stage) begin
     if (mmu_stage == 1) begin
       if (mmu_logical_index_old == mmu_logical_index_new) begin
-        //we have already translated address. We can us it
+        //we have already translated address. We can use it.
         mmu_stage <= mmu_stage + 1;
       end else begin
-        //start for searching page
+        //start searching page
         mmu_physical_index_old <= mmu_start_process_segment;
         mmu_logical_index_old  <= mmu_logical_index_new;
       end
     end else if (mmu_stage == 2) begin
-      //page found, we can create translated address
+      //page found, we can create translated address and exit.
       if (stage == `STAGE_MMU_TRANSLATE_A) begin
         addra <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE; //FIXME: bits moving and concatenation
         wea <= 1;
@@ -321,13 +337,11 @@ module stage1 (
             " to ",  //DEBUG info
             (mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE)  //DEBUG info
         );  //DEBUG info
-      s = " mmu ";  //DEBUG info
+      if (`MMU_DEBUG === 1) $write($time, " mmu ");  //DEBUG info
       for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-        s = {  //DEBUG info
-          s, $sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])  //DEBUG info
-        };  //DEBUG info
+        if (`MMU_DEBUG === 1) $write($sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i]));  //DEBUG info
       end  //DEBUG info
-      if (`MMU_DEBUG === 1) $display($time, s);  //DEBUG info
+      if (`MMU_DEBUG === 1) $display(""); //DEBUG info
     end
   end
 
