@@ -137,12 +137,13 @@ module stage1 (
   `define OPCODE_TILL_VALUE 9   //register num, value, how many instructions (8 bit value) // do..while
   `define OPCODE_TILL_NON_VALUE 10   //register num, value, how many instructions (8 bit value) //do..while
   `define OPCODE_LOOP 11   //x, x, how many instructions (8 bit value) //for...
-  `define OPCODE_PROC 12 //new process
+  `define OPCODE_PROC 12 //new process //how many segments, start segment number (16 bit)
   `define OPCODE_REG_INT 14
   `define OPCODE_INT 15
   `define OPCODE_INT_RET 16
-  `define OPCODE_JMP_PLUS 17
-  `define OPCODE_JMP_MINUS 18
+  `define OPCODE_EXIT 17 //exit process
+  `define OPCODE_JMP_PLUS 18 //x, how many instructions
+  `define OPCODE_JMP_MINUS 19 //x, how many instructions
 
   always @(posedge rst) begin
     $display($time, "rst");  //DEBUG info
@@ -250,6 +251,8 @@ module stage1 (
           loop_comp_value[process_index] <= inst_address_num / 256;
           loop_counter_max[process_index] <= inst_address_num % 256;
           loop_type[process_index] <= inst_op - `OPCODE_TILL_VALUE;
+        end else if (inst_op == `OPCODE_REG_PROC) begin
+          $display($time, " opcode = proc ",inst_reg_num," memory segments starting from ",inst_address_num); //DEBUG info
         end else begin
           $display($time, " opcode = ", inst_op);  //DEBUG info
         end
