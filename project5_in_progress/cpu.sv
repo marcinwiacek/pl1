@@ -180,18 +180,6 @@ module stage1 (
       if (process_instruction_done == 2) begin
         //time to switch process
         stage <= `STAGE_TASK_SWITCHER;
-        if (`REG_DEBUG === 1) $write($time, " reg ");  //DEBUG info
-        for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-          if (`REG_DEBUG === 1) //DEBUG info
-            $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
-        end  //DEBUG info
-        if (`REG_DEBUG === 1) $display("");  //DEBUG info
-        if (`TASK_SWITCHER_DEBUG === 1) //DEBUG info
-          $display($time, " pc ", address_pc[process_index]);  //DEBUG info
-        if (`TASK_SWITCHER_DEBUG === 1) //DEBUG info
-          $display( //DEBUG info
-              $time, " process ", mmu_start_process_segment, start_process_address //DEBUG info
-          );  //DEBUG info
         //first save PC
         addra <= start_process_address + `ADDRESS_PC;
         dia <= address_pc[process_index];
@@ -294,6 +282,18 @@ module stage1 (
     end else if (stage == `STAGE_TASK_SWITCHER) begin
       //$display($time, "          switcher save ", task_switcher_stage);
       if (task_switcher_stage == `SWITCHER_STAGE_SAVE_PC) begin
+        if (`REG_DEBUG === 1) $write($time, " reg ");  //DEBUG info
+        for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
+          if (`REG_DEBUG === 1) //DEBUG info
+            $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
+        end  //DEBUG info
+        if (`REG_DEBUG === 1) $display("");  //DEBUG info
+        if (`TASK_SWITCHER_DEBUG === 1) //DEBUG info
+          $display($time, " pc ", address_pc[process_index]);  //DEBUG info
+        if (`TASK_SWITCHER_DEBUG === 1) //DEBUG info
+          $display( //DEBUG info
+              $time, " process ", mmu_start_process_segment, start_process_address //DEBUG info
+          );  //DEBUG info
         addra <= start_process_address + `ADDRESS_REG;
         dia <= registers[process_index][0];
         task_switcher_stage <= `SWITCHER_STAGE_SAVE_REG_0;
