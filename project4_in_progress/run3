@@ -3,7 +3,7 @@
 #sudo apt install iverilog gtkwave
 #rm ./cpu 2> /dev/null
 #rm ./cpu.vcd 2> /dev/null
-iverilog -g2005-sv -o cpu3 cpu3.v cpu3_test.v
+iverilog -g2005-sv -o cpu3 cpu3.sv cpu3_test.sv
 vvp cpu3
 gtkwave cpu.vcd &
 #rm ./cpu3
