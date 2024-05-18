@@ -182,7 +182,7 @@ module stage1 (
           if (`REG_DEBUG === 1)
             $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
         end  //DEBUG info
-        if (`REG_DEBUG === 1) $display("");  //DEBUG info      
+        if (`REG_DEBUG === 1) $display("");  //DEBUG info
         //first save PC
         addra <= start_process_address + `ADDRESS_PC;
         dia <= address_pc[process_index];
@@ -244,8 +244,8 @@ module stage1 (
                  inst_reg_num);  //DEBUG info
         registers[process_index][inst_reg_num] <= registers[process_index][inst_reg_num] - inst_address_num;
         stage <= `STAGE_READ_PC1_REQUEST;
-      end else if (inst_op == `OPCODE_TILL_VALUE || 
-            inst_op == `OPCODE_TILL_NON_VALUE || 
+      end else if (inst_op == `OPCODE_TILL_VALUE ||
+            inst_op == `OPCODE_TILL_NON_VALUE ||
             inst_op == `OPCODE_LOOP) begin
         $display($time, " opcode = tillorloop ", inst_address_num % 256,  //DEBUG info
                  " instructions, comp. value ", inst_address_num / 256,  //DEBUG info
