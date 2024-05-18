@@ -2,6 +2,7 @@
 
 `define MMU_DEBUG 0 //1 enabled, 0 disabled
 `define REG_DEBUG 1 //1 enabled, 0 disabled
+`define TASK_SWITCHER_DEBUG 1 //1 enabled, 0 disabled
 `define MMU_PAGE_SIZE 200 //how many bytes are assigned to one memory page in MMU
 
 module cpu (
@@ -120,7 +121,7 @@ module stage1 (
   `define SWITCHER_STAGE_READ_NEW_REG_0 36
   //...
   `define SWITCHER_STAGE_READ_NEW_REG_31 37
-  
+
   `define MMU_STAGE_WAIT 0
   `define MMU_STAGE_SEARCH 1
   `define MMU_STAGE_FOUND 2
@@ -181,12 +182,16 @@ module stage1 (
         stage <= `STAGE_TASK_SWITCHER;
         if (`REG_DEBUG === 1) $write($time, " reg ");  //DEBUG info
         for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-          if (`REG_DEBUG === 1)
+          if (`REG_DEBUG === 1) //DEBUG info
             $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
         end  //DEBUG info
         if (`REG_DEBUG === 1) $display("");  //DEBUG info
-        $display($time, " pc ",address_pc[process_index]);
-        $display($time, " process ",mmu_start_process_segment, start_process_address);
+        if (`TASK_SWITCHER_DEBUG === 1) //DEBUG info
+          $display($time, " pc ", address_pc[process_index]);  //DEBUG info
+        if (`TASK_SWITCHER_DEBUG === 1) //DEBUG info
+          $display( //DEBUG info
+              $time, " process ", mmu_start_process_segment, start_process_address //DEBUG info
+          );  //DEBUG info
         //first save PC
         addra <= start_process_address + `ADDRESS_PC;
         dia <= address_pc[process_index];
@@ -214,11 +219,7 @@ module stage1 (
       stage_after_mmu <= `STAGE_READ_PC2_RESPONSE;
       stage <= `STAGE_MMU_TRANSLATE_B;
     end else if (stage == `STAGE_DECODE) begin
-      if (inst_op == `OPCODE_JMP) begin
-        $display($time, " opcode = jmp to ", inst_address_num);  //DEBUG info
-        address_pc[process_index] <= inst_address_num;
-        stage <= `STAGE_READ_PC1_REQUEST;
-      end else if (inst_op == `OPCODE_RAM2REG) begin
+      if (inst_op == `OPCODE_RAM2REG) begin
         $display($time, " opcode = ram2reg address ", inst_address_num, " to reg ",  //DEBUG info
                  inst_reg_num);  //DEBUG info
         mmu_input_addr <= inst_address_num;
@@ -233,35 +234,37 @@ module stage1 (
         mmu_input_addr <= inst_address_num;
         stage_after_mmu <= `STAGE_SAVE_REG2RAM;
         stage <= `STAGE_MMU_TRANSLATE_A;
-      end else if (inst_op == `OPCODE_NUM2REG) begin
-        $display($time, " opcode = num2reg value ", inst_address_num, " to reg ",  //DEBUG info
-                 inst_reg_num);  //DEBUG info
-        registers[process_index][inst_reg_num] <= inst_address_num;
-        stage <= `STAGE_READ_PC1_REQUEST;
-      end else if (inst_op == `OPCODE_REG_PLUS) begin
-        $display($time, " opcode = regplusnum value ", inst_address_num, " to reg ",  //DEBUG info
-                 inst_reg_num);  //DEBUG info
-        registers[process_index][inst_reg_num] <= registers[process_index][inst_reg_num] + inst_address_num;
-        stage <= `STAGE_READ_PC1_REQUEST;
-      end else if (inst_op == `OPCODE_REG_MINUS) begin
-        $display($time, " opcode = regminusnum value ", inst_address_num, " to reg ",  //DEBUG info
-                 inst_reg_num);  //DEBUG info
-        registers[process_index][inst_reg_num] <= registers[process_index][inst_reg_num] - inst_address_num;
-        stage <= `STAGE_READ_PC1_REQUEST;
-      end else if (inst_op == `OPCODE_TILL_VALUE ||
+      end else begin
+        if (inst_op == `OPCODE_JMP) begin
+          $display($time, " opcode = jmp to ", inst_address_num);  //DEBUG info
+          address_pc[process_index] <= inst_address_num;
+        end else if (inst_op == `OPCODE_NUM2REG) begin
+          $display($time, " opcode = num2reg value ", inst_address_num, " to reg ",  //DEBUG info
+                   inst_reg_num);  //DEBUG info
+          registers[process_index][inst_reg_num] <= inst_address_num;
+        end else if (inst_op == `OPCODE_REG_PLUS) begin
+          $display($time, " opcode = regplusnum value ", inst_address_num, " to reg ",  //DEBUG info
+                   inst_reg_num);  //DEBUG info
+          registers[process_index][inst_reg_num] <= registers[process_index][inst_reg_num] + inst_address_num;
+        end else if (inst_op == `OPCODE_REG_MINUS) begin
+          $display($time, " opcode = regminusnum value ", inst_address_num, //DEBUG info
+                   " to reg ",  //DEBUG info
+                   inst_reg_num);  //DEBUG info
+          registers[process_index][inst_reg_num] <= registers[process_index][inst_reg_num] - inst_address_num;
+        end else if (inst_op == `OPCODE_TILL_VALUE ||
             inst_op == `OPCODE_TILL_NON_VALUE ||
             inst_op == `OPCODE_LOOP) begin
-        $display($time, " opcode = tillorloop ", inst_address_num % 256,  //DEBUG info
-                 " instructions, comp. value ", inst_address_num / 256,  //DEBUG info
-                 " reg/loop value ",  //DEBUG info
-                 inst_address_num % 256);  //DEBUG info
-        loop_reg_num[process_index] <= inst_reg_num;
-        loop_comp_value[process_index] <= inst_address_num / 256;
-        loop_counter_max[process_index] <= inst_address_num % 256;
-        loop_type[process_index] <= inst_op - `OPCODE_TILL_VALUE;
-        stage <= `STAGE_READ_PC1_REQUEST;
-      end else begin
-        $display($time, " opcode = ", inst_op);  //DEBUG info
+          $display($time, " opcode = tillorloop ", inst_address_num % 256,  //DEBUG info
+                   " instructions, comp. value ", inst_address_num / 256,  //DEBUG info
+                   " reg/loop value ",  //DEBUG info
+                   inst_address_num % 256);  //DEBUG info
+          loop_reg_num[process_index] <= inst_reg_num;
+          loop_comp_value[process_index] <= inst_address_num / 256;
+          loop_counter_max[process_index] <= inst_address_num % 256;
+          loop_type[process_index] <= inst_op - `OPCODE_TILL_VALUE;
+        end else begin
+          $display($time, " opcode = ", inst_op);  //DEBUG info
+        end
         stage <= `STAGE_READ_PC1_REQUEST;
       end
       if (loop_counter_max[process_index] != 0 && loop_counter_max[process_index] == loop_counter[process_index]) begin
@@ -337,7 +340,7 @@ module stage1 (
       if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
         start_process_address <= dob;
         mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
-         addrb <= start_process_address + `ADDRESS_PC;
+        addrb <= start_process_address + `ADDRESS_PC;
         task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PC) begin
         address_pc[process_index] <= dob;
@@ -350,20 +353,26 @@ module stage1 (
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_REG_31) begin
         if (`MMU_DEBUG === 1) $write($time, " mmu ");  //DEBUG info
         for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-          if (`MMU_DEBUG === 1) //DEBUG info
-            $write( //DEBUG info
-                $sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i]) //DEBUG info
+          if (`MMU_DEBUG === 1)  //DEBUG info
+            $write(  //DEBUG info
+                $sformatf( //DEBUG info
+                    "%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i] //DEBUG info
+                )  //DEBUG info
             );  //DEBUG info
         end  //DEBUG info
         if (`MMU_DEBUG === 1) $display("");  //DEBUG info
         if (`REG_DEBUG === 1) $write($time, " reg ");  //DEBUG info
         for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-          if (`REG_DEBUG === 1) //DEBUG info
+          if (`REG_DEBUG === 1)  //DEBUG info
             $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
         end  //DEBUG info
         if (`REG_DEBUG === 1) $display("");  //DEBUG info
-        $display($time, " pc ",address_pc[process_index]);
-        $display($time, " process ",mmu_start_process_segment, start_process_address);
+        if (`TASK_SWITCHER_DEBUG === 1) //DEBUG info
+          $display($time, " pc ", address_pc[process_index]);  //DEBUG info
+        if (`TASK_SWITCHER_DEBUG === 1) //DEBUG info
+          $display( //DEBUG info
+              $time, " process ", mmu_start_process_segment, start_process_address //DEBUG info
+          );  //DEBUG info
         process_instruction_done <= 0;
         task_switcher_stage <= `SWITCHER_STAGE_WAIT;
         stage <= `STAGE_READ_PC1_REQUEST;
@@ -414,9 +423,11 @@ module stage1 (
         );  //DEBUG info
       if (`MMU_DEBUG === 1) $write($time, " mmu ");  //DEBUG info
       for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-        if (`MMU_DEBUG === 1) //DEBUG info
-          $write( //DEBUG info
-              $sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i]) //DEBUG info
+        if (`MMU_DEBUG === 1)  //DEBUG info
+          $write(  //DEBUG info
+              $sformatf( //DEBUG info
+                  "%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i] //DEBUG info
+              )  //DEBUG info
           );  //DEBUG info
       end  //DEBUG info
       if (`MMU_DEBUG === 1) $display("");  //DEBUG info
