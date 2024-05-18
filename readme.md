@@ -1,15 +1,15 @@
 # News
 
-18 Feb 2024: example from work done in first project days:
-
-![Screenshot from 18 Feb 2024](screen2.png)
+18 May 2024: there was prepared quite advanced System Verilog code with majority of things
+(unfortunately not compatible with Vidado) and there is prepared realistic System Verilog compatible
+with Vidado (this should be compilable for FPGA).
 
 25 Feb 2024: there is already very primitive software emulator and some postmortem document
 describing, where it can go. Now I need to go into drawing board and make it much, much better.
 
-18 May 2024: there was prepared quite advanced System Verilog code with majority of things
-(unfortunately not compatible with Vidado) and there is prepared realistic System Verilog compatible
-with Vidado (this should be compilable for FPGA)
+18 Feb 2024: example from work done in first project days:
+
+![Screenshot from 18 Feb 2024](screen2.png)
 
 # This project
 
