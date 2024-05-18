@@ -1,30 +1,19 @@
-# Preamble
+# News
 
-IT is full of smart ideas, unfortunatelly not all of them are used together in the most popular mainstream computer hardware (from different reasons).
+18 Feb 2024: example from work done in first project days:
 
-If you look into free papers, you will see a lof of interesting concepts created by very intelligent people, for example:
+![Screenshot from 18 Feb 2024](screen2.png)
 
-* asynchronous design
-* stack, RISC, CISC, VLIW, MIPS and accumulator architecture
-* pipeline, superscalar, parallel processing
-* branch and instruction prediction
-* instruction reordering
-* Harvard / Naumann architecture
-* virtual memory with paging / 2-level paging / segmentation / paged segmentation / segmented paging
-* dynamic address translation / base and bound translation
-* TLB (Translation Lookaside Buffers)
-* Naumann machine
-* Hyperthreading
+25 Feb 2024: there is already very primitive software emulator and some postmortem document
+describing, where it can go. Now I need to go into drawing board and make it much, much better.
 
-You can find description of X86, Risc-V, ARM, Z80, MP-4 and many others. Studying them is like tasting sweets in the big shop.
-
-**Can something be done differently? Or better?**
-
-I'm thinking for example about CPU, which will be setup to different instruction set on program start.
+18 May 2024: there was prepared quite advanced System Verilog code with majority of things
+(unfortunately not compatible with Vidado) and there is prepared realistic System Verilog compatible
+with Vidado (this should be compilable for FPGA)
 
 # This project
 
-This research project has in target preparing free design of the **PL1** CPU / hardware, which (I hope)
+This project has in target preparing free design of the **PL1** CPU / hardware, which (I hope)
 in some moment will be ellegant and effective (maybe even more effective than some popular generic solutions).
 It doesn't immediately reject elements abandomed by other designs, but rather look on profits and problems
 related to them in concrete scenarios.
@@ -52,6 +41,30 @@ Example: no polling, if possible, just registering for events.
 
 Note: although some of them don't look serious, researchers are thinking about them or even
 propose related PoC (again: Antikernel)
+
+# Preamble
+
+IT is full of smart ideas, unfortunatelly not all of them are used together in the most popular mainstream computer hardware (from different reasons).
+
+If you look into free papers, you will see a lof of interesting concepts created by very intelligent people, for example:
+
+* asynchronous design
+* stack, RISC, CISC, VLIW, MIPS and accumulator architecture
+* pipeline, superscalar, parallel processing
+* branch and instruction prediction
+* instruction reordering
+* Harvard / Naumann architecture
+* virtual memory with paging / 2-level paging / segmentation / paged segmentation / segmented paging
+* dynamic address translation / base and bound translation
+* TLB (Translation Lookaside Buffers)
+* Naumann machine
+* Hyperthreading
+
+You can find description of X86, Risc-V, ARM, Z80, MP-4 and many others. Studying them is like tasting sweets in the big shop.
+
+**Can something be done differently? Or better?**
+
+I'm thinking for example about CPU, which will be setup to different instruction set on the program start.
 
 # This is wasting time & opening opened doors
 
@@ -97,12 +110,6 @@ and in the end the most important is not ISA, but software working on it). It is
 stage number 3 will happen in far future... but if project goals will be achieved, maybe it will be
 possible at least creating secure and effective embedded devices. Who knows?
 
-(Update 18 Feb 2024) Example from work done in first project days:
-
-![Screenshot from 18 Feb 2024](screen2.png)
-
-(Update 25 Feb 2024) There is already very primitive software emulator and some postmortem document
-describing, where it can go. Now I need to go into drawing board and make it much, much better.
 
 # About author
 
