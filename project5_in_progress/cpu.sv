@@ -110,6 +110,7 @@ module stage1 (
   `define STAGE_MMU_TRANSLATE_A 7
   `define STAGE_MMU_TRANSLATE_B 8
   `define STAGE_TASK_SWITCHER 9
+  `define STAGE_SEPARATE_PROCESS 10
 
   `define SWITCHER_STAGE_WAIT 0
   `define SWITCHER_STAGE_SAVE_PC 1 //save current pc
@@ -125,6 +126,7 @@ module stage1 (
   `define MMU_STAGE_WAIT 0
   `define MMU_STAGE_SEARCH 1
   `define MMU_STAGE_FOUND 2
+  `define MMU_SEPARATE_PROCESS 3
 
   `define OPCODE_JMP 1     //256 or register num for first 16-bits of the address, 16 bit address
   `define OPCODE_RAM2REG 2 //register num, 16 bit source addr //ram -> reg
@@ -223,6 +225,15 @@ module stage1 (
         mmu_input_addr <= inst_address_num;
         stage_after_mmu <= `STAGE_SAVE_REG2RAM;
         stage <= `STAGE_MMU_TRANSLATE_A;
+      end else if (inst_op == `OPCODE_PROC) begin
+          $display($time, " opcode = proc ",inst_reg_num," memory segments starting from segment ",inst_address_num); //DEBUG info
+          stage <= `STAGE_SEPARATE_PROCESS;
+          if (mmu_start_process_segment == mmu_separate_process_segment) begin
+          	$display("error");
+          end else begin
+               // inst_address_num<=inst_address_num+inst_reg_num;
+	        mmu_separate_process_segment <= mmu_start_process_segment;
+	  end
       end else begin
         if (inst_op == `OPCODE_JMP) begin
           $display($time, " opcode = jmp to ", inst_address_num);  //DEBUG info
@@ -251,8 +262,6 @@ module stage1 (
           loop_comp_value[process_index] <= inst_address_num / 256;
           loop_counter_max[process_index] <= inst_address_num % 256;
           loop_type[process_index] <= inst_op - `OPCODE_TILL_VALUE;
-        end else if (inst_op == `OPCODE_PROC) begin
-          $display($time, " opcode = proc ",inst_reg_num," memory segments starting from ",inst_address_num); //DEBUG info
         end else begin
           $display($time, " opcode = ", inst_op);  //DEBUG info
         end
@@ -394,6 +403,7 @@ module stage1 (
   reg [15:0] mmu_logical_index_old;
   reg [15:0] mmu_physical_index_old;
   reg [15:0] mmu_last_process_segment;  //used during search for finding last process segment
+  reg [15:0] mmu_separate_process_segment;
   reg [4:0] mmu_stage;
 
   always @(mmu_stage) begin
@@ -434,6 +444,25 @@ module stage1 (
           );  //DEBUG info
       end  //DEBUG info
       if (`MMU_DEBUG === 1) $display("");  //DEBUG info
+    end
+  end
+  
+  always @(mmu_separate_process_segment) begin
+    if (mmu_chain_memory[mmu_separate_process_segment] === 0) begin
+      if (inst_address_num!=inst_reg_num) begin
+      	$display("error");
+      	//switch to task switcher update
+      end else begin
+        //terminate new process and switch to task switcher update
+      end
+    end else begin
+        //inst_address_num<=inst_address_num+inst_reg_num
+    	if (mmu_logical_pages_memory[mmu_separate_process_segment] >= inst_address_num && 
+    	    mmu_logical_pages_memory[mmu_separate_process_segment] <= inst_address_num+inst_reg_num) begin
+    	    //newprocessprevious -> next = mmu_separate_process_segment;
+    	    //oldprocessprevious -> next = current -> next;
+    	end
+    	mmu_separate_process_segment <= mmu_chain_memory[mmu_separate_process_segment];
     end
   end
 
