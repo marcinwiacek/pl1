@@ -5,4 +5,3 @@ It means for example:
 
 1. System Verilog
 2. no more funny while loops and strings (not very good supported by Vivado 2023.2.2 & it for example crashes the whole PC during synth_design)
-3. no big preprocesor marcors (Vivado makes infinite synth_design)
