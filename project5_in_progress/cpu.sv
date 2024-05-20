@@ -62,15 +62,6 @@ module stage1 (
 
   integer i;  //DEBUG info
 
-  `define SHOW_REG_DEBUG(ARG, INFO) \
-     if (ARG == 1) begin \
-       $write($time, INFO); \
-       for (i = 0; i <= 10; i = i + 1) begin \
-         $write($sformatf("%02x ", registers[process_index][i])); \
-       end \
-       $display(""); \
-     end
-
   //offsets for process info
   `define ADDRESS_NEXT_PROCESS 0
   `define ADDRESS_PC 4
