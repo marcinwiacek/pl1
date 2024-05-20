@@ -91,6 +91,8 @@ module stage1 (
   `define SWITCHER_STAGE_READ_NEW_REG_0 36
   //...
   `define SWITCHER_STAGE_READ_NEW_REG_31 37
+  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD 38 //setup new process address in old (existing) process
+  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW 39 //setup new process address in new (created) process
 
   `define MMU_STAGE_WAIT 0
   `define MMU_STAGE_SEARCH 1
@@ -223,6 +225,12 @@ module stage1 (
       end  //DEBUG info
       if (`MMU_CHANGES_DEBUG === 1) $display("");  //DEBUG info
 
+      //switch to task switcher updates
+      stage <= `STAGE_TASK_SWITCHER;
+      addrb <= mmu_new_process_start_point_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
+      dia <= start_process_address;
+      task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
+
     end else begin
       $display("not last");
       if (mmu_logical_pages_memory[mmu_separate_process_segment] >= inst_address_num && 
@@ -309,7 +317,6 @@ module stage1 (
     mmu_chain_memory[1] <= 0;
     mmu_logical_pages_memory[5] <= 1;
     mmu_logical_pages_memory[1] <= 2;
-
 
     mmu_stage <= `MMU_STAGE_WAIT;
     mmu_changes_debug <= 1;  //DEBUG info
@@ -492,6 +499,12 @@ module stage1 (
       end else if (task_switcher_stage == `SWITCHER_STAGE_SAVE_REG_31) begin
         addrb <= start_process_address + `ADDRESS_NEXT_PROCESS;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
+      end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW) begin
+        addrb <= start_process_address * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
+        dia <= mmu_new_process_start_point_segment * `MMU_PAGE_SIZE;
+        task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD;
+      end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD) begin
+        stage <= `STAGE_READ_PC1_REQUEST;
       end
     end
   end
