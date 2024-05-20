@@ -110,7 +110,6 @@ and in the end the most important is not ISA, but software working on it). It is
 stage number 3 will happen in far future... but if project goals will be achieved, maybe it will be
 possible at least creating secure and effective embedded devices. Who knows?
 
-
 # About author
 
 Tester and (at least partially) developer. Software related engineer, who likes
@@ -121,7 +120,7 @@ low-level work with hardware. Good in optimalizing things.
 * marcin ( at ) mwiacek (.) com + marcin.wiacek.work ( at ) gmail (.) com
 (the best send your message to both)
 
-# Why it was really started
+# Why it was really started (Feb 2024)
 
 Because of frustration, that hardware is much better than years ago, but... still doesn't break
 some barriers.
@@ -192,7 +191,7 @@ Regardless of hardware and ISA:
 
 * often used operating systems are running many processes in background, which is not nice
 in terms of effectiviness (when I look in task managers and see 1-10% CPU usage even,
-when nothing is done, I know, that something is very wrong).
+when nothing is done, I know, that something is very very wrong).
 * backward compatibility (POSIX) and some other aspects make, that IT doesn't move forward
 (why we don't have for example Fuchsia yet?)
 * in the past not always best solutions were winners - see for example BeOS or OS/2.
