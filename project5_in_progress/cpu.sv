@@ -169,7 +169,7 @@ module stage1 (
       end
       stage <= stage_after_mmu;
       mmu_stage <= `MMU_STAGE_WAIT;
-      if (`MMU_TRANSLATION_DEBUG === 1)  //DEBUG info
+      if (`MMU_TRANSLATION_DEBUG == 1)  //DEBUG info
         $display(  //DEBUG info
             $time,  //DEBUG info
             " mmu from ",  //DEBUG info
@@ -193,7 +193,7 @@ module stage1 (
   reg [15:0] mmu_new;  //used during search (for finding last process segment) und splitting process
 
   always @(mmu_separate_process_segment) begin
-    if (`TASK_SPLIT_DEBUG === 1) $display("traversing ", mmu_separate_process_segment);
+    if (`TASK_SPLIT_DEBUG == 1) $display("traversing ", mmu_separate_process_segment);
     if (`MMU_CHANGES_DEBUG == 1) begin  //DEBUG info
       $write($time, " mmu ");  //DEBUG info
       for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
@@ -202,17 +202,17 @@ module stage1 (
       end  //DEBUG info
       $display("");  //DEBUG info
     end  //DEBUG info
-    if (mmu_chain_memory[mmu_separate_process_segment] === 0) begin
-      if (`TASK_SPLIT_DEBUG === 1) $display("last");
+    if (mmu_chain_memory[mmu_separate_process_segment] == 0) begin
+      if (`TASK_SPLIT_DEBUG == 1) $display("last");
       mmu_chain_memory[mmu_new] = 0;
       if (inst_address_num != inst_reg_num) begin
-        if (`TASK_SPLIT_DEBUG === 1) $display("error");
+        if (`TASK_SPLIT_DEBUG == 1) $display("error");
         //switch to task switcher update
       end else begin
         //terminate new process and switch to task switcher update
       end
       if (mmu_logical_pages_memory[mmu_separate_process_segment] == inst_address_num) begin
-        if (`TASK_SPLIT_DEBUG === 1) $display("first ", mmu_separate_process_segment);
+        if (`TASK_SPLIT_DEBUG == 1) $display("first ", mmu_separate_process_segment);
         mmu_new_process_start_point_segment = mmu_separate_process_segment;
       end
       if (`MMU_CHANGES_DEBUG == 1) begin  //DEBUG info
@@ -230,12 +230,12 @@ module stage1 (
       wea <= 1;
       task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
     end else begin
-      if (`TASK_SPLIT_DEBUG === 1) $display("not last");
+      if (`TASK_SPLIT_DEBUG == 1) $display("not last");
       if (mmu_logical_pages_memory[mmu_separate_process_segment] >= inst_address_num && 
-    	    mmu_logical_pages_memory[mmu_separate_process_segment] <= inst_address_num+inst_reg_num) begin
-        if (`TASK_SPLIT_DEBUG === 1) $display("to change");
+          mmu_logical_pages_memory[mmu_separate_process_segment] <= inst_address_num+inst_reg_num) begin
+        if (`TASK_SPLIT_DEBUG == 1) $display("to change");
         if (mmu_logical_pages_memory[mmu_separate_process_segment] == inst_address_num) begin
-          if (`TASK_SPLIT_DEBUG === 1) $display("first ", mmu_separate_process_segment);
+          if (`TASK_SPLIT_DEBUG == 1) $display("first ", mmu_separate_process_segment);
           mmu_new_process_start_point_segment <= mmu_separate_process_segment;
         end
         mmu_chain_memory[mmu_new] <= mmu_separate_process_segment;
@@ -250,13 +250,14 @@ module stage1 (
 
   //searching in the process memory and exiting with translated address or switching to searching free memory
   always @(mmu_logical_index_old) begin
-    if (mmu_logical_index_new === 0 && mmu_physical_index_old === mmu_start_process_segment) begin
+    if (mmu_logical_index_new == 0 && mmu_physical_index_old == mmu_start_process_segment) begin
       //value found in current process chain
       mmu_stage <= `MMU_STAGE_FOUND;
-    end else if (mmu_physical_index_old !== mmu_start_process_segment && mmu_logical_pages_memory[mmu_physical_index_old]===mmu_logical_index_new) begin
+    end else if (mmu_physical_index_old != mmu_start_process_segment && 
+      mmu_logical_pages_memory[mmu_physical_index_old]==mmu_logical_index_new) begin
       //value found in current process chain
       mmu_stage <= `MMU_STAGE_FOUND;
-    end else if (mmu_chain_memory[mmu_physical_index_old] === 0) begin
+    end else if (mmu_chain_memory[mmu_physical_index_old] == 0) begin
       //we need to start searching first free memory page and allocate it
       mmu_last_process_segment <= mmu_physical_index_old;
       mmu_index_start <= mmu_index_start + 1;
@@ -270,9 +271,9 @@ module stage1 (
   //allocating new memory for process
   always @(mmu_index_start) begin
     if (!rst) begin
-      if (mmu_logical_pages_memory[mmu_index_start] === 0) begin
+      if (mmu_logical_pages_memory[mmu_index_start] == 0) begin
         //we have free memory page. Let's allocate it and add to process chain
-        if (`MMU_CHANGES_DEBUG === 1) begin  //DEBUG info
+        if (`MMU_CHANGES_DEBUG == 1) begin  //DEBUG info
           $display($time, " mmu new page ");  //DEBUG info
           mmu_changes_debug <= 1;  //DEBUG info
         end  //DEBUG info
@@ -502,13 +503,13 @@ module stage1 (
         addrb <= start_process_address + `ADDRESS_NEXT_PROCESS;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW) begin
-        if (`TASK_SPLIT_DEBUG === 1)  //DEBUG info
+        if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
           $display($time, " new process next data value = ", dia, " address ", addrb);  //DEBUG info
         addra <= start_process_address + `ADDRESS_NEXT_PROCESS;
         dia <= (mmu_new_process_start_point_segment) * `MMU_PAGE_SIZE;
         task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD) begin
-        if (`TASK_SPLIT_DEBUG === 1)  //DEBUG info
+        if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
           $display($time, " old process next data value = ", dia, " address ", addrb);  //DEBUG info
         wea   <= 0;
         stage <= `STAGE_READ_PC1_REQUEST;
@@ -541,7 +542,7 @@ module stage1 (
       address_pc[process_index] <= address_pc[process_index] + 1;
       stage <= `STAGE_DECODE;
     end else if (stage == `STAGE_READ_RAM2REG) begin
-      if (`REG_CHANGES_DEBUG === 1) begin  //DEBUG info
+      if (`REG_CHANGES_DEBUG == 1) begin  //DEBUG info
         $write($time, " reg ");  //DEBUG info
         for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
           $write(  //DEBUG info
@@ -570,7 +571,7 @@ module stage1 (
         addrb <= addrb + 1;
         task_switcher_stage <= task_switcher_stage + 1;
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_REG_31) begin
-        if (`TASK_SWITCHER_DEBUG === 1) begin  //DEBUG info
+        if (`TASK_SWITCHER_DEBUG == 1) begin  //DEBUG info
           $write($time, "new reg");  //DEBUG info
           for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
             $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
@@ -603,16 +604,20 @@ module simple_dual_two_clocks (
     input [15:0] dia,
     output reg [15:0] dob
 );
+
   reg [15:0] ram[0:1023];
+  
   initial begin  //DEBUG info
     $readmemh("rom3.mem", ram);  //DEBUG info
   end  //DEBUG info
+  
   always @(posedge clka) begin
     if (ena) begin
       if (wea) ram[addra] <= dia;
       //       if (wea) $display($time, " writing ", dia, " to ",addra); //DEBUG info
     end
   end
+  
   always @(posedge clkb) begin
     if (enb) begin
       dob <= ram[addrb];
