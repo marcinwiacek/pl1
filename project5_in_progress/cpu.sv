@@ -2,7 +2,6 @@
 
 `define MMU_CHANGES_DEBUG 1 //1 enabled, 0 disabled
 `define MMU_TRANSLATION_DEBUG 1 //1 enabled, 0 disabled
-`define REG_DEBUG 1 //1 enabled, 0 disabled
 `define TASK_SWITCHER_DEBUG 1 //1 enabled, 0 disabled
 `define MMU_PAGE_SIZE 200 //how many bytes are assigned to one memory page in MMU
 
@@ -308,12 +307,12 @@ module stage1 (
     end else if (stage == `STAGE_TASK_SWITCHER) begin
       //$display($time, "          switcher save ", task_switcher_stage);
       if (task_switcher_stage == `SWITCHER_STAGE_SAVE_PC) begin
-        if (`REG_DEBUG === 1) $write($time, " old reg ");  //DEBUG info
+        if (`TASK_SWITCHER_DEBUG === 1) $write($time, " old reg ");  //DEBUG info
         for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-          if (`REG_DEBUG === 1)  //DEBUG info
+          if (`TASK_SWITCHER_DEBUG === 1)  //DEBUG info
             $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
         end  //DEBUG info
-        if (`REG_DEBUG === 1) $display("");  //DEBUG info
+        if (`TASK_SWITCHER_DEBUG === 1) $display("");  //DEBUG info
         if (`TASK_SWITCHER_DEBUG === 1)  //DEBUG info
           $display($time, " old pc ", address_pc[process_index]);  //DEBUG info
         if (`TASK_SWITCHER_DEBUG === 1)  //DEBUG info
@@ -377,12 +376,12 @@ module stage1 (
         addrb <= addrb + 1;
         task_switcher_stage <= task_switcher_stage + 1;
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_REG_31) begin
-        if (`REG_DEBUG === 1) $write($time, " new reg ");  //DEBUG info
+        if (`TASK_SWITCHER_DEBUG === 1) $write($time, " new reg ");  //DEBUG info
         for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-          if (`REG_DEBUG === 1)  //DEBUG info
+          if (`TASK_SWITCHER_DEBUG === 1)  //DEBUG info
             $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
         end  //DEBUG info
-        if (`REG_DEBUG === 1) $display("");  //DEBUG info
+        if (`TASK_SWITCHER_DEBUG === 1) $display("");  //DEBUG info
         if (`TASK_SWITCHER_DEBUG === 1)  //DEBUG info
           $display($time, " new pc ", address_pc[process_index]);  //DEBUG info
         if (`TASK_SWITCHER_DEBUG === 1)  //DEBUG info
