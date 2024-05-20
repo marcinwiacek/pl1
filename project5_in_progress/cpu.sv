@@ -2,7 +2,7 @@
 
 //options below are less important than options higher
 `define REG_CHANGES_DEBUG 0 //1 enabled, 0 disabled
-`define MMU_CHANGES_DEBUG 0 //1 enabled, 0 disabled
+`define MMU_CHANGES_DEBUG 1 //1 enabled, 0 disabled
 `define MMU_TRANSLATION_DEBUG 0 //1 enabled, 0 disabled
 `define TASK_SWITCHER_DEBUG 0 //1 enabled, 0 disabled
 `define TASK_SPLIT_DEBUG 0 //1 enabled, 0 disabled
@@ -148,6 +148,19 @@ module stage1 (
   reg [15:0] mmu_separate_process_segment;
   reg [4:0] mmu_stage;
   reg [2:0] mmu_changes_debug;  //DEBUG info
+  
+  `define SHOW_MMU_DEBUG(PAR) \ //DEBUG info
+    if (`MMU_CHANGES_DEBUG === 1 && PAR === 1) begin \ //DEBUG info
+      $write($time, " mmu "); \ //DEBUG info
+      for (i = 0; i <= 10; i = i + 1) begin \ //DEBUG info
+        $write( \ //DEBUG info
+            $sformatf( \ //DEBUG info
+                "%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i] \ //DEBUG info
+            ) \ //DEBUG info
+        ); \ //DEBUG info
+      end \ //DEBUG info
+      $display(""); \ //DEBUG info
+    end //DEBUG info
 
   always @(mmu_stage) begin
     if (mmu_stage == `MMU_STAGE_SEARCH) begin
@@ -177,16 +190,7 @@ module stage1 (
             " to ",  //DEBUG info
             (mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE)  //DEBUG info
         );  //DEBUG info
-      if (`MMU_CHANGES_DEBUG === 1 && mmu_changes_debug == 1) $write($time, " mmu ");  //DEBUG info
-      for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-        if (`MMU_CHANGES_DEBUG === 1 && mmu_changes_debug == 1)  //DEBUG info
-          $write(  //DEBUG info
-              $sformatf(  //DEBUG info
-                  "%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i]  //DEBUG info
-              )  //DEBUG info
-          );  //DEBUG info
-      end  //DEBUG info
-      if (`MMU_CHANGES_DEBUG === 1 && mmu_changes_debug == 1) $display("");  //DEBUG info
+      `SHOW_MMU_DEBUG(mmu_changes_debug) //DEBUG info
       mmu_changes_debug <= 0;  //DEBUG info
     end
   end
@@ -196,18 +200,7 @@ module stage1 (
 
   always @(mmu_separate_process_segment) begin
     if (`TASK_SPLIT_DEBUG === 1) $display("traversing ", mmu_separate_process_segment);
-
-    if (`MMU_CHANGES_DEBUG === 1) $write($time, " mmu ");  //DEBUG info
-    for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-      if (`MMU_CHANGES_DEBUG === 1)  //DEBUG info
-        $write(  //DEBUG info
-            $sformatf(  //DEBUG info
-                "%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i]  //DEBUG info
-            )  //DEBUG info
-        );  //DEBUG info
-    end  //DEBUG info
-    if (`MMU_CHANGES_DEBUG === 1) $display("");  //DEBUG info
-
+    `SHOW_MMU_DEBUG(1) //DEBUG info
     if (mmu_chain_memory[mmu_separate_process_segment] === 0) begin
       if (`TASK_SPLIT_DEBUG === 1) $display("last");
       mmu_chain_memory[mmu_new] = 0;
@@ -221,18 +214,7 @@ module stage1 (
         if (`TASK_SPLIT_DEBUG === 1) $display("first ", mmu_separate_process_segment);
         mmu_new_process_start_point_segment = mmu_separate_process_segment;
       end
-
-      if (`MMU_CHANGES_DEBUG === 1) $write($time, " mmu ");  //DEBUG info
-      for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-        if (`MMU_CHANGES_DEBUG === 1)  //DEBUG info
-          $write(  //DEBUG info
-              $sformatf(  //DEBUG info
-                  "%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i]  //DEBUG info
-              )  //DEBUG info
-          );  //DEBUG info
-      end  //DEBUG info
-      if (`MMU_CHANGES_DEBUG === 1) $display("");  //DEBUG info
-
+      `SHOW_MMU_DEBUG(1) //DEBUG info
       //switch to task switcher updates
       stage <= `STAGE_TASK_SWITCHER;
       addra <= (mmu_new_process_start_point_segment) * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
@@ -244,7 +226,6 @@ module stage1 (
       if (mmu_logical_pages_memory[mmu_separate_process_segment] >= inst_address_num && 
     	    mmu_logical_pages_memory[mmu_separate_process_segment] <= inst_address_num+inst_reg_num) begin
         if (`TASK_SPLIT_DEBUG === 1) $display("to change");
-
         if (mmu_logical_pages_memory[mmu_separate_process_segment] == inst_address_num) begin
           if (`TASK_SPLIT_DEBUG === 1) $display("first ", mmu_separate_process_segment);
           mmu_new_process_start_point_segment <= mmu_separate_process_segment;
@@ -283,8 +264,10 @@ module stage1 (
     if (!rst) begin
       if (mmu_logical_pages_memory[mmu_index_start] === 0) begin
         //we have free memory page. Let's allocate it and add to process chain
-        if (`MMU_CHANGES_DEBUG === 1) $display($time, " mmu new page ");  //DEBUG info
-        if (`MMU_CHANGES_DEBUG === 1) mmu_changes_debug <= 1;  //DEBUG info
+        if (`MMU_CHANGES_DEBUG === 1) begin //DEBUG info
+        	$display($time, " mmu new page ");  //DEBUG info
+        	mmu_changes_debug <= 1;  //DEBUG info
+        end //DEBUG info
         mmu_chain_memory[mmu_last_process_segment] <= mmu_index_start;
         mmu_chain_memory[mmu_index_start] <= 0;
         mmu_logical_pages_memory[mmu_index_start] <= mmu_logical_index_new;
@@ -357,16 +340,7 @@ module stage1 (
 
   always @(stage) begin
     if (stage == `STAGE_MMU_TRANSLATE_A || stage == `STAGE_MMU_TRANSLATE_B) begin
-      if (`MMU_CHANGES_DEBUG === 1 && mmu_changes_debug == 1) $write($time, " mmu ");  //DEBUG info
-      for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-        if (`MMU_CHANGES_DEBUG === 1 && mmu_changes_debug == 1)  //DEBUG info
-          $write(  //DEBUG info
-              $sformatf(  //DEBUG info
-                  "%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i]  //DEBUG info
-              )  //DEBUG info
-          );  //DEBUG info
-      end  //DEBUG info
-      if (`MMU_CHANGES_DEBUG === 1 && mmu_changes_debug == 1) $display("");  //DEBUG info
+      `SHOW_MMU_DEBUG(mmu_changes_debug) //DEBUG info
       mmu_changes_debug <= 0;  //DEBUG info
       mmu_logical_index_new <= mmu_input_addr / `MMU_PAGE_SIZE; //FIXME: it's enough just to take concrete bits
       mmu_stage <= `MMU_STAGE_SEARCH;
