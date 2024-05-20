@@ -62,6 +62,24 @@ module stage1 (
 
   integer i;  //DEBUG info
 
+ `define SHOW_MMU_DEBUG(ARG) \
+    if (`MMU_CHANGES_DEBUG == 1 && ARG == 1) begin \
+       $write($time, " mmu "); \
+       for (i = 0; i <= 10; i = i + 1) begin \
+         $write($sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])); \
+       end \
+       $display(""); \
+    end
+
+  `define SHOW_REG_DEBUG(ARG,INFO) \
+     if (ARG == 1) begin \
+       $write($time, INFO); \
+       for (i = 0; i <= 10; i = i + 1) begin \
+         $write($sformatf("%02x ", registers[process_index][i])); \
+       end \
+       $display(""); \
+     end
+
   //offsets for process info
   `define ADDRESS_NEXT_PROCESS 0
   `define ADDRESS_PC 4
@@ -149,28 +167,6 @@ module stage1 (
   reg [4:0] mmu_stage;
   reg [2:0] mmu_changes_debug;  //DEBUG info
   
-  `define SHOW_MMU_DEBUG(PAR) \ //DEBUG info
-    if (`MMU_CHANGES_DEBUG === 1 && PAR === 1) begin \ //DEBUG info
-      $write($time, " mmu "); \ //DEBUG info
-      for (i = 0; i <= 10; i = i + 1) begin \ //DEBUG info
-        $write( \ //DEBUG info
-            $sformatf( \ //DEBUG info
-                "%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i] \ //DEBUG info
-            ) \ //DEBUG info
-        ); \ //DEBUG info
-      end \ //DEBUG info
-      $display(""); \ //DEBUG info
-    end //DEBUG info
-
-  `define SHOW_REG_DEBUG(PAR,INFO) \ //DEBUG info
-     if (PAR === 1) begin \ //DEBUG info
-       $write($time, INFO); \ //DEBUG info
-       for (i = 0; i <= 10; i = i + 1) begin \ //DEBUG info
-         $write($sformatf("%02x ", registers[process_index][i])); \ //DEBUG info
-       end \ //DEBUG info
-       $display(""); \ //DEBUG info
-     end //DEBUG info
-
   always @(mmu_stage) begin
     if (mmu_stage == `MMU_STAGE_SEARCH) begin
       if (mmu_logical_index_old == mmu_logical_index_new) begin
