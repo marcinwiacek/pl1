@@ -3,6 +3,7 @@
 `define MMU_CHANGES_DEBUG 1 //1 enabled, 0 disabled
 `define MMU_TRANSLATION_DEBUG 1 //1 enabled, 0 disabled
 `define TASK_SWITCHER_DEBUG 1 //1 enabled, 0 disabled
+
 `define MMU_PAGE_SIZE 72 //how many bytes are assigned to one memory page in MMU
 
 module cpu (
@@ -213,6 +214,10 @@ module stage1 (
       end else begin
         //terminate new process and switch to task switcher update
       end
+         if (mmu_logical_pages_memory[mmu_separate_process_segment] == inst_address_num) begin
+          $display("first ",mmu_separate_process_segment);
+          mmu_new_process_start_point_segment = mmu_separate_process_segment;
+        end
 
       if (`MMU_CHANGES_DEBUG === 1) $write($time, " mmu ");  //DEBUG info
       for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
@@ -227,8 +232,9 @@ module stage1 (
 
       //switch to task switcher updates
       stage <= `STAGE_TASK_SWITCHER;
-      addrb <= mmu_new_process_start_point_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
+      addra <= (mmu_new_process_start_point_segment )* `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
       dia <= start_process_address;
+      wea <= 1;
       task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
 
     end else begin
@@ -238,7 +244,7 @@ module stage1 (
         $display("to change");
 
         if (mmu_logical_pages_memory[mmu_separate_process_segment] == inst_address_num) begin
-          $display("first");
+          $display("first ",mmu_separate_process_segment);
           mmu_new_process_start_point_segment <= mmu_separate_process_segment;
         end
         mmu_chain_memory[mmu_new] <= mmu_separate_process_segment;
@@ -312,11 +318,15 @@ module stage1 (
     end
     mmu_logical_pages_memory[0] <= 1;
 
-    mmu_chain_memory[0] <= 5;
-    mmu_chain_memory[5] <= 1;
+    mmu_chain_memory[0] <= 1;
     mmu_chain_memory[1] <= 0;
-    mmu_logical_pages_memory[5] <= 1;
-    mmu_logical_pages_memory[1] <= 2;
+    mmu_logical_pages_memory[1] <= 1;
+
+ //   mmu_chain_memory[0] <= 5;
+//    mmu_chain_memory[5] <= 1;
+//    mmu_chain_memory[1] <= 0;
+//    mmu_logical_pages_memory[5] <= 1;
+//    mmu_logical_pages_memory[1] <= 2;
 
     mmu_stage <= `MMU_STAGE_WAIT;
     mmu_changes_debug <= 1;  //DEBUG info
@@ -500,10 +510,16 @@ module stage1 (
         addrb <= start_process_address + `ADDRESS_NEXT_PROCESS;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW) begin
-        addrb <= start_process_address * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
-        dia <= mmu_new_process_start_point_segment * `MMU_PAGE_SIZE;
+        $display(  
+              $time, " new process next data value = ",dia," address ",addrb);
+        addra <= start_process_address + `ADDRESS_NEXT_PROCESS;
+        dia <= (mmu_new_process_start_point_segment )* `MMU_PAGE_SIZE;
         task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD) begin
+       
+        $display(  
+              $time, " old process next data value = ",dia," address ",addrb);
+              wea <= 0;
         stage <= `STAGE_READ_PC1_REQUEST;
       end
     end
@@ -537,7 +553,7 @@ module stage1 (
       registers[process_index][inst_reg_num] <= dob;
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
-      //$display($time, "          switcher read ", task_switcher_stage);
+   //   $display($time, "          switcher read ", task_switcher_stage, " address ",addrb," value ",dob);
       if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
         start_process_address <= dob;
         mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
@@ -593,7 +609,7 @@ module simple_dual_two_clocks (
   always @(posedge clka) begin
     if (ena) begin
       if (wea) ram[addra] <= dia;
-      //      if (wea) $display($time, " writing ", dia, " to ",addra); //DEBUG info
+     //       if (wea) $display($time, " writing ", dia, " to ",addra); //DEBUG info
     end
   end
   always @(posedge clkb) begin
