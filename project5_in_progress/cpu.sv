@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+//options below are less important than options higher
+`define REG_CHANGES_DEBUG 0 //1 enabled, 0 disabled
 `define MMU_CHANGES_DEBUG 0 //1 enabled, 0 disabled
 `define MMU_TRANSLATION_DEBUG 0 //1 enabled, 0 disabled
 `define TASK_SWITCHER_DEBUG 0 //1 enabled, 0 disabled
@@ -296,7 +298,7 @@ module stage1 (
   end
 
   always @(posedge rst) begin
-    $display($time, " rst");  //DEBUG info
+    //$display($time, " rst");  //DEBUG info
     enb <= 1;
     ena <= 1;
     address_pc[process_index] <= `ADDRESS_PROGRAM;
@@ -385,7 +387,7 @@ module stage1 (
           inst_address_num <= inst_address_num_cache[process_index][loop_counter_max[process_index]];
           loop_counter_max[process_index] <= loop_counter_max[process_index] + 1;
           address_pc[process_index] <= address_pc[process_index] + 2;
-          $write($time, //DEBUG info
+          $write($time,  //DEBUG info
                  $sformatf(" %02x: %02x=%02x %02x %02x %02x ", start_process_address,  //DEBUG info
                            (address_pc[process_index] - 0), inst_op, inst_reg_num,  //DEBUG info
                            inst_address_num / 256,  //DEBUG info
@@ -538,7 +540,7 @@ module stage1 (
       end
       stage <= `STAGE_READ_PC2_REQUEST;
     end else if (stage == `STAGE_READ_PC2_RESPONSE) begin
-      $write($time, $sformatf(" %02x: %02x=%02x %02x %02x %02x ", //DEBUG info
+      $write($time, $sformatf(" %02x: %02x=%02x %02x %02x %02x ",  //DEBUG info
                               start_process_address,  //DEBUG info
                               (address_pc[process_index] - 1), inst_op, inst_reg_num,  //DEBUG info
                               dob / 256,  //DEBUG info
@@ -551,7 +553,16 @@ module stage1 (
       address_pc[process_index] <= address_pc[process_index] + 1;
       stage <= `STAGE_DECODE;
     end else if (stage == `STAGE_READ_RAM2REG) begin
-      $display($time, "          reg ", inst_reg_num, " = ", dob);  //DEBUG info
+      if (`REG_CHANGES_DEBUG === 1) $write($time, " reg ");  //DEBUG info
+      for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
+        if (`REG_CHANGES_DEBUG === 1)  //DEBUG info
+          $write(  //DEBUG info
+              $sformatf(  //DEBUG info
+                  "%02x ", (i == inst_reg_num ? dob : registers[process_index][i])  //DEBUG info
+              )  //DEBUG info
+          );  //DEBUG info
+      end  //DEBUG info
+      if (`REG_CHANGES_DEBUG === 1) $display("");  //DEBUG info
       registers[process_index][inst_reg_num] <= dob;
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
