@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 `define MMU_CHANGES_DEBUG 1 //1 enabled, 0 disabled
-`define MMU_TRANSLATION_DEBUG 1 //1 enabled, 0 disabled
+`define MMU_TRANSLATION_DEBUG 0 //1 enabled, 0 disabled
 `define TASK_SWITCHER_DEBUG 1 //1 enabled, 0 disabled
 
 `define MMU_PAGE_SIZE 72 //how many bytes are assigned to one memory page in MMU
@@ -385,9 +385,10 @@ module stage1 (
           inst_address_num <= inst_address_num_cache[process_index][loop_counter_max[process_index]];
           loop_counter_max[process_index] <= loop_counter_max[process_index] + 1;
           address_pc[process_index] <= address_pc[process_index] + 2;
-          $display($time, (address_pc[process_index]), "=", inst_op, inst_reg_num,  //DEBUG info
+          $write($time, $sformatf(" %02x: %02x=%02x %02x %02x %02x ",start_process_address, //DEBUG info
+          	   (address_pc[process_index]), inst_op, inst_reg_num,  //DEBUG info
                    inst_address_num / 256,  //DEBUG info
-                   inst_address_num % 256, " (cache)");  //DEBUG info
+                   inst_address_num % 256, " (cache)"));  //DEBUG info
           stage <= `STAGE_DECODE;
         end else begin
           mmu_input_addr <= address_pc[process_index];
@@ -537,10 +538,10 @@ module stage1 (
       end
       stage <= `STAGE_READ_PC2_REQUEST;
     end else if (stage == `STAGE_READ_PC2_RESPONSE) begin
-      $display($time, " ", (address_pc[process_index] - 1), "=", inst_op,  //DEBUG info
-               inst_reg_num,  //DEBUG info
-               dob / 256,  //DEBUG info
-               dob % 256);  //DEBUG info
+      $write($time, $sformatf(" %02x: %02x=%02x %02x %02x %02x ",start_process_address, //DEBUG info
+          	   (address_pc[process_index] - 1), inst_op, inst_reg_num,  //DEBUG info
+                   dob / 256,  //DEBUG info
+                   dob % 256));  //DEBUG info
       inst_address_num <= dob;
       if (loop_counter_max[process_index] != 0) begin
         inst_address_num_cache[process_index][loop_counter[process_index]] <= dob;
