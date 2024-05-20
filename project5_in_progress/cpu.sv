@@ -97,9 +97,6 @@ module stage1 (
   `define MMU_STAGE_FOUND 2
   `define MMU_SEPARATE_PROCESS 3
 
-  reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
-  reg [15:0] start_process_address;  //needs to be updated on process switch
-
   //current instruction - we don't need to multiply it among processes, because we don't support partially executed op before process switch
   reg [4:0] stage; //it doesn't need process index - we switch to other process after completing instruction
   reg [4:0] stage_after_mmu; //temporary value - after MMU related stage we switch to another "correct one"
@@ -129,6 +126,8 @@ module stage1 (
   reg [15:0] task_switcher_stage;
 
   //MMU (Memory Management Unit)
+  reg [15:0] start_process_address;  //needs to be updated on process switch
+  reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
   reg [9:0] mmu_input_addr;  //address to translate
   reg [15:0] mmu_chain_memory[0:1000];  //values = next physical page index for process; last entry = 0
   reg [15:0] mmu_logical_pages_memory[0:1000];  //values = logical process page assigned to physical page; 0 means empty oage
