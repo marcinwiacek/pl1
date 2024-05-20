@@ -162,6 +162,15 @@ module stage1 (
       $display(""); \ //DEBUG info
     end //DEBUG info
 
+  `define SHOW_REG_DEBUG(PAR,INFO) \ //DEBUG info
+     if (PAR === 1) begin \ //DEBUG info
+       $write($time, INFO); \ //DEBUG info
+       for (i = 0; i <= 10; i = i + 1) begin \ //DEBUG info
+         $write($sformatf("%02x ", registers[process_index][i])); \ //DEBUG info
+       end \ //DEBUG info
+       $display(""); \ //DEBUG info
+     end //DEBUG info
+
   always @(mmu_stage) begin
     if (mmu_stage == `MMU_STAGE_SEARCH) begin
       if (mmu_logical_index_old == mmu_logical_index_new) begin
@@ -465,18 +474,13 @@ module stage1 (
     end else if (stage == `STAGE_TASK_SWITCHER) begin
       //$display($time, "          switcher save ", task_switcher_stage);
       if (task_switcher_stage == `SWITCHER_STAGE_SAVE_PC) begin
-        if (`TASK_SWITCHER_DEBUG === 1) $write($time, " old reg ");  //DEBUG info
-        for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-          if (`TASK_SWITCHER_DEBUG === 1)  //DEBUG info
-            $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
-        end  //DEBUG info
-        if (`TASK_SWITCHER_DEBUG === 1) $display("");  //DEBUG info
-        if (`TASK_SWITCHER_DEBUG === 1)  //DEBUG info
+        `SHOW_REG_DEBUG(`TASK_SWITCHER_DEBUG," old reg") //DEBUG info
+        if (`TASK_SWITCHER_DEBUG === 1) begin  //DEBUG info
           $display($time, " old pc ", address_pc[process_index]);  //DEBUG info
-        if (`TASK_SWITCHER_DEBUG === 1)  //DEBUG info
           $display(  //DEBUG info
               $time, " old process ", mmu_start_process_segment, start_process_address  //DEBUG info
           );  //DEBUG info
+        end //DEBUG info
         addra <= start_process_address + `ADDRESS_REG;
         dia <= registers[process_index][0];
         task_switcher_stage <= `SWITCHER_STAGE_SAVE_REG_0;
@@ -488,14 +492,14 @@ module stage1 (
         addrb <= start_process_address + `ADDRESS_NEXT_PROCESS;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW) begin
-        if (`TASK_SPLIT_DEBUG === 1)
-          $display($time, " new process next data value = ", dia, " address ", addrb);
+        if (`TASK_SPLIT_DEBUG === 1) //DEBUG info
+          $display($time, " new process next data value = ", dia, " address ", addrb); //DEBUG info
         addra <= start_process_address + `ADDRESS_NEXT_PROCESS;
         dia <= (mmu_new_process_start_point_segment) * `MMU_PAGE_SIZE;
         task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD) begin
-        if (`TASK_SPLIT_DEBUG === 1)
-          $display($time, " old process next data value = ", dia, " address ", addrb);
+        if (`TASK_SPLIT_DEBUG === 1) //DEBUG info
+          $display($time, " old process next data value = ", dia, " address ", addrb); //DEBUG info
         wea   <= 0;
         stage <= `STAGE_READ_PC1_REQUEST;
       end
@@ -527,16 +531,17 @@ module stage1 (
       address_pc[process_index] <= address_pc[process_index] + 1;
       stage <= `STAGE_DECODE;
     end else if (stage == `STAGE_READ_RAM2REG) begin
-      if (`REG_CHANGES_DEBUG === 1) $write($time, " reg ");  //DEBUG info
-      for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-        if (`REG_CHANGES_DEBUG === 1)  //DEBUG info
+      if (`REG_CHANGES_DEBUG === 1) begin //DEBUG info
+        $write($time, " reg ");  //DEBUG info
+        for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
           $write(  //DEBUG info
               $sformatf(  //DEBUG info
                   "%02x ", (i == inst_reg_num ? dob : registers[process_index][i])  //DEBUG info
               )  //DEBUG info
           );  //DEBUG info
+        end //DEBUG info
+        $display("");  //DEBUG info
       end  //DEBUG info
-      if (`REG_CHANGES_DEBUG === 1) $display("");  //DEBUG info
       registers[process_index][inst_reg_num] <= dob;
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
@@ -555,18 +560,13 @@ module stage1 (
         addrb <= addrb + 1;
         task_switcher_stage <= task_switcher_stage + 1;
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_REG_31) begin
-        if (`TASK_SWITCHER_DEBUG === 1) $write($time, " new reg ");  //DEBUG info
-        for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-          if (`TASK_SWITCHER_DEBUG === 1)  //DEBUG info
-            $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
-        end  //DEBUG info
-        if (`TASK_SWITCHER_DEBUG === 1) $display("");  //DEBUG info
-        if (`TASK_SWITCHER_DEBUG === 1)  //DEBUG info
+        `SHOW_REG_DEBUG(`TASK_SWITCHER_DEBUG," new reg") //DEBUG info
+        if (`TASK_SWITCHER_DEBUG === 1) begin //DEBUG info
           $display($time, " new pc ", address_pc[process_index]);  //DEBUG info
-        if (`TASK_SWITCHER_DEBUG === 1)  //DEBUG info
           $display(  //DEBUG info
               $time, " new process ", mmu_start_process_segment, start_process_address  //DEBUG info
           );  //DEBUG info
+        end //DEBUG info
         process_instruction_done <= 0;
         task_switcher_stage <= `SWITCHER_STAGE_WAIT;
         stage <= `STAGE_READ_PC1_REQUEST;
