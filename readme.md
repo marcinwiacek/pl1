@@ -42,6 +42,16 @@ Example: no polling, if possible, just registering for events.
 Note: although some of them don't look serious, researchers are thinking about them or even
 propose related PoC (again: Antikernel)
 
+# License
+
+GPLv3. For other please contact author of this repo. Please have in mind, that hr will be more than happy, 
+if you could share with him project(s) or device(s) using this ISA.
+
+# Contact
+* GitHub and/or
+* marcin ( at ) mwiacek (.) com + marcin.wiacek.work ( at ) gmail (.) com
+(the best send your message to both)
+
 # Preamble
 
 IT is full of smart ideas, unfortunatelly not all of them are used together in the most popular mainstream computer hardware (from different reasons).
@@ -89,10 +99,6 @@ design CPU (note: it gives me much bigger fun that creating
 
 Rome was not built in one day.
 
-# License
-
-GPLv3. For other please contact author of this repo. Please have in mind, that hr will be more than happy, 
-if you could share with him project(s) or device(s) using this ISA.
 
 # First targets and timeline
 
@@ -112,13 +118,9 @@ possible at least creating secure and effective embedded devices. Who knows?
 
 # About author
 
-Tester and (at least partially) developer. Software related engineer, who likes
-low-level work with hardware. Good in optimalizing things.
-
-# Contact
-* GitHub and/or
-* marcin ( at ) mwiacek (.) com + marcin.wiacek.work ( at ) gmail (.) com
-(the best send your message to both)
+Tester and (at least partially) developer. Mainly software related engineer.
+Likes low-level work with hardware. Good in optimalizing things (see for example some updates
+in Android Chrome).
 
 # Why it was really started (Feb 2024)
 
