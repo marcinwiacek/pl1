@@ -1,10 +1,10 @@
 `timescale 1ns / 1ps
 
 //options below are less important than options higher
-`define REG_CHANGES_DEBUG 0 //1 enabled, 0 disabled
+`define REG_CHANGES_DEBUG 1 //1 enabled, 0 disabled
 `define MMU_CHANGES_DEBUG 1 //1 enabled, 0 disabled
 `define MMU_TRANSLATION_DEBUG 0 //1 enabled, 0 disabled
-`define TASK_SWITCHER_DEBUG 0 //1 enabled, 0 disabled
+`define TASK_SWITCHER_DEBUG 1 //1 enabled, 0 disabled
 `define TASK_SPLIT_DEBUG 1 //1 enabled, 0 disabled
 
 `define MMU_PAGE_SIZE 72 //how many bytes are assigned to one memory page in MMU
@@ -61,6 +61,24 @@ module stage1 (
 );
 
   integer i;  //DEBUG info
+
+  `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
+     if (ARG == 1) begin \
+       $write($time, INFO); \
+       for (i = 0; i <= 10; i = i + 1) begin \
+         $write($sformatf("%02x ", (i==ARG2?ARG3:registers[process_index][i]))); \
+       end \
+       $display(""); \
+     end
+
+  `define SHOW_MMU_DEBUG(ARG) \
+    if (`MMU_CHANGES_DEBUG == 1 && ARG == 1) begin \
+       $write($time, " mmu "); \
+       for (i = 0; i <= 10; i = i + 1) begin \
+         $write($sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])); \
+       end \
+       $display(""); \
+    end
 
   //offsets for process info
   `define ADDRESS_NEXT_PROCESS 0
@@ -132,22 +150,26 @@ module stage1 (
   reg [15:0] task_switcher_stage;
 
   //MMU (Memory Management Unit)
+  reg [4:0] mmu_stage;
+  reg [2:0] mmu_changes_debug;  //DEBUG info
+
   reg [15:0] start_process_address;  //needs to be updated on process switch
   reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
-  reg [9:0] mmu_input_addr;  //address to translate
-  reg [15:0] mmu_chain_memory[0:1000];  //values = next physical page index for process; last entry = 0
-  reg [15:0] mmu_logical_pages_memory[0:1000];  //values = logical process page assigned to physical page; 0 means empty oage
+  reg [15:0] mmu_chain_memory[1000:0];  //values = next physical page index for process; last entry = 0
+  reg [15:0] mmu_logical_pages_memory[1000:0];  //values = logical process page assigned to physical page; 0 means empty oage
                                                 //(in existing processes - we setup here value > 0 for first page with index 0 and ignore it)
   reg [15:0] mmu_index_start; // this is start index of the loop searching for free memory page; when reserving pages, increase;
                               // when deleting, setup to lowest free value
-  reg [15:0] mmu_logical_index_new;
-  reg [15:0] mmu_logical_index_old;
-  reg [15:0] mmu_physical_index_old;
+
+  reg [9:0] mmu_input_addr;  //address to translate
+  reg [15:0] mmu_logical_index_new;  //page from mmu_input_addr
+  reg [15:0] mmu_logical_index_old;  //cache with translated address
+  reg [15:0] mmu_physical_index_old;  //cache with translated address
+
   reg [15:0] mmu_last_process_segment;  //used during search (for finding last process segment) und splitting process
+  reg [15:0] mmu_old;  //used during search (for finding last process segment) und splitting process
   reg [15:0] mmu_new_process_start_point_segment;
   reg [15:0] mmu_separate_process_segment;
-  reg [4:0] mmu_stage;
-  reg [2:0] mmu_changes_debug;  //DEBUG info
 
   always @(mmu_stage) begin
     if (mmu_stage == `MMU_STAGE_SEARCH) begin
@@ -177,56 +199,34 @@ module stage1 (
             " to ",  //DEBUG info
             (mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE)  //DEBUG info
         );  //DEBUG info
-      if (`MMU_CHANGES_DEBUG == 1 && mmu_changes_debug == 1) begin  //DEBUG info
-        $write($time, " mmu ");  //DEBUG info
-        for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-          $write($sformatf("%02x-%02x ", mmu_chain_memory[i],  //DEBUG info
-                           mmu_logical_pages_memory[i]));  //DEBUG info
-        end  //DEBUG info
-        $display("");  //DEBUG info
-      end  //DEBUG info
+      `SHOW_MMU_DEBUG(mmu_changes_debug)
       mmu_changes_debug <= 0;  //DEBUG info
     end
   end
 
-  reg [15:0] mmu_old;  //used during search (for finding last process segment) und splitting process
-  //reg [15:0] mmu_new;  //used during search (for finding last process segment) und splitting process
-
   always @(mmu_separate_process_segment) begin
-    if (`TASK_SPLIT_DEBUG == 1) $display("traversing ", mmu_separate_process_segment);
-    if (`MMU_CHANGES_DEBUG == 1) begin  //DEBUG info
-      $write($time, " mmu ");  //DEBUG info
-      for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-        $write($sformatf("%02x-%02x ", mmu_chain_memory[i],  //DEBUG info
-                         mmu_logical_pages_memory[i]));  //DEBUG info
-      end  //DEBUG info
-      $display("");  //DEBUG info
-    end  //DEBUG info
+    if (`TASK_SPLIT_DEBUG == 1) $display($time, " traversing ", mmu_separate_process_segment);
+    `SHOW_MMU_DEBUG(1)
     if (mmu_logical_pages_memory[mmu_separate_process_segment] == inst_address_num) begin
-        if (`TASK_SPLIT_DEBUG == 1) $display("first ", mmu_separate_process_segment);
-        mmu_new_process_start_point_segment <= mmu_separate_process_segment;
+      if (`TASK_SPLIT_DEBUG == 1) $display($time, " first ", mmu_separate_process_segment);
+      mmu_new_process_start_point_segment <= mmu_separate_process_segment;
     end
     if (mmu_chain_memory[mmu_separate_process_segment] == 0) begin
-      if (`TASK_SPLIT_DEBUG == 1) $display("last");
+      if (`TASK_SPLIT_DEBUG == 1) $display($time, " last");
       mmu_chain_memory[mmu_old] <= mmu_chain_memory[mmu_separate_process_segment];
-      mmu_chain_memory[mmu_separate_process_segment] <= 0;
-      //if (inst_address_num != inst_reg_num) begin
-//        if (`TASK_SPLIT_DEBUG == 1) $display("error");
-        //switch to task switcher update
-  //    end else begin
-        //terminate new process and switch to task switcher update
-//      end    
       //switch to task switcher updates
-      stage <= `STAGE_TASK_SWITCHER;
       addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
       dia <= start_process_address;
       wea <= 1;
       task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
+      stage <= `STAGE_TASK_SWITCHER;
     end else begin
-      if (mmu_logical_pages_memory[mmu_separate_process_segment] >= inst_address_num && 
+      if (mmu_separate_process_segment != start_process_address && 
+          mmu_logical_pages_memory[mmu_separate_process_segment] >= inst_address_num && 
           mmu_logical_pages_memory[mmu_separate_process_segment] <= inst_address_num+inst_reg_num) begin
         mmu_chain_memory[mmu_old] <= mmu_chain_memory[mmu_separate_process_segment];
-        mmu_old <= mmu_separate_process_segment;        
+        //mmu_logical_pages_memory[mmu_old] <= 5;
+        mmu_old <= mmu_separate_process_segment;
       end
       mmu_separate_process_segment <= mmu_chain_memory[mmu_separate_process_segment];
     end
@@ -300,11 +300,11 @@ module stage1 (
     mmu_chain_memory[1] <= 0;
     mmu_logical_pages_memory[1] <= 1;
 
-    //   mmu_chain_memory[0] <= 5;
-    //    mmu_chain_memory[5] <= 1;
-    //    mmu_chain_memory[1] <= 0;
-    //    mmu_logical_pages_memory[5] <= 1;
-    //    mmu_logical_pages_memory[1] <= 2;
+    //       mmu_chain_memory[0] <= 5;
+    //        mmu_chain_memory[5] <= 1;
+    //        mmu_chain_memory[1] <= 0;
+    //        mmu_logical_pages_memory[5] <= 1;
+    //        mmu_logical_pages_memory[1] <= 2;
 
     mmu_stage <= `MMU_STAGE_WAIT;
     mmu_changes_debug <= 1;  //DEBUG info
@@ -333,14 +333,7 @@ module stage1 (
 
   always @(stage) begin
     if (stage == `STAGE_MMU_TRANSLATE_A || stage == `STAGE_MMU_TRANSLATE_B) begin
-      if (`MMU_CHANGES_DEBUG == 1 && mmu_changes_debug == 1) begin  //DEBUG info
-        $write($time, " mmu ");  //DEBUG info
-        for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-          $write($sformatf("%02x-%02x ", mmu_chain_memory[i],  //DEBUG info
-                           mmu_logical_pages_memory[i]));  //DEBUG info
-        end  //DEBUG info
-        $display("");  //DEBUG info
-      end  //DEBUG info
+      `SHOW_MMU_DEBUG(mmu_changes_debug)
       mmu_changes_debug <= 0;  //DEBUG info
       mmu_logical_index_new <= mmu_input_addr / `MMU_PAGE_SIZE; //FIXME: it's enough just to take concrete bits
       mmu_stage <= `MMU_STAGE_SEARCH;
@@ -401,8 +394,8 @@ module stage1 (
         if (mmu_start_process_segment == mmu_separate_process_segment) begin
           $display("error");
         end
-          mmu_separate_process_segment <= mmu_start_process_segment;
-          mmu_old <= mmu_start_process_segment;
+        mmu_separate_process_segment <= mmu_start_process_segment;
+        mmu_old <= mmu_start_process_segment;
       end else begin
         if (inst_op == `OPCODE_JMP) begin
           $display(" opcode = jmp to ", inst_address_num);  //DEBUG info
@@ -463,12 +456,9 @@ module stage1 (
     end else if (stage == `STAGE_TASK_SWITCHER) begin
       //$display($time, "          switcher save ", task_switcher_stage);
       if (task_switcher_stage == `SWITCHER_STAGE_SAVE_PC) begin
+        `SHOW_REG_DEBUG(`TASK_SWITCHER_DEBUG, " old reg ", 0,
+                        registers[process_index][0])  //DEBUG info
         if (`TASK_SWITCHER_DEBUG == 1) begin  //DEBUG info
-          $write($time, "old reg");  //DEBUG info
-          for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-            $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
-          end  //DEBUG info
-          $display("");  //DEBUG info
           $display($time, " old pc ", address_pc[process_index]);  //DEBUG info
           $display(  //DEBUG info
               $time, " old process ", mmu_start_process_segment, start_process_address  //DEBUG info
@@ -485,14 +475,7 @@ module stage1 (
         addrb <= start_process_address + `ADDRESS_NEXT_PROCESS;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW) begin
-        if (`MMU_CHANGES_DEBUG == 1) begin  //DEBUG info
-        $write($time, " mmu ");  //DEBUG info
-        for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-          $write($sformatf("%02x-%02x ", mmu_chain_memory[i],  //DEBUG info
-                           mmu_logical_pages_memory[i]));  //DEBUG info
-        end  //DEBUG info
-        $display("");  //DEBUG info
-      end  //DEBUG info
+        `SHOW_MMU_DEBUG(1)
         if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
           $display($time, " new process next data value = ", dia, " address ", addrb);  //DEBUG info
         addra <= start_process_address + `ADDRESS_NEXT_PROCESS;
@@ -532,17 +515,7 @@ module stage1 (
       address_pc[process_index] <= address_pc[process_index] + 1;
       stage <= `STAGE_DECODE;
     end else if (stage == `STAGE_READ_RAM2REG) begin
-      if (`REG_CHANGES_DEBUG == 1) begin  //DEBUG info
-        $write($time, " reg ");  //DEBUG info
-        for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-          $write(  //DEBUG info
-              $sformatf(  //DEBUG info
-                  "%02x ", (i == inst_reg_num ? dob : registers[process_index][i])  //DEBUG info
-                  )  //DEBUG info
-          );  //DEBUG info
-        end  //DEBUG info
-        $display("");  //DEBUG info
-      end  //DEBUG info
+      `SHOW_REG_DEBUG(`REG_CHANGES_DEBUG, " reg ", inst_reg_num, dob)  //DEBUG info
       registers[process_index][inst_reg_num] <= dob;
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
@@ -561,12 +534,9 @@ module stage1 (
         addrb <= addrb + 1;
         task_switcher_stage <= task_switcher_stage + 1;
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_REG_31) begin
+        `SHOW_REG_DEBUG(`TASK_SWITCHER_DEBUG, " new reg ", 0,
+                        registers[process_index][0])  //DEBUG info
         if (`TASK_SWITCHER_DEBUG == 1) begin  //DEBUG info
-          $write($time, "new reg");  //DEBUG info
-          for (i = 0; i <= 10; i = i + 1) begin  //DEBUG info
-            $write($sformatf("%02x ", registers[process_index][i]));  //DEBUG info
-          end  //DEBUG info
-          $display("");  //DEBUG info
           $display($time, " new pc ", address_pc[process_index]);  //DEBUG info
           $display(  //DEBUG info
               $time, " new process ", mmu_start_process_segment, start_process_address  //DEBUG info
@@ -596,18 +566,18 @@ module simple_dual_two_clocks (
 );
 
   reg [15:0] ram[0:1023];
-  
+
   initial begin  //DEBUG info
     $readmemh("rom3.mem", ram);  //DEBUG info
   end  //DEBUG info
-  
+
   always @(posedge clka) begin
     if (ena) begin
       if (wea) ram[addra] <= dia;
       //       if (wea) $display($time, " writing ", dia, " to ",addra); //DEBUG info
     end
   end
-  
+
   always @(posedge clkb) begin
     if (enb) begin
       dob <= ram[addrb];
