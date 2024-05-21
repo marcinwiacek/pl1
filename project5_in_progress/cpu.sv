@@ -80,6 +80,14 @@ module stage1 (
        $display(""); \
     end
 
+  `define SHOW_TASK_INFO(ARG) \
+     if (`TASK_SWITCHER_DEBUG == 1) begin \
+          $display($time, " ",ARG," pc ", address_pc[process_index]); \
+          $display( \
+              $time, " ",ARG," process ", mmu_start_process_segment, start_process_address \
+          ); \
+        end
+
   //offsets for process info
   `define ADDRESS_NEXT_PROCESS 0
   `define ADDRESS_PC 4
@@ -405,7 +413,6 @@ module stage1 (
           $display("error");  //DEBUG info
         end  //DEBUG info
         mmu_separate_process_segment <= mmu_chain_memory[mmu_start_process_segment];
-        //        mmu_separate_process_segment <= mmu_start_process_segment;
         mmu_old <= mmu_start_process_segment;
         mmu_new <= mmu_start_process_segment;
       end else begin
@@ -466,16 +473,10 @@ module stage1 (
       wea   <= 0;
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
-      //$display($time, "          switcher save ", task_switcher_stage);
       if (task_switcher_stage == `SWITCHER_STAGE_SAVE_PC) begin
         `SHOW_REG_DEBUG(`TASK_SWITCHER_DEBUG, " old reg ", 0,  //DEBUG info
                         registers[process_index][0])  //DEBUG info
-        if (`TASK_SWITCHER_DEBUG == 1) begin  //DEBUG info
-          $display($time, " old pc ", address_pc[process_index]);  //DEBUG info
-          $display(  //DEBUG info
-              $time, " old process ", mmu_start_process_segment, start_process_address  //DEBUG info
-          );  //DEBUG info
-        end  //DEBUG info
+        `SHOW_TASK_INFO("old") //DEBUG info
         addra <= start_process_address + `ADDRESS_REG;
         dia <= registers[process_index][0];
         task_switcher_stage <= `SWITCHER_STAGE_SAVE_REG_0;
@@ -531,7 +532,6 @@ module stage1 (
       registers[process_index][inst_reg_num] <= dob;
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
-      //   $display($time, "          switcher read ", task_switcher_stage, " address ",addrb," value ",dob);
       if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
         start_process_address <= dob;
         mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
@@ -548,12 +548,7 @@ module stage1 (
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_REG_31) begin
         `SHOW_REG_DEBUG(`TASK_SWITCHER_DEBUG, " new reg ", 0,  //DEBUG info
                         registers[process_index][0])  //DEBUG info
-        if (`TASK_SWITCHER_DEBUG == 1) begin  //DEBUG info
-          $display($time, " new pc ", address_pc[process_index]);  //DEBUG info
-          $display(  //DEBUG info
-              $time, " new process ", mmu_start_process_segment, start_process_address  //DEBUG info
-          );  //DEBUG info
-        end  //DEBUG info
+        `SHOW_TASK_INFO("new") //DEBUG info
         process_instruction_done <= 0;
         task_switcher_stage <= `SWITCHER_STAGE_WAIT;
         stage <= `STAGE_READ_PC1_REQUEST;
