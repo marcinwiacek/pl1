@@ -155,7 +155,7 @@ module stage1 (
 
   reg [15:0] start_process_address;  //needs to be updated on process switch
   reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
-  reg [15:0] mmu_chain_memory[1000:0];  //values = next physical page index for process; last entry = 0
+  reg [15:0] mmu_chain_memory[1000:0];  //values = next physical page index for process; last entry = the same entry
   reg [15:0] mmu_logical_pages_memory[1000:0];  //values = logical process page assigned to physical page; 0 means empty oage
                                                 //(in existing processes - we setup here value > 0 for first page with index 0 and ignore it)
   reg [15:0] mmu_index_start; // this is start index of the loop searching for free memory page; when reserving pages, increase;
@@ -211,9 +211,9 @@ module stage1 (
       if (`TASK_SPLIT_DEBUG == 1) $display($time, " first ", mmu_separate_process_segment); //DEBUG info
       mmu_new_process_start_point_segment <= mmu_separate_process_segment;
     end
-    if (mmu_chain_memory[mmu_separate_process_segment] == 0) begin
-      if (`TASK_SPLIT_DEBUG == 1) $display($time, " last"); //DEBUG info
-      mmu_chain_memory[mmu_old] <= mmu_chain_memory[mmu_separate_process_segment];
+    if (mmu_chain_memory[mmu_separate_process_segment] == mmu_separate_process_segment) begin
+      if (`TASK_SPLIT_DEBUG == 1) $display($time, " last ", mmu_old); //DEBUG info
+      mmu_chain_memory[mmu_old] <= mmu_old;
       //switch to task switcher updates
       addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
       dia <= start_process_address;
@@ -222,14 +222,12 @@ module stage1 (
       stage <= `STAGE_TASK_SWITCHER;
     end else begin
       if (mmu_logical_pages_memory[mmu_separate_process_segment] >= inst_address_num && 
-          mmu_logical_pages_memory[mmu_separate_process_segment] <= inst_address_num+inst_reg_num) begin
-        if (mmu_old != mmu_start_process_segment) begin
-            mmu_chain_memory[mmu_old] <= mmu_chain_memory[mmu_separate_process_segment];
-        end
+          mmu_logical_pages_memory[mmu_separate_process_segment] < inst_address_num+inst_reg_num) begin
+        mmu_chain_memory[mmu_old] <= mmu_chain_memory[mmu_separate_process_segment];
         mmu_old <= mmu_separate_process_segment;
       end
-      mmu_separate_process_segment <= mmu_chain_memory[mmu_separate_process_segment];
     end
+    mmu_separate_process_segment <= mmu_chain_memory[mmu_separate_process_segment]; //moved aouside if...else...end because on synth_design issues
   end
 
   //searching in the process memory and exiting with translated address or switching to searching free memory
@@ -241,7 +239,7 @@ module stage1 (
       mmu_logical_pages_memory[mmu_physical_index_old]==mmu_logical_index_new) begin
       //value found in current process chain
       mmu_stage <= `MMU_STAGE_FOUND;
-    end else if (mmu_chain_memory[mmu_physical_index_old] == 0) begin
+    end else if (mmu_chain_memory[mmu_physical_index_old] == mmu_physical_index_old) begin
       //we need to start searching first free memory page and allocate it
       mmu_last_process_segment <= mmu_physical_index_old;
       mmu_index_start <= mmu_index_start + 1;
@@ -298,14 +296,16 @@ module stage1 (
     mmu_logical_pages_memory[0] <= 1;
 
     mmu_chain_memory[0] <= 1; //DEBUG info
-    mmu_chain_memory[1] <= 0; //DEBUG info
+    mmu_chain_memory[1] <= 1; //DEBUG info
     mmu_logical_pages_memory[1] <= 1; //DEBUG info
 
-    //       mmu_chain_memory[0] <= 5; //DEBUG info
-    //        mmu_chain_memory[5] <= 1; //DEBUG info
-    //        mmu_chain_memory[1] <= 0; //DEBUG info
-    //        mmu_logical_pages_memory[5] <= 1; //DEBUG info
-    //        mmu_logical_pages_memory[1] <= 2; //DEBUG info
+           mmu_chain_memory[0] <= 5; //DEBUG info
+            mmu_chain_memory[5] <= 1; //DEBUG info
+            mmu_chain_memory[1] <= 2; //DEBUG info
+            mmu_chain_memory[2] <= 2; //DEBUG info
+            mmu_logical_pages_memory[5] <= 1; //DEBUG info
+            mmu_logical_pages_memory[1] <= 2; //DEBUG info
+            mmu_logical_pages_memory[2] <= 3; //DEBUG info
 
     mmu_stage <= `MMU_STAGE_WAIT;
     mmu_changes_debug <= 1;  //DEBUG info
