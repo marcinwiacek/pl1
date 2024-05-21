@@ -221,11 +221,11 @@ module stage1 (
       task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
       stage <= `STAGE_TASK_SWITCHER;
     end else begin
-      if (mmu_separate_process_segment != start_process_address && 
-          mmu_logical_pages_memory[mmu_separate_process_segment] >= inst_address_num && 
+      if (mmu_logical_pages_memory[mmu_separate_process_segment] >= inst_address_num && 
           mmu_logical_pages_memory[mmu_separate_process_segment] <= inst_address_num+inst_reg_num) begin
-        mmu_chain_memory[mmu_old] <= mmu_chain_memory[mmu_separate_process_segment];
-        //mmu_logical_pages_memory[mmu_old] <= 5;
+        if (mmu_old != mmu_start_process_segment) begin
+            mmu_chain_memory[mmu_old] <= mmu_chain_memory[mmu_separate_process_segment];
+        end
         mmu_old <= mmu_separate_process_segment;
       end
       mmu_separate_process_segment <= mmu_chain_memory[mmu_separate_process_segment];
@@ -395,7 +395,8 @@ module stage1 (
         if (mmu_start_process_segment == mmu_separate_process_segment) begin //DEBUG info
           $display("error"); //DEBUG info
         end //DEBUG info
-        mmu_separate_process_segment <= mmu_start_process_segment;
+        mmu_separate_process_segment <= mmu_chain_memory[mmu_start_process_segment];
+//        mmu_separate_process_segment <= mmu_start_process_segment;
         mmu_old <= mmu_start_process_segment;
       end else begin
         if (inst_op == `OPCODE_JMP) begin
