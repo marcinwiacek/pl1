@@ -298,9 +298,9 @@ module stage1 (
 
     //problem: we shouldn't mix blocking and non-blocking
     for (start_process_address = 0;
-    	start_process_address < 32;
-    	start_process_address = start_process_address +1) begin
-    	registers[0][start_process_address] <= 0;
+        start_process_address < 32;
+        start_process_address = start_process_address +1) begin
+        registers[0][start_process_address] <= 0;
     end
 
     address_pc[process_index] <= `ADDRESS_PROGRAM;
