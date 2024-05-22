@@ -86,7 +86,7 @@ module stage1 (
      if (`TASK_SWITCHER_DEBUG == 1) begin \
           $write($time, " ",ARG," pc ", address_pc[process_index]); \
           $display( \
-              " ",ARG," process seg/addr ", mmu_start_process_segment, start_process_address \
+              " ",ARG," process seg/addr ", mmu_start_process_segment, process_start_address[process_index] \
           ); \
         end
 
@@ -118,13 +118,15 @@ module stage1 (
   `define SWITCHER_STAGE_SAVE_REG_0 2
   //...
   `define SWITCHER_STAGE_SAVE_REG_31 33
-  `define SWITCHER_STAGE_READ_NEW_PROCESS_ADDR 34
-  `define SWITCHER_STAGE_READ_NEW_PC 35
-  `define SWITCHER_STAGE_READ_NEW_REG_0 36
+  `define SWITCHER_STAGE_SEARCH_IN_TABLES1 34
+  `define SWITCHER_STAGE_SEARCH_IN_TABLES2 35
+  `define SWITCHER_STAGE_READ_NEW_PROCESS_ADDR 36
+  `define SWITCHER_STAGE_READ_NEW_PC 37
+  `define SWITCHER_STAGE_READ_NEW_REG_0 38
   //...
-  `define SWITCHER_STAGE_READ_NEW_REG_31 68
-  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD 69 //setup new process address in old (existing) process
-  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW 70 //setup new process address in new (created) process
+  `define SWITCHER_STAGE_READ_NEW_REG_31 70
+  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD 71 //setup new process address in old (existing) process
+  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW 72 //setup new process address in new (created) process
 
   `define MMU_STAGE_WAIT 0
   `define MMU_STAGE_SEARCH 1
@@ -138,10 +140,13 @@ module stage1 (
   reg [7:0] inst_reg_num;  //in majority cases: processed / affected register number
   reg [15:0] inst_address_num;  //in majority caes: processed / affected memory address
 
-  reg [2:0] process_index = 0; //process related. We cache data about n=8 processes - here we save index value for other tables
-  reg [2:0] process_instruction_done = 0; //process related. how many instructions were done for current process
+  reg [6:0] process_index; //process related. We cache data about n=8 processes - here we save index value for all other tables
+  reg [2:0] new_process_index; //process related. Here we save index value for all other tables used during task switch
+  reg [2:0] process_instruction_done; //process related. how many instructions were done for current process
 
   //values for all processes - need to be separated for every process
+  reg process_used[2:0]; //process related. We cache data about n=8 processes - here we save, if cache slot is used or not
+  reg [15:0] process_start_address[2:0]; //process related. We cache data about n=8 processes - here we save, if cache slot is used or not
   reg [9:0] address_pc[2:0];  //n=2^3=8 addresses
   reg [15:0] registers[2:0][5:0];  //64 8-bit registers * n=8 processes = 512 16-bit registers
 
@@ -163,7 +168,6 @@ module stage1 (
   reg [4:0] mmu_stage;
   reg [2:0] mmu_changes_debug;  //DEBUG info
 
-  reg [15:0] start_process_address;  //needs to be updated on process switch
   reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
   reg [15:0] mmu_chain_memory[1000:0];  //values = next physical page index for process; last entry = the same entry (originally 0, but changed because of synth issues)
   reg [15:0] mmu_logical_pages_memory[1000:0];  //values = logical process page assigned to physical page; 0 means empty oage
@@ -236,7 +240,7 @@ module stage1 (
       end
       //switch to task switcher updates
       addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
-      dia <= start_process_address;
+      dia <= process_start_address[process_index];
       wea <= 1;
       task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
       stage <= `STAGE_TASK_SWITCHER;
@@ -297,16 +301,21 @@ module stage1 (
     ena <= 1;
 
     //problem: we shouldn't mix blocking and non-blocking
-    for (start_process_address = 0;
-        start_process_address < 32;
-        start_process_address = start_process_address +1) begin
-        registers[0][start_process_address] <= 0;
+    for (process_index = 0; process_index < 10; process_index = process_index + 1) begin
+      process_used[process_index] <= 0;
+    end
+    process_used[0] <= 1;
+    for (process_index = 0; process_index < 32; process_index = process_index + 1) begin
+      registers[0][process_index] <= 0;
     end
 
-    address_pc[process_index] <= `ADDRESS_PROGRAM;
-    loop_counter[process_index] <= 0;
-    loop_counter_max[process_index] <= 0;
-    start_process_address <= 0;
+    process_index <= 0;
+    process_instruction_done <= 0;
+
+    address_pc[0] <= `ADDRESS_PROGRAM;
+    loop_counter[0] <= 0;
+    loop_counter_max[0] <= 0;
+    process_start_address[0] <= 0;
     mmu_start_process_segment <= 0;
     mmu_index_start <= 0;
 
@@ -373,8 +382,11 @@ module stage1 (
       if (process_instruction_done == 2) begin
         //time to switch process
         stage <= `STAGE_TASK_SWITCHER;
+        //first read next process address and see if we have it in cache
+        //        addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
+        //        task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
         //first save PC
-        addra <= start_process_address + `ADDRESS_PC;
+        addra <= process_start_address[process_index] + `ADDRESS_PC;
         dia <= address_pc[process_index];
         wea <= 1;
         task_switcher_stage <= `SWITCHER_STAGE_SAVE_PC;
@@ -386,7 +398,8 @@ module stage1 (
           loop_counter_max[process_index] <= loop_counter_max[process_index] + 1;
           address_pc[process_index] <= address_pc[process_index] + 2;
           $write($time,  //DEBUG info
-                 $sformatf(" %02x: %02x=%02x %02x %02x %02x ", start_process_address,  //DEBUG info
+                 $sformatf(" %02x: %02x=%02x %02x %02x %02x ",
+                           process_start_address[process_index],  //DEBUG info
                            (address_pc[process_index] - 0), inst_op, inst_reg_num,  //DEBUG info
                            inst_address_num / 256,  //DEBUG info
                            inst_address_num % 256, " (cache)"));  //DEBUG info
@@ -490,29 +503,68 @@ module stage1 (
         `SHOW_REG_DEBUG(`TASK_SWITCHER_DEBUG, " old reg ", 0,  //DEBUG info
                         registers[process_index][0])  //DEBUG info
         `SHOW_TASK_INFO("old")  //DEBUG info
-        addra <= start_process_address + `ADDRESS_REG;
+        addra <= process_start_address[process_index] + `ADDRESS_REG;
         dia <= registers[process_index][0];
         task_switcher_stage <= `SWITCHER_STAGE_SAVE_REG_0;
-      end else if (task_switcher_stage >= `SWITCHER_STAGE_SAVE_REG_0 && task_switcher_stage < `SWITCHER_STAGE_SAVE_REG_31) begin
+      end else if (task_switcher_stage >= `SWITCHER_STAGE_SAVE_REG_0 && 
+        task_switcher_stage < `SWITCHER_STAGE_SAVE_REG_31) begin
         addra <= addra + 1;
         dia <= registers[process_index][task_switcher_stage-`SWITCHER_STAGE_SAVE_REG_0];
         task_switcher_stage <= task_switcher_stage + 1;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SAVE_REG_31) begin
-        addrb <= start_process_address + `ADDRESS_NEXT_PROCESS;
+        addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
-      end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW) begin
+      end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW) begin //setup done during task split
         `SHOW_MMU_DEBUG  //DEBUG info
         if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
           $display($time, " new process next data value = ", dia, " address ", addrb);  //DEBUG info
-        addra <= start_process_address + `ADDRESS_NEXT_PROCESS;
+        addra <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
         dia <= (mmu_new_process_start_point_segment) * `MMU_PAGE_SIZE;
         task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD;
-      end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD) begin
+      end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD) begin //setup done during task split
         if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
           $display($time, " old process next data value = ", dia, " address ", addrb);  //DEBUG info
         wea   <= 0;
         stage <= `STAGE_READ_PC1_REQUEST;
       end
+    end
+  end
+
+  always @(new_process_index) begin
+    if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 && 
+        process_used[new_process_index] == 1 && process_start_address[new_process_index] == dob) begin
+      //we have this in cache and can use it
+      process_index = new_process_index;
+      `SHOW_REG_DEBUG(`TASK_SWITCHER_DEBUG, " new reg ", 0,  //DEBUG info
+                      registers[new_process_index][0])  //DEBUG info
+      `SHOW_TASK_INFO("new")  //DEBUG info
+      mmu_start_process_segment = process_start_address[new_process_index] / `MMU_PAGE_SIZE;
+      process_instruction_done = 0;
+      task_switcher_stage = `SWITCHER_STAGE_WAIT;
+      stage = `STAGE_READ_PC1_REQUEST;
+    end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 && new_process_index == 9) begin
+      //not found. Start searching for first free slot.
+      new_process_index   <= 0;
+      task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES2;
+    end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES2 && process_used[new_process_index] == 0) begin
+      //first free slot found. Use it.
+      process_index <= new_process_index;
+      process_instruction_done <= 0;
+      //read new process info
+      process_start_address[new_process_index] <= dob;
+      mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
+      addrb <= dob + `ADDRESS_PC;
+      task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
+    end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 && new_process_index == 9) begin
+      //not found. we replace one existing slot.
+      new_process_index = process_index == 9 ? 0 : process_index + 1;
+      //read new process info
+      process_start_address[new_process_index] <= dob;
+      mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
+      addrb <= dob + `ADDRESS_PC;
+      task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
+    end else begin
+      new_process_index <= new_process_index + 1;
     end
   end
 
@@ -529,7 +581,7 @@ module stage1 (
       stage <= `STAGE_READ_PC2_REQUEST;
     end else if (stage == `STAGE_READ_PC2_RESPONSE) begin
       $write($time, $sformatf(" %02x: %02x=%02x %02x %02x %02x ",  //DEBUG info
-                              start_process_address,  //DEBUG info
+                              process_start_address[process_index],  //DEBUG info
                               (address_pc[process_index] - 1), inst_op, inst_reg_num,  //DEBUG info
                               dob / 256,  //DEBUG info
                               dob % 256), "        ");  //DEBUG info
@@ -546,13 +598,15 @@ module stage1 (
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
       if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
-        start_process_address <= dob;
-        mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
-        addrb <= start_process_address + `ADDRESS_PC;
-        task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
+        new_process_index <= 0;
+        task_switcher_stage = `SWITCHER_STAGE_SEARCH_IN_TABLES1;
+        //        process_start_address[process_index] <= dob;
+        //        mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
+        //        addrb <= start_process_address + `ADDRESS_PC;
+        //        task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PC) begin
         address_pc[process_index] <= dob;
-        addrb <= start_process_address + `ADDRESS_REG;
+        addrb <= process_start_address[process_index] + `ADDRESS_REG;
         task_switcher_stage = `SWITCHER_STAGE_READ_NEW_REG_0;
       end else if (task_switcher_stage >= `SWITCHER_STAGE_READ_NEW_REG_0 && task_switcher_stage < `SWITCHER_STAGE_READ_NEW_REG_31) begin
         registers[process_index][task_switcher_stage-`SWITCHER_STAGE_READ_NEW_REG_0] <= dob;
@@ -594,14 +648,14 @@ module simple_dual_two_clocks (
   always @(posedge clka) begin
     if (ena) begin
       if (wea) ram[addra] <= dia;
-            // if (wea) $display($time, " writing ", dia, " to ",addra); //DEBUG info
+      // if (wea) $display($time, " writing ", dia, " to ",addra); //DEBUG info
     end
   end
 
   always @(posedge clkb) begin
     if (enb) begin
       dob <= ram[addrb];
-         //   $display($time, " reading ", ram[addrb], " from ",addrb); //DEBUG info
+      //   $display($time, " reading ", ram[addrb], " from ",addrb); //DEBUG info
     end
   end
 endmodule
