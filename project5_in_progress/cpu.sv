@@ -122,9 +122,9 @@ module stage1 (
   `define SWITCHER_STAGE_READ_NEW_PC 35
   `define SWITCHER_STAGE_READ_NEW_REG_0 36
   //...
-  `define SWITCHER_STAGE_READ_NEW_REG_31 37
-  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD 38 //setup new process address in old (existing) process
-  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW 39 //setup new process address in new (created) process
+  `define SWITCHER_STAGE_READ_NEW_REG_31 68
+  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD 69 //setup new process address in old (existing) process
+  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW 70 //setup new process address in new (created) process
 
   `define MMU_STAGE_WAIT 0
   `define MMU_STAGE_SEARCH 1
@@ -594,14 +594,14 @@ module simple_dual_two_clocks (
   always @(posedge clka) begin
     if (ena) begin
       if (wea) ram[addra] <= dia;
-      //       if (wea) $display($time, " writing ", dia, " to ",addra); //DEBUG info
+            // if (wea) $display($time, " writing ", dia, " to ",addra); //DEBUG info
     end
   end
 
   always @(posedge clkb) begin
     if (enb) begin
       dob <= ram[addrb];
-      //      $display($time, " reading ", ram[addrb], " from ",addrb); //DEBUG info
+         //   $display($time, " reading ", ram[addrb], " from ",addrb); //DEBUG info
     end
   end
 endmodule
