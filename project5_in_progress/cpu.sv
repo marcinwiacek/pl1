@@ -84,9 +84,9 @@ module stage1 (
 
   `define SHOW_TASK_INFO(ARG) \
      if (`TASK_SWITCHER_DEBUG == 1) begin \
-          $display($time, " ",ARG," pc ", address_pc[process_index]); \
+          $write($time, " ",ARG," pc ", address_pc[process_index]); \
           $display( \
-              $time, " ",ARG," process ", mmu_start_process_segment, start_process_address \
+              " ",ARG," process seg/addr ", mmu_start_process_segment, start_process_address \
           ); \
         end
 
