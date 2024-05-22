@@ -295,6 +295,14 @@ module stage1 (
     //$display($time, " rst");  //DEBUG info
     enb <= 1;
     ena <= 1;
+
+    //problem: we shouldn't mix blocking and non-blocking
+    for (start_process_address = 0;
+    	start_process_address < 32;
+    	start_process_address = start_process_address +1) begin
+    	registers[0][start_process_address] <= 0;
+    end
+
     address_pc[process_index] <= `ADDRESS_PROGRAM;
     loop_counter[process_index] <= 0;
     loop_counter_max[process_index] <= 0;
@@ -326,7 +334,6 @@ module stage1 (
     mmu_logical_pages_memory[5] <= 2;  //DEBUG info
     mmu_logical_pages_memory[2] <= 3;  //DEBUG info
     mmu_logical_pages_memory[1] <= 1;  //DEBUG info
-
 
     mmu_stage <= `MMU_STAGE_WAIT;
     mmu_changes_debug <= 1;  //DEBUG info
