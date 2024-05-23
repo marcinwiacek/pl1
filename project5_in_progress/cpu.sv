@@ -535,14 +535,15 @@ module stage1 (
         process_used[new_process_index] == 1 && process_start_address[new_process_index] == dob) begin
       //we have this in cache and can use it
       process_index = new_process_index;
-      `SHOW_REG_DEBUG(`TASK_SWITCHER_DEBUG, " new reg ", 0,  //DEBUG info
+      `SHOW_REG_DEBUG(`TASK_SWITCHER_DEBUG, " new reg from cache ", 0,  //DEBUG info
                       registers[new_process_index][0])  //DEBUG info
       `SHOW_TASK_INFO("new")  //DEBUG info
       mmu_start_process_segment = process_start_address[new_process_index] / `MMU_PAGE_SIZE;
       process_instruction_done = 0;
       task_switcher_stage = `SWITCHER_STAGE_WAIT;
+      new_process_index = 7;
       stage = `STAGE_READ_PC1_REQUEST;
-    end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 && new_process_index == 9) begin
+    end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 && new_process_index == 7) begin
       //not found. Start searching for first free slot.
       new_process_index   <= 0;
       task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES2;
@@ -555,15 +556,17 @@ module stage1 (
       mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
       addrb <= dob + `ADDRESS_PC;
       task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
-    end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 && new_process_index == 9) begin
+      new_process_index = 7;
+    end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES2 && new_process_index == 7) begin
       //not found. we replace one existing slot.
-      new_process_index = process_index == 9 ? 0 : process_index + 1;
+      process_index <= process_index == 7 ? 0 : process_index + 1;
       //read new process info
-      process_start_address[new_process_index] <= dob;
+      process_start_address[process_index == 7 ? 0 : process_index + 1] <= dob;
       mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
       addrb <= dob + `ADDRESS_PC;
       task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
-    end else begin
+      new_process_index = 7;
+    end else     if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 || task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES2) begin
       new_process_index <= new_process_index + 1;
     end
   end
@@ -598,8 +601,8 @@ module stage1 (
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
       if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
-        new_process_index <= 0;
-        task_switcher_stage = `SWITCHER_STAGE_SEARCH_IN_TABLES1;
+       task_switcher_stage = `SWITCHER_STAGE_SEARCH_IN_TABLES1;
+       new_process_index <= 0;
         //        process_start_address[process_index] <= dob;
         //        mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
         //        addrb <= start_process_address + `ADDRESS_PC;
