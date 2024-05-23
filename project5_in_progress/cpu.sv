@@ -298,8 +298,8 @@ module stage1 (
     mmu_separate_process_segment <= mmu_chain_memory[mmu_separate_process_segment]; //moved outside if...else...end because on synth_design issues
   end
 
+  //reset
   always @(posedge rst) begin
-    //$display($time, " rst");  //DEBUG info
     enb <= 1;
     ena <= 1;
 
@@ -372,6 +372,7 @@ module stage1 (
   `define OPCODE_JMP_PLUS 18 //x, how many instructions
   `define OPCODE_JMP_MINUS 19 //x, how many instructions
 
+  //main processing
   always @(stage) begin
     if (stage == `STAGE_MMU_TRANSLATE_A || stage == `STAGE_MMU_TRANSLATE_B) begin
       if (mmu_changes_debug == 1) begin  //DEBUG info
@@ -502,7 +503,7 @@ module stage1 (
     end
   end
 
-  //task switcher cache fun
+  //task switcher cache search
   always @(new_process_index) begin
     if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 && 
         process_used[new_process_index] == 1 && process_start_address[new_process_index] == dob) begin
