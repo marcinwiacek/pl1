@@ -115,14 +115,14 @@ module stage1 (
   `define STAGE_SEPARATE_PROCESS 10
 
   `define SWITCHER_STAGE_WAIT 0
-  `define SWITCHER_STAGE_SAVE_PC 1 //save current pc
-  `define SWITCHER_STAGE_SAVE_REG_0 2
+  `define SWITCHER_STAGE_SAVE_PC 1 //save process info. initiated, when we need place in cache
+  `define SWITCHER_STAGE_SAVE_REG_0 2 //save register. done, when we need place in cache
   //...
   `define SWITCHER_STAGE_SAVE_REG_31 33
-  `define SWITCHER_STAGE_SEARCH_IN_TABLES1 34
-  `define SWITCHER_STAGE_SEARCH_IN_TABLES2 35
-  `define SWITCHER_STAGE_READ_NEW_PROCESS_ADDR 36
-  `define SWITCHER_STAGE_READ_NEW_PC 37
+  `define SWITCHER_STAGE_SEARCH_IN_TABLES1 34 //search for new process in cache
+  `define SWITCHER_STAGE_SEARCH_IN_TABLES2 35 //search for first free place in cache
+  `define SWITCHER_STAGE_READ_NEW_PROCESS_ADDR 36 //reading next process address from RAM
+  `define SWITCHER_STAGE_READ_NEW_PC 37 //reading next process data into cache
   `define SWITCHER_STAGE_READ_NEW_REG_0 38
   //...
   `define SWITCHER_STAGE_READ_NEW_REG_31 70
