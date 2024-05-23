@@ -15,6 +15,7 @@ module cpu (
     clkb
 );
 
+  //RAM
   wire clka, clkb, ena, enb, wea;
   wire [9:0] addra, addrb;
   wire [15:0] dia;
@@ -134,6 +135,9 @@ module stage1 (
   `define MMU_STAGE_FOUND 2
   `define MMU_SEPARATE_PROCESS 3
 
+  `define MAX_PROCESS_CACHE_INDEX 7 //0-7 values are saved with 3 bits in all tables below
+  `define MAX_PROCESS_CACHE_BITS 2 //0-7 values saved with 3 bits in all tables below
+
   //current instruction - we don't need to multiply it among processes, because we don't support partially executed op before process switch
   reg [4:0] stage; //it doesn't need process index - we switch to other process after completing instruction
   reg [4:0] stage_after_mmu; //temporary value - after MMU related stage we switch to another "correct one"
@@ -146,22 +150,22 @@ module stage1 (
   reg [2:0] process_instruction_done; //process related. how many instructions were done for current process
 
   //values for all processes - need to be separated for every process
-  reg process_used[2:0]; //process related. We cache data about n=8 processes - here we save, if cache slot is used or not
-  reg [15:0] process_start_address[2:0]; //process related. We cache data about n=8 processes - here we save, if cache slot is used or not
-  reg [9:0] address_pc[2:0];  //n=2^3=8 addresses
-  reg [15:0] registers[2:0][5:0];  //64 8-bit registers * n=8 processes = 512 16-bit registers
+  reg process_used[`MAX_PROCESS_CACHE_BITS:0]; //process related. We cache data about n=8 processes - here we save, if cache slot is used or not
+  reg [15:0] process_start_address[`MAX_PROCESS_CACHE_BITS:0]; //process related. We cache data about n=8 processes - here we save, if cache slot is used or not
+  reg [9:0] address_pc[`MAX_PROCESS_CACHE_BITS:0];  //n=2^3=8 addresses
+  reg [15:0] registers[`MAX_PROCESS_CACHE_BITS:0][5:0];  //64 8-bit registers * n=8 processes = 512 16-bit registers
 
   //cache used in all loops - needs to be separated for every process
-  reg [7:0] inst_op_cache[2:0][255:0];  // 256 * n=8 processes = 2048
-  reg [7:0] inst_reg_num_cache[2:0][255:0];
-  reg [15:0] inst_address_num_cache[2:0][255:0];
+  reg [7:0] inst_op_cache[`MAX_PROCESS_CACHE_BITS:0][255:0];  // 256 * n=8 processes = 2048
+  reg [7:0] inst_reg_num_cache[`MAX_PROCESS_CACHE_BITS:0][255:0];
+  reg [15:0] inst_address_num_cache[`MAX_PROCESS_CACHE_BITS:0][255:0];
 
   //loop executions - need to be separate for every process
-  reg [7:0] loop_counter[2:0];
-  reg [7:0] loop_counter_max[2:0];
-  reg [5:0] loop_reg_num[2:0];
-  reg [7:0] loop_comp_value[2:0];
-  reg [1:0] loop_type[2:0];
+  reg [7:0] loop_counter[`MAX_PROCESS_CACHE_BITS:0];
+  reg [7:0] loop_counter_max[`MAX_PROCESS_CACHE_BITS:0];
+  reg [5:0] loop_reg_num[`MAX_PROCESS_CACHE_BITS:0];
+  reg [7:0] loop_comp_value[`MAX_PROCESS_CACHE_BITS:0];
+  reg [1:0] loop_type[`MAX_PROCESS_CACHE_BITS:0];
 
   reg [15:0] task_switcher_stage;
 
@@ -509,9 +513,9 @@ module stage1 (
       `SHOW_TASK_INFO("new")  //DEBUG info
       process_instruction_done = 0;
       task_switcher_stage = `SWITCHER_STAGE_WAIT;
-      new_process_index = 7;
+      new_process_index   = `MAX_PROCESS_CACHE_INDEX; //we setup value != 0 to allow working always(@new_process_index) next time correctly
       stage = `STAGE_READ_PC1_REQUEST;
-    end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 && new_process_index == 7) begin
+    end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 && new_process_index == `MAX_PROCESS_CACHE_INDEX) begin
       //not found. Start searching for first free slot.
       new_process_index   <= 0;
       task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES2;
@@ -525,10 +529,10 @@ module stage1 (
       mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
       addrb <= dob + `ADDRESS_PC;
       task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
-      new_process_index   = 7;
-    end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES2 && new_process_index == 7) begin
+      new_process_index   = `MAX_PROCESS_CACHE_INDEX; //we setup value != 0 to allow working always(@new_process_index) next time correctly
+    end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES2 && new_process_index == `MAX_PROCESS_CACHE_INDEX) begin
       //not found. we replace one existing slot.
-      process_index = process_index == 7 ? 0 : process_index + 1;
+      process_index = process_index == `MAX_PROCESS_CACHE_INDEX ? 0 : process_index + 1;
       //we need save data from cache to RAM. First PC
       addra = process_start_address[process_index] + `ADDRESS_PC;
       dia = address_pc[process_index];
@@ -563,7 +567,7 @@ module stage1 (
         mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
         addrb <= dob + `ADDRESS_PC;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PC;
-        new_process_index <= 7;
+        new_process_index   <= `MAX_PROCESS_CACHE_INDEX; //we setup value != 0 to allow working always(@new_process_index) next time correctly
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW) begin //setup done during task split
         `SHOW_MMU_DEBUG  //DEBUG info
         if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
