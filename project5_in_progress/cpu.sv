@@ -335,10 +335,12 @@ module stage1 (
     end
     mmu_logical_pages_memory[0] <= 1;
 
-    mmu_chain_memory[0] <= 1;  //DEBUG info
-    mmu_chain_memory[1] <= 1;  //DEBUG info
-    mmu_logical_pages_memory[1] <= 1;  //DEBUG info
+//    some more complicated config used for testing
+//    mmu_chain_memory[0] <= 1;  //DEBUG info
+//    mmu_chain_memory[1] <= 1;  //DEBUG info
+//    mmu_logical_pages_memory[1] <= 1;  //DEBUG info
 
+    //some more complicated config used for testing
     mmu_chain_memory[0] <= 5;  //DEBUG info
     mmu_chain_memory[5] <= 2;  //DEBUG info
     mmu_chain_memory[2] <= 1;  //DEBUG info
@@ -385,21 +387,13 @@ module stage1 (
       process_instruction_done <= process_instruction_done + 1;
       if (process_instruction_done == 2) begin
         //time to switch process
-        stage <= `STAGE_TASK_SWITCHER;
-        //first read next process address and see if we have it in cache
-        //        addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
-        //        task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
         `SHOW_REG_DEBUG(`TASK_SWITCHER_DEBUG, " old reg ", 0,  //DEBUG info
                         registers[process_index][0])  //DEBUG info
         `SHOW_TASK_INFO("old")  //DEBUG info
-        //first find new process addr
+        //first read next process address and see if we have it in cache
         addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
-        //first save PC
-        //        addra <= process_start_address[process_index] + `ADDRESS_PC;
-        //        dia <= address_pc[process_index];
-        //        wea <= 1;
-        //        task_switcher_stage <= `SWITCHER_STAGE_SAVE_PC;
+        stage <= `STAGE_TASK_SWITCHER;
       end else begin
         if (loop_counter[process_index] > loop_counter_max[process_index]) begin
           inst_op <= inst_op_cache[process_index][loop_counter_max[process_index]];
@@ -540,12 +534,6 @@ module stage1 (
       dia = address_pc[process_index];
       wea = 1;
       task_switcher_stage = `SWITCHER_STAGE_SAVE_PC;
-      //read new process info
-      //      process_start_address[process_index == 7 ? 0 : process_index + 1] <= dob;
-      //      mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
-      //      addrb <= dob + `ADDRESS_PC;
-      //      task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
-      //      new_process_index = 7;
     end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 || task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES2) begin
       new_process_index <= new_process_index + 1;
     end
@@ -570,8 +558,6 @@ module stage1 (
         dia <= registers[process_index][task_switcher_stage-`SWITCHER_STAGE_SAVE_REG_0];
         task_switcher_stage <= task_switcher_stage + 1;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SAVE_REG_31) begin
-        //        addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
-        //        task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
         //we saved everything. We can read new process info into cache.
         process_start_address[process_index] <= dob;
         mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
@@ -624,12 +610,8 @@ module stage1 (
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
       if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
-        task_switcher_stage = `SWITCHER_STAGE_SEARCH_IN_TABLES1;
+        task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
         new_process_index <= 0;
-        //        process_start_address[process_index] <= dob;
-        //        mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
-        //        addrb <= start_process_address + `ADDRESS_PC;
-        //        task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PC) begin
         $write("read new pc"); //DEBUG info
         address_pc[process_index] <= dob;
@@ -686,4 +668,3 @@ module simple_dual_two_clocks (
     end
   end
 endmodule
-
