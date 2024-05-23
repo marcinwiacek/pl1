@@ -187,6 +187,7 @@ module stage1 (
   reg [15:0] mmu_new_process_start_point_segment;
   reg [15:0] mmu_separate_process_segment;
 
+  //address translation start / stop
   always @(mmu_stage) begin
     if (mmu_stage == `MMU_STAGE_SEARCH) begin
       if (mmu_logical_index_old == mmu_logical_index_new) begin
@@ -220,39 +221,6 @@ module stage1 (
       end  //DEBUG info
       mmu_changes_debug <= 0;  //DEBUG info
     end
-  end
-
-  always @(mmu_separate_process_segment) begin
-    if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
-      $display($time, " traversing ", mmu_separate_process_segment);  //DEBUG info
-    `SHOW_MMU_DEBUG  //DEBUG info
-    if (mmu_logical_pages_memory[mmu_separate_process_segment] == inst_address_num) begin
-      if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
-        $display($time, " first ", mmu_separate_process_segment);  //DEBUG info
-      mmu_new_process_start_point_segment <= mmu_separate_process_segment;
-    end
-    if (mmu_chain_memory[mmu_separate_process_segment] == mmu_separate_process_segment) begin
-      if (`TASK_SPLIT_DEBUG == 1) $display($time, " last ", mmu_old, " ", mmu_new);  //DEBUG info
-      if (mmu_new != mmu_start_process_segment) begin
-        mmu_chain_memory[mmu_new] <= mmu_new;
-      end
-      if (mmu_old != mmu_start_process_segment) begin
-        mmu_chain_memory[mmu_old] <= mmu_old;
-      end
-      //switch to task switcher updates
-      addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
-      dia <= process_start_address[process_index];
-      wea <= 1;
-      task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
-      stage <= `STAGE_TASK_SWITCHER;
-    end else if (mmu_logical_pages_memory[mmu_separate_process_segment] >= inst_address_num && 
-          mmu_logical_pages_memory[mmu_separate_process_segment] < inst_address_num+inst_reg_num) begin
-      mmu_chain_memory[mmu_old] <= mmu_chain_memory[mmu_separate_process_segment];
-      mmu_new <= mmu_separate_process_segment;
-    end else begin
-      mmu_old <= mmu_separate_process_segment;
-    end
-    mmu_separate_process_segment <= mmu_chain_memory[mmu_separate_process_segment]; //moved outside if...else...end because on synth_design issues
   end
 
   //searching in the process memory and exiting with translated address or switching to searching free memory
@@ -294,6 +262,40 @@ module stage1 (
         mmu_index_start <= mmu_index_start + 1;
       end
     end
+  end
+
+  //separating process
+  always @(mmu_separate_process_segment) begin
+    if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
+      $display($time, " traversing ", mmu_separate_process_segment);  //DEBUG info
+    `SHOW_MMU_DEBUG  //DEBUG info
+    if (mmu_logical_pages_memory[mmu_separate_process_segment] == inst_address_num) begin
+      if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
+        $display($time, " first ", mmu_separate_process_segment);  //DEBUG info
+      mmu_new_process_start_point_segment <= mmu_separate_process_segment;
+    end
+    if (mmu_chain_memory[mmu_separate_process_segment] == mmu_separate_process_segment) begin
+      if (`TASK_SPLIT_DEBUG == 1) $display($time, " last ", mmu_old, " ", mmu_new);  //DEBUG info
+      if (mmu_new != mmu_start_process_segment) begin
+        mmu_chain_memory[mmu_new] <= mmu_new;
+      end
+      if (mmu_old != mmu_start_process_segment) begin
+        mmu_chain_memory[mmu_old] <= mmu_old;
+      end
+      //switch to task switcher updates
+      addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
+      dia <= process_start_address[process_index];
+      wea <= 1;
+      task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
+      stage <= `STAGE_TASK_SWITCHER;
+    end else if (mmu_logical_pages_memory[mmu_separate_process_segment] >= inst_address_num && 
+          mmu_logical_pages_memory[mmu_separate_process_segment] < inst_address_num+inst_reg_num) begin
+      mmu_chain_memory[mmu_old] <= mmu_chain_memory[mmu_separate_process_segment];
+      mmu_new <= mmu_separate_process_segment;
+    end else begin
+      mmu_old <= mmu_separate_process_segment;
+    end
+    mmu_separate_process_segment <= mmu_chain_memory[mmu_separate_process_segment]; //moved outside if...else...end because on synth_design issues
   end
 
   always @(posedge rst) begin
