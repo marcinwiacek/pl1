@@ -1,3 +1,4 @@
+//example with creating separate process and removing it
 0000 0000 //next process address (no MMU)
 0000 0000
 0000 0000 //PC for this process
