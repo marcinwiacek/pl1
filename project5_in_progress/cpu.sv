@@ -130,7 +130,7 @@ module stage1 (
   `define SWITCHER_STAGE_READ_NEW_REG_31 70
   `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD 71 //setup new process address in old (existing) process
   `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW 72 //setup new process address in new (created) process
-  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV 73 //setup new process address in previous process
+  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV 73 //setup new process address in previous process in chain
 
   `define MMU_STAGE_WAIT 0
   `define MMU_STAGE_SEARCH 1
