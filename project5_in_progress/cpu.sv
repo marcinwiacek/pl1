@@ -361,12 +361,12 @@ module stage1 (
     end
     mmu_logical_pages_memory[0] <= 1;
 
-//    some more complicated config used for testing
+//    some more complicated config used for testing //DEBUG info
 //    mmu_chain_memory[0] <= 1;  //DEBUG info
 //    mmu_chain_memory[1] <= 1;  //DEBUG info
 //    mmu_logical_pages_memory[1] <= 1;  //DEBUG info
 
-    //some more complicated config used for testing
+    //some more complicated config used for testing //DEBUG info
     mmu_chain_memory[0] <= 5;  //DEBUG info
     mmu_chain_memory[5] <= 2;  //DEBUG info
     mmu_chain_memory[2] <= 1;  //DEBUG info
