@@ -366,7 +366,7 @@ module stage1 (
     loop_counter[0] <= 0;
     loop_counter_max[0] <= 0;
     process_start_address[0] <= 0;
-    mmu_prev_start_process_segment <= 0;
+    mmu_prev_start_process_segment <= 1; //needs value different than 0
     mmu_start_process_segment <= 0;
     mmu_index_start <= 0;
 
@@ -676,8 +676,13 @@ module stage1 (
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
       if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
-        task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
-        new_process_index   <= 0;
+        if (process_start_address[process_index] == dob) begin
+    	    task_switcher_stage <= `SWITCHER_STAGE_WAIT;
+    	    stage <= `STAGE_READ_PC1_REQUEST;
+	end else begin
+            task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
+    	    new_process_index   <= 0;
+	end
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PC) begin
         //        $write("read new pc ", dob);  //DEBUG info
         address_pc[process_index] <= dob;
