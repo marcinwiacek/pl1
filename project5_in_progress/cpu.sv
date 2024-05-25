@@ -472,18 +472,26 @@ module stage1 (
       if (inst_op == `OPCODE_RAM2REG) begin
         $display(" opcode = ram2reg address ", inst_address_num, " to reg ",  //DEBUG info
                  inst_reg_num);  //DEBUG info
-        mmu_input_addr <= inst_address_num;
-        stage_after_mmu <= `STAGE_READ_RAM2REG;
-        stage <= `STAGE_MMU_TRANSLATE_B;
+        if (inst_address_num >= `ADDRESS_PROGRAM) begin
+          mmu_input_addr <= inst_address_num;
+          stage_after_mmu <= `STAGE_READ_RAM2REG;
+          stage <= `STAGE_MMU_TRANSLATE_B;
+        end else begin
+          stage <= `STAGE_READ_PC1_REQUEST;
+        end
       end else if (inst_op == `OPCODE_REG2RAM) begin
         $display(" opcode = reg2ram value ",  //DEBUG info
                  registers[process_index][inst_reg_num],  //DEBUG info
                  " to address ",  //DEBUG info
                  inst_address_num);  //DEBUG info
-        dia <= registers[process_index][inst_reg_num];
-        mmu_input_addr <= inst_address_num;
-        stage_after_mmu <= `STAGE_SAVE_REG2RAM;
-        stage <= `STAGE_MMU_TRANSLATE_A;
+        if (inst_address_num >= `ADDRESS_PROGRAM) begin
+          dia <= registers[process_index][inst_reg_num];
+          mmu_input_addr <= inst_address_num;
+          stage_after_mmu <= `STAGE_SAVE_REG2RAM;
+          stage <= `STAGE_MMU_TRANSLATE_A;
+        end else begin
+          stage <= `STAGE_READ_PC1_REQUEST;
+        end
       end else if (inst_op == `OPCODE_PROC) begin
         $display(" opcode = proc ", inst_reg_num,  //DEBUG info
                  " memory segments starting from segment ",  //DEBUG info
@@ -504,7 +512,9 @@ module stage1 (
       end else begin
         if (inst_op == `OPCODE_JMP) begin
           $display(" opcode = jmp to ", inst_address_num);  //DEBUG info
-          address_pc[process_index] <= inst_address_num;
+          if (inst_address_num >= `ADDRESS_PROGRAM) begin
+            address_pc[process_index] <= inst_address_num;
+          end
         end else if (inst_op == `OPCODE_NUM2REG) begin
           $display(" opcode = num2reg value ", inst_address_num, " to reg ",  //DEBUG info
                    inst_reg_num);  //DEBUG info
