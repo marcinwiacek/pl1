@@ -332,14 +332,13 @@ module stage1 (
   //deleting process
   always @(mmu_delete_process_segment) begin
     mmu_logical_pages_memory[mmu_delete_process_segment] = 0;
+    mmu_index_start = mmu_delete_process_segment - 1;
     `SHOW_MMU_DEBUG  //DEBUG info
     if (mmu_chain_memory[mmu_delete_process_segment] != mmu_delete_process_segment) begin
       mmu_delete_process_segment <= mmu_chain_memory[mmu_delete_process_segment];
     end else begin
-      //mark process cache as free
-      process_used[process_index] <= 0;
+      process_used[process_index] <= 0; //mark process cache as free
       //previous process -> next = current process-> next; First read next
-      //      stage <= `STAGE_TASK_SWITCHER;
       addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
       task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
     end
