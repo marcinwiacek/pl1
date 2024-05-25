@@ -130,6 +130,7 @@ module stage1 (
   `define SWITCHER_STAGE_READ_NEW_REG_31 70
   `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD 71 //setup new process address in old (existing) process
   `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW 72 //setup new process address in new (created) process
+  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV 73 //setup new process address in previous process
 
   `define MMU_STAGE_WAIT 0
   `define MMU_STAGE_SEARCH 1
@@ -151,7 +152,7 @@ module stage1 (
   reg [2:0] process_instruction_done; //process related. how many instructions were done for current process
 
   //values for all processes - need to be separated for every process
-  reg process_used[`MAX_PROCESS_CACHE_BITS:0]; //process related. We cache data about n=8 processes - here we save, if cache slot is used or not
+  reg process_used[`MAX_PROCESS_CACHE_BITS:0]; //process related. We cache data about n=8 processes - here we save, if cache slot is used (1) or free (0)
   reg [15:0] process_start_address[`MAX_PROCESS_CACHE_BITS:0]; //process related. We cache data about n=8 processes - here we save, if cache slot is used or not
   reg [9:0] address_pc[`MAX_PROCESS_CACHE_BITS:0];  //n=2^3=8 addresses
   reg [15:0] registers[`MAX_PROCESS_CACHE_BITS:0][5:0];  //64 8-bit registers * n=8 processes = 512 16-bit registers
@@ -174,6 +175,7 @@ module stage1 (
   reg [4:0] mmu_stage;
   reg [2:0] mmu_changes_debug;  //DEBUG info
 
+  reg [15:0] mmu_prev_start_process_segment;  //needs to be updated on process switch
   reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
   reg [15:0] mmu_chain_memory[1000:0];  //values = next physical page index for process;
 					//last entry = the same entry
@@ -312,12 +314,12 @@ module stage1 (
     if (mmu_chain_memory[mmu_delete_process_segment] != mmu_delete_process_segment) begin
         mmu_delete_process_segment <= mmu_chain_memory[mmu_delete_process_segment];
     end else begin
-	//previous process -> next = current process-> next;
 	//mark process cache as free
-        //first read next process address and see if we have it in cache
+	process_used[process_index] <= 0; 
+	//previous process -> next = current process-> next; First read next
         addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
-        stage <= `STAGE_TASK_SWITCHER;
+        stage <= `STAGE_DELETE_PROCESS;
     end
   end
 
@@ -342,6 +344,7 @@ module stage1 (
     loop_counter[0] <= 0;
     loop_counter_max[0] <= 0;
     process_start_address[0] <= 0;
+    mmu_prev_start_process_segment <= 0;
     mmu_start_process_segment <= 0;
     mmu_index_start <= 0;
 
@@ -472,8 +475,10 @@ module stage1 (
         mmu_new <= mmu_start_process_segment;
       end else if (inst_op == `OPCODE_EXIT) begin
         $display(" opcode = exit ");  //DEBUG info
-	mmu_delete_process_segment <= mmu_start_process_segment;
-        stage <= `STAGE_DELETE_PROCESS;
+	if (mmu_start_process_segment != mmu_prev_start_process_segment) begin
+    	    mmu_delete_process_segment <= mmu_start_process_segment;
+    	    stage <= `STAGE_DELETE_PROCESS;
+	end
       end else begin
         if (inst_op == `OPCODE_JMP) begin
           $display(" opcode = jmp to ", inst_address_num);  //DEBUG info
@@ -605,6 +610,14 @@ module stage1 (
           $display($time, " old process next data value = ", dia, " address ", addrb);  //DEBUG info
         wea   <= 0;
         stage <= `STAGE_READ_PC1_REQUEST;
+      end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV) begin
+        addra <= mmu_prev_start_process_segment * `MMU_PAGE_SIZE+ `ADDRESS_NEXT_PROCESS;
+        dia <= dob;
+	//switch to new process
+        //we have next process address already
+        stage <= `STAGE_TASK_SWITCHER;
+        task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
+        new_process_index <= 0;
       end
     end
   end
@@ -639,8 +652,12 @@ module stage1 (
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
       if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
-        task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
-        new_process_index <= 0;
+	if (stage == `STAGE_DELETE_PROCESS) begin
+    	    task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV;
+	end else begin
+            task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
+            new_process_index <= 0;
+	end
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PC) begin
         $write("read new pc"); //DEBUG info
         address_pc[process_index] <= dob;
