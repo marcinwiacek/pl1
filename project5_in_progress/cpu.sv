@@ -177,11 +177,10 @@ module stage1 (
 
   reg [15:0] mmu_prev_start_process_segment;  //needs to be updated on process switch
   reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
-  reg [15:0] mmu_chain_memory[1000:0];  //values = next physical page index for process;
-  //last entry = the same entry
-  //(note: originally 0, but changed because of synth issues)
+  reg [15:0] mmu_chain_memory[1000:0];  //values = next physical page index for process (last entry = the same entry)
+                                        //(note: originally last entry 0, but changed because of synth issues)
   reg [15:0] mmu_logical_pages_memory[1000:0];  //values = logical process page assigned to physical page; 0 means empty page
-                                                //(in existing processes - we setup value > 0 for first page with index 0 and ignore it)
+                                                //(in existing processes we setup value > 0 for first page with index 0 and ignore it)
   reg [15:0] mmu_index_start; // this is start index of the loop searching for free memory page; when reserving pages, increase;
                               // when deleting, setup to lowest free value
 
@@ -311,6 +310,7 @@ module stage1 (
   //deleting process
   always @(mmu_delete_process_segment) begin
     mmu_logical_pages_memory[mmu_delete_process_segment] <= 0;
+    //todo: update mmu_entry_start
     if (mmu_chain_memory[mmu_delete_process_segment] != mmu_delete_process_segment) begin
       mmu_delete_process_segment <= mmu_chain_memory[mmu_delete_process_segment];
     end else begin
