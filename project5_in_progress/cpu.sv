@@ -536,6 +536,7 @@ module stage1 (
     if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 && 
         process_used[new_process_index] == 1 && process_start_address[new_process_index] == dob) begin
       //we have this in cache and can use it
+      mmu_prev_start_process_segment = mmu_start_process_segment;
       process_index = new_process_index;
       mmu_start_process_segment = process_start_address[process_index] / `MMU_PAGE_SIZE;
       `SHOW_REG_DEBUG(`TASK_SWITCHER_DEBUG, " new reg from cache ", 0,  //DEBUG info
@@ -556,6 +557,7 @@ module stage1 (
       process_instruction_done <= 0;
       //read new process info
       process_start_address[new_process_index] <= dob;
+      mmu_prev_start_process_segment <= mmu_start_process_segment;
       mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
       addrb <= dob + `ADDRESS_PC;
       task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
@@ -594,6 +596,7 @@ module stage1 (
       end else if (task_switcher_stage == `SWITCHER_STAGE_SAVE_REG_31) begin
         //we saved everything. We can read new process info into cache.
         process_start_address[process_index] <= dob;
+        mmu_prev_start_process_segment <= mmu_start_process_segment;
         mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
         addrb <= dob + `ADDRESS_PC;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PC;
