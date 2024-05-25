@@ -114,6 +114,7 @@ module stage1 (
   `define STAGE_MMU_TRANSLATE_B 8
   `define STAGE_TASK_SWITCHER 9
   `define STAGE_SEPARATE_PROCESS 10
+  `define STAGE_DELETE_PROCESS 11
 
   `define SWITCHER_STAGE_WAIT 0
   `define SWITCHER_STAGE_SAVE_PC 1 //save process info. initiated, when we need place in cache
@@ -174,8 +175,10 @@ module stage1 (
   reg [2:0] mmu_changes_debug;  //DEBUG info
 
   reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
-  reg [15:0] mmu_chain_memory[1000:0];  //values = next physical page index for process; last entry = the same entry (originally 0, but changed because of synth issues)
-  reg [15:0] mmu_logical_pages_memory[1000:0];  //values = logical process page assigned to physical page; 0 means empty oage
+  reg [15:0] mmu_chain_memory[1000:0];  //values = next physical page index for process;
+					//last entry = the same entry
+					//(note: originally 0, but changed because of synth issues)
+  reg [15:0] mmu_logical_pages_memory[1000:0];  //values = logical process page assigned to physical page; 0 means empty page
                                                 //(in existing processes - we setup value > 0 for first page with index 0 and ignore it)
   reg [15:0] mmu_index_start; // this is start index of the loop searching for free memory page; when reserving pages, increase;
                               // when deleting, setup to lowest free value
@@ -190,6 +193,7 @@ module stage1 (
   reg [15:0] mmu_new;  //used during search (for finding last process segment) und splitting process
   reg [15:0] mmu_new_process_start_point_segment;
   reg [15:0] mmu_separate_process_segment;
+  reg [15:0] mmu_delete_process_segment;
 
   //address translation start / stop
   always @(mmu_stage) begin
@@ -302,6 +306,21 @@ module stage1 (
     mmu_separate_process_segment <= mmu_chain_memory[mmu_separate_process_segment]; //moved outside if...else...end because on synth_design issues
   end
 
+  //deleting process
+  always @(mmu_delete_process_segment) begin
+    mmu_logical_pages_memory[mmu_delete_process_segment] <= 0;
+    if (mmu_chain_memory[mmu_delete_process_segment] != mmu_delete_process_segment) begin
+        mmu_delete_process_segment <= mmu_chain_memory[mmu_delete_process_segment];
+    end else begin
+	//previous process -> next = current process-> next;
+	//mark process cache as free
+        //first read next process address and see if we have it in cache
+        addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
+        task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
+        stage <= `STAGE_TASK_SWITCHER;
+    end
+  end
+
   //reset
   always @(posedge rst) begin
     enb <= 1;
@@ -377,6 +396,8 @@ module stage1 (
   `define OPCODE_EXIT 17 //exit process
   `define OPCODE_JMP_PLUS 18 //x, how many instructions
   `define OPCODE_JMP_MINUS 19 //x, how many instructions
+  `define OPCODE_FREE 20 //free ram pages x-y
+  `define OPCODE_FREE_LEVEL 21 //free ram pages allocated after page x (or pages with concrete level)
 
   //main processing
   always @(stage) begin
@@ -449,6 +470,10 @@ module stage1 (
         mmu_separate_process_segment <= mmu_chain_memory[mmu_start_process_segment];
         mmu_old <= mmu_start_process_segment;
         mmu_new <= mmu_start_process_segment;
+      end else if (inst_op == `OPCODE_EXIT) begin
+        $display(" opcode = exit ");  //DEBUG info
+	mmu_delete_process_segment <= mmu_start_process_segment;
+        stage <= `STAGE_DELETE_PROCESS;
       end else begin
         if (inst_op == `OPCODE_JMP) begin
           $display(" opcode = jmp to ", inst_address_num);  //DEBUG info
