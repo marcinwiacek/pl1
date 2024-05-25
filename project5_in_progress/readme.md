@@ -1,8 +1,9 @@
-This CPU is based on previous models - the idea is, that code is so simple as possible
-(we don't have parallel stages in this moment) and correctly compiled / simulated & supported by Vivado.
+This CPU is based on previous models - code is so simple as possible (we don't have parallel stages in this moment), but
+correctly compiled / simulated & supported by Vivado.
 
-It means for example: 
+It means for example:
 
 1. System Verilog
-2. no more funny while loops (Vivado 2023.2.2 for example crashes the whole PC during synth_design or cannot find while end)
+2. no more funny while loops (Vivado 2023.2.2 can crash the whole PC during synth_design or cannot find end in while)
 3. no strings (not supported by Vivado with SV2005?)
+4. code should be testable on FPGA board (we simulate small RAM in this moment and in the future we will use DRAM)
