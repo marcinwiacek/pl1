@@ -366,7 +366,7 @@ module stage1 (
     loop_counter[0] <= 0;
     loop_counter_max[0] <= 0;
     process_start_address[0] <= 0;
-    mmu_prev_start_process_segment <= 1; //needs value different than 0
+    mmu_prev_start_process_segment <= 0;
     mmu_start_process_segment <= 0;
     mmu_index_start <= 0;
 
