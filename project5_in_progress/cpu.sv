@@ -202,13 +202,13 @@ module stage1 (
       if (`MMU_TRANSLATION_DEBUG == 1)  //DEBUG info
         $display(  //DEBUG info
             $time,  //DEBUG info
-            " mmu_physical_index_old ", //DEBUG info
-            mmu_physical_index_old, //DEBUG info
-            " mmu_logical_index_old ", //DEBUG info
+            " mmu_physical_index_old ",  //DEBUG info
+            mmu_physical_index_old,  //DEBUG info
+            " mmu_logical_index_old ",  //DEBUG info
             mmu_logical_index_old,  //DEBUG info
-            " mmu_start ", //DEBUG info
-            mmu_start_process_segment, //DEBUG info
-            " mmu_logical_index_new ", //DEBUG info
+            " mmu_start ",  //DEBUG info
+            mmu_start_process_segment,  //DEBUG info
+            " mmu_logical_index_new ",  //DEBUG info
             mmu_logical_index_new  //DEBUG info
         );  //DEBUG info
       if (mmu_logical_index_old == mmu_logical_index_new) begin
@@ -236,13 +236,13 @@ module stage1 (
             mmu_input_addr,  //DEBUG info
             " to ",  //DEBUG info
             (mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE), //DEBUG info
-            " mmu_physical_index_old ", //DEBUG info
-            mmu_physical_index_old, //DEBUG info
-            " mmu_logical_index_old ", //DEBUG info
+            " mmu_physical_index_old ",  //DEBUG info
+            mmu_physical_index_old,  //DEBUG info
+            " mmu_logical_index_old ",  //DEBUG info
             mmu_logical_index_old,  //DEBUG info
-            " mmu_start ", //DEBUG info
-            mmu_start_process_segment, //DEBUG info
-            " mmu_logical_index_new ", //DEBUG info
+            " mmu_start ",  //DEBUG info
+            mmu_start_process_segment,  //DEBUG info
+            " mmu_logical_index_new ",  //DEBUG info
             mmu_logical_index_new  //DEBUG info
         );  //DEBUG info
       if (mmu_changes_debug == 1) begin  //DEBUG info
@@ -677,12 +677,12 @@ module stage1 (
     end else if (stage == `STAGE_TASK_SWITCHER) begin
       if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
         if (process_start_address[process_index] == dob) begin
-    	    task_switcher_stage <= `SWITCHER_STAGE_WAIT;
-    	    stage <= `STAGE_READ_PC1_REQUEST;
-	end else begin
-            task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
-    	    new_process_index   <= 0;
-	end
+          task_switcher_stage <= `SWITCHER_STAGE_WAIT;
+          stage <= `STAGE_READ_PC1_REQUEST;
+        end else begin
+          task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
+          new_process_index   <= 0;
+        end
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PC) begin
         //        $write("read new pc ", dob);  //DEBUG info
         address_pc[process_index] <= dob;
