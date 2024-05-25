@@ -76,8 +76,8 @@ module stage1 (
      if (`MMU_CHANGES_DEBUG == 1) begin \
        $write($time, " mmu "); \
        for (i = 0; i <= 10; i = i + 1) begin \
-         if (mmu_start_process_segment == i) $write("s"); \
-         if (mmu_chain_memory[i] == i) $write("e"); \
+         if (mmu_start_process_segment == i && mmu_logical_pages_memory[i]!=0) $write("s"); \
+         if (mmu_chain_memory[i] == i && mmu_logical_pages_memory[i]!=0) $write("e"); \
          $write($sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])); \
        end \
        $display(""); \

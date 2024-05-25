@@ -28,8 +28,8 @@
 0602 0000 //regminusnum
 0201 0001 //after loop: ram2reg
 0401 0005 //num2reg
-0301 0000 //reg2ram
-010E 0000 //jmp 0
+0301 0046 //reg2ram
+010E 0030 //jmp 0x30
 010E 0000
 0A0B 0000
 0A0B 0000
