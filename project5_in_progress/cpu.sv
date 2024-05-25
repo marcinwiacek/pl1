@@ -319,7 +319,6 @@ module stage1 (
       //previous process -> next = current process-> next; First read next
       addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
       task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
-      stage <= `STAGE_DELETE_PROCESS;
     end
   end
 
