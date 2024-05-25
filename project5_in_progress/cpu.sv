@@ -11,7 +11,7 @@
 
 module cpu (
     input rst,
-    input clka,
+    clka,
     clkb
 );
 
@@ -51,7 +51,7 @@ endmodule
 module stage1 (
     input             clka,
     clkb,
-    input             rst,
+    rst,
     output reg        ena,
     enb,
     wea,
