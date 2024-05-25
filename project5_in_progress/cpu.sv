@@ -199,6 +199,18 @@ module stage1 (
   //address translation start / stop
   always @(mmu_stage) begin
     if (mmu_stage == `MMU_STAGE_SEARCH) begin
+      if (`MMU_TRANSLATION_DEBUG == 1)  //DEBUG info
+        $display(  //DEBUG info
+            $time,  //DEBUG info
+            " mmu_physical_index_old ",
+            mmu_physical_index_old,
+            " mmu_logical_index_old ",
+            mmu_logical_index_old,  //DEBUG info
+            " mmu_start ",
+            mmu_start_process_segment,
+            " mmu_logical_index_new ",
+            mmu_logical_index_new  //DEBUG info
+        );  //DEBUG info
       if (mmu_logical_index_old == mmu_logical_index_new) begin
         //we have already translated address. We can use it.
         mmu_stage <= `MMU_STAGE_FOUND;
@@ -223,7 +235,15 @@ module stage1 (
             " mmu from ",  //DEBUG info
             mmu_input_addr,  //DEBUG info
             " to ",  //DEBUG info
-            (mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE)  //DEBUG info
+            (mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE), //DEBUG info
+            " mmu_physical_index_old ",
+            mmu_physical_index_old,
+            " mmu_logical_index_old ",
+            mmu_logical_index_old,  //DEBUG info
+            " mmu_start ",
+            mmu_start_process_segment,
+            " mmu_logical_index_new ",
+            mmu_logical_index_new  //DEBUG info
         );  //DEBUG info
       if (mmu_changes_debug == 1) begin  //DEBUG info
         `SHOW_MMU_DEBUG  //DEBUG info
@@ -234,27 +254,29 @@ module stage1 (
 
   //searching in the process memory and exiting with translated address or switching to searching free memory
   always @(mmu_logical_index_old) begin
-    if (mmu_logical_index_new == 0 && mmu_physical_index_old == mmu_start_process_segment) begin
-      //value found in current process chain
-      mmu_stage <= `MMU_STAGE_FOUND;
-    end else if (mmu_physical_index_old != mmu_start_process_segment && 
+    if (mmu_stage == `MMU_STAGE_SEARCH) begin
+      if (mmu_logical_index_new == 0 && mmu_physical_index_old == mmu_start_process_segment) begin
+        //value found in current process chain
+        mmu_stage <= `MMU_STAGE_FOUND;
+      end else if (mmu_physical_index_old != mmu_start_process_segment && 
       mmu_logical_pages_memory[mmu_physical_index_old]==mmu_logical_index_new) begin
-      //value found in current process chain
-      mmu_stage <= `MMU_STAGE_FOUND;
-    end else if (mmu_chain_memory[mmu_physical_index_old] == mmu_physical_index_old) begin
-      //we need to start searching first free memory page and allocate it
-      mmu_last_process_segment <= mmu_physical_index_old;
-      mmu_index_start <= mmu_index_start + 1;
-    end else begin
-      //go into next memory page in process chain
-      mmu_physical_index_old <= mmu_chain_memory[mmu_physical_index_old];
-      mmu_logical_index_old  <= mmu_logical_pages_memory[mmu_chain_memory[mmu_physical_index_old]];
+        //value found in current process chain
+        mmu_stage <= `MMU_STAGE_FOUND;
+      end else if (mmu_chain_memory[mmu_physical_index_old] == mmu_physical_index_old) begin
+        //we need to start searching first free memory page and allocate it
+        mmu_last_process_segment <= mmu_physical_index_old;
+        mmu_index_start <= mmu_index_start + 1;
+      end else begin
+        //go into next memory page in process chain
+        mmu_physical_index_old <= mmu_chain_memory[mmu_physical_index_old];
+        mmu_logical_index_old <= mmu_logical_pages_memory[mmu_chain_memory[mmu_physical_index_old]];
+      end
     end
   end
 
   //allocating new memory for process
   always @(mmu_index_start) begin
-    if (!rst) begin
+    if (mmu_stage == `MMU_STAGE_SEARCH) begin
       if (mmu_logical_pages_memory[mmu_index_start] == 0) begin
         //we have free memory page. Let's allocate it and add to process chain
         if (`MMU_CHANGES_DEBUG == 1) begin  //DEBUG info
@@ -314,6 +336,9 @@ module stage1 (
     if (mmu_chain_memory[mmu_delete_process_segment] != mmu_delete_process_segment) begin
       mmu_delete_process_segment <= mmu_chain_memory[mmu_delete_process_segment];
     end else begin
+      if (mmu_changes_debug == 1) begin  //DEBUG info
+        `SHOW_MMU_DEBUG  //DEBUG info
+      end  //DEBUG info
       //mark process cache as free
       process_used[process_index] <= 0;
       //previous process -> next = current process-> next; First read next
@@ -544,6 +569,7 @@ module stage1 (
       process_instruction_done = 0;
       task_switcher_stage = `SWITCHER_STAGE_WAIT;
       new_process_index   = `MAX_PROCESS_CACHE_INDEX; //we setup value != 0 to allow working always(@new_process_index) next time correctly
+      mmu_logical_index_old = 1;  //fixme: we assume, that PC is started from seg. 0
       stage = `STAGE_READ_PC1_REQUEST;
     end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 && new_process_index == `MAX_PROCESS_CACHE_INDEX) begin
       //not found. Start searching for first free slot.
@@ -559,8 +585,8 @@ module stage1 (
       mmu_prev_start_process_segment <= mmu_start_process_segment;
       mmu_start_process_segment <= dob / `MMU_PAGE_SIZE;
       addrb <= dob + `ADDRESS_PC;
-      task_switcher_stage = `SWITCHER_STAGE_READ_NEW_PC;
-      new_process_index   = `MAX_PROCESS_CACHE_INDEX; //we setup value != 0 to allow working always(@new_process_index) next time correctly
+      new_process_index   <= `MAX_PROCESS_CACHE_INDEX; //we setup value != 0 to allow working always(@new_process_index) next time correctly
+      task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PC;
     end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES2 && new_process_index == `MAX_PROCESS_CACHE_INDEX) begin
       //not found. we replace one existing slot.
       process_index = process_index == `MAX_PROCESS_CACHE_INDEX ? 0 : process_index + 1;
@@ -655,13 +681,14 @@ module stage1 (
     end else if (stage == `STAGE_TASK_SWITCHER) begin
       if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
         if (stage == `STAGE_DELETE_PROCESS) begin
+          wea <= 1;
           task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV;
         end else begin
           task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
           new_process_index   <= 0;
         end
       end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PC) begin
-        $write("read new pc");  //DEBUG info
+//        $write("read new pc ", dob);  //DEBUG info
         address_pc[process_index] <= dob;
         addrb <= process_start_address[process_index] + `ADDRESS_REG;
         task_switcher_stage = `SWITCHER_STAGE_READ_NEW_REG_0;
@@ -675,6 +702,7 @@ module stage1 (
         `SHOW_TASK_INFO("new")  //DEBUG info
         process_instruction_done <= 0;
         task_switcher_stage <= `SWITCHER_STAGE_WAIT;
+        mmu_logical_index_old <= 1;  //fixme: we assume, that PC is started from seg. 0
         stage <= `STAGE_READ_PC1_REQUEST;
       end
     end
@@ -699,7 +727,7 @@ module simple_dual_two_clocks (
   reg [15:0] ram[0:1023];
 
   initial begin  //DEBUG info
-    $readmemh("rom3.mem", ram);  //DEBUG info
+    $readmemh("rom4.mem", ram);  //DEBUG info
   end  //DEBUG info
 
   always @(posedge clka) begin
@@ -712,7 +740,7 @@ module simple_dual_two_clocks (
   always @(posedge clkb) begin
     if (enb) begin
       dob <= ram[addrb];
-      //         $display($time, " reading ", ram[addrb], " from ",addrb); //DEBUG info
+//      $display($time, " reading ", ram[addrb], " from ", addrb);  //DEBUG info
     end
   end
 endmodule
