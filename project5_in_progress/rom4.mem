@@ -31,8 +31,8 @@
 0201 0001 //after loop: ram2reg
 0401 0005 //num2reg
 0301 0046 //reg2ram
+0F00 0002 //int 2
 010E 0030 //jmp 0x30
-0A0B 0000
 0A0B 0000
 0A0B 0000
 0000 0000 //next process address (no MMU)
@@ -96,6 +96,7 @@ FFFF 0000
 0000 0000
 0402 0005 //num2reg
 0E00 0002 //int_reg
+1000 0000 //ret from int
 0402 0006 //num2reg
 0902 0002 //loop with cache: loopeqvalue
 0602 0001 //regminusnum
@@ -104,5 +105,4 @@ FFFF 0000
 0401 0005 //num2reg
 0301 0046 //reg2ram
 010E 0030 //jmp 0x30
-0A0B 0000
 0A0B 0000

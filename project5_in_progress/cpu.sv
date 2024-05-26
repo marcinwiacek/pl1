@@ -533,6 +533,9 @@ module stage1 (
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
         stage <= `STAGE_REG_INT_PROCESS;
         //fixme:add to suspend list
+      end else if (inst_op == `OPCODE_INT) begin
+        $display(" opcode = int ", inst_address_num);  //DEBUG info
+        stage <= `STAGE_READ_PC1_REQUEST;
       end else begin
         if (inst_op == `OPCODE_JMP) begin
           $display(" opcode = jmp to ", inst_address_num);  //DEBUG info
