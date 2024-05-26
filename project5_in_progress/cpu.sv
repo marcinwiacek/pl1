@@ -115,6 +115,7 @@ module stage1 (
   `define STAGE_TASK_SWITCHER 9
   `define STAGE_SEPARATE_PROCESS 10
   `define STAGE_DELETE_PROCESS 11
+  `define STAGE_REG_INT_PROCESS 12
 
   `define SWITCHER_STAGE_WAIT 0
   `define SWITCHER_STAGE_SAVE_PC 1 //save process info. initiated, when we need place in cache
@@ -177,6 +178,9 @@ module stage1 (
   //MMU (Memory Management Unit)
   reg [4:0] mmu_stage;
   reg [2:0] mmu_changes_debug;  //DEBUG info
+
+  reg [15:0] mmu_suspend_list_start_process_segment;  //processes, which are waiting for something (int, external ports, etc.)
+  reg mmu_suspend_list_start_process_segment_active;  //is our list empty ?
 
   reg [15:0] mmu_prev_start_process_segment;  //needs to be updated on process switch
   reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
@@ -396,6 +400,8 @@ module stage1 (
     mmu_logical_pages_memory[2] <= 2;  //DEBUG info
     mmu_logical_pages_memory[1] <= 1;  //DEBUG info
 
+    mmu_suspend_list_start_process_segment_active <= 0;
+
     mmu_stage <= `MMU_STAGE_WAIT;
     mmu_changes_debug <= 1;  //DEBUG info
     task_switcher_stage <= `SWITCHER_STAGE_WAIT;
@@ -508,6 +514,11 @@ module stage1 (
           mmu_delete_process_segment <= mmu_start_process_segment;
           stage <= `STAGE_DELETE_PROCESS;
         end
+      end else if (inst_op == `OPCODE_REG_INT) begin
+        $display(" opcode = reg_int ");  //DEBUG info
+        stage <= `STAGE_REG_INT_PROCESS;
+        //setup int table
+        //move current process to suspend list
       end else begin
         if (inst_op == `OPCODE_JMP) begin
           $display(" opcode = jmp to ", inst_address_num);  //DEBUG info
