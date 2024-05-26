@@ -171,6 +171,9 @@ module stage1 (
 
   reg [15:0] task_switcher_stage;
 
+  //interrupt support
+  reg [15:0] int_process_address[7:0];
+
   //MMU (Memory Management Unit)
   reg [4:0] mmu_stage;
   reg [2:0] mmu_changes_debug;  //DEBUG info
@@ -314,11 +317,8 @@ module stage1 (
         mmu_chain_memory[mmu_old] <= mmu_old;
       end
       //switch to task switcher updates
-      addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
-      dia <= process_start_address[process_index];
-      wea <= 1;
-      task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
-      stage <= `STAGE_TASK_SWITCHER;
+      addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
+      task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
     end else if (mmu_logical_pages_memory[mmu_separate_process_segment] >= inst_address_num && 
           mmu_logical_pages_memory[mmu_separate_process_segment] < inst_address_num+inst_reg_num) begin
       mmu_chain_memory[mmu_old] <= mmu_chain_memory[mmu_separate_process_segment];
@@ -392,8 +392,8 @@ module stage1 (
     mmu_chain_memory[5] <= 2;  //DEBUG info
     mmu_chain_memory[2] <= 1;  //DEBUG info
     mmu_chain_memory[1] <= 1;  //DEBUG info
-    mmu_logical_pages_memory[5] <= 2;  //DEBUG info
-    mmu_logical_pages_memory[2] <= 3;  //DEBUG info
+    mmu_logical_pages_memory[5] <= 3;  //DEBUG info
+    mmu_logical_pages_memory[2] <= 2;  //DEBUG info
     mmu_logical_pages_memory[1] <= 1;  //DEBUG info
 
     mmu_stage <= `MMU_STAGE_WAIT;
@@ -636,13 +636,13 @@ module stage1 (
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW) begin //setup done during task split
         `SHOW_MMU_DEBUG  //DEBUG info
         if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
-          $display($time, " new process next data value = ", dia, " address ", addrb);  //DEBUG info
+          $display($time, " new process next data value = ", dia, " address ", addra);  //DEBUG info
         addra <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
         dia <= mmu_new_process_start_point_segment * `MMU_PAGE_SIZE;
         task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD) begin //setup done during task split
         if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
-          $display($time, " old process next data value = ", dia, " address ", addrb);  //DEBUG info
+          $display($time, " old process next data value = ", dia, " address ", addra);  //DEBUG info
         wea   <= 0;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV) begin
@@ -719,6 +719,14 @@ module stage1 (
         stage <= `STAGE_TASK_SWITCHER;
         task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV;
       end
+    end else if (stage == `STAGE_SEPARATE_PROCESS) begin
+      if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
+          wea <= 1;
+          addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
+	  dia <= dob;
+          task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
+          stage <= `STAGE_TASK_SWITCHER;
+      end
     end
   end
 endmodule
@@ -747,14 +755,14 @@ module simple_dual_two_clocks (
   always @(posedge clka) begin
     if (ena) begin
       if (wea) ram[addra] <= dia;
-      //             if (wea) $display($time, " writing ", dia, " to ",addra); //DEBUG info
+//                   if (wea) $display($time, " writing ", dia, " to ",addra); //DEBUG info
     end
   end
 
   always @(posedge clkb) begin
     if (enb) begin
       dob <= ram[addrb];
-      //      $display($time, " reading ", ram[addrb], " from ", addrb);  //DEBUG info
+//            $display($time, " reading ", ram[addrb], " from ", addrb);  //DEBUG info
     end
   end
 endmodule

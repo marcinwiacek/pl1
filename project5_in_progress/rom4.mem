@@ -23,7 +23,8 @@
 0000 0000
 0000 0000
 0c01 0001 //proc
-0402 0004 //num2reg
+0c01 0002 //proc
+0402 0003 //num2reg
 0902 0002 //loop with cache: loopeqvalue
 0602 0001 //regminusnum
 0602 0000 //regminusnum
@@ -31,7 +32,6 @@
 0401 0005 //num2reg
 0301 0046 //reg2ram
 010E 0030 //jmp 0x30
-010E 0000
 0A0B 0000
 0A0B 0000
 0A0B 0000
@@ -71,4 +71,38 @@ FFFF 0000
 010E 0000
 0A0B 0000
 0C0D 0000
-
+0000 0000 //next process address (no MMU)
+0000 0000
+002e 0000 //PC for this process
+0000 0000
+0000 0000 //registers used
+0000 0000
+0000 0000
+0000 0000 //registers
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0402 0005 //num2reg
+0902 0002 //loop with cache: loopeqvalue
+0602 0001 //regminusnum
+0602 0000 //regminusnum
+0201 0001 //after loop: ram2reg
+0401 0005 //num2reg
+0301 0046 //reg2ram
+010E 0030 //jmp 0x30
+010E 0000
+0A0B 0000
+0A0B 0000
+0A0B 0000
