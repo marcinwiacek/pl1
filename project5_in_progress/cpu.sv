@@ -337,7 +337,7 @@ module stage1 (
     if (mmu_chain_memory[mmu_delete_process_segment] != mmu_delete_process_segment) begin
       mmu_delete_process_segment <= mmu_chain_memory[mmu_delete_process_segment];
     end else begin
-      process_used[process_index] <= 0; //mark process cache as free
+      process_used[process_index] <= 0;  //mark process cache as free
       //previous process -> next = current process-> next; First read next
       addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
       task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
@@ -721,11 +721,11 @@ module stage1 (
       end
     end else if (stage == `STAGE_SEPARATE_PROCESS) begin
       if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
-          wea <= 1;
-          addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
-	  dia <= dob;
-          task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
-          stage <= `STAGE_TASK_SWITCHER;
+        wea <= 1;
+        addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
+        dia <= dob;
+        task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
+        stage <= `STAGE_TASK_SWITCHER;
       end
     end
   end
@@ -755,14 +755,14 @@ module simple_dual_two_clocks (
   always @(posedge clka) begin
     if (ena) begin
       if (wea) ram[addra] <= dia;
-//                   if (wea) $display($time, " writing ", dia, " to ",addra); //DEBUG info
+      //                   if (wea) $display($time, " writing ", dia, " to ",addra); //DEBUG info
     end
   end
 
   always @(posedge clkb) begin
     if (enb) begin
       dob <= ram[addrb];
-//            $display($time, " reading ", ram[addrb], " from ", addrb);  //DEBUG info
+      //            $display($time, " reading ", ram[addrb], " from ", addrb);  //DEBUG info
     end
   end
 endmodule
