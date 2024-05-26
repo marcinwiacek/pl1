@@ -310,19 +310,26 @@ module stage1 (
     if (mmu_logical_pages_memory[mmu_separate_process_segment] == inst_address_num) begin
       if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
         $display($time, " first ", mmu_separate_process_segment);  //DEBUG info
-      mmu_new_process_start_point_segment <= mmu_separate_process_segment;
+      mmu_new_process_start_point_segment = mmu_separate_process_segment;
     end
     if (mmu_chain_memory[mmu_separate_process_segment] == mmu_separate_process_segment) begin
-      if (`TASK_SPLIT_DEBUG == 1) $display($time, " last ", mmu_old, " ", mmu_new);  //DEBUG info
-      if (mmu_new != mmu_start_process_segment) begin
-        mmu_chain_memory[mmu_new] <= mmu_new;
+      if (mmu_new_process_start_point_segment == mmu_start_process_segment) begin
+          if (`TASK_SPLIT_DEBUG == 1) $display($time, " nothing found error");  //DEBUG info
+          mmu_changes_debug <= 1;  //DEBUG info
+          task_switcher_stage <= `SWITCHER_STAGE_WAIT;
+          stage <= `STAGE_READ_PC1_REQUEST;
+      end else begin
+          if (`TASK_SPLIT_DEBUG == 1) $display($time, " last ", mmu_old, " ", mmu_new);  //DEBUG info
+          if (mmu_new != mmu_start_process_segment) begin
+            mmu_chain_memory[mmu_new] <= mmu_new;
+          end
+          if (mmu_old != mmu_start_process_segment) begin
+            mmu_chain_memory[mmu_old] <= mmu_old;
+          end
+          //switch to task switcher updates
+          addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
+          task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
       end
-      if (mmu_old != mmu_start_process_segment) begin
-        mmu_chain_memory[mmu_old] <= mmu_old;
-      end
-      //switch to task switcher updates
-      addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
-      task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
     end else if (mmu_logical_pages_memory[mmu_separate_process_segment] >= inst_address_num && 
           mmu_logical_pages_memory[mmu_separate_process_segment] < inst_address_num+inst_reg_num) begin
       mmu_chain_memory[mmu_old] <= mmu_chain_memory[mmu_separate_process_segment];
@@ -505,6 +512,7 @@ module stage1 (
         if (mmu_start_process_segment == mmu_separate_process_segment) begin  //DEBUG info
           $display("error");  //DEBUG info
         end  //DEBUG info
+        mmu_new_process_start_point_segment <= mmu_start_process_segment;
         mmu_separate_process_segment <= mmu_chain_memory[mmu_start_process_segment];
         mmu_old <= mmu_start_process_segment;
         mmu_new <= mmu_start_process_segment;
@@ -515,10 +523,14 @@ module stage1 (
           stage <= `STAGE_DELETE_PROCESS;
         end
       end else if (inst_op == `OPCODE_REG_INT) begin
-        $display(" opcode = reg_int ");  //DEBUG info
-        stage <= `STAGE_REG_INT_PROCESS;
+        $display(" opcode = reg_int ", inst_address_num);  //DEBUG info
         //setup int table
-        //move current process to suspend list
+        int_process_address[inst_address_num] <= mmu_start_process_segment;
+        //move current process to suspend list (prev process -> next = current -> next, etc.)
+      addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
+      task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
+        stage <= `STAGE_REG_INT_PROCESS;
+	//fixme:add to suspend list
       end else begin
         if (inst_op == `OPCODE_JMP) begin
           $display(" opcode = jmp to ", inst_address_num);  //DEBUG info
@@ -734,6 +746,13 @@ module stage1 (
       dia <= dob;
       task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
       stage <= `STAGE_TASK_SWITCHER;
+    end else if (stage == `STAGE_REG_INT_PROCESS && task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
+      mmu_start_process_segment <= mmu_prev_start_process_segment;
+      wea <= 1;
+      addra <= mmu_prev_start_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
+      dia <= dob;
+      stage <= `STAGE_TASK_SWITCHER;
+      task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV;
     end
   end
 endmodule
