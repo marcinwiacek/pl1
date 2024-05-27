@@ -550,10 +550,11 @@ module stage1 (
           addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
           task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
           stage <= `STAGE_INT_PROCESS;
+        end else begin
+          stage <= `STAGE_READ_PC1_REQUEST;
         end
       end else if (inst_op == `OPCODE_INT_RET) begin
         $display(" opcode = int_ret ");  //DEBUG info
-        stage <= `STAGE_READ_PC1_REQUEST;
         //fixme: memory sharing
         addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
@@ -698,6 +699,7 @@ module stage1 (
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV) begin
         //switch to new process
         //we have next process address already in mmu_next_start_process_address
+        wea <= 0;
         stage <= `STAGE_TASK_SWITCHER;
         task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
         new_process_index <= 0;
@@ -746,17 +748,40 @@ module stage1 (
       `SHOW_REG_DEBUG(`REG_CHANGES_DEBUG, " reg ", inst_reg_num, dob)  //DEBUG info
       registers[process_index][inst_reg_num] <= dob;
       stage <= `STAGE_READ_PC1_REQUEST;
+    end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
+      if (stage == `STAGE_TASK_SWITCHER && process_start_address[process_index] == dob) begin
+        task_switcher_stage <= `SWITCHER_STAGE_WAIT;
+        stage <= `STAGE_READ_PC1_REQUEST;
+      end else if (stage == `STAGE_TASK_SWITCHER && process_start_address[process_index] != dob) begin
+        mmu_next_start_process_address <= dob;
+        task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
+        new_process_index <= 0;
+      end else if (stage == `STAGE_REG_INT_PROCESS || stage == `STAGE_DELETE_PROCESS) begin
+        mmu_next_start_process_address <= dob;
+        mmu_start_process_segment <= mmu_prev_start_process_segment;
+        wea <= 1;
+        addra <= mmu_prev_start_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
+        dia <= dob;
+        stage <= `STAGE_TASK_SWITCHER;
+        task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV;
+      end else if (stage == `STAGE_SEPARATE_PROCESS) begin
+        mmu_next_start_process_address <= dob;
+        wea <= 1;
+        addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
+        dia <= dob;
+        stage <= `STAGE_TASK_SWITCHER;
+        task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
+      end else if (stage == `STAGE_INT_PROCESS) begin
+        mmu_next_start_process_address <= dob;
+        //prev -> next = int process
+        wea <= 1;
+        addra <= mmu_prev_start_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
+        dia <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE;
+        stage <= `STAGE_TASK_SWITCHER;
+        task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV2;
+      end
     end else if (stage == `STAGE_TASK_SWITCHER) begin
-      if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
-        if (process_start_address[process_index] == dob) begin
-          task_switcher_stage <= `SWITCHER_STAGE_WAIT;
-          stage <= `STAGE_READ_PC1_REQUEST;
-        end else begin
-          mmu_next_start_process_address <= dob;
-          task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
-          new_process_index <= 0;
-        end
-      end else if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PC) begin
+      if (task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PC) begin
         address_pc[process_index] <= dob;
         addrb <= process_start_address[process_index] + `ADDRESS_REG;
         task_switcher_stage = `SWITCHER_STAGE_READ_NEW_REG_0;
@@ -773,29 +798,6 @@ module stage1 (
         mmu_logical_index_old <= 1;  //fixme: we assume, that PC is started from seg. 0
         stage <= `STAGE_READ_PC1_REQUEST;
       end
-    end else if ((stage == `STAGE_REG_INT_PROCESS || stage == `STAGE_DELETE_PROCESS) && task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
-      mmu_next_start_process_address <= dob;
-      mmu_start_process_segment <= mmu_prev_start_process_segment;
-      wea <= 1;
-      addra <= mmu_prev_start_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
-      dia <= dob;
-      stage <= `STAGE_TASK_SWITCHER;
-      task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV;
-    end else if (stage == `STAGE_SEPARATE_PROCESS && task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
-      mmu_next_start_process_address <= dob;
-      wea <= 1;
-      addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
-      dia <= dob;
-      stage <= `STAGE_TASK_SWITCHER;
-      task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
-    end else if (stage == `STAGE_INT_PROCESS && task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
-      mmu_next_start_process_address <= dob;
-      //prev -> next = int process
-      wea <= 1;
-      addra <= mmu_prev_start_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
-      dia <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE;
-      stage <= `STAGE_TASK_SWITCHER;
-      task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV2;
     end
   end
 endmodule
@@ -837,3 +839,4 @@ module simple_dual_two_clocks (
     end
   end
 endmodule
+
