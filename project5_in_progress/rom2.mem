@@ -1,12 +1,12 @@
 //simple code
-0000 0000 //next process address (no MMU)
+0000 0000 //next process address (no MMU) overwritten by CPU
 0000 0000
-0000 0000 //PC for this process
+0000 0000 //PC for this process overwritten by CPU
 0000 0000
 0000 0000 //registers used
 0000 0000
 0000 0000
-0000 0000 //registers
+0000 0000 //registers taken "as is"
 0000 0000
 0000 0000
 0000 0000
