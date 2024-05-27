@@ -116,6 +116,7 @@ module stage1 (
   `define STAGE_SEPARATE_PROCESS 10
   `define STAGE_DELETE_PROCESS 11
   `define STAGE_REG_INT_PROCESS 12
+  `define STAGE_INT_PROCESS 14
 
   `define SWITCHER_STAGE_WAIT 0
   `define SWITCHER_STAGE_SAVE_PC 1 //save process info. initiated, when we need place in cache
@@ -132,6 +133,8 @@ module stage1 (
   `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD 71 //setup new process address in old (existing) process
   `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW 72 //setup new process address in new (created) process
   `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV 73 //setup new process address in previous process in chain
+  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV2 74 //setup new process address in previous process in chain
+  `define SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV3 75 //setup new process address in previous process in chain
 
   `define MMU_STAGE_WAIT 0
   `define MMU_STAGE_SEARCH 1
@@ -173,7 +176,7 @@ module stage1 (
   reg [15:0] task_switcher_stage;
 
   //interrupt support
-  reg [15:0] int_process_address[7:0];
+  reg [15:0] int_process_start_segment[7:0];
 
   //MMU (Memory Management Unit)
   reg [4:0] mmu_stage;
@@ -428,10 +431,11 @@ module stage1 (
   `define OPCODE_TILL_NON_VALUE 10   //register num, value, how many instructions (8 bit value) //do..while
   `define OPCODE_LOOP 11   //x, x, how many instructions (8 bit value) //for...
   `define OPCODE_PROC 12 //new process //how many segments, start segment number (16 bit)
-  `define OPCODE_REG_INT 14 //todo
-  `define OPCODE_INT 15 //todo
-  `define OPCODE_INT_RET 16 //todo
+  `define OPCODE_REG_INT 14 //x, int number (8 bit)
+  `define OPCODE_INT 15 //x, int number (8 bit)
+  `define OPCODE_INT_RET 16 //x, int number
   `define OPCODE_EXIT 17 //exit process
+
   `define OPCODE_JMP_PLUS 18 //x, how many instructions //todo
   `define OPCODE_JMP_MINUS 19 //x, how many instructions //todo
   `define OPCODE_FREE 20 //free ram pages x-y //todo
@@ -527,15 +531,30 @@ module stage1 (
       end else if (inst_op == `OPCODE_REG_INT) begin
         $display(" opcode = reg_int ", inst_address_num);  //DEBUG info
         //setup int table
-        int_process_address[inst_address_num] <= mmu_start_process_segment;
+        int_process_start_segment[inst_address_num] <= mmu_start_process_segment;
         //move current process to suspend list (prev process -> next = current -> next, etc.)
+        if (mmu_suspend_list_start_process_segment_active == 0) begin
+          mmu_suspend_list_start_process_segment <= process_start_address[process_index];
+          mmu_suspend_list_start_process_segment_active <= 1;
+        end
         addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
         stage <= `STAGE_REG_INT_PROCESS;
-        //fixme:add to suspend list
       end else if (inst_op == `OPCODE_INT) begin
         $display(" opcode = int ", inst_address_num);  //DEBUG info
+        if (int_process_start_segment[inst_address_num] > 0) begin
+          //fixme: memory sharing
+          addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
+          task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
+          stage <= `STAGE_INT_PROCESS;
+        end
+      end else if (inst_op == `OPCODE_INT_RET) begin
+        $display(" opcode = int_ret ");  //DEBUG info
         stage <= `STAGE_READ_PC1_REQUEST;
+          //fixme: memory sharing
+//          addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
+//          task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
+//          stage <= `STAGE_INT_PROCESS;
       end else begin
         if (inst_op == `OPCODE_JMP) begin
           $display(" opcode = jmp to ", inst_address_num);  //DEBUG info
@@ -679,6 +698,17 @@ module stage1 (
         stage <= `STAGE_TASK_SWITCHER;
         task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
         new_process_index <= 0;
+      end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV2) begin //int setup
+        //prev -> next = int process
+        addra <= mmu_prev_start_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
+        dia <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE;
+        task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV3;
+      end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV3) begin //int setup
+        //current -> next = int process
+        addra <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
+        dia <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE;
+        int_process_start_segment[inst_address_num] <= process_start_address[process_index];
+        task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV;
       end
     end
   end
@@ -750,6 +780,13 @@ module stage1 (
       addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
       dia <= dob;
       task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
+      stage <= `STAGE_TASK_SWITCHER;
+    end else if (stage == `STAGE_INT_PROCESS && task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
+      //int process -> next = current process -> next
+      wea <= 1;
+      addra <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
+      dia <= dob == process_start_address[process_index]? int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE:dob;
+      task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV2;
       stage <= `STAGE_TASK_SWITCHER;
     end
   end
