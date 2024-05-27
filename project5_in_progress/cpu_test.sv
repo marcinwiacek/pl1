@@ -18,7 +18,7 @@ initial begin
     rst=1;
     #1
     rst=0;
-    #300
+    #400
     //$stop();
     sim_end=1; //DEBUG info
     $finish();

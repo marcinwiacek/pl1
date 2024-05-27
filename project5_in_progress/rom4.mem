@@ -97,7 +97,7 @@ FFFF 0000
 0402 0005 //num2reg
 0E00 0002 //int_reg
 0402 0006 //num2reg
-1000 0000 //ret from int
+1000 0002 //ret from int
 0902 0002 //loop with cache: loopeqvalue
 0602 0001 //regminusnum
 0602 0000 //regminusnum
