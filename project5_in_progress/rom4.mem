@@ -1,4 +1,5 @@
-//example with creating separate process and removing it
+//example with creating two extra separate processes, removing one of them
+//and setting another one as interrupt handler (+ calling it)
 0000 0000 //next process address (no MMU)
 0000 0000
 0000 0000 //PC for this process
