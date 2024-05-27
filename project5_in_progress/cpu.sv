@@ -455,7 +455,7 @@ module stage1 (
       mmu_stage <= `MMU_STAGE_SEARCH;
     end else if (stage == `STAGE_READ_PC1_REQUEST) begin
       if (inst_op == `OPCODE_INT) begin
-	address_pc[process_index]=int_pc[inst_address_num];
+        address_pc[process_index] = int_pc[inst_address_num];
       end
       process_instruction_done <= process_instruction_done + 1;
       if (process_instruction_done == 2) begin
@@ -705,9 +705,9 @@ module stage1 (
         //int process -> next = current process -> next
         addra <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
         if (mmu_next_start_process_address == process_start_address[process_index]) begin
-	    dia <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE;
-	end else begin
-	    dia <= mmu_next_start_process_address;
+          dia <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE;
+        end else begin
+          dia <= mmu_next_start_process_address;
         end
         //to force jumping
         mmu_next_start_process_address <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE;
