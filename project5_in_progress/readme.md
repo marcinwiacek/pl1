@@ -9,4 +9,4 @@ It means for example:
 
 Notes:
 
-1. my Vivado project required changing -flatten_hierarchy from rebuilt to full in some moment in Project Settings \ Synthesis (note: last working commit with old setting 26 May 22:34)
+1. Vivado required changing **-flatten_hierarchy** from **rebuilt** to **full** in some moment in **Project Settings** \ **Synthesis** (note: last working commit with old setting 26 May 22:34)
