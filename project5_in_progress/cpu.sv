@@ -527,12 +527,12 @@ module stage1 (
         if (mmu_start_process_segment == mmu_separate_process_segment) begin  //DEBUG info
           $display("error");  //DEBUG info
         end  //DEBUG info
-        mmu_separate_process_segment = 0;
-        stage = `STAGE_SEPARATE_PROCESS;
-        mmu_new_process_start_point_segment = mmu_start_process_segment;
-        mmu_separate_process_segment = mmu_chain_memory[mmu_start_process_segment];
-        mmu_old = mmu_start_process_segment;
-        mmu_new = mmu_start_process_segment;
+        mmu_separate_process_segment <= 0;
+        stage <= `STAGE_SEPARATE_PROCESS;
+        mmu_new_process_start_point_segment <= mmu_start_process_segment;
+        mmu_separate_process_segment <= mmu_chain_memory[mmu_start_process_segment];
+        mmu_old <= mmu_start_process_segment;
+        mmu_new <= mmu_start_process_segment;
       end else if (inst_op == `OPCODE_EXIT) begin
         $display(" opcode = exit ");  //DEBUG info
         if (mmu_start_process_segment != mmu_prev_start_process_segment) begin
