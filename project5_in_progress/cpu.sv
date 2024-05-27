@@ -10,6 +10,8 @@
 `define TASK_SPLIT_DEBUG 1 //1 enabled, 0 disabled //DEBUG info
 
 `define MMU_PAGE_SIZE 72 //how many bytes are assigned to one memory page in MMU
+`define RAM_SIZE 32767
+`define MMU_MAX_INDEX 455 //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 
 module cpu (
     input rst,
@@ -18,7 +20,7 @@ module cpu (
 );
 
   //RAM
-  wire clka, clkb, ena, enb, wea;
+  wire ena, enb, wea;
   wire [9:0] addra, addrb;
   wire [15:0] dia;
   wire [15:0] dob;
@@ -65,7 +67,7 @@ module stage1 (
 
   integer i;  //DEBUG info
 
-/* DEBUG info */ `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
+  /* DEBUG info */ `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
 /* DEBUG info */     if (ARG == 1) begin \
 /* DEBUG info */       $write($time, INFO); \
 /* DEBUG info */       for (i = 0; i <= 10; i = i + 1) begin \
@@ -74,7 +76,7 @@ module stage1 (
 /* DEBUG info */       $display(""); \
 /* DEBUG info */     end
 
-/* DEBUG info */  `define SHOW_MMU_DEBUG \
+  /* DEBUG info */  `define SHOW_MMU_DEBUG \
 /* DEBUG info */     if (`MMU_CHANGES_DEBUG == 1) begin \
 /* DEBUG info */       $write($time, " mmu "); \
 /* DEBUG info */       for (i = 0; i <= 10; i = i + 1) begin \
@@ -85,7 +87,7 @@ module stage1 (
 /* DEBUG info */       $display(""); \
 /* DEBUG info */     end
 
-/* DEBUG info */  `define SHOW_TASK_INFO(ARG) \
+  /* DEBUG info */  `define SHOW_TASK_INFO(ARG) \
 /* DEBUG info */     if (`TASK_SWITCHER_DEBUG == 1) begin \
 /* DEBUG info */          $write($time, " ",ARG," pc ", address_pc[process_index]); \
 /* DEBUG info */          $display( \
@@ -143,7 +145,6 @@ module stage1 (
   `define MMU_SEPARATE_PROCESS 3
 
   `define MAX_PROCESS_CACHE_INDEX 7 //0-7 values are saved with 3 bits in all tables below
-  `define MAX_PROCESS_CACHE_BITS 2 //0-7 values saved with 3 bits in all tables below
 
   //current instruction - we don't need to multiply it among processes, because we don't support partially executed op before process switch
   reg [4:0] stage; //it doesn't need process index - we switch to other process after completing instruction
@@ -157,22 +158,22 @@ module stage1 (
   reg [2:0] process_instruction_done; //process related. how many instructions were done for current process
 
   //values for all processes - need to be separated for every process
-  reg process_used[`MAX_PROCESS_CACHE_BITS:0]; //process related. We cache data about n=8 processes - here we save, if cache slot is used (1) or free (0)
-  reg [15:0] process_start_address[`MAX_PROCESS_CACHE_BITS:0]; //process related. We cache data about n=8 processes - here we save, if cache slot is used or not
-  reg [9:0] address_pc[`MAX_PROCESS_CACHE_BITS:0];  //n=2^3=8 addresses
-  reg [15:0] registers[`MAX_PROCESS_CACHE_BITS:0][5:0];  //64 8-bit registers * n=8 processes = 512 16-bit registers
+  reg process_used[`MAX_PROCESS_CACHE_INDEX:0]; //process related. We cache data about n=8 processes - here we save, if cache slot is used (1) or free (0)
+  reg [15:0] process_start_address[`MAX_PROCESS_CACHE_INDEX:0]; //process related. We cache data about n=8 processes - here we save, if cache slot is used or not
+  reg [9:0] address_pc[`MAX_PROCESS_CACHE_INDEX:0];  //n=2^3=8 addresses
+  reg [15:0] registers[`MAX_PROCESS_CACHE_INDEX:0][31:0];  //64 8-bit registers * n=8 processes = 512 16-bit registers
 
   //cache used in all loops - needs to be separated for every process
-  reg [7:0] inst_op_cache[`MAX_PROCESS_CACHE_BITS:0][255:0];  // 256 * n=8 processes = 2048
-  reg [7:0] inst_reg_num_cache[`MAX_PROCESS_CACHE_BITS:0][255:0];
-  reg [15:0] inst_address_num_cache[`MAX_PROCESS_CACHE_BITS:0][255:0];
+  reg [7:0] inst_op_cache[`MAX_PROCESS_CACHE_INDEX:0][255:0];  // 256 * n=8 processes = 2048
+  reg [7:0] inst_reg_num_cache[`MAX_PROCESS_CACHE_INDEX:0][255:0];
+  reg [15:0] inst_address_num_cache[`MAX_PROCESS_CACHE_INDEX:0][255:0];
 
   //loop executions - need to be separate for every process
-  reg [7:0] loop_counter[`MAX_PROCESS_CACHE_BITS:0];
-  reg [7:0] loop_counter_max[`MAX_PROCESS_CACHE_BITS:0];
-  reg [5:0] loop_reg_num[`MAX_PROCESS_CACHE_BITS:0];
-  reg [7:0] loop_comp_value[`MAX_PROCESS_CACHE_BITS:0];
-  reg [1:0] loop_type[`MAX_PROCESS_CACHE_BITS:0];
+  reg [7:0] loop_counter[`MAX_PROCESS_CACHE_INDEX:0];
+  reg [7:0] loop_counter_max[`MAX_PROCESS_CACHE_INDEX:0];
+  reg [5:0] loop_reg_num[`MAX_PROCESS_CACHE_INDEX:0];
+  reg [7:0] loop_comp_value[`MAX_PROCESS_CACHE_INDEX:0];
+  reg [1:0] loop_type[`MAX_PROCESS_CACHE_INDEX:0];
 
   reg [15:0] task_switcher_stage;
 
@@ -190,10 +191,10 @@ module stage1 (
   reg [15:0] mmu_next_start_process_address;
   reg [15:0] mmu_prev_start_process_segment;  //needs to be updated on process switch
   reg [15:0] mmu_start_process_segment;  //needs to be updated on process switch
-  reg [15:0] mmu_chain_memory[1000:0];  //values = next physical page index for process (last entry = the same entry)
-                                        //(note: originally last entry 0, but changed because of synth issues)
-  reg [15:0] mmu_logical_pages_memory[1000:0];  //values = logical process page assigned to physical page; 0 means empty page
-                                                //(in existing processes we setup value > 0 for first page with index 0 and ignore it)
+  reg [15:0] mmu_chain_memory[`MMU_MAX_INDEX:0];  //values = next physical page index for process (last entry = the same entry)
+                                                  //(note: originally last entry 0, but changed because of synth issues)
+  reg [15:0] mmu_logical_pages_memory[`MMU_MAX_INDEX:0];  //values = logical process page assigned to physical page; 0 means empty page
+                                                          //(in existing processes we setup value > 0 for first page with index 0 and ignore it)
   reg [15:0] mmu_index_start; // this is start index of the loop searching for free memory page; when reserving pages, increase;
                               // when deleting, setup to lowest free value
 
@@ -368,7 +369,11 @@ module stage1 (
     ena <= 1;
 
     //problem: we shouldn't mix blocking and non-blocking
-    for (process_index = 0; process_index < 10; process_index = process_index + 1) begin
+    for (
+        process_index = 0;
+        process_index < `MAX_PROCESS_CACHE_INDEX;
+        process_index = process_index + 1
+    ) begin
       process_used[process_index] <= 0;
     end
     process_used[0] <= 1;
@@ -391,7 +396,7 @@ module stage1 (
     //problem: we shouldn't mix blocking and non-blocking
     for (
         mmu_logical_index_new = 0;
-        mmu_logical_index_new < 1000;
+        mmu_logical_index_new < `MMU_MAX_INDEX;
         mmu_logical_index_new = mmu_logical_index_new + 1
     ) begin
       //value 0 means, that it's empty. in every process on first entry we setup something != 0 and ignore it
@@ -455,7 +460,7 @@ module stage1 (
       mmu_stage <= `MMU_STAGE_SEARCH;
     end else if (stage == `STAGE_READ_PC1_REQUEST) begin
       if (inst_op == `OPCODE_INT) begin
-        address_pc[process_index] = int_pc[inst_address_num];
+        address_pc[process_index] <= int_pc[inst_address_num];
       end
       process_instruction_done <= process_instruction_done + 1;
       if (process_instruction_done == 2) begin
@@ -817,7 +822,7 @@ module simple_dual_two_clocks (
     output reg [15:0] dob
 );
 
-  reg [15:0] ram[0:1023];
+  reg [15:0] ram[0:`RAM_SIZE];
 
   initial begin  //DEBUG info
     $readmemh("rom4.mem", ram);  //DEBUG info
