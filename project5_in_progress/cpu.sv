@@ -178,6 +178,7 @@ module stage1 (
 
   //interrupt support
   reg [15:0] int_process_start_segment[7:0];
+  reg [15:0] int_pc[7:0];
 
   //MMU (Memory Management Unit)
   reg [4:0] mmu_stage;
@@ -698,11 +699,14 @@ module stage1 (
         new_process_index <= 0;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV2) begin //int setup
         //int process -> next = current process -> next
-        wea <= 1;
         addra <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
-        dia <= mmu_next_start_process_address == process_start_address[process_index]? int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE:mmu_next_start_process_address;
+        if (mmu_next_start_process_address == process_start_address[process_index]) begin
+	    dia <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE;
+	end else begin
+	    dia <= mmu_next_start_process_address;
+        end
         //to force jumping
-        mmu_next_start_process_address <=  int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE;
+        mmu_next_start_process_address <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE;
         //replace
         int_process_start_segment[inst_address_num] <= process_start_address[process_index] / `MMU_PAGE_SIZE;
         task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV;
@@ -778,15 +782,16 @@ module stage1 (
       wea <= 1;
       addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
       dia <= dob;
-      task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
       stage <= `STAGE_TASK_SWITCHER;
+      task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
     end else if (stage == `STAGE_INT_PROCESS && task_switcher_stage == `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR) begin
       mmu_next_start_process_address <= dob;
       //prev -> next = int process
+      wea <= 1;
       addra <= mmu_prev_start_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
       dia <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE;
-      task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV2;
       stage <= `STAGE_TASK_SWITCHER;
+      task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV2;
     end
   end
 endmodule
