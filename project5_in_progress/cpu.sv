@@ -454,6 +454,9 @@ module stage1 (
       mmu_logical_index_new <= mmu_input_addr / `MMU_PAGE_SIZE; //FIXME: it's enough just to take concrete bits
       mmu_stage <= `MMU_STAGE_SEARCH;
     end else if (stage == `STAGE_READ_PC1_REQUEST) begin
+      if (inst_op == `OPCODE_INT) begin
+	address_pc[process_index]=int_pc[inst_address_num];
+      end
       process_instruction_done <= process_instruction_done + 1;
       if (process_instruction_done == 2) begin
         //time to switch process
@@ -535,6 +538,7 @@ module stage1 (
         $display(" opcode = reg_int ", inst_address_num);  //DEBUG info
         //setup int table
         int_process_start_segment[inst_address_num] <= mmu_start_process_segment;
+        int_pc[inst_address_num] <= address_pc[process_index];
         //read next pc
         addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
