@@ -65,34 +65,34 @@ module stage1 (
 
   integer i;  //DEBUG info
 
-  `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
-     if (ARG == 1) begin \
-       $write($time, INFO); \
-       for (i = 0; i <= 10; i = i + 1) begin \
-         $write($sformatf("%02x ", (i==ARG2?ARG3:registers[process_index][i]))); \
-       end \
-       $display(""); \
-     end
+/* DEBUG info */ `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
+/* DEBUG info */     if (ARG == 1) begin \
+/* DEBUG info */       $write($time, INFO); \
+/* DEBUG info */       for (i = 0; i <= 10; i = i + 1) begin \
+/* DEBUG info */         $write($sformatf("%02x ", (i==ARG2?ARG3:registers[process_index][i]))); \
+/* DEBUG info */       end \
+/* DEBUG info */       $display(""); \
+/* DEBUG info */     end
 
-  `define SHOW_MMU_DEBUG \
-     if (`MMU_CHANGES_DEBUG == 1) begin \
-       $write($time, " mmu "); \
-       for (i = 0; i <= 10; i = i + 1) begin \
-         if (mmu_start_process_segment == i && mmu_logical_pages_memory[i]!=0) $write("s"); \
-         if (mmu_chain_memory[i] == i && mmu_logical_pages_memory[i]!=0) $write("e"); \
-         $write($sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])); \
-       end \
-       $display(""); \
-     end
+/* DEBUG info */  `define SHOW_MMU_DEBUG \
+/* DEBUG info */     if (`MMU_CHANGES_DEBUG == 1) begin \
+/* DEBUG info */       $write($time, " mmu "); \
+/* DEBUG info */       for (i = 0; i <= 10; i = i + 1) begin \
+/* DEBUG info */         if (mmu_start_process_segment == i && mmu_logical_pages_memory[i]!=0) $write("s"); \
+/* DEBUG info */         if (mmu_chain_memory[i] == i && mmu_logical_pages_memory[i]!=0) $write("e"); \
+/* DEBUG info */         $write($sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])); \
+/* DEBUG info */       end \
+/* DEBUG info */       $display(""); \
+/* DEBUG info */     end
 
-  `define SHOW_TASK_INFO(ARG) \
-     if (`TASK_SWITCHER_DEBUG == 1) begin \
-          $write($time, " ",ARG," pc ", address_pc[process_index]); \
-          $display( \
-              " ",ARG," process seg/addr ", mmu_start_process_segment, process_start_address[process_index], \
-              " process index ", process_index \
-          ); \
-        end
+/* DEBUG info */  `define SHOW_TASK_INFO(ARG) \
+/* DEBUG info */     if (`TASK_SWITCHER_DEBUG == 1) begin \
+/* DEBUG info */          $write($time, " ",ARG," pc ", address_pc[process_index]); \
+/* DEBUG info */          $display( \
+/* DEBUG info */              " ",ARG," process seg/addr ", mmu_start_process_segment, process_start_address[process_index], \
+/* DEBUG info */              " process index ", process_index \
+/* DEBUG info */          ); \
+/* DEBUG info */        end
 
   //offsets for process info
   `define ADDRESS_NEXT_PROCESS 0
