@@ -708,7 +708,7 @@ module stage1 (
         stage <= `STAGE_TASK_SWITCHER;
         task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
         new_process_index <= 0;
-      end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV2) begin //int setup
+      end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV2) begin //int and int_ret setup
         //int process -> next = current process -> next
         addra <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
         if (mmu_next_start_process_address == process_start_address[process_index]) begin
@@ -776,7 +776,7 @@ module stage1 (
         dia <= dob;
         stage <= `STAGE_TASK_SWITCHER;
         task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
-      end else if (stage == `STAGE_INT_PROCESS) begin
+      end else if (stage == `STAGE_INT_PROCESS) begin //int & int_ret
         mmu_next_start_process_address <= dob;
         //prev -> next = int process
         wea <= 1;
