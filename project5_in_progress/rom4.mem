@@ -1,13 +1,13 @@
 //example with creating two extra separate processes, removing one of them
 //and setting another one as interrupt handler (+ calling it)
-0000 0000 //next process address (no MMU)
+0000 0000 //next process address (no MMU) overwritten by CPU
 0000 0000
-0000 0000 //PC for this process
+0000 0000 //PC for this process overwritten by CPU
 0000 0000
-0000 0000 //registers used
+0000 0000 //registers used (currently ignored)
 0000 0000
 0000 0000
-0000 0000 //registers
+0000 0000 //registers taken "as is"
 0000 0000
 0000 0000
 0000 0000
@@ -36,14 +36,14 @@
 010E 0030 //jmp 0x30
 0A0B 0000
 0A0B 0000
-0000 0000 //next process address (no MMU)
+0000 0000 //next process address (no MMU) overwritten by CPU
 0000 0000
-002e 0000 //PC for this process
+002e 0000 //PC for this process taken "as is"
 0102 0304
-0000 0000 //registers used
+0000 0000 //registers used (currently ignored)
 0000 0000
 0000 0000
-0000 0000 //registers
+0000 0000 //registers taken "as is"
 0000 0000
 0000 0000
 0000 0000
@@ -72,14 +72,14 @@ FFFF 0000
 010E 0000
 0A0B 0000
 0C0D 0000
-0000 0000 //next process address (no MMU)
+0000 0000 //next process address (no MMU) overwritten by CPU
 0000 0000
-002e 0000 //PC for this process
+002e 0000 //PC for this process taken "as is"
 0000 0000
-0000 0000 //registers used
+0000 0000 //registers used (currently ignored)
 0000 0000
 0000 0000
-0000 0000 //registers
+0000 0000 //registers taken "as is"
 0000 0000
 0000 0000
 0000 0000
