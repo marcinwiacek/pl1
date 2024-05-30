@@ -825,7 +825,7 @@ module simple_dual_two_clocks (
   reg [15:0] ram[0:`RAM_SIZE];
 
   initial begin  //DEBUG info
-    $readmemh("~/my/pl1/4/project5_in_progress/rom4.mem", ram);  //DEBUG info
+    $readmemh("rom4.mem", ram);  //DEBUG info
   end  //DEBUG info
 
   always @(posedge clka) begin
