@@ -10,3 +10,6 @@ It means for example:
 Notes:
 
 1. Vivado required changing **-flatten_hierarchy** from **rebuilt** to **full** in some moment in **Project Settings** \ **Synthesis** (note: last working commit with old setting 26 May 22:34)
+2. Simulation -> Synthesis -> Implementation. Project 3 was good enough for some simulations
+(not in Vivado), this project is good for Simulation & Synthesis, time for something
+processed correctly in Vivado Implementation. Time for project 6.

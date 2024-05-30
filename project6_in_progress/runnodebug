@@ -1,0 +1,13 @@
+#creates cpu project without debug and start it
+#
+#sudo apt install iverilog gtkwave
+rm ./cpu 2> /dev/null
+rm ./cpu.vcd 2> /dev/null
+sed '/DEBUG info/d' cpu.sv | cat -s > cpunodebug.sv
+sed '/DEBUG info/d' cpu_test.sv > cpunodebug_test.sv
+iverilog -g2005-sv -o cpu cpunodebug.sv cpunodebug_test.sv
+vvp cpu
+#gtkwave cpu.vcd &
+rm ./cpu
+rm ./cpu.vcd
+rm ./cpunodebug_test.sv
