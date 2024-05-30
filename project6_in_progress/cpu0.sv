@@ -15,7 +15,8 @@
 
 module cpu (
     input btnc,
-    clk
+    clk,
+    output tx
 );
 
   //RAM
@@ -35,6 +36,7 @@ module cpu (
   );
 
   stage1 stage1 (
+      .tx (tx),
       .clka (clk),
       .clkb (clk),
       .rst  (btnc),
@@ -52,6 +54,7 @@ module stage1 (
     clkb,
     rst,
     output reg        ena,
+    tx,
     output reg [ 9:0] addra,
     addrb,
     output reg [15:0] dia,
@@ -230,7 +233,7 @@ module stage1 (
       //page found, we can create translated address and exit.
       if (stage == `STAGE_MMU_TRANSLATE_A) begin
         addra <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE; //FIXME: bits moving and concatenation
-        ena <= 1;
+     //eeeeeeena <= 1;
       end else begin
         addrb <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE;
       end
@@ -265,8 +268,8 @@ module stage1 (
       if (mmu_logical_index_new == 0 && mmu_physical_index_old == mmu_start_process_segment) begin
         //value found in current process chain
         mmu_stage <= `MMU_STAGE_FOUND;
-      end else if (mmu_physical_index_old != mmu_start_process_segment && 
-      mmu_logical_pages_memory[mmu_physical_index_old]==mmu_logical_index_new) begin
+      end else if (mmu_physical_index_old != mmu_start_process_segment) begin 
+    // &&  mmu_logical_pages_memory[mmu_physical_index_old]==mmu_logical_index_new) begin
         //value found in current process chain
         mmu_stage <= `MMU_STAGE_FOUND;
       end else if (mmu_chain_memory[mmu_physical_index_old] == mmu_physical_index_old) begin
@@ -290,8 +293,8 @@ module stage1 (
           $display($time, " mmu new page ");  //DEBUG info
           mmu_changes_debug <= 1;  //DEBUG info
         end  //DEBUG info
-        mmu_chain_memory[mmu_last_process_segment] <= mmu_index_start;
-        mmu_chain_memory[mmu_index_start] <= 0;
+   //mmmmmmmmu_chain_memory[mmu_last_process_segment] <= mmu_index_start;
+     //mmmmmmmu_chain_memory[mmu_index_start] <= 0;
         mmu_logical_pages_memory[mmu_index_start] <= mmu_logical_index_new;
         mmu_physical_index_old <= mmu_index_start;
         mmu_stage <= `MMU_STAGE_FOUND;
@@ -302,11 +305,12 @@ module stage1 (
     end
   end
 
+
   //separating process
   always @(mmu_separate_process_segment) begin
     if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
       $display($time, " traversing ", mmu_separate_process_segment);  //DEBUG info
-    `SHOW_MMU_DEBUG  //DEBUG info
+   // `SHOW_MMU_DEBUG  //DEBUG info
     if (mmu_logical_pages_memory[mmu_separate_process_segment] == inst_address_num) begin
       if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
         $display($time, " first ", mmu_separate_process_segment);  //DEBUG info
@@ -343,7 +347,7 @@ module stage1 (
 
   //deleting process
   always @(mmu_delete_process_segment) begin
-    mmu_logical_pages_memory[mmu_delete_process_segment] = 0;
+ //   mmu_logical_pages_memory[mmu_delete_process_segment] = 0;
     mmu_index_start = mmu_delete_process_segment - 1;
     `SHOW_MMU_DEBUG  //DEBUG info
     if (mmu_chain_memory[mmu_delete_process_segment] != mmu_delete_process_segment) begin
@@ -355,6 +359,7 @@ module stage1 (
       task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
     end
   end
+
 
   //reset
   always @(posedge rst) begin
@@ -443,12 +448,14 @@ module stage1 (
 
   //main processing
   always @(stage) begin
+    tx<=stage;
+  
     if (stage == `STAGE_MMU_TRANSLATE_A || stage == `STAGE_MMU_TRANSLATE_B) begin
       if (mmu_changes_debug == 1) begin  //DEBUG info
         `SHOW_MMU_DEBUG  //DEBUG info
       end  //DEBUG info
       mmu_changes_debug <= 0;  //DEBUG info
-      mmu_logical_index_new <= mmu_input_addr / `MMU_PAGE_SIZE; //FIXME: it's enough just to take concrete bits
+  //    mmu_logical_index_new <= mmu_input_addr / `MMU_PAGE_SIZE; //FIXME: it's enough just to take concrete bits //required
       mmu_stage <= `MMU_STAGE_SEARCH;
     end else if (stage == `STAGE_READ_PC1_REQUEST) begin
       if (inst_op == `OPCODE_INT) begin
@@ -505,7 +512,7 @@ module stage1 (
                  " to address ",  //DEBUG info
                  inst_address_num);  //DEBUG info
         if (inst_address_num >= `ADDRESS_PROGRAM) begin
-          dia <= registers[process_index][inst_reg_num];
+         // dia <= registers[process_index][inst_reg_num]; //temp.disabled
           mmu_input_addr <= inst_address_num;
           stage_after_mmu <= `STAGE_SAVE_REG2RAM;
           stage <= `STAGE_MMU_TRANSLATE_A;
@@ -516,9 +523,9 @@ module stage1 (
         $display(" opcode = proc ", inst_reg_num,  //DEBUG info
                  " memory segments starting from segment ",  //DEBUG info
                  inst_address_num);  //DEBUG info
-        if (mmu_start_process_segment == mmu_separate_process_segment) begin  //DEBUG info
-          $display("error");  //DEBUG info
-        end  //DEBUG info
+     //   if (mmu_start_process_segment == mmu_separate_process_segment) begin  //DEBUG info
+       //   $display("error");  //DEBUG info
+        //end  //DEBUG info
         mmu_separate_process_segment <= 0;
         stage <= `STAGE_SEPARATE_PROCESS;
         mmu_new_process_start_point_segment <= mmu_start_process_segment;
@@ -528,14 +535,16 @@ module stage1 (
       end else if (inst_op == `OPCODE_EXIT) begin
         $display(" opcode = exit ");  //DEBUG info
         if (mmu_start_process_segment != mmu_prev_start_process_segment) begin
-          mmu_delete_process_segment <= mmu_start_process_segment;
+      //    mmu_delete_process_segment <= mmu_start_process_segment;
           stage <= `STAGE_DELETE_PROCESS;
         end
       end else if (inst_op == `OPCODE_REG_INT) begin
         $display(" opcode = reg_int ", inst_reg_num);  //DEBUG info
-        //setup int table
-        int_process_start_segment[inst_reg_num] <= mmu_start_process_segment;
-        int_pc[inst_reg_num] <= address_pc[process_index];
+     
+         //setup int table
+          //  int_process_start_segment[inst_reg_num] <= mmu_start_process_segment; //required.fixme
+            int_pc[inst_reg_num] <= address_pc[process_index];
+       
         //read next pc
         addrb <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
         task_switcher_stage <= `SWITCHER_STAGE_READ_NEW_PROCESS_ADDR;
@@ -648,7 +657,7 @@ module stage1 (
       //we need save data from cache to RAM. First PC
       addra <= process_start_address[process_index == `MAX_PROCESS_CACHE_INDEX ? 0 : process_index + 1] + `ADDRESS_PC;
       dia <= address_pc[process_index == `MAX_PROCESS_CACHE_INDEX ? 0 : process_index + 1];
-      ena <= 1;
+ //     ena <= 1;
       task_switcher_stage <= `SWITCHER_STAGE_SAVE_PC;
     end else if (task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES1 || task_switcher_stage == `SWITCHER_STAGE_SEARCH_IN_TABLES2) begin
       new_process_index <= new_process_index + 1;
@@ -658,7 +667,7 @@ module stage1 (
   //writing to RAM
   always @(posedge clka) begin
     if (stage == `STAGE_SAVE_REG2RAM) begin
-      ena   <= 0;
+ //eeeeena <= 0;
       stage <= `STAGE_READ_PC1_REQUEST;
     end else if (stage == `STAGE_TASK_SWITCHER) begin
       if (task_switcher_stage == `SWITCHER_STAGE_SAVE_PC) begin
@@ -666,12 +675,12 @@ module stage1 (
                         registers[process_index][0])  //DEBUG info
         `SHOW_TASK_INFO("old")  //DEBUG info
         addra <= process_start_address[process_index] + `ADDRESS_REG;
-        dia <= registers[process_index][0];
+     //   dia <= registers[process_index][0]; //fixme
         task_switcher_stage <= `SWITCHER_STAGE_SAVE_REG_0;
       end else if (task_switcher_stage >= `SWITCHER_STAGE_SAVE_REG_0 && 
         task_switcher_stage < `SWITCHER_STAGE_SAVE_REG_31) begin
         addra <= addra + 1;
-        dia <= registers[process_index][task_switcher_stage-`SWITCHER_STAGE_SAVE_REG_0];
+       // dia <= registers[process_index][task_switcher_stage-`SWITCHER_STAGE_SAVE_REG_0]; //fixme
         task_switcher_stage <= task_switcher_stage + 1;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SAVE_REG_31) begin
         //we saved everything. We can read new process info into cache.
@@ -686,28 +695,29 @@ module stage1 (
         if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
           $display($time, " new process next data value = ", dia, " address ", addra);  //DEBUG info
         addra <= process_start_address[process_index] + `ADDRESS_NEXT_PROCESS;
-        dia <= mmu_new_process_start_point_segment * `MMU_PAGE_SIZE;
+     //   dia <= mmu_new_process_start_point_segment * `MMU_PAGE_SIZE; //fixme
         task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_OLD) begin //setup done during task split
         if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
           $display($time, " old process next data value = ", dia, " address ", addra);  //DEBUG info
-        ena   <= 0;
+  //      ena   <= 0;
         stage <= `STAGE_READ_PC1_REQUEST;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV) begin
+        mmu_start_process_segment <= mmu_prev_start_process_segment; //moved. can be wrong.
         //switch to new process
         //we have next process address already in mmu_next_start_process_address
-        ena <= 0;
+       // ena <= 0;
         stage <= `STAGE_TASK_SWITCHER;
         task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
         new_process_index <= 0;
       end else if (task_switcher_stage == `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV2) begin //int and int_ret setup
         //int process -> next = current process -> next
         addra <= int_process_start_segment[inst_reg_num] * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
-        if (mmu_next_start_process_address == process_start_address[process_index]) begin
-          dia <= int_process_start_segment[inst_reg_num] * `MMU_PAGE_SIZE;
-        end else begin
-          dia <= mmu_next_start_process_address;
-        end
+      //  if (mmu_next_start_process_address == process_start_address[process_index]) begin
+      //    dia <= int_process_start_segment[inst_reg_num] * `MMU_PAGE_SIZE;
+      //  end else begin
+      //    dia <= mmu_next_start_process_address;
+      //  end
         //to force jumping
         mmu_next_start_process_address <= int_process_start_segment[inst_reg_num] * `MMU_PAGE_SIZE;
         //replace
@@ -753,27 +763,27 @@ module stage1 (
         mmu_next_start_process_address <= dob;
         task_switcher_stage <= `SWITCHER_STAGE_SEARCH_IN_TABLES1;
         new_process_index <= 0;
-      end else if (stage == `STAGE_REG_INT_PROCESS || stage == `STAGE_DELETE_PROCESS) begin
+      end else if (stage == `STAGE_REG_INT_PROCESS || stage == `STAGE_DELETE_PROCESS) begin        
         mmu_next_start_process_address <= dob;
-        mmu_start_process_segment <= mmu_prev_start_process_segment;
-        ena <= 1;
+       // mmu_start_process_segment <= mmu_prev_start_process_segment;
+      //  ena <= 1;
         addra <= mmu_prev_start_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
-        dia <= dob;
+       // dia <= dob; //fixme
         stage <= `STAGE_TASK_SWITCHER;
         task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV;
       end else if (stage == `STAGE_SEPARATE_PROCESS) begin
         mmu_next_start_process_address <= dob;
-        ena <= 1;
+      //  ena <= 1;
         addra <= mmu_separate_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
-        dia <= dob;
+       // dia <= dob; //fixme
         stage <= `STAGE_TASK_SWITCHER;
         task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_NEW;
       end else if (stage == `STAGE_INT_PROCESS) begin //int & int_ret
         mmu_next_start_process_address <= dob;
         //prev -> next = int process
-        ena <= 1;
+     //   ena <= 1;
         addra <= mmu_prev_start_process_segment * `MMU_PAGE_SIZE + `ADDRESS_NEXT_PROCESS;
-        dia <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE;
+        //dia <= int_process_start_segment[inst_address_num] * `MMU_PAGE_SIZE; //fixme
         stage <= `STAGE_TASK_SWITCHER;
         task_switcher_stage <= `SWITCHER_STAGE_SETUP_NEW_PROCESS_ADDR_PREV2;
       end
@@ -814,9 +824,9 @@ module simple_dual_two_clocks (
 
   reg [15:0] ram[0:`RAM_SIZE];
 
- // initial begin  //DEBUG info
-//    $readmemh("rom4.mem", ram);  //DEBUG info
-//  end  //DEBUG info
+  initial begin  //DEBUG info
+    $readmemh("~/my/pl1/4/project5_in_progress/rom4.mem", ram);  //DEBUG info
+  end  //DEBUG info
 
   always @(posedge clka) begin
     if (ena) begin
