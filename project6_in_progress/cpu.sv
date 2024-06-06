@@ -1,11 +1,11 @@
 `timescale 1ns / 1ps
 
 //options below are less important than options higher //DEBUG info
-`define WRITE_RAM_DEBUG 0 //1 enabled, 0 disabled //DEBUG info
-`define READ_RAM_DEBUG 0 //1 enabled, 0 disabled //DEBUG info
+`define WRITE_RAM_DEBUG 1 //1 enabled, 0 disabled //DEBUG info
+`define READ_RAM_DEBUG 1 //1 enabled, 0 disabled //DEBUG info
 `define REG_CHANGES_DEBUG 1 //1 enabled, 0 disabled //DEBUG info
 `define MMU_CHANGES_DEBUG 1 //1 enabled, 0 disabled //DEBUG info
-`define MMU_TRANSLATION_DEBUG 0 //1 enabled, 0 disabled //DEBUG info
+`define MMU_TRANSLATION_DEBUG 1 //1 enabled, 0 disabled //DEBUG info
 `define TASK_SWITCHER_DEBUG 1 //1 enabled, 0 disabled //DEBUG info
 `define TASK_SPLIT_DEBUG 1 //1 enabled, 0 disabled //DEBUG info
 
@@ -274,8 +274,6 @@ module stage1 (
   end
 */
 
-
-
   `define OPCODE_JMP 1     //256 or register num for first 16-bits of the address, 16 bit address
   `define OPCODE_RAM2REG 2 //register num, 16 bit source addr //ram -> reg
   `define OPCODE_REG2RAM 3 //register num, 16 bit source addr //reg -> ram
@@ -298,11 +296,13 @@ module stage1 (
   `define OPCODE_FREE 20 //free ram pages x-y //todo
   `define OPCODE_FREE_LEVEL 21 //free ram pages allocated after page x (or pages with concrete level) //todo
 
+reg rst_done=0;
+
   //main processing
   always @(stage, ram_save_ready, ram_read_ready, rst, mmu_stage) begin
     tx <= stage;
-
-    if (mmu_stage == `MMU_STAGE_SEARCH) begin
+    
+    if (mmu_stage == `MMU_STAGE_SEARCH) begin //searching for MMU page
       if (`MMU_TRANSLATION_DEBUG == 1)  //DEBUG info
         $display(  //DEBUG info
             $time,  //DEBUG info
@@ -324,16 +324,18 @@ module stage1 (
         mmu_logical_index_old <= mmu_logical_index_new;
         mmu_stage <= `MMU_STAGE_SEARCH2;
       end
-    end else if (mmu_stage == `MMU_STAGE_FOUND) begin
-      //page found, we can create translated address and exit.
+    end else if (mmu_stage == `MMU_STAGE_FOUND) begin //page found, we can create translated address and exit.
       if (stage == `STAGE_MMU_TRANSLATE_A) begin
         addra <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE; //FIXME: bits moving and concatenation
         wea <= 1;
       end else begin
         addrb <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE;
       end
-      stage <= stage_after_mmu;
       mmu_stage <= `MMU_STAGE_WAIT;
+      stage <= stage_after_mmu;
+        $display(  //DEBUG info
+            $time,  //DEBUG info
+      stage_after_mmu);
       if (`MMU_TRANSLATION_DEBUG == 1)  //DEBUG info
         $display(  //DEBUG info
             $time,  //DEBUG info
@@ -354,8 +356,7 @@ module stage1 (
         `SHOW_MMU_DEBUG  //DEBUG info
       end  //DEBUG info
       mmu_changes_debug <= 0;  //DEBUG info
-    end else if (mmu_stage == `MMU_STAGE_SEARCH2) begin
-      //searching in the process memory and exiting with translated address or switching to searching free memory
+    end else if (mmu_stage == `MMU_STAGE_SEARCH2) begin //searching in the process memory and exiting with translated address or switching to searching free memory
       if (mmu_logical_index_new == 0 && mmu_physical_index_old == mmu_start_process_segment) begin
         //value found in current process chain
         mmu_stage <= `MMU_STAGE_FOUND;
@@ -373,9 +374,7 @@ module stage1 (
         mmu_physical_index_old <= mmu_chain_memory[mmu_physical_index_old];
         mmu_logical_index_old <= mmu_logical_pages_memory[mmu_chain_memory[mmu_physical_index_old]];
       end
-    end else if (mmu_stage == `MMU_STAGE_SEARCH3) begin
-      //allocating new memory for process
-
+    end else if (mmu_stage == `MMU_STAGE_SEARCH3) begin //allocating new memory for process
       if (mmu_logical_pages_memory[mmu_index_start] == 0) begin
         //we have free memory page. Let's allocate it and add to process chain
         if (`MMU_CHANGES_DEBUG == 1) begin  //DEBUG info
@@ -391,9 +390,6 @@ module stage1 (
         //FIXME: support for lack of free memory
         mmu_index_start <= mmu_index_start + 1;
       end
-
-
-
     end else if (ram_save_ready == 1) begin
       if (stage == `STAGE_SAVE_REG2RAM) begin
         wea   <= 0;
@@ -698,7 +694,8 @@ module stage1 (
             loop_counter_max[process_index] <= 0;
           end
         end
-      end else if (rst == 1) begin
+      end else if (rst == 1 && rst_done == 0) begin
+      rst_done <=1;
         enb <= 1;
         ena <= 1;
 
@@ -755,8 +752,8 @@ module stage1 (
 
         //    mmu_suspend_list_start_process_segment_active <= 0;
 
-        mmu_stage <= `MMU_STAGE_WAIT;
         mmu_changes_debug <= 1;  //DEBUG info
+        mmu_stage <= `MMU_STAGE_WAIT;
         task_switcher_stage <= `SWITCHER_STAGE_WAIT;
         stage <= `STAGE_READ_PC1_REQUEST;
       end
@@ -839,7 +836,7 @@ module simple_dual_two_clocks (
   reg [15:0] ram[0:`RAM_SIZE];
 
   initial begin  //DEBUG info
-    $readmemh("rom4.mem", ram);  //DEBUG info
+    $readmemh("rom3.mem", ram);  //DEBUG info
   end  //DEBUG info
 
   always @(posedge clka) begin

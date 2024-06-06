@@ -6,8 +6,9 @@ reg rst;
 reg ram_clk_read=0;
 reg ram_clk_write=1;
 reg sim_end; //DEBUG info
+reg x;
 
-cpu cpu(.rst(rst), .clkb(ram_clk_read), .clka(ram_clk_write));
+cpu cpu(.btnc(rst), .clk(ram_clk_read), .tx(x));
 
 always #1 ram_clk_read = ~ram_clk_read;
 always #1 ram_clk_write = ~ram_clk_write;
