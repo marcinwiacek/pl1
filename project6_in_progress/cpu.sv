@@ -298,56 +298,11 @@ module stage1 (
   `define OPCODE_FREE 20 //free ram pages x-y //todo
   `define OPCODE_FREE_LEVEL 21 //free ram pages allocated after page x (or pages with concrete level) //todo
 
-  reg mmu_start;
-  reg mmu_ready;
-  reg mmu_init;
+  //main processing
+  always @(stage, ram_save_ready, ram_read_ready, rst, mmu_stage) begin
+    tx <= stage;
 
-  always @(mmu_init, mmu_start, mmu_stage) begin
-    if (mmu_init == 1 && mmu_stage != `MMU_STAGE_WAIT) begin
-      mmu_prev_start_process_segment <= 0;
-      mmu_start_process_segment <= 0;
-      mmu_index_start <= 0;
-
-      mmu_chain_memory[0] <= 0;
-      //problem: we shouldn't mix blocking and non-blocking
-      for (
-          mmu_logical_index_new = 0;
-          mmu_logical_index_new < `MMU_MAX_INDEX;
-          mmu_logical_index_new = mmu_logical_index_new + 1
-      ) begin
-        //value 0 means, that it's empty. in every process on first entry we setup something != 0 and ignore it
-        // (first process page is always from segment 0)
-        mmu_logical_pages_memory[mmu_logical_index_new] <= 0;
-      end
-      mmu_logical_pages_memory[0] <= 1;
-
-      //    some more complicated config used for testing //DEBUG info
-      //    mmu_chain_memory[0] <= 1;  //DEBUG info
-      //    mmu_chain_memory[1] <= 1;  //DEBUG info
-      //    mmu_logical_pages_memory[1] <= 1;  //DEBUG info
-
-      //some more complicated config used for testing //DEBUG info
-      mmu_chain_memory[0] <= 5;  //DEBUG info
-      mmu_chain_memory[5] <= 2;  //DEBUG info
-      mmu_chain_memory[2] <= 1;  //DEBUG info
-      mmu_chain_memory[1] <= 1;  //DEBUG info
-      mmu_logical_pages_memory[5] <= 3;  //DEBUG info
-      mmu_logical_pages_memory[2] <= 2;  //DEBUG info
-      mmu_logical_pages_memory[1] <= 1;  //DEBUG info
-
-      //    mmu_suspend_list_start_process_segment_active <= 0;
-
-      mmu_stage <= `MMU_STAGE_WAIT;
-      mmu_changes_debug <= 1;  //DEBUG info
-    end else if (mmu_start == 1 && mmu_stage == `MMU_STAGE_WAIT) begin
-      if (mmu_changes_debug == 1) begin  //DEBUG info
-        `SHOW_MMU_DEBUG  //DEBUG info
-      end  //DEBUG info
-      mmu_changes_debug <= 0;  //DEBUG info
-      mmu_logical_index_new <= mmu_input_addr / `MMU_PAGE_SIZE; //FIXME: it's enough just to take concrete bits
-      mmu_stage <= `MMU_STAGE_SEARCH;
-    end else if (mmu_stage == `MMU_STAGE_SEARCH) begin
-      mmu_ready <= 0;
+    if (mmu_stage == `MMU_STAGE_SEARCH) begin
       if (`MMU_TRANSLATION_DEBUG == 1)  //DEBUG info
         $display(  //DEBUG info
             $time,  //DEBUG info
@@ -371,6 +326,14 @@ module stage1 (
       end
     end else if (mmu_stage == `MMU_STAGE_FOUND) begin
       //page found, we can create translated address and exit.
+      if (stage == `STAGE_MMU_TRANSLATE_A) begin
+        addra <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE; //FIXME: bits moving and concatenation
+        wea <= 1;
+      end else begin
+        addrb <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE;
+      end
+      stage <= stage_after_mmu;
+      mmu_stage <= `MMU_STAGE_WAIT;
       if (`MMU_TRANSLATION_DEBUG == 1)  //DEBUG info
         $display(  //DEBUG info
             $time,  //DEBUG info
@@ -391,8 +354,6 @@ module stage1 (
         `SHOW_MMU_DEBUG  //DEBUG info
       end  //DEBUG info
       mmu_changes_debug <= 0;  //DEBUG info
-      mmu_ready <= 1;
-      mmu_stage <= `MMU_STAGE_WAIT;
     end else if (mmu_stage == `MMU_STAGE_SEARCH2) begin
       //searching in the process memory and exiting with translated address or switching to searching free memory
       if (mmu_logical_index_new == 0 && mmu_physical_index_old == mmu_start_process_segment) begin
@@ -414,6 +375,7 @@ module stage1 (
       end
     end else if (mmu_stage == `MMU_STAGE_SEARCH3) begin
       //allocating new memory for process
+
       if (mmu_logical_pages_memory[mmu_index_start] == 0) begin
         //we have free memory page. Let's allocate it and add to process chain
         if (`MMU_CHANGES_DEBUG == 1) begin  //DEBUG info
@@ -429,21 +391,9 @@ module stage1 (
         //FIXME: support for lack of free memory
         mmu_index_start <= mmu_index_start + 1;
       end
-    end
-  end
 
-  //main processing
-  always @(stage, ram_save_ready, ram_read_ready, rst, mmu_ready) begin
-    tx <= stage;
-    if (mmu_ready == 1 && (stage == `STAGE_MMU_TRANSLATE_A || stage == `STAGE_MMU_TRANSLATE_B)) begin
-      mmu_start <= 0;
-      if (stage == `STAGE_MMU_TRANSLATE_A) begin
-        addra <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE; //FIXME: bits moving and concatenation
-        wea <= 1;
-      end else begin
-        addrb <= mmu_physical_index_old * `MMU_PAGE_SIZE + mmu_input_addr % `MMU_PAGE_SIZE;
-      end
-      stage <= stage_after_mmu;
+
+
     end else if (ram_save_ready == 1) begin
       if (stage == `STAGE_SAVE_REG2RAM) begin
         wea   <= 0;
@@ -585,8 +535,12 @@ module stage1 (
       end
     end else begin
       if (stage == `STAGE_MMU_TRANSLATE_A || stage == `STAGE_MMU_TRANSLATE_B) begin
-        mmu_init  <= 0;
-        mmu_start <= 1;
+        if (mmu_changes_debug == 1) begin  //DEBUG info
+          `SHOW_MMU_DEBUG  //DEBUG info
+        end  //DEBUG info
+        mmu_changes_debug <= 0;  //DEBUG info
+        mmu_logical_index_new <= mmu_input_addr / `MMU_PAGE_SIZE; //FIXME: it's enough just to take concrete bits
+        mmu_stage <= `MMU_STAGE_SEARCH;
       end else if (stage == `STAGE_READ_PC1_REQUEST) begin
         if (inst_op == `OPCODE_INT) begin
           address_pc[process_index] <= int_pc[inst_address_num];
@@ -768,7 +722,41 @@ module stage1 (
         loop_counter[0] <= 0;
         loop_counter_max[0] <= 0;
         process_start_address[0] <= 0;
+        mmu_prev_start_process_segment <= 0;
+        mmu_start_process_segment <= 0;
+        mmu_index_start <= 0;
 
+        mmu_chain_memory[0] <= 0;
+        //problem: we shouldn't mix blocking and non-blocking
+        for (
+            mmu_logical_index_new = 0;
+            mmu_logical_index_new < `MMU_MAX_INDEX;
+            mmu_logical_index_new = mmu_logical_index_new + 1
+        ) begin
+          //value 0 means, that it's empty. in every process on first entry we setup something != 0 and ignore it
+          // (first process page is always from segment 0)
+          mmu_logical_pages_memory[mmu_logical_index_new] <= 0;
+        end
+        mmu_logical_pages_memory[0] <= 1;
+
+        //    some more complicated config used for testing //DEBUG info
+        //    mmu_chain_memory[0] <= 1;  //DEBUG info
+        //    mmu_chain_memory[1] <= 1;  //DEBUG info
+        //    mmu_logical_pages_memory[1] <= 1;  //DEBUG info
+
+        //some more complicated config used for testing //DEBUG info
+        mmu_chain_memory[0] <= 5;  //DEBUG info
+        mmu_chain_memory[5] <= 2;  //DEBUG info
+        mmu_chain_memory[2] <= 1;  //DEBUG info
+        mmu_chain_memory[1] <= 1;  //DEBUG info
+        mmu_logical_pages_memory[5] <= 3;  //DEBUG info
+        mmu_logical_pages_memory[2] <= 2;  //DEBUG info
+        mmu_logical_pages_memory[1] <= 1;  //DEBUG info
+
+        //    mmu_suspend_list_start_process_segment_active <= 0;
+
+        mmu_stage <= `MMU_STAGE_WAIT;
+        mmu_changes_debug <= 1;  //DEBUG info
         task_switcher_stage <= `SWITCHER_STAGE_WAIT;
         stage <= `STAGE_READ_PC1_REQUEST;
       end
