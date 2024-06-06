@@ -218,7 +218,7 @@ module stage1 (
   reg [15:0] mmu_separate_process_segment;
   reg [15:0] mmu_delete_process_segment;
 
-/*
+  /*
   //separating process
   always @(mmu_separate_process_segment) begin
     if (`TASK_SPLIT_DEBUG == 1)  //DEBUG info
@@ -301,8 +301,8 @@ module stage1 (
   //main processing
   always @(stage, ram_save_ready, ram_read_ready, rst, mmu_stage) begin
     tx <= stage;
-    
-     if (mmu_stage == `MMU_STAGE_SEARCH) begin
+
+    if (mmu_stage == `MMU_STAGE_SEARCH) begin
       if (`MMU_TRANSLATION_DEBUG == 1)  //DEBUG info
         $display(  //DEBUG info
             $time,  //DEBUG info
@@ -321,7 +321,7 @@ module stage1 (
       end else begin
         //start searching page
         mmu_physical_index_old <= mmu_start_process_segment;
-        mmu_logical_index_old  <= mmu_logical_index_new;
+        mmu_logical_index_old <= mmu_logical_index_new;
         mmu_stage <= `MMU_STAGE_SEARCH2;
       end
     end else if (mmu_stage == `MMU_STAGE_FOUND) begin
@@ -374,7 +374,7 @@ module stage1 (
         mmu_logical_index_old <= mmu_logical_pages_memory[mmu_chain_memory[mmu_physical_index_old]];
       end
     end else if (mmu_stage == `MMU_STAGE_SEARCH3) begin
-    //allocating new memory for process
+      //allocating new memory for process
 
       if (mmu_logical_pages_memory[mmu_index_start] == 0) begin
         //we have free memory page. Let's allocate it and add to process chain
@@ -391,7 +391,7 @@ module stage1 (
         //FIXME: support for lack of free memory
         mmu_index_start <= mmu_index_start + 1;
       end
-    
+
 
 
     end else if (ram_save_ready == 1) begin
