@@ -26,15 +26,15 @@ module cpu (
   wire [7:0] dob;
 
   simple_dual_two_clocks simple_dual_two_clocks (
-      .clka(clk),
-      .clkb(clk),
-      .ena(ena),
-      .enb(enb),
-      .wea(wea),
+      .clka (clk),
+      .clkb (clk),
+      .ena  (ena),
+      .enb  (enb),
+      .wea  (wea),
       .addra(addra),
       .addrb(addrb),
-      .dia(dia),
-      .dob(dob)
+      .dia  (dia),
+      .dob  (dob)
   );
 
   stage1 stage1 (
@@ -105,68 +105,57 @@ module stage1 (
   `define ADDRESS_REG 14*2
   `define ADDRESS_PROGRAM `ADDRESS_REG+32*2
 
-  reg [10:0] stage;
   reg [16:0] pc;
-  reg [7:0] instruction [3:0];
-  
+  reg [10:0] fetcher_stage;
+  reg [ 7:0] fetcher_instruction[3:0];
+
   `define STAGE_READ_PC1_REQUEST 0
   `define STAGE_READ_PC2_REQUEST 1
   `define STAGE_READ_PC3_REQUEST 2
   `define STAGE_READ_PC4_REQUEST 3
 
-reg decoder_data_ready;
- reg decoder_working = 0;
-  reg [7:0] decoder_instruction [3:0];
-    
-  //fetcher
+  reg decoder_data_ready;
+  reg decoder_working = 0;
+  reg [7:0] decoder_instruction[3:0];
+
+  //fetcher and memory reader
   always @(posedge rst, negedge clkb) begin
     if (rst == 1) begin
       addrb <= `ADDRESS_PROGRAM;
       pc <= `ADDRESS_PROGRAM;
-      stage <= 0;
+      fetcher_stage <= 0;
       enb <= 1;
     end else if (clkb == 0) begin
-      $display($time, " reading ", dob, " from ", (addrb), " ", pc, " ", stage, " ", rst);
-      instruction[stage] <= dob;
-      addrb <= pc + 1;
-      pc <= pc + 1;
-      stage <= stage == 3 ? 0 : stage + 1;
-      //fixme: jump instructions
-      tx <= dob;
-      if (stage == 3) begin
-        if (decoder_working == 0) begin
-            decoder_instruction[0] <= instruction[0];
-            decoder_instruction[1] <= instruction[1];
-            decoder_instruction[2] <= instruction[2];
-            decoder_instruction[3] <= instruction[3];
-            decoder_data_ready <= 1;
-        end
-      end else if (stage==0) begin
-        decoder_data_ready <= 0;
-      end
+      if (fetcher_stage != 3 || decoder_working == 0) begin
+          $display($time, " reading ", dob, " from ", (addrb), " ", pc, " ", fetcher_stage, " ", rst);
+          fetcher_instruction[fetcher_stage] <= dob;
+          addrb <= pc + 1;
+          pc <= pc + 1;
+          fetcher_stage <= fetcher_stage == 3 ? 0 : fetcher_stage + 1;
+          //fixme: jump instructions
+          tx <= dob;
+          if (fetcher_stage == 3) begin
+            if (decoder_working == 0) begin
+              decoder_instruction[0] <= fetcher_instruction[0];
+              decoder_instruction[1] <= fetcher_instruction[1];
+              decoder_instruction[2] <= fetcher_instruction[2];
+              decoder_instruction[3] <= dob;
+              decoder_data_ready <= 1;
+            end
+          end else if (fetcher_stage == 0) begin
+            decoder_data_ready <= 0;
+          end
+	end
     end
   end
-  
 
-  
-  always @(negedge decoder_working) begin
-    if (stage == 3) begin
-       
-            decoder_instruction[0] <= instruction[0];
-            decoder_instruction[1] <= instruction[1];
-            decoder_instruction[2] <= instruction[2];
-            decoder_instruction[3] <= instruction[3];
-            decoder_data_ready <= 1;
-       
-      end
-  end
-  
+  //decoder
   always @(posedge decoder_data_ready) begin
-      decoder_working <= 1;
-      $display($time, " decoding ");
-      decoder_working <= 0;
+    decoder_working <= 1;
+    $display($time, " decoding ", decoder_instruction[0]," ",decoder_instruction[1]," ",decoder_instruction[2]," ",decoder_instruction[3]);
+    $display($time, " decoding end ");
+    decoder_working <= 0;
   end
-
 endmodule
 
 // Simple Dual-Port Block RAM with Two Clocks
@@ -202,7 +191,7 @@ module simple_dual_two_clocks (
     if (enb) begin
       dob <= ram[addrb];
       if (`READ_RAM_DEBUG == 1)  //DEBUG info
-        $display($time, " reading1 ", ram[addrb], " from ", addrb, " ",clkb);  //DEBUG info
+        $display($time, " reading1 ", ram[addrb], " from ", addrb, " ", clkb);  //DEBUG info
     end
   end
 endmodule

@@ -3,41 +3,41 @@
 01 10 02 20 //next process address (no MMU) overwritten by CPU
 03 30 04 40
 00 00 00 00 //PC for this process overwritten by CPU
-0000 0000
-0000 0000 //registers used (currently ignored)
-0000 0000
-0000 0000
-0000 0000 //registers taken "as is"
-0000 0000
-0000 0000
-0000 0000
-0000 0000
-0000 0000
-0000 0000
-0000 0000
-0000 0000
-0000 0000
-0000 0000
-0000 0000
-0000 0000
-0000 0000
-0000 0000
-0000 0000
-0c01 0001 //proc
-0c01 0002 //proc
-0402 0003 //num2reg
-0902 0002 //loop with cache: loopeqvalue
-0602 0001 //regminusnum
-0602 0000 //regminusnum
-0201 0001 //after loop: ram2reg
-0401 0005 //num2reg
-0301 0046 //reg2ram
-0F00 0002 //int 2
-010E 0030 //jmp 0x30
-0A0B 0000
-0A0B 0000
-0000 0000 //next process address (no MMU) overwritten by CPU
-0000 0000
+00 00 00 00
+00 00 00 00 //registers used (currently ignored)
+00 00 00 00
+00 00 00 00
+00 00 00 00 //registers taken "as is"
+00 00 00 00
+00 00 00 00
+00 00 00 00
+00 00 00 00
+00 00 00 00
+00 00 00 00
+00 00 00 00
+00 00 00 00
+00 00 00 00
+00 00 00 00
+00 00 00 00
+00 00 00 00
+00 00 00 00
+00 00 00 00
+00 00 00 00
+0c 01 00 01 //proc
+0c 01 00 02 //proc
+04 02 00 03 //num2reg
+09 02 00 02 //loop with cache: loopeqvalue
+06 02 00 01 //regminusnum
+06 02 00 00 //regminusnum
+02 01 00 01 //after loop: ram2reg
+04 01 00 05 //num2reg
+03 01 00 46 //reg2ram
+0F 00 00 02 //int 2
+01 0E 00 30 //jmp 0x30
+0A 0B 00 00
+0A 0B 00 00
+00 00 00 00 //next process address (no MMU) overwritten by CPU
+00 00 00 00
 002e 0000 //PC for this process taken "as is"
 0102 0304
 0000 0000 //registers used (currently ignored)
@@ -107,3 +107,4 @@ FFFF 0000
 0301 0046 //reg2ram
 010E 0030 //jmp 0x30
 0A0B 0000
+
