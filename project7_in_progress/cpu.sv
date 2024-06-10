@@ -100,33 +100,71 @@ module stage1 (
 
   //offsets for process info
   `define ADDRESS_NEXT_PROCESS 0
-  `define ADDRESS_PC 4
-  `define ADDRESS_REG_USED 8
-  `define ADDRESS_REG 14
-  `define ADDRESS_PROGRAM `ADDRESS_REG+32
+  `define ADDRESS_PC 4*2
+  `define ADDRESS_REG_USED 8*2
+  `define ADDRESS_REG 14*2
+  `define ADDRESS_PROGRAM `ADDRESS_REG+32*2
 
   reg [10:0] stage;
   reg [16:0] pc;
-  reg [ 1:0] ram_ready;
+  reg [7:0] instruction [3:0];
+  
+  `define STAGE_READ_PC1_REQUEST 0
+  `define STAGE_READ_PC2_REQUEST 1
+  `define STAGE_READ_PC3_REQUEST 2
+  `define STAGE_READ_PC4_REQUEST 3
 
-  `define STAGE_READ_PC1_REQUEST 1
-  `define STAGE_READ_PC2_REQUEST 2
-  `define STAGE_READ_PC3_REQUEST 3
-  `define STAGE_READ_PC4_REQUEST 4
-
+reg decoder_data_ready;
+ reg decoder_working = 0;
+  reg [7:0] decoder_instruction [3:0];
+    
+  //fetcher
   always @(posedge rst, negedge clkb) begin
     if (rst == 1) begin
-      addrb <= 0;
-      pc <= 0;
-      stage <= 1;
+      addrb <= `ADDRESS_PROGRAM;
+      pc <= `ADDRESS_PROGRAM;
+      stage <= 0;
       enb <= 1;
     end else if (clkb == 0) begin
       $display($time, " reading ", dob, " from ", (addrb), " ", pc, " ", stage, " ", rst);
-      addrb <= pc == 5 ? 0 : pc + 1;
-      stage <= stage == 4 ? 1 : stage + 1;
-      pc <= pc == 5 ? 0 : pc + 1;
+      instruction[stage] <= dob;
+      addrb <= pc + 1;
+      pc <= pc + 1;
+      stage <= stage == 3 ? 0 : stage + 1;
+      //fixme: jump instructions
       tx <= dob;
+      if (stage == 3) begin
+        if (decoder_working == 0) begin
+            decoder_instruction[0] <= instruction[0];
+            decoder_instruction[1] <= instruction[1];
+            decoder_instruction[2] <= instruction[2];
+            decoder_instruction[3] <= instruction[3];
+            decoder_data_ready <= 1;
+        end
+      end else if (stage==0) begin
+        decoder_data_ready <= 0;
+      end
     end
+  end
+  
+
+  
+  always @(negedge decoder_working) begin
+    if (stage == 3) begin
+       
+            decoder_instruction[0] <= instruction[0];
+            decoder_instruction[1] <= instruction[1];
+            decoder_instruction[2] <= instruction[2];
+            decoder_instruction[3] <= instruction[3];
+            decoder_data_ready <= 1;
+       
+      end
+  end
+  
+  always @(posedge decoder_data_ready) begin
+      decoder_working <= 1;
+      $display($time, " decoding ");
+      decoder_working <= 0;
   end
 
 endmodule
