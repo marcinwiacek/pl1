@@ -130,15 +130,16 @@ module stage1_fetcher (
   `define STAGE_READ_PC4_REQUEST 3
 
   always @(read_read_address, rst, decoder_new_pc) begin
+    if ((rst == 1 && rst_done == 1)||(decoder_new_pc_set == 1 && pc != decoder_new_pc)) begin
+      fetcher_stage <= 0;
+    end
     if (rst == 1 && rst_done == 1) begin
       rst_done <= 0;
       $display($time, " rst");
       pc <= `ADDRESS_PROGRAM;
-      fetcher_stage <= 0;
       read_address <= `ADDRESS_PROGRAM;
     end else if (decoder_new_pc_set == 1 && pc != decoder_new_pc) begin
       pc <= decoder_new_pc;
-      fetcher_stage <= 0;
       read_address <= decoder_new_pc;
       $display($time, " changing address to ", decoder_new_pc, " ", pc);
     end else if (read_read_address == read_address && (fetcher_stage != 3 || decoder_working == 0)) begin
