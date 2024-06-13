@@ -55,24 +55,21 @@ module cpu (
     output tx
 );
 
-  wire [7:0] decoder_instruction1, decoder_instruction2, decoder_instruction3, decoder_instruction4;
-  wire decoder_data_ready;
-  wire decoder_working;
-
-  //ram
-  wire [9:0] read_address;
+  wire [9:0] read_address, read_read_address;
   wire [7:0] read_value;
-  wire read_working;
 
   ram ram (
       .clk(clk),
       .rst(btnc),
       .read_address(read_address),
-      .read_value(read_value),
-      .read_working(read_working)
+      .read_read_address(read_read_address),
+      .read_value(read_value)
   );
 
-  stage1 fetch (
+  wire [7:0] decoder_instruction1, decoder_instruction2, decoder_instruction3, decoder_instruction4;
+  wire decoder_data_ready, decoder_working;
+
+  stage1_fetcher fetch (
       .tx(tx),
       .rst(btnc),
       .decoder_instruction1(decoder_instruction1),
@@ -82,23 +79,23 @@ module cpu (
       .decoder_data_ready(decoder_data_ready),
       .decoder_working(decoder_working),
       .read_address(read_address),
-      .read_value(read_value),
-      .read_working(read_working)
+      .read_read_address(read_read_address),
+      .read_value(read_value)
   );
 
-  stage2 decode (
+  stage2_decoder decode (
       .instruction1(decoder_instruction1),
       .instruction2(decoder_instruction2),
       .instruction3(decoder_instruction3),
       .instruction4(decoder_instruction4),
       .data_ready(decoder_data_ready),
-      .working(decoder_working)
+      .working(decoder_working),
+      .rst(rst)
   );
 
 endmodule
 
-//fetcher and memory reader
-module stage1 (
+module stage1_fetcher (
     output reg [7:0] decoder_instruction1,
     decoder_instruction2,
     decoder_instruction3,
@@ -106,106 +103,108 @@ module stage1 (
     output reg       decoder_data_ready,
     input            decoder_working,
     output reg [9:0] read_address,
+    input      [9:0] read_read_address,
     input      [7:0] read_value,
-    input            read_working,
     input            rst,
     output reg       tx
 );
 
   integer i;  //DEBUG info
 
-  reg [16:0] pc;
+  reg [9:0] pc;
   reg [10:0] fetcher_stage;
   reg [7:0] fetcher_instruction[3:0];
+  reg rst_done = 1;
 
   `define STAGE_READ_PC1_REQUEST 0
   `define STAGE_READ_PC2_REQUEST 1
   `define STAGE_READ_PC3_REQUEST 2
   `define STAGE_READ_PC4_REQUEST 3
 
-  always @(rst, read_working) begin
-    if (rst == 1) begin
+  always @(read_read_address, rst) begin
+    if (rst == 1 && rst_done == 1) begin
+      rst_done <= 0;
       $display($time, " rst");
       pc <= `ADDRESS_PROGRAM;
       fetcher_stage <= 0;
       read_address <= `ADDRESS_PROGRAM;
-    end else if (read_working == 0) begin
-      if (fetcher_stage != 3 || decoder_working == 0) begin
-        $display($time, " reading ", read_value, " from ", read_address, " ", pc, " ",
-                 fetcher_stage, " ", rst);
-        fetcher_instruction[fetcher_stage] <= read_value;
-        read_address <= pc + 1;
-        pc <= pc + 1;
-        fetcher_stage <= fetcher_stage == 3 ? 0 : fetcher_stage + 1;
-        //fixme: jump instructions
-        tx <= read_value;
-        if (fetcher_stage == 3) begin
-          if (decoder_working == 0) begin
-            decoder_instruction1 <= fetcher_instruction[0];
-            decoder_instruction2 <= fetcher_instruction[1];
-            decoder_instruction3 <= fetcher_instruction[2];
-            decoder_instruction4 <= read_value;
-            decoder_data_ready   <= 1;
-          end
-        end else if (fetcher_stage == 0) begin
-          decoder_data_ready <= 0;
+    end else if (read_read_address == read_address && (fetcher_stage != 3 || decoder_working == 0)) begin
+      $display($time, " reading ", read_value, " from ", read_address, " ", pc, " ", fetcher_stage,
+               " ", rst);
+      fetcher_instruction[fetcher_stage] <= read_value;
+      read_address <= pc + 1;
+      pc <= pc + 1;
+      fetcher_stage <= fetcher_stage == 3 ? 0 : fetcher_stage + 1;
+      //fixme: jump instructions
+      tx <= read_value;
+      if (fetcher_stage == 3) begin
+        if (decoder_working == 0) begin
+          decoder_instruction1 <= fetcher_instruction[0];
+          decoder_instruction2 <= fetcher_instruction[1];
+          decoder_instruction3 <= fetcher_instruction[2];
+          decoder_instruction4 <= read_value;
+          decoder_data_ready   <= 1;
         end
+      end else if (fetcher_stage == 0) begin
+        decoder_data_ready <= 0;
       end
     end
   end
 
 endmodule
 
-//decode
-module stage2 (
+module stage2_decoder (
     input [7:0] instruction1,
     instruction2,
     instruction3,
     instruction4,
     input data_ready,
-    output reg working = 0
+    output reg working,
+    input rst
 );
 
+  reg working2 = 0;
+
+  assign working = working2;
+
   always @(posedge data_ready) begin
-    working <= 1;
+    working2 <= 1;
     $display($time, " decoding ", instruction1, " ", instruction2, " ", instruction3, " ",
              instruction4);
     $display($time, " decoding end ");
-    working <= 0;
+    working2 <= 0;
   end
 
 endmodule
 
 module mmu (
-    input [15:0] address_to_decode,
-    output reg [15:0] address_decoded,
+    input [9:0] address_to_decode,
+    output reg [9:0] address_decoded,
     input rst
 );
 
   integer i;
 
-  reg [11:0] mmu_chain_memory[0:4095];  //values = next physical segment index for process (last entry = the same entry)
-  reg [11:0] mmu_logical_pages_memory[0:4095];  //values = logical process page assigned to physical segment; 0 means empty page
-  //(in existing processes we setup value > 0 for first page with logical index 0 and ignore it)
+  reg [11:0] mmu_chain_memory[0:4095];  //next physical segment index for process (last entry = the same entry)
+  reg [11:0] mmu_logical_pages_memory[0:4095];  //logical process page assigned to physical segment (0 means empty page, we setup value > 0 for first page with logical index 0 and ignore it)
   reg [11:0] mmu_start_process_physical_segment;  //needs to be updated on process switch
   reg [11:0] mmu_logical_seg;
   reg [11:0] mmu_old_physical_segment;
-  reg mmu_search = 0;
-  reg mmu_init = 0;
+  reg mmu_search = 0, rst_done = 0;
 
   always @(address_to_decode, rst, mmu_old_physical_segment) begin
-    if (rst == 1 && mmu_init == 0) begin
-      mmu_init = 1;
-      mmu_start_process_physical_segment = 0;
+    if (rst == 1 && rst_done == 0) begin
+      rst_done <= 1;
+      mmu_start_process_physical_segment <= 0;
 
-      mmu_chain_memory[0] = 0;
+      mmu_chain_memory[0] <= 0;
       //problem: we shouldn't mix blocking and non-blocking
-      for (i = 0; i < 4095; i = i + 1) begin
+      for (i = 0; i < 4096; i = i + 1) begin
         //value 0 means, that it's empty. in every process on first entry we setup something != 0 and ignore it
         // (first process page is always from segment 0)
-        mmu_logical_pages_memory[i] = 0;
+        mmu_logical_pages_memory[i] <= 0;
       end
-      mmu_logical_pages_memory[0] = 1;
+      mmu_logical_pages_memory[0] <= 1;
 
       //    some more complicated config used for testing //DEBUG info
       //    mmu_chain_memory[0] <= 1;  //DEBUG info
@@ -213,29 +212,30 @@ module mmu (
       //    mmu_logical_pages_memory[1] <= 1;  //DEBUG info
 
       //some more complicated config used for testing //DEBUG info
-      mmu_chain_memory[0] = 5;  //DEBUG info
-      mmu_chain_memory[5] = 2;  //DEBUG info
-      mmu_chain_memory[2] = 1;  //DEBUG info
-      mmu_chain_memory[1] = 1;  //DEBUG info
-      mmu_logical_pages_memory[5] = 3;  //DEBUG info
-      mmu_logical_pages_memory[2] = 2;  //DEBUG info
-      mmu_logical_pages_memory[1] = 1;  //DEBUG info
-
-      `SHOW_MMU_DEBUG
+      mmu_chain_memory[0] <= 5;  //DEBUG info
+      mmu_chain_memory[5] <= 2;  //DEBUG info
+      mmu_chain_memory[2] <= 1;  //DEBUG info
+      mmu_chain_memory[1] <= 1;  //DEBUG info
+      mmu_logical_pages_memory[5] <= 3;  //DEBUG info
+      mmu_logical_pages_memory[2] <= 2;  //DEBUG info
+      mmu_logical_pages_memory[1] <= 1;  //DEBUG info     
     end else if (mmu_search == 1) begin
+      `SHOW_MMU_DEBUG
       if (mmu_logical_seg == mmu_logical_pages_memory[mmu_old_physical_segment]) begin
         address_decoded <= mmu_old_physical_segment * `MMU_PAGE_SIZE + address_to_decode % `MMU_PAGE_SIZE;
         mmu_search <= 0;
+      end else if (mmu_old_physical_segment == mmu_chain_memory[mmu_old_physical_segment]) begin
+        $display($time, " error");
       end else begin
         mmu_old_physical_segment <= mmu_chain_memory[mmu_old_physical_segment];
       end
-    end else begin
-      mmu_logical_seg = address_to_decode / `MMU_PAGE_SIZE;
-      if (mmu_logical_seg == 0) begin
-        address_decoded = address_to_decode;
+    end else if (mmu_search == 0) begin
+      mmu_logical_seg <= address_to_decode / `MMU_PAGE_SIZE;
+      if (address_to_decode / `MMU_PAGE_SIZE == 0) begin
+        address_decoded <= mmu_start_process_physical_segment * `MMU_PAGE_SIZE + address_to_decode % `MMU_PAGE_SIZE;
       end else begin
-        mmu_search = 1;
-        mmu_old_physical_segment = mmu_chain_memory[mmu_start_process_physical_segment];
+        mmu_search <= 1;
+        mmu_old_physical_segment <= mmu_chain_memory[mmu_start_process_physical_segment];
       end
     end
   end
@@ -245,12 +245,11 @@ module ram (
     input rst,
     input clk,
     input [9:0] read_address,
-    output reg [7:0] read_value,
-    output reg read_working = 1
+    output reg [9:0] read_read_address,
+    output reg [7:0] read_value
 );
 
-  reg [15:0] address_to_decode;
-  reg [15:0] address_decoded;
+  reg [9:0] address_to_decode, address_decoded;
 
   mmu mmu (
       .address_to_decode(address_to_decode),
@@ -258,13 +257,9 @@ module ram (
       .rst(rst)
   );
 
-  reg ena;
-  reg enb;
-  reg wea;
-  reg [9:0] addra;
-  reg [9:0] addrb;
-  reg [7:0] dia;
-  reg [7:0] dob;
+  reg ena,enb,wea;
+  reg [9:0] addra,addrb;
+  reg [7:0] dia, dob;
 
   simple_dual_two_clocks ram (
       .clka (clk),
@@ -278,6 +273,8 @@ module ram (
       .dob  (dob)
   );
 
+  reg [9:0] addrbb;
+
   always @(posedge rst) begin
     enb <= 1;
   end
@@ -287,20 +284,24 @@ module ram (
   end
 
   always @(address_decoded) begin
-    addrb <= address_decoded;
+    addrb  <= address_decoded;
+    addrbb <= address_to_decode;
   end
 
-  always @(clk) begin
-    if (clk == 1) begin
-      read_working <= 1;
-    end else begin
-      read_value   <= dob;
-      read_working <= 0;
+  reg read_available = 1;
+
+  always @(posedge clk) begin
+    read_available <= !(addrbb == read_address);
+  end
+
+  always @(negedge clk) begin
+    if (read_available == 0 && addrbb == read_address) begin
+      read_value <= dob;
+      read_read_address <= address_to_decode;
     end
   end
 
 endmodule
-
 
 // Simple Dual-Port Block RAM with Two Clocks
 // simple_dual_two_clocks.v
