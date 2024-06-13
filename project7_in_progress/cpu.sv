@@ -55,6 +55,7 @@ module cpu (
     output tx
 );
 
+
   wire [9:0] read_address, read_read_address;
   wire [7:0] read_value;
 
@@ -67,7 +68,8 @@ module cpu (
   );
 
   wire [7:0] decoder_instruction1, decoder_instruction2, decoder_instruction3, decoder_instruction4;
-  wire decoder_data_ready, decoder_working;
+  wire decoder_data_ready, decoder_working, decoder_new_pc_set;
+  wire [9:0] decoder_new_pc;
 
   stage1_fetcher fetch (
       .tx(tx),
@@ -80,7 +82,9 @@ module cpu (
       .decoder_working(decoder_working),
       .read_address(read_address),
       .read_read_address(read_read_address),
-      .read_value(read_value)
+      .read_value(read_value),
+      .decoder_new_pc(decoder_new_pc),
+      .decoder_new_pc_set(decoder_new_pc_set)
   );
 
   stage2_decoder decode (
@@ -90,7 +94,9 @@ module cpu (
       .instruction4(decoder_instruction4),
       .data_ready(decoder_data_ready),
       .working(decoder_working),
-      .rst(rst)
+      .rst(rst),
+      .decoder_new_pc(decoder_new_pc),
+      .decoder_new_pc_set(decoder_new_pc_set)
   );
 
 endmodule
@@ -106,7 +112,9 @@ module stage1_fetcher (
     input      [9:0] read_read_address,
     input      [7:0] read_value,
     input            rst,
-    output reg       tx
+    output reg       tx,
+    input      [9:0] decoder_new_pc,
+    input            decoder_new_pc_set
 );
 
   integer i;  //DEBUG info
@@ -121,21 +129,24 @@ module stage1_fetcher (
   `define STAGE_READ_PC3_REQUEST 2
   `define STAGE_READ_PC4_REQUEST 3
 
-  always @(read_read_address, rst) begin
+  always @(read_read_address, rst, decoder_new_pc) begin
     if (rst == 1 && rst_done == 1) begin
       rst_done <= 0;
       $display($time, " rst");
       pc <= `ADDRESS_PROGRAM;
       fetcher_stage <= 0;
       read_address <= `ADDRESS_PROGRAM;
+    end else if (decoder_new_pc_set == 1 && pc != decoder_new_pc) begin
+      pc <= decoder_new_pc;
+      fetcher_stage <= 0;
+      read_address <= decoder_new_pc;
+      $display($time, " changing address to ", decoder_new_pc, " ", pc);
     end else if (read_read_address == read_address && (fetcher_stage != 3 || decoder_working == 0)) begin
       $display($time, " reading ", read_value, " from ", read_address, " ", pc, " ", fetcher_stage,
                " ", rst);
       fetcher_instruction[fetcher_stage] <= read_value;
-      read_address <= pc + 1;
-      pc <= pc + 1;
+      read_address <= read_address + 1;
       fetcher_stage <= fetcher_stage == 3 ? 0 : fetcher_stage + 1;
-      //fixme: jump instructions
       tx <= read_value;
       if (fetcher_stage == 3) begin
         if (decoder_working == 0) begin
@@ -143,7 +154,8 @@ module stage1_fetcher (
           decoder_instruction2 <= fetcher_instruction[1];
           decoder_instruction3 <= fetcher_instruction[2];
           decoder_instruction4 <= read_value;
-          decoder_data_ready   <= 1;
+          decoder_data_ready <= 1;
+          pc <= pc + 4;
         end
       end else if (fetcher_stage == 0) begin
         decoder_data_ready <= 0;
@@ -153,6 +165,11 @@ module stage1_fetcher (
 
 endmodule
 
+`define OPCODE_JMP 1     //255 or register num for first 16-bits of the address, 16 bit address
+`define OPCODE_RAM2REG 2 //register num, 16 bit source addr //ram -> reg
+`define OPCODE_REG2RAM 3 //register num, 16 bit source addr //reg -> ram
+`define OPCODE_NUM2REG 4 //register num, 16 bit value //value -> reg
+
 module stage2_decoder (
     input [7:0] instruction1,
     instruction2,
@@ -160,8 +177,12 @@ module stage2_decoder (
     instruction4,
     input data_ready,
     output reg working,
-    input rst
+    input rst,
+    output reg [9:0] decoder_new_pc,
+    output reg decoder_new_pc_set
 );
+
+  reg [15:0] registers[0:31];  //64 8-bit registers * n=8 processes = 512 16-bit registers
 
   reg working2 = 0;
 
@@ -171,6 +192,19 @@ module stage2_decoder (
     working2 <= 1;
     $display($time, " decoding ", instruction1, " ", instruction2, " ", instruction3, " ",
              instruction4);
+    decoder_new_pc_set <= 0;
+    if (instruction1 == `OPCODE_JMP) begin
+      $display(" opcode = jmp to ", instruction3 * 256 + instruction4);  //DEBUG info
+      // if (instruction3 * 256 + instruction4 >= `ADDRESS_PROGRAM) begin
+      decoder_new_pc_set <= 1;
+      decoder_new_pc <= instruction3 * 256 + instruction4;
+      //  end
+    end else if (instruction1 == `OPCODE_NUM2REG) begin
+      $display(" opcode = num2reg value ", instruction3 * 256 + instruction4,
+               " to reg ",  //DEBUG info
+               instruction2);  //DEBUG info
+      registers[instruction2] <= instruction3 * 256 + instruction4;
+    end
     $display($time, " decoding end ");
     working2 <= 0;
   end
@@ -225,7 +259,7 @@ module mmu (
         address_decoded <= mmu_old_physical_segment * `MMU_PAGE_SIZE + address_to_decode % `MMU_PAGE_SIZE;
         mmu_search <= 0;
       end else if (mmu_old_physical_segment == mmu_chain_memory[mmu_old_physical_segment]) begin
-        $display($time, " error");
+        $display($time, " error"); //DEBUG info
       end else begin
         mmu_old_physical_segment <= mmu_chain_memory[mmu_old_physical_segment];
       end
@@ -257,8 +291,8 @@ module ram (
       .rst(rst)
   );
 
-  reg ena,enb,wea;
-  reg [9:0] addra,addrb;
+  reg ena, enb, wea;
+  reg [9:0] addra, addrb;
   reg [7:0] dia, dob;
 
   simple_dual_two_clocks ram (
