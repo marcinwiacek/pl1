@@ -56,65 +56,71 @@ module cpu (
 );
 
 
-  wire [9:0] read_address, read_read_address;
-  wire [7:0] read_value;
+  wire [9:0] read_address, read_read_address, read_address_executor, read_read_address_executor;
+  wire [7:0] read_value, read_value_executor;
 
   ram ram (
       .clk(clk),
       .rst(btnc),
       .read_address(read_address),
       .read_read_address(read_read_address),
-      .read_value(read_value)
+      .read_value(read_value),
+      .read_address_executor(read_address_executor),
+      .read_read_address_executor(read_read_address_executor),
+      .read_value_executor(read_value_executor)
   );
 
-  wire [7:0] decoder_instruction1, decoder_instruction2, decoder_instruction3, decoder_instruction4;
-  wire decoder_data_ready, decoder_working, decoder_new_pc_set;
-  wire [9:0] decoder_new_pc;
+  wire [7:0] executor_instruction1, executor_instruction2, executor_instruction3, executor_instruction4;
+  wire executor_data_ready, executor_working, executor_new_pc_set;
+  wire [9:0] executor_new_pc;
 
   stage1_fetcher fetch (
       .tx(tx),
       .rst(btnc),
-      .decoder_instruction1(decoder_instruction1),
-      .decoder_instruction2(decoder_instruction2),
-      .decoder_instruction3(decoder_instruction3),
-      .decoder_instruction4(decoder_instruction4),
-      .decoder_data_ready(decoder_data_ready),
-      .decoder_working(decoder_working),
+      .executor_instruction1(executor_instruction1),
+      .executor_instruction2(executor_instruction2),
+      .executor_instruction3(executor_instruction3),
+      .executor_instruction4(executor_instruction4),
+      .executor_data_ready(executor_data_ready),
+      .executor_working(executor_working),
       .read_address(read_address),
       .read_read_address(read_read_address),
       .read_value(read_value),
-      .decoder_new_pc(decoder_new_pc),
-      .decoder_new_pc_set(decoder_new_pc_set)
+      .executor_new_pc(executor_new_pc),
+      .executor_new_pc_set(executor_new_pc_set)
   );
 
-  stage2_decoder decode (
-      .instruction1(decoder_instruction1),
-      .instruction2(decoder_instruction2),
-      .instruction3(decoder_instruction3),
-      .instruction4(decoder_instruction4),
-      .data_ready(decoder_data_ready),
-      .working(decoder_working),
+  stage2_executor execute (
+      .instruction1(executor_instruction1),
+      .instruction2(executor_instruction2),
+      .instruction3(executor_instruction3),
+      .instruction4(executor_instruction4),
+      .data_ready(executor_data_ready),
+      .working(executor_working),
       .rst(rst),
-      .decoder_new_pc(decoder_new_pc),
-      .decoder_new_pc_set(decoder_new_pc_set)
+      .executor_new_pc(executor_new_pc),
+      .executor_new_pc_set(executor_new_pc_set),
+        .read_address(read_address_executor),
+      .read_read_address(read_read_address_executor),
+      .read_value(read_value_executor)
   );
 
 endmodule
 
 module stage1_fetcher (
-    output reg [7:0] decoder_instruction1,
-    decoder_instruction2,
-    decoder_instruction3,
-    decoder_instruction4,
-    output reg       decoder_data_ready,
-    input            decoder_working,
+    output reg [7:0] executor_instruction1,
+    executor_instruction2,
+    executor_instruction3,
+    executor_instruction4,
+    output reg       executor_data_ready,
+    input            executor_working,
     output reg [9:0] read_address,
     input      [9:0] read_read_address,
     input      [7:0] read_value,
     input            rst,
     output reg       tx,
-    input      [9:0] decoder_new_pc,
-    input            decoder_new_pc_set
+    input      [9:0] executor_new_pc,
+    input            executor_new_pc_set
 );
 
   integer i;  //DEBUG info
@@ -129,20 +135,15 @@ module stage1_fetcher (
   `define STAGE_READ_PC3_REQUEST 2
   `define STAGE_READ_PC4_REQUEST 3
 
-  always @(read_read_address, rst, decoder_new_pc) begin
-    if ((rst == 1 && rst_done == 1)||(decoder_new_pc_set == 1 && pc != decoder_new_pc)) begin
+  always @(read_read_address, rst, executor_new_pc) begin
+    if ((rst == 1 && rst_done == 1)||(executor_new_pc_set == 1 && pc != executor_new_pc)) begin
       fetcher_stage <= 0;
-    end
-    if (rst == 1 && rst_done == 1) begin
       rst_done <= 0;
+      $display($time, " changing address to ", executor_new_pc, " ", pc);
       $display($time, " rst");
-      pc <= `ADDRESS_PROGRAM;
-      read_address <= `ADDRESS_PROGRAM;
-    end else if (decoder_new_pc_set == 1 && pc != decoder_new_pc) begin
-      pc <= decoder_new_pc;
-      read_address <= decoder_new_pc;
-      $display($time, " changing address to ", decoder_new_pc, " ", pc);
-    end else if (read_read_address == read_address && (fetcher_stage != 3 || decoder_working == 0)) begin
+      pc <= rst == 1 && rst_done == 1 ? `ADDRESS_PROGRAM:executor_new_pc;
+      read_address <= rst == 1 && rst_done == 1 ? `ADDRESS_PROGRAM:executor_new_pc;
+    end else if (read_read_address == read_address && (fetcher_stage != 3 || executor_working == 0)) begin
       $display($time, " reading ", read_value, " from ", read_address, " ", pc, " ", fetcher_stage,
                " ", rst);
       fetcher_instruction[fetcher_stage] <= read_value;
@@ -150,16 +151,16 @@ module stage1_fetcher (
       fetcher_stage <= fetcher_stage == 3 ? 0 : fetcher_stage + 1;
       tx <= read_value;
       if (fetcher_stage == 3) begin
-        if (decoder_working == 0) begin
-          decoder_instruction1 <= fetcher_instruction[0];
-          decoder_instruction2 <= fetcher_instruction[1];
-          decoder_instruction3 <= fetcher_instruction[2];
-          decoder_instruction4 <= read_value;
-          decoder_data_ready <= 1;
+        if (executor_working == 0) begin
+          executor_instruction1 <= fetcher_instruction[0];
+          executor_instruction2 <= fetcher_instruction[1];
+          executor_instruction3 <= fetcher_instruction[2];
+          executor_instruction4 <= read_value;
+          executor_data_ready <= 1;
           pc <= pc + 4;
         end
       end else if (fetcher_stage == 0) begin
-        decoder_data_ready <= 0;
+        executor_data_ready <= 0;
       end
     end
   end
@@ -171,7 +172,7 @@ endmodule
 `define OPCODE_REG2RAM 3 //register num, 16 bit source addr //reg -> ram
 `define OPCODE_NUM2REG 4 //register num, 16 bit value //value -> reg
 
-module stage2_decoder (
+module stage2_executor (
     input [7:0] instruction1,
     instruction2,
     instruction3,
@@ -179,8 +180,11 @@ module stage2_decoder (
     input data_ready,
     output reg working,
     input rst,
-    output reg [9:0] decoder_new_pc,
-    output reg decoder_new_pc_set
+    output reg [9:0] executor_new_pc,
+    output reg executor_new_pc_set,
+      output reg [9:0] read_address,
+    input      [9:0] read_read_address,
+    input      [7:0] read_value
 );
 
   reg [15:0] registers[0:31];  //64 8-bit registers * n=8 processes = 512 16-bit registers
@@ -189,18 +193,28 @@ module stage2_decoder (
 
   assign working = working2;
 
+  always @(read_read_address) begin
+  end
+
   always @(posedge data_ready) begin
+    
     working2 <= 1;
     $display($time, " decoding ", instruction1, " ", instruction2, " ", instruction3, " ",
              instruction4);
-    decoder_new_pc_set <= 0;
+    executor_new_pc_set <= 0;
+   
     if (instruction1 == `OPCODE_JMP) begin
       $display(" opcode = jmp to ", instruction3 * 256 + instruction4);  //DEBUG info
       // if (instruction3 * 256 + instruction4 >= `ADDRESS_PROGRAM) begin
-      decoder_new_pc_set <= 1;
-      decoder_new_pc <= instruction3 * 256 + instruction4;
+      executor_new_pc_set <= 1;
+      executor_new_pc <= instruction3 * 256 + instruction4;
       //  end
-    end else if (instruction1 == `OPCODE_NUM2REG) begin
+    end else if (instruction1 == `OPCODE_RAM2REG) begin
+      $display(" opcode = ram2reg value from address ", instruction3 * 256 + instruction4,
+               " to reg ",  //DEBUG info
+               instruction2);  //DEBUG info
+       read_address <= instruction3 * 256 + instruction4;
+    end    else if (instruction1 == `OPCODE_NUM2REG) begin
       $display(" opcode = num2reg value ", instruction3 * 256 + instruction4,
                " to reg ",  //DEBUG info
                instruction2);  //DEBUG info
@@ -281,7 +295,10 @@ module ram (
     input clk,
     input [9:0] read_address,
     output reg [9:0] read_read_address,
-    output reg [7:0] read_value
+    output reg [7:0] read_value,
+     input [9:0] read_address_executor,
+    output reg [9:0] read_read_address_executor,
+    output reg [7:0] read_value_executor
 );
 
   reg [9:0] address_to_decode, address_decoded;
