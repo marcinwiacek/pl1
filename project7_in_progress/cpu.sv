@@ -52,17 +52,24 @@ integer i;  //DEBUG info
 `define ADDRESS_PROGRAM `ADDRESS_REG+32*2
 
 module cpu (
-    input  btnc,
-    clk,
-    output tx
+    input  clk,
+    output reg[7:0]  led
 );
 
   wire [9:0] read_address, read_read_address, read_address_executor, read_read_address_executor, save_address, save_save_address;
   wire [7:0] read_value, read_value_executor, save_value;
 
+reg rst = 1;
+initial begin
+#1
+rst = 0;
+
+ 
+end
+
   ram ram (
       .clk(clk),
-      .rst(btnc),
+      .rst(rst),
       .read_address(read_address),
       .read_read_address(read_read_address),
       .read_value(read_value),
@@ -79,8 +86,8 @@ module cpu (
   wire [9:0] executor_new_pc;
 
   stage1_fetcher fetch (
-      .tx(tx),
-      .rst(btnc),
+  
+      .rst(rst),
       .executor_instruction1(executor_instruction1),
       .executor_instruction2(executor_instruction2),
       .executor_instruction3(executor_instruction3),
@@ -109,14 +116,15 @@ module cpu (
       .read_value(read_value_executor),
       .save_value(save_value),
       .save_address(save_address),
-      .save_save_address(save_save_address)
+      .save_save_address(save_save_address),
+      .led(led)
   );
 
 endmodule
 
 module stage1_fetcher (
     input      rst,
-    output reg tx,
+  //  output reg tx,
 
     output reg [7:0] executor_instruction1,
     executor_instruction2,
@@ -157,7 +165,7 @@ module stage1_fetcher (
       fetcher_instruction[fetcher_stage] <= read_value;
       read_address <= read_address + 1;
       fetcher_stage <= fetcher_stage == 3 ? 0 : fetcher_stage + 1;
-      tx <= read_value;
+    //  tx <= read_value;
       if (fetcher_stage == 3) begin
         if (executor_working == 0) begin
           executor_instruction1 <= fetcher_instruction[0];
@@ -200,7 +208,9 @@ module stage2_executor (
 
     output reg [9:0] save_address,
     output reg [7:0] save_value,
-    input      [9:0] save_save_address
+    input      [9:0] save_save_address,
+    
+     output reg [7:0] led
 );
 
   reg [15:0] registers[0:31];  //64 8-bit registers * n=8 processes = 512 16-bit registers
@@ -215,6 +225,7 @@ module stage2_executor (
       save_processed <= 1;
       working2 <= 0;
     end else if (data_ready == 1) begin
+   
       working2 <= 1;
       $display($time, " decoding ", instruction1, " ", instruction2, " ", instruction3, " ",
                instruction4);
@@ -225,22 +236,29 @@ module stage2_executor (
         executor_new_pc <= instruction3 * 256 + instruction4;
         executor_new_pc_set <= 1;
         //  end
+                 led[1]<=1;
       end else if (instruction1 == `OPCODE_RAM2REG) begin
         $display(" opcode = ram2reg value from address ", instruction3 * 256 + instruction4,
                  " to reg ",  //DEBUG info
                  instruction2);  //DEBUG info
         // read_address <= instruction3 * 256 + instruction4;
+                         led[2]<=1;
       end else if (instruction1 == `OPCODE_REG2RAM) begin
         $display(" opcode = reg2ram save value ", registers[instruction2], " from register ",
                  instruction2, " to address ", instruction3 * 256 + instruction4);
         save_processed <= 0;
         save_value <= registers[instruction2];
         save_address <= instruction3 * 256 + instruction4;
+                                 led[3]<=1;
+
       end else if (instruction1 == `OPCODE_NUM2REG) begin
         $display(" opcode = num2reg value ", instruction3 * 256 + instruction4,
                  " to reg ",  //DEBUG info
                  instruction2);  //DEBUG info
         registers[instruction2] <= instruction3 * 256 + instruction4;
+                 led[4]<=1;
+                         led[6]<=1;
+
       end
       if (instruction1 != `OPCODE_REG2RAM) begin
         $display($time, " decoding end ");
@@ -266,10 +284,6 @@ module mmu (
   reg [11:0] mmu_chain_memory[0:4095];  //next physical segment index for process (last entry = the same entry)
   reg [11:0] mmu_logical_pages_memory[0:4095];  //logical process page assigned to physical segment (0 means empty page, we setup value > 0 for first page with logical index 0 and ignore it)
   reg [11:0] mmu_start_process_physical_segment;  //needs to be updated on process switch
-
-  reg [11:0] mmu_logical_seg, mmu_logical_seg2;
-  reg [11:0] mmu_old_physical_segment, mmu_old_physical_segment2;
-  reg mmu_search = 0, mmu_search2 = 0;
 
   reg rst_done = 0;
 
@@ -305,6 +319,37 @@ module mmu (
     end
   end
 
+  mmu_search mmu_search (
+      .address_to_decode(address_to_decode),
+      .address_decoded(address_decoded),
+      .mmu_chain_memory(mmu_chain_memory),
+      .mmu_logical_pages_memory(mmu_logical_pages_memory),
+      .mmu_start_process_physical_segment(mmu_start_process_physical_segment)
+  );
+
+  mmu_search mmu_search2 (
+      .address_to_decode(address_to_decode2),
+      .address_decoded(address_decoded2),
+      .mmu_chain_memory(mmu_chain_memory),
+      .mmu_logical_pages_memory(mmu_logical_pages_memory),
+      .mmu_start_process_physical_segment(mmu_start_process_physical_segment)
+  );
+
+endmodule
+
+module mmu_search (
+    input [9:0] address_to_decode,
+    output reg [9:0] address_decoded,
+    input [11:0] mmu_chain_memory[0:4095],
+    input [11:0] mmu_logical_pages_memory[0:4095],
+    input [11:0] mmu_start_process_physical_segment
+
+);
+
+  reg [11:0] mmu_logical_seg;
+  reg [11:0] mmu_old_physical_segment;
+  reg mmu_search = 0;
+
   always @(address_to_decode, mmu_old_physical_segment) begin
     if (mmu_search == 1) begin
       if (mmu_logical_seg == mmu_logical_pages_memory[mmu_old_physical_segment]) begin
@@ -326,27 +371,6 @@ module mmu (
     end
   end
 
-  always @(address_to_decode2, mmu_old_physical_segment2) begin
-    if (mmu_search2 == 1) begin
-      if (mmu_logical_seg2 == mmu_logical_pages_memory[mmu_old_physical_segment2]) begin
-        address_decoded2 <= mmu_old_physical_segment2 * `MMU_PAGE_SIZE + address_to_decode2 % `MMU_PAGE_SIZE;
-        mmu_search2 <= 0;
-      end else if (mmu_old_physical_segment2 == mmu_chain_memory[mmu_old_physical_segment2]) begin
-        $display($time, " error");  //DEBUG info
-      end else begin
-        mmu_old_physical_segment2 <= mmu_chain_memory[mmu_old_physical_segment2];
-      end
-    end else if (mmu_search2 == 0) begin
-      mmu_logical_seg2 <= address_to_decode2 / `MMU_PAGE_SIZE;
-      if (address_to_decode2 / `MMU_PAGE_SIZE == 0) begin
-        address_decoded2 <= mmu_start_process_physical_segment * `MMU_PAGE_SIZE + address_to_decode2 % `MMU_PAGE_SIZE;
-      end else begin
-        mmu_search2 <= 1;
-        mmu_old_physical_segment2 <= mmu_chain_memory[mmu_start_process_physical_segment];
-      end
-    end
-  end
-
 endmodule
 
 module ram (
@@ -363,7 +387,7 @@ module ram (
 
     input [9:0] save_address,
     output reg [9:0] save_save_address,
-    input reg [7:0] save_value
+    input  [7:0] save_value
 );
 
   reg [9:0] address_to_decode, address_decoded, address_to_decode2, address_decoded2;
@@ -452,11 +476,46 @@ module simple_dual_two_clocks (
     output reg [7:0] dob
 );
 
-  reg [7:0] ram[0:`RAM_SIZE];
+  reg [7:0] ram[0:135] = '{
+8'h01,8'h10,8'h02,8'h20, //next,8'hprocess,8'haddress,8'h(no,8'hMMU),8'hoverwritten,8'hby,8'hCPU
+8'h03,8'h30,8'h04,8'h40, 
+8'h00,8'h00,8'h00,8'h00, //PC,8'hfor,8'hthis,8'hprocess,8'hoverwritten,8'hby,8'hCPU
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00, //registers,8'hused,8'h(currently,8'hignored)
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00, //registers,8'htaken,8'h"as,8'his"
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h00,8'h00,8'h00,8'h00,
+8'h0c,8'h01,8'h00,8'h01, //proc
+8'h0c,8'h01,8'h00,8'h02, //proc
+8'h04,8'h02,8'h00,8'h03, //num2reg
+8'h09,8'h02,8'h00,8'h02, //loop,8'hwith,8'hcache:,8'hloopeqvalue
+8'h06,8'h02,8'h00,8'h01, //regminusnum
+8'h06,8'h02,8'h00,8'h00, //regminusnum
+8'h02,8'h01,8'h00,8'h01, //after,8'hloop:,8'hram2reg
+8'h04,8'h01,8'h00,8'h05, //num2reg
+8'h03,8'h01,8'h00,8'h46, //reg2ram
+8'h0F,8'h00,8'h00,8'h02, //int,8'h2
+8'h01,8'h0E,8'h00,8'h30 //jmp,8'h0x30
+  };
 
-  initial begin  //DEBUG info
-    $readmemh("rom4.mem", ram);  //DEBUG info
-  end  //DEBUG info
+ // initial begin  //DEBUG info
+  //  $readmemh("rom4.mem", ram);  //DEBUG info
+ // end  //DEBUG info
 
   always @(posedge clka) begin
     if (ena) begin

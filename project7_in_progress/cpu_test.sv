@@ -9,7 +9,11 @@ reg sim_end; //DEBUG info
 reg tx;
 reg vivado = 1;
 
-cpu cpu(.btnc(rst), .clk(ram_clk_read), .tx(tx));
+reg [7:0]led;
+
+cpu cpu( .clk(ram_clk_read), 
+//.tx(tx),
+.led(led));
 
 always #1 ram_clk_read = ~ram_clk_read;
 //always #1 ram_clk_write = ~ram_clk_write;
