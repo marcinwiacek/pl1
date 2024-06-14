@@ -13,6 +13,8 @@
 `define RAM_SIZE 32767*2
 `define MMU_MAX_INDEX 455 //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 
+integer i;  //DEBUG info
+
 /* DEBUG info */ `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
 /* DEBUG info */     if (ARG == 1) begin \
 /* DEBUG info */       $write($time, INFO); \
@@ -55,9 +57,8 @@ module cpu (
     output tx
 );
 
-
-  wire [9:0] read_address, read_read_address, read_address_executor, read_read_address_executor;
-  wire [7:0] read_value, read_value_executor;
+  wire [9:0] read_address, read_read_address, read_address_executor, read_read_address_executor, save_address, save_save_address;
+  wire [7:0] read_value, read_value_executor, save_value;
 
   ram ram (
       .clk(clk),
@@ -67,7 +68,10 @@ module cpu (
       .read_value(read_value),
       .read_address_executor(read_address_executor),
       .read_read_address_executor(read_read_address_executor),
-      .read_value_executor(read_value_executor)
+      .read_value_executor(read_value_executor),
+      .save_value(save_value),
+      .save_address(save_address),
+      .save_save_address(save_save_address)
   );
 
   wire [7:0] executor_instruction1, executor_instruction2, executor_instruction3, executor_instruction4;
@@ -100,30 +104,34 @@ module cpu (
       .rst(rst),
       .executor_new_pc(executor_new_pc),
       .executor_new_pc_set(executor_new_pc_set),
-        .read_address(read_address_executor),
+      .read_address(read_address_executor),
       .read_read_address(read_read_address_executor),
-      .read_value(read_value_executor)
+      .read_value(read_value_executor),
+      .save_value(save_value),
+      .save_address(save_address),
+      .save_save_address(save_save_address)
   );
 
 endmodule
 
 module stage1_fetcher (
+    input      rst,
+    output reg tx,
+
     output reg [7:0] executor_instruction1,
     executor_instruction2,
     executor_instruction3,
     executor_instruction4,
     output reg       executor_data_ready,
     input            executor_working,
+
     output reg [9:0] read_address,
     input      [9:0] read_read_address,
     input      [7:0] read_value,
-    input            rst,
-    output reg       tx,
-    input      [9:0] executor_new_pc,
-    input            executor_new_pc_set
-);
 
-  integer i;  //DEBUG info
+    input [9:0] executor_new_pc,
+    input       executor_new_pc_set
+);
 
   reg [9:0] pc;
   reg [10:0] fetcher_stage;
@@ -136,13 +144,13 @@ module stage1_fetcher (
   `define STAGE_READ_PC4_REQUEST 3
 
   always @(read_read_address, rst, executor_new_pc) begin
-    if ((rst == 1 && rst_done == 1)||(executor_new_pc_set == 1 && pc != executor_new_pc)) begin
+    if ((rst == 1 && rst_done == 1) || (executor_new_pc_set == 1 && pc != executor_new_pc)) begin
       fetcher_stage <= 0;
       rst_done <= 0;
       $display($time, " changing address to ", executor_new_pc, " ", pc);
       $display($time, " rst");
-      pc <= rst == 1 && rst_done == 1 ? `ADDRESS_PROGRAM:executor_new_pc;
-      read_address <= rst == 1 && rst_done == 1 ? `ADDRESS_PROGRAM:executor_new_pc;
+      pc <= rst == 1 && rst_done == 1 ? `ADDRESS_PROGRAM : executor_new_pc;
+      read_address <= rst == 1 && rst_done == 1 ? `ADDRESS_PROGRAM : executor_new_pc;
     end else if (read_read_address == read_address && (fetcher_stage != 3 || executor_working == 0)) begin
       $display($time, " reading ", read_value, " from ", read_address, " ", pc, " ", fetcher_stage,
                " ", rst);
@@ -173,63 +181,84 @@ endmodule
 `define OPCODE_NUM2REG 4 //register num, 16 bit value //value -> reg
 
 module stage2_executor (
+    input rst,
+
+    input data_ready,
+    output reg working,
+
     input [7:0] instruction1,
     instruction2,
     instruction3,
     instruction4,
-    input data_ready,
-    output reg working,
-    input rst,
+
     output reg [9:0] executor_new_pc,
     output reg executor_new_pc_set,
-      output reg [9:0] read_address,
+
+    output reg [9:0] read_address,
     input      [9:0] read_read_address,
-    input      [7:0] read_value
+    input      [7:0] read_value,
+
+    output reg [9:0] save_address,
+    output reg [7:0] save_value,
+    input      [9:0] save_save_address
 );
 
   reg [15:0] registers[0:31];  //64 8-bit registers * n=8 processes = 512 16-bit registers
 
-  reg working2 = 0;
+  reg working2 = 0, save_processed = 1;
 
   assign working = working2;
 
-  always @(read_read_address) begin
-  end
-
-  always @(posedge data_ready) begin
-    
-    working2 <= 1;
-    $display($time, " decoding ", instruction1, " ", instruction2, " ", instruction3, " ",
-             instruction4);
-    executor_new_pc_set <= 0;
-   
-    if (instruction1 == `OPCODE_JMP) begin
-      $display(" opcode = jmp to ", instruction3 * 256 + instruction4);  //DEBUG info
-      // if (instruction3 * 256 + instruction4 >= `ADDRESS_PROGRAM) begin
-      executor_new_pc_set <= 1;
-      executor_new_pc <= instruction3 * 256 + instruction4;
-      //  end
-    end else if (instruction1 == `OPCODE_RAM2REG) begin
-      $display(" opcode = ram2reg value from address ", instruction3 * 256 + instruction4,
-               " to reg ",  //DEBUG info
-               instruction2);  //DEBUG info
-       read_address <= instruction3 * 256 + instruction4;
-    end    else if (instruction1 == `OPCODE_NUM2REG) begin
-      $display(" opcode = num2reg value ", instruction3 * 256 + instruction4,
-               " to reg ",  //DEBUG info
-               instruction2);  //DEBUG info
-      registers[instruction2] <= instruction3 * 256 + instruction4;
+  always @(data_ready, save_save_address) begin
+    if (save_save_address == save_address && save_processed == 0) begin
+      $display($time, " decoding end after save ");
+      save_processed <= 1;
+      working2 <= 0;
+    end else if (data_ready == 1) begin
+      working2 <= 1;
+      $display($time, " decoding ", instruction1, " ", instruction2, " ", instruction3, " ",
+               instruction4);
+      executor_new_pc_set <= 0;
+      if (instruction1 == `OPCODE_JMP) begin
+        $display(" opcode = jmp to ", instruction3 * 256 + instruction4);  //DEBUG info
+        // if (instruction3 * 256 + instruction4 >= `ADDRESS_PROGRAM) begin     
+        executor_new_pc <= instruction3 * 256 + instruction4;
+        executor_new_pc_set <= 1;
+        //  end
+      end else if (instruction1 == `OPCODE_RAM2REG) begin
+        $display(" opcode = ram2reg value from address ", instruction3 * 256 + instruction4,
+                 " to reg ",  //DEBUG info
+                 instruction2);  //DEBUG info
+        // read_address <= instruction3 * 256 + instruction4;
+      end else if (instruction1 == `OPCODE_REG2RAM) begin
+        $display(" opcode = reg2ram save value ", registers[instruction2], " from register ",
+                 instruction2, " to address ", instruction3 * 256 + instruction4);
+        save_processed <= 0;
+        save_value <= registers[instruction2];
+        save_address <= instruction3 * 256 + instruction4;
+      end else if (instruction1 == `OPCODE_NUM2REG) begin
+        $display(" opcode = num2reg value ", instruction3 * 256 + instruction4,
+                 " to reg ",  //DEBUG info
+                 instruction2);  //DEBUG info
+        registers[instruction2] <= instruction3 * 256 + instruction4;
+      end
+      if (instruction1 != `OPCODE_REG2RAM) begin
+        $display($time, " decoding end ");
+        working2 <= 0;
+      end
     end
-    $display($time, " decoding end ");
-    working2 <= 0;
   end
 
 endmodule
 
 module mmu (
+    input rst,
+
     input [9:0] address_to_decode,
     output reg [9:0] address_decoded,
-    input rst
+
+    input [9:0] address_to_decode2,
+    output reg [9:0] address_decoded2
 );
 
   integer i;
@@ -237,11 +266,14 @@ module mmu (
   reg [11:0] mmu_chain_memory[0:4095];  //next physical segment index for process (last entry = the same entry)
   reg [11:0] mmu_logical_pages_memory[0:4095];  //logical process page assigned to physical segment (0 means empty page, we setup value > 0 for first page with logical index 0 and ignore it)
   reg [11:0] mmu_start_process_physical_segment;  //needs to be updated on process switch
-  reg [11:0] mmu_logical_seg;
-  reg [11:0] mmu_old_physical_segment;
-  reg mmu_search = 0, rst_done = 0;
 
-  always @(address_to_decode, rst, mmu_old_physical_segment) begin
+  reg [11:0] mmu_logical_seg, mmu_logical_seg2;
+  reg [11:0] mmu_old_physical_segment, mmu_old_physical_segment2;
+  reg mmu_search = 0, mmu_search2 = 0;
+
+  reg rst_done = 0;
+
+  always @(rst) begin
     if (rst == 1 && rst_done == 0) begin
       rst_done <= 1;
       mmu_start_process_physical_segment <= 0;
@@ -268,13 +300,18 @@ module mmu (
       mmu_logical_pages_memory[5] <= 3;  //DEBUG info
       mmu_logical_pages_memory[2] <= 2;  //DEBUG info
       mmu_logical_pages_memory[1] <= 1;  //DEBUG info     
-    end else if (mmu_search == 1) begin
+    end else begin
       `SHOW_MMU_DEBUG
+    end
+  end
+
+  always @(address_to_decode, mmu_old_physical_segment) begin
+    if (mmu_search == 1) begin
       if (mmu_logical_seg == mmu_logical_pages_memory[mmu_old_physical_segment]) begin
         address_decoded <= mmu_old_physical_segment * `MMU_PAGE_SIZE + address_to_decode % `MMU_PAGE_SIZE;
         mmu_search <= 0;
       end else if (mmu_old_physical_segment == mmu_chain_memory[mmu_old_physical_segment]) begin
-        $display($time, " error"); //DEBUG info
+        $display($time, " error");  //DEBUG info
       end else begin
         mmu_old_physical_segment <= mmu_chain_memory[mmu_old_physical_segment];
       end
@@ -288,25 +325,57 @@ module mmu (
       end
     end
   end
+
+  always @(address_to_decode2, mmu_old_physical_segment2) begin
+    if (mmu_search2 == 1) begin
+      if (mmu_logical_seg2 == mmu_logical_pages_memory[mmu_old_physical_segment2]) begin
+        address_decoded2 <= mmu_old_physical_segment2 * `MMU_PAGE_SIZE + address_to_decode2 % `MMU_PAGE_SIZE;
+        mmu_search2 <= 0;
+      end else if (mmu_old_physical_segment2 == mmu_chain_memory[mmu_old_physical_segment2]) begin
+        $display($time, " error");  //DEBUG info
+      end else begin
+        mmu_old_physical_segment2 <= mmu_chain_memory[mmu_old_physical_segment2];
+      end
+    end else if (mmu_search2 == 0) begin
+      mmu_logical_seg2 <= address_to_decode2 / `MMU_PAGE_SIZE;
+      if (address_to_decode2 / `MMU_PAGE_SIZE == 0) begin
+        address_decoded2 <= mmu_start_process_physical_segment * `MMU_PAGE_SIZE + address_to_decode2 % `MMU_PAGE_SIZE;
+      end else begin
+        mmu_search2 <= 1;
+        mmu_old_physical_segment2 <= mmu_chain_memory[mmu_start_process_physical_segment];
+      end
+    end
+  end
+
 endmodule
 
 module ram (
     input rst,
     input clk,
+
     input [9:0] read_address,
     output reg [9:0] read_read_address,
     output reg [7:0] read_value,
-     input [9:0] read_address_executor,
+
+    input [9:0] read_address_executor,
     output reg [9:0] read_read_address_executor,
-    output reg [7:0] read_value_executor
+    output reg [7:0] read_value_executor,
+
+    input [9:0] save_address,
+    output reg [9:0] save_save_address,
+    input reg [7:0] save_value
 );
 
-  reg [9:0] address_to_decode, address_decoded;
+  reg [9:0] address_to_decode, address_decoded, address_to_decode2, address_decoded2;
 
   mmu mmu (
+      .rst(rst),
+
       .address_to_decode(address_to_decode),
-      .address_decoded(address_decoded),
-      .rst(rst)
+      .address_decoded  (address_decoded),
+
+      .address_to_decode2(address_to_decode2),
+      .address_decoded2  (address_decoded2)
   );
 
   reg ena, enb, wea;
@@ -325,7 +394,7 @@ module ram (
       .dob  (dob)
   );
 
-  reg [9:0] addrbb;
+  reg [9:0] addrbb, addraa;
 
   always @(posedge rst) begin
     enb <= 1;
@@ -335,21 +404,34 @@ module ram (
     address_to_decode <= read_address;
   end
 
+  always @(save_address) begin
+    address_to_decode2 <= save_address;
+  end
+
   always @(address_decoded) begin
     addrb  <= address_decoded;
     addrbb <= address_to_decode;
   end
 
-  reg read_available = 1;
+  always @(address_decoded2) begin
+    addra  <= address_decoded2;
+    addraa <= address_to_decode2;
+  end
+
+  reg read_available = 1, save_available = 1;
 
   always @(posedge clk) begin
     read_available <= !(addrbb == read_address);
+    save_available <= !(addraa == save_address);
   end
 
   always @(negedge clk) begin
     if (read_available == 0 && addrbb == read_address) begin
       read_value <= dob;
       read_read_address <= address_to_decode;
+    end
+    if (save_available == 0 && addraa == save_address) begin
+      save_save_address <= address_to_decode2;
     end
   end
 
