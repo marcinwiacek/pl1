@@ -83,7 +83,7 @@ end
 
   wire [7:0] executor_instruction1, executor_instruction2, executor_instruction3, executor_instruction4;
   wire executor_data_ready, executor_working, executor_new_pc_set;
-  wire [9:0] executor_new_pc;
+  wire [9:0] executor_new_pc, executor_pc, executor_processed_pc;
 
   stage1_fetcher fetch (
   
@@ -93,7 +93,9 @@ end
       .executor_instruction3(executor_instruction3),
       .executor_instruction4(executor_instruction4),
       .executor_data_ready(executor_data_ready),
-      .executor_working(executor_working),
+       .executor_pc(executor_pc),
+       .executor_processed_pc(executor_processed_pc),
+      
       .read_address(read_address),
       .read_read_address(read_read_address),
       .read_value(read_value),
@@ -106,8 +108,9 @@ end
       .instruction2(executor_instruction2),
       .instruction3(executor_instruction3),
       .instruction4(executor_instruction4),
+      .pc(executor_pc),
+      .processed_pc(executor_processed_pc),
       .data_ready(executor_data_ready),
-      .working(executor_working),
       .rst(rst),
       .executor_new_pc(executor_new_pc),
       .executor_new_pc_set(executor_new_pc_set),
@@ -131,7 +134,8 @@ module stage1_fetcher (
     executor_instruction3,
     executor_instruction4,
     output reg       executor_data_ready,
-    input            executor_working,
+      output reg [9:0] executor_pc,
+      input [9:0] executor_processed_pc,
 
     output reg [9:0] read_address,
     input      [9:0] read_read_address,
@@ -151,15 +155,16 @@ module stage1_fetcher (
   `define STAGE_READ_PC3_REQUEST 2
   `define STAGE_READ_PC4_REQUEST 3
 
-  always @(read_read_address, rst, executor_new_pc) begin
+  always @(read_read_address, rst, executor_new_pc, executor_processed_pc) begin
     if ((rst == 1 && rst_done == 1) || (executor_new_pc_set == 1 && pc != executor_new_pc)) begin
+    executor_pc<=0;
       fetcher_stage <= 0;
       rst_done <= 0;
       $display($time, " changing address to ", executor_new_pc, " ", pc);
       $display($time, " rst");
       pc <= rst == 1 && rst_done == 1 ? `ADDRESS_PROGRAM : executor_new_pc;
       read_address <= rst == 1 && rst_done == 1 ? `ADDRESS_PROGRAM : executor_new_pc;
-    end else if (read_read_address == read_address && (fetcher_stage != 3 || executor_working == 0)) begin
+    end else if (read_read_address == read_address && (fetcher_stage != 3 || executor_processed_pc == executor_pc)) begin
       $display($time, " reading ", read_value, " from ", read_address, " ", pc, " ", fetcher_stage,
                " ", rst);
       fetcher_instruction[fetcher_stage] <= read_value;
@@ -167,12 +172,14 @@ module stage1_fetcher (
       fetcher_stage <= fetcher_stage == 3 ? 0 : fetcher_stage + 1;
     //  tx <= read_value;
       if (fetcher_stage == 3) begin
-        if (executor_working == 0) begin
+        if (executor_processed_pc == executor_pc) begin
           executor_instruction1 <= fetcher_instruction[0];
           executor_instruction2 <= fetcher_instruction[1];
           executor_instruction3 <= fetcher_instruction[2];
           executor_instruction4 <= read_value;
-          executor_data_ready <= 1;
+          
+          executor_pc <= pc;
+        executor_data_ready <= 1;
           pc <= pc + 4;
         end
       end else if (fetcher_stage == 0) begin
@@ -192,12 +199,13 @@ module stage2_executor (
     input rst,
 
     input data_ready,
-    output reg working,
 
     input [7:0] instruction1,
     instruction2,
     instruction3,
     instruction4,
+     input  [9:0] pc,
+      output reg [9:0] processed_pc,
 
     output reg [9:0] executor_new_pc,
     output reg executor_new_pc_set,
@@ -215,18 +223,17 @@ module stage2_executor (
 
   reg [15:0] registers[0:31];  //64 8-bit registers * n=8 processes = 512 16-bit registers
 
-  reg working2 = 0, save_processed = 1;
+  reg  save_processed = 1;
 
-  assign working = working2;
-
-  always @(data_ready, save_save_address) begin
-    if (save_save_address == save_address && save_processed == 0) begin
+  always @(rst, data_ready, save_save_address) begin
+  if (rst==1) begin
+     processed_pc<=0;
+  end else if (save_save_address == save_address && save_processed == 0) begin
       $display($time, " decoding end after save ");
       save_processed <= 1;
-      working2 <= 0;
+            processed_pc <= pc;
     end else if (data_ready == 1) begin
-   
-      working2 <= 1;
+     
       $display($time, " decoding ", instruction1, " ", instruction2, " ", instruction3, " ",
                instruction4);
       executor_new_pc_set <= 0;
@@ -235,6 +242,7 @@ module stage2_executor (
         // if (instruction3 * 256 + instruction4 >= `ADDRESS_PROGRAM) begin     
         executor_new_pc <= instruction3 * 256 + instruction4;
         executor_new_pc_set <= 1;
+        processed_pc<=0;
         //  end
                  led[1]<=1;
       end else if (instruction1 == `OPCODE_RAM2REG) begin
@@ -260,9 +268,9 @@ module stage2_executor (
                          led[6]<=1;
 
       end
-      if (instruction1 != `OPCODE_REG2RAM) begin
+      if (instruction1 != `OPCODE_REG2RAM && instruction1 != `OPCODE_JMP) begin
         $display($time, " decoding end ");
-        working2 <= 0;
+        processed_pc <= pc;
       end
     end
   end
