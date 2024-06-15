@@ -218,13 +218,15 @@ module stage2_executor (
     output reg [7:0] save_value,
     input      [9:0] save_save_address,
     
-     output reg [7:0] led
+     output logic [7:0] led
 );
 
   reg [15:0] registers[0:31];  //64 8-bit registers * n=8 processes = 512 16-bit registers
 
   reg  save_processed = 1;
 
+ logic [7:0] led0 = 8'd0;
+ 
   always @(rst, data_ready, save_save_address) begin
   if (rst==1) begin
      processed_pc<=0;
@@ -244,30 +246,39 @@ module stage2_executor (
         executor_new_pc_set <= 1;
         processed_pc<=0;
         //  end
-                 led[1]<=1;
+                 led0[1]<=1;
       end else if (instruction1 == `OPCODE_RAM2REG) begin
         $display(" opcode = ram2reg value from address ", instruction3 * 256 + instruction4,
                  " to reg ",  //DEBUG info
                  instruction2);  //DEBUG info
         // read_address <= instruction3 * 256 + instruction4;
-                         led[2]<=1;
+                         led0[2]<=1;
       end else if (instruction1 == `OPCODE_REG2RAM) begin
         $display(" opcode = reg2ram save value ", registers[instruction2], " from register ",
                  instruction2, " to address ", instruction3 * 256 + instruction4);
         save_processed <= 0;
         save_value <= registers[instruction2];
         save_address <= instruction3 * 256 + instruction4;
-                                 led[3]<=1;
+                                 led0[3]<=1;
 
       end else if (instruction1 == `OPCODE_NUM2REG) begin
         $display(" opcode = num2reg value ", instruction3 * 256 + instruction4,
                  " to reg ",  //DEBUG info
                  instruction2);  //DEBUG info
         registers[instruction2] <= instruction3 * 256 + instruction4;
-                 led[4]<=1;
-                         led[6]<=1;
+                 led0[4]<=1;
+                         led0[6]<=1;
 
       end
+      led[0]<=led0[0];
+      led[1]<=led0[1];
+      led[2]<=led0[2];
+      led[3]<=led0[3];
+      led[4]<=led0[4];
+      led[5]<=led0[5];
+      led[6]<=led0[6];
+      led[7]<=led0[7];
+      
       if (instruction1 != `OPCODE_REG2RAM && instruction1 != `OPCODE_JMP) begin
         $display($time, " decoding end ");
         processed_pc <= pc;
