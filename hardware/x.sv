@@ -6,17 +6,18 @@ module x (
 );
 
   //uart
-  reg [7:0] input_data;
-  reg start = 0;
-  wire busy;
-
-  uart_tx uart_tx (
-      .clk(clk),
-      .start(start),
-      .input_data(input_data),
-      .busy(busy),
-      .tx(uart_rx_out)
-  );
+  reg [7:0] uart_buffer[0:1024];
+  reg [10:0] uart_buffer_index = 0;
+  wire reset_uart_buffer_index;
+  wire uart_buffer_full;
+  
+  uartx_tx_with_buffer uartx_tx_with_buffer (
+    .clk(clk),
+    .uart_buffer(uart_buffer),
+    .uart_buffer_index(uart_buffer_index),
+    .reset_uart_buffer_index(reset_uart_buffer_index),
+    .uart_buffer_full(uart_buffer_full)  
+);
 
   //ram
   reg write_enabled;
@@ -43,12 +44,11 @@ module x (
       read_address <= addr;
       state <= state + 1;
     end else if (state == 1 && read_value != 8'd0) begin
-      input_data <= read_value;
-      start <= 1;
-      state <= state + 1;
-    end else if (state == 2) begin
-      start <= 0;
-      if (busy == 0) begin
+      if (reset_uart_buffer_index) begin
+        uart_buffer_index<= 0;
+      end else if (!uart_buffer_full) begin
+        uart_buffer[uart_buffer_index]<=read_value;
+        uart_buffer_index<=uart_buffer_index+1;
         addr  <= addr + 1;
         state <= 0;
       end
@@ -108,6 +108,44 @@ module ram (
   end
 endmodule
 
+module uartx_tx_with_buffer (
+    input clk,
+    input [7:0] uart_buffer[0:1000],
+  input [10:0] uart_buffer_index,
+  output logic reset_uart_buffer_index,
+  output logic uart_buffer_full  
+);
+
+  reg [7:0] input_data;
+  reg start = 0;
+  wire busy;
+  reg [10:0] uart_buffer_processed_index=0;
+  
+  assign reset_uart_buffer_index = uart_buffer_index != 0 && !busy && uart_buffer_index == uart_buffer_processed_index;
+  assign uart_buffer_full = uart_buffer_index == 1000;
+  
+  uart_tx uart_tx (
+      .clk(clk),
+      .start(start),
+      .input_data(input_data),
+      .busy(busy),
+      .tx(uart_rx_out)
+  );
+   
+  always @(posedge clk) begin
+    if (busy) begin
+      start <= 0;
+    end else if (!busy && uart_buffer_processed_index < uart_buffer_index) begin
+         input_data <= uart_buffer[uart_buffer_processed_index];
+         uart_buffer_processed_index<= uart_buffer_processed_index+1;
+         start <= 1;
+    end else if (uart_buffer_processed_index > uart_buffer_index) begin
+      uart_buffer_processed_index <= 0;
+    end
+  end
+  
+endmodule
+
 //115200, 8 bits, 1 stop, no parity
 //values on tx: ...1, 0, (8 bits), 1... (every bit is sent CLK_PER_BYTE cycles)
 module uart_tx (
@@ -133,7 +171,7 @@ module uart_tx (
   assign tx = state == STATE_IDLE || state == STATE_STOP_BIT ? 1:(state == STATE_START_BIT?0:input_data[state-STATE_DATA_BIT_0]);
   assign busy = state != STATE_IDLE;
 
-  always @(posedge clk, posedge start) begin
+  always @(negedge clk, posedge start) begin
     if (state == STATE_IDLE) begin
       state <= start == 1? STATE_START_BIT:state;
     end else begin
