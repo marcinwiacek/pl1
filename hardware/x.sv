@@ -38,20 +38,15 @@ module x (
   reg [ 6:0] state = 0;
   reg [10:0] addr = 0;
 
-  always @(posedge clk) begin
+  always @(negedge clk) begin
     if (state == 0) begin
       read_address <= addr;
       state <= state + 1;
-    end else if (state == 1) begin
-      state <= state + 1;
-    end else if (state == 2 && read_value != 8'd0) begin
-      $display($time, " ", read_value);
+    end else if (state == 1 && read_value != 8'd0) begin
       input_data <= read_value;
       start <= 1;
       state <= state + 1;
-    end else if (state == 3) begin
-      state <= state + 1;
-    end else if (state == 4) begin
+    end else if (state == 2) begin
       start <= 0;
       if (busy == 0) begin
         addr  <= addr + 1;
@@ -135,13 +130,13 @@ module uart_tx (
   reg [ 6:0] state = STATE_IDLE;
   reg [10:0] counter = CLK_PER_BYTE;
 
-  assign tx = state == STATE_IDLE?1:(state == STATE_START_BIT?0:(state == STATE_STOP_BIT?1:input_data[state-STATE_DATA_BIT_0]));
+  assign tx = state == STATE_IDLE || state == STATE_STOP_BIT ? 1:(state == STATE_START_BIT?0:input_data[state-STATE_DATA_BIT_0]);
   assign busy = state != STATE_IDLE;
 
   always @(posedge clk, posedge start) begin
-    if (start == 1 && state == STATE_IDLE) begin
-      state <= STATE_START_BIT;
-    end else if (state != STATE_IDLE) begin
+    if (state == STATE_IDLE) begin
+      state <= start == 1? STATE_START_BIT:state;
+    end else begin
       state   <= counter == 0 ? (state == STATE_STOP_BIT ? STATE_IDLE : state + 1) : state;
       counter <= counter == 0 ? CLK_PER_BYTE : counter - 1;
     end
