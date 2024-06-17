@@ -1,0 +1,109 @@
+//example with creating two extra separate processes, removing one of them
+//and setting another one as interrupt handler (+ calling it)
+0000 0000 //next process address (no MMU) overwritten by CPU
+0000 0000
+0000 0000 //PC for this process overwritten by CPU
+0000 0000
+0000 0000 //registers used (currently ignored)
+0000 0000
+0000 0000
+0000 0000 //registers taken "as is"
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0c01 0001 //proc
+0c01 0002 //proc
+0402 0003 //num2reg
+0902 0002 //loop with cache: loopeqvalue
+0602 0001 //regminusnum
+0602 0000 //regminusnum
+0201 0001 //after loop: ram2reg
+0401 0005 //num2reg
+0301 0046 //reg2ram
+0F00 0002 //int 2
+010E 0030 //jmp 0x30
+0A0B 0000
+0A0B 0000
+0000 0000 //next process address (no MMU) overwritten by CPU
+0000 0000
+002e 0000 //PC for this process taken "as is"
+0102 0304
+0000 0000 //registers used (currently ignored)
+0000 0000
+0000 0000
+0000 0000 //registers taken "as is"
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0402 0004 //num2reg
+1101 0000 //end
+0902 0002 //loop with cache: loopeqvalue
+0602 0001 //regminusnum
+0602 0000 //regminusnum
+0201 0001 //after loop: ram2reg
+0401 0005 //num2reg
+0301 0000 //reg2ram
+010E 0000 //jmp 0
+FFFF 0000
+010E 0000
+0A0B 0000
+0C0D 0000
+0000 0000 //next process address (no MMU) overwritten by CPU
+0000 0000
+002e 0000 //PC for this process taken "as is"
+0000 0000
+0000 0000 //registers used (currently ignored)
+0000 0000
+0000 0000
+0000 0000 //registers taken "as is"
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0000 0000
+0402 0005 //num2reg
+0E00 0002 //int_reg
+0402 0006 //num2reg
+1000 0002 //ret from int
+0902 0002 //loop with cache: loopeqvalue
+0602 0001 //regminusnum
+0602 0000 //regminusnum
+0201 0001 //after loop: ram2reg
+0401 0005 //num2reg
+0301 0046 //reg2ram
+010E 0030 //jmp 0x30
+0A0B 0000
