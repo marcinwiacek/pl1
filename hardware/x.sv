@@ -58,13 +58,14 @@ module x (
 );
 
   reg [31:0] ctn = 0;
-  reg rst = 0;
+  reg rst;
+  
+  assign rst = ctn ==2 || btnc;
 
   always @(posedge clk) begin   
     if (ctn<10) begin
        ctn <= ctn + 1;
     end
-       rst <= ctn ==1 || btnc;
   end
 
   wire [5:0] read_address, read_read_address, read_address_executor, read_read_address_executor, save_address, save_save_address;
@@ -163,7 +164,7 @@ module x (
 endmodule
 
 module stage1_fetcher (
-    input rst,
+    input wire rst,
     input clk,
     output logic tx,
 
@@ -200,8 +201,10 @@ module stage1_fetcher (
       .tx(tx)
   );
   
+  reg rst_done = 0; 
+  
   always @(posedge rst, posedge read_address_ready) begin
-    if (rst) begin
+    if (rst && !rst_done) begin
       if (reset_uart_buffer_available) begin
         uart_buffer_available <= 0;
       end else if (!uart_buffer_full) begin
@@ -213,8 +216,10 @@ module stage1_fetcher (
       pc <= ADDRESS_PROGRAM;
       $display($time, "read address assignment");
       read_address <= ADDRESS_PROGRAM;
-      read_address_exec <= 1;      
+      read_address_exec <= 1;
+      rst_done <=1;      
     end else if (!rst && read_address_ready && pc < 50) begin
+      rst_done<=0;
       $display($time, "read ready");
       if (reset_uart_buffer_available) begin
         uart_buffer_available <= 0;
@@ -526,21 +531,23 @@ module ram (
 
   assign read_value = get_value;
 
-  reg read_available = 0;
+  reg read_available;
 
-  always @(clk) begin
+always @(clk) begin
     if (clk == 1) begin
       $display($time, " pos ");
       read_address_ready <= 0;
       read_available <= addrbb == read_address;
-    end else begin
+    end else if (clk == 0) begin
       $display($time, " neg ", read_available);
-      if (read_available == 1 && addrbb == read_address) begin
+      if (read_available == 1) begin
         $display($time, " ok ");
         read_address_ready <= 1;
+        read_available <= 0;
       end
     end
   end
+  
 
 endmodule
 
