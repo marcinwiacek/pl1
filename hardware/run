@@ -5,6 +5,6 @@
 #rm ./cpu.vcd 2> /dev/null
 iverilog -g2005-sv -o x x.sv x_test.sv
 vvp x
-#gtkwave cpu.vcd &
+#gtkwave x.vcd &
 rm ./x
-#rm ./cpu.vcd
+rm ./x.vcd
