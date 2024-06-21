@@ -229,21 +229,11 @@ module stage2_executor (
       .tx(tx)
   );
 
-  always @(instruction1) begin
-    $display($time, "change a");
-
-  end
-
-  always @(instruction2) begin
-    $display($time, "change b");
-
-  end
-
   wire x;
 
   assign x = instruction1 == executor_instruction1 && instruction2 == executor_instruction2;
 
-  always @(rst, exec, x, executor_stage) begin
+  always @(rst, exec, x) begin
     if (rst == 1) begin
       $display($time, " stage 2 reset ");
       ready = 1;
@@ -252,7 +242,6 @@ module stage2_executor (
       $display($time, "S");
       uart_buffer_available = 1;
       executor_stage = 1;
-
     end else if (exec == 1) begin
       $display($time, "a ", executor_stage, " ", instruction1, " ", instruction2, " ",
                executor_instruction1, " ", executor_instruction2);
@@ -262,10 +251,18 @@ module stage2_executor (
         instruction1_1 = instruction1[15:8];
         instruction1_2 = instruction1[7:0];
         instruction2   = executor_instruction2;
-
+        
+           uart_buffer[uart_buffer_available] = "a";
+          uart_buffer_available = uart_buffer_available + 1;
+          
         executor_stage = 2;
         $display($time, "a");
-      end else if (executor_stage == 2 && x) begin
+      end
+      if (executor_stage == 2 && x) begin
+           uart_buffer[uart_buffer_available] = "b";
+          uart_buffer_available = uart_buffer_available + 1;
+
+
         exec_confirmed = 1;
         $display($time, "b");
 
