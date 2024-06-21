@@ -19,7 +19,7 @@ initial begin
     rst=1;
     #1
     rst=0;
-    #10
+    #200
     $finish();
 end
 
