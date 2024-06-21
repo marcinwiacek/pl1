@@ -88,7 +88,7 @@ module x (
       .save_save_address(save_save_address)
   );
 
-  wire executor_exec, executor_ready;
+  wire executor_exec, executor_exec_confirmed, executor_ready;
   wire [5:0] executor_pc;
   wire [15:0] executor_instruction1, executor_instruction2;
 
@@ -96,6 +96,7 @@ module x (
       .rst(reset),
 
       .executor_exec(executor_exec),
+      .executor_exec_confirmed(executor_exec_confirmed),
       .executor_pc(executor_pc),
       .executor_instruction1(executor_instruction1),
       .executor_instruction2(executor_instruction2),
@@ -113,6 +114,7 @@ module x (
       .tx (uart_rx_out),
 
       .exec(executor_exec),
+      .exec_confirmed(executor_exec_confirmed),
       .pc(executor_pc),
       .executor_instruction1(executor_instruction1),
       .executor_instruction2(executor_instruction2),
@@ -132,6 +134,7 @@ module stage1_fetcher (
     input wire rst,
 
     output reg executor_exec,
+    input executor_exec_confirmed,
     output reg [5:0] executor_pc,
     output reg [15:0] executor_instruction1,
     executor_instruction2,
@@ -144,34 +147,36 @@ module stage1_fetcher (
 );
 
   reg [5:0] pc;
- 
+
   reg rst_can_be_done = 1;
   reg [3:0] fetcher_stage;
 
-  always @(rst, read_address_ready, executor_ready) begin
+  always @(rst, read_address_ready, executor_ready, executor_exec_confirmed) begin
     if (rst && rst_can_be_done) begin
-      rst_can_be_done <= 0;
+      rst_can_be_done = 0;
       $display($time, "stage 1 reset");
-      pc <= ADDRESS_PROGRAM;
-      read_address <= ADDRESS_PROGRAM;
-      read_address_exec <= 1;
-      fetcher_stage <= 1;
+      pc = ADDRESS_PROGRAM;
+      read_address = ADDRESS_PROGRAM;
+      read_address_exec = 1;
+      fetcher_stage = 1;
     end else if (fetcher_stage < 3 && !rst && read_address_ready && pc <= 59) begin
-      executor_exec   <= 0;
-      rst_can_be_done <= 1;
+      executor_exec   = 0;
+      rst_can_be_done = 1;
       $display($time, "read ready");
-      if (fetcher_stage ==1) executor_instruction1 <=read_value;
-      if (fetcher_stage ==2) executor_instruction2 <=read_value;
-      read_address <= pc + 1;
-      pc <= pc + 1;
-      fetcher_stage <= fetcher_stage + 1;
+      if (fetcher_stage == 1) executor_instruction1 = read_value;
+      if (fetcher_stage == 2) executor_instruction2 = read_value;
+      read_address = pc + 1;
+      pc = pc + 1;
+      fetcher_stage = fetcher_stage + 1;
       $display($time, read_value);
-    end
-    if (fetcher_stage == 3 && executor_ready) begin
+    end else if (fetcher_stage == 3 && executor_ready) begin
       $display($time, "start executor");
-      executor_pc <= pc - 2;
-      executor_exec <= 1;
-      fetcher_stage <= 1;
+      executor_pc   = pc - 2;
+      fetcher_stage = 4;
+      executor_exec = 1;
+    end else if (fetcher_stage == 4 && executor_exec_confirmed) begin
+      $display($time, "start executor2");
+      fetcher_stage = 1;
     end
   end
 
@@ -189,6 +194,7 @@ module stage2_executor (
     output logic tx,
 
     input exec,
+    output reg exec_confirmed,
     input [5:0] pc,
     input [15:0] executor_instruction1,
     executor_instruction2,
@@ -203,12 +209,11 @@ module stage2_executor (
     output reg [15:0] save_value
 );
 
-reg [15:0] instruction1, instruction2;
+  reg [3:0] executor_stage;
+  reg [15:0] instruction1, instruction2;
   reg [15:0] registers[0:31];  //64 8-bit registers * n=8 processes = 512 16-bit registers
   reg [7:0] instruction1_1;
   reg [7:0] instruction1_2;
-
-  
 
   reg [7:0] uart_buffer[0:128];
   reg [6:0] uart_buffer_available;
@@ -224,68 +229,97 @@ reg [15:0] instruction1, instruction2;
       .tx(tx)
   );
 
-  always @(posedge rst, posedge exec) begin
+  always @(instruction1) begin
+    $display($time, "change a");
+
+  end
+
+  always @(instruction2) begin
+    $display($time, "change b");
+
+  end
+
+  wire x;
+
+  assign x = instruction1 == executor_instruction1 && instruction2 == executor_instruction2;
+
+  always @(rst, exec, x, executor_stage) begin
     if (rst == 1) begin
       $display($time, " stage 2 reset ");
       ready = 1;
+      exec_confirmed = 0;
       uart_buffer[0] = "S";
       $display($time, "S");
       uart_buffer_available = 1;
+      executor_stage = 1;
+
     end else if (exec == 1) begin
-    instruction1 = executor_instruction1;
-    instruction2 = executor_instruction2;
-     instruction1_1 = instruction1[15:8];
-   instruction1_2 = instruction1[7:0];
-      ready = 0;
+      $display($time, "a ", executor_stage, " ", instruction1, " ", instruction2, " ",
+               executor_instruction1, " ", executor_instruction2);
+      if (executor_stage == 1) begin
+        exec_confirmed = 0;
+        instruction1   = executor_instruction1;
+        instruction1_1 = instruction1[15:8];
+        instruction1_2 = instruction1[7:0];
+        instruction2   = executor_instruction2;
 
-      $display($time, " decoding ", pc, ":", instruction1, " (", instruction1_1, ":",
-               instruction1_2, ") ", instruction2);
+        executor_stage = 2;
+        $display($time, "a");
+      end else if (executor_stage == 2 && x) begin
+        exec_confirmed = 1;
+        $display($time, "b");
 
-      if (reset_uart_buffer_available) begin
-        uart_buffer_available = 0;
-      end else if (!uart_buffer_full) begin
-        if (pc == 46 && instruction1 == 3073 && instruction2 == 1) begin
-          uart_buffer[uart_buffer_available] = "M";
-          $display($time, "M");
-        end else if (pc == 48 && instruction1 == 3073 && instruction2 == 2) begin
-          uart_buffer[uart_buffer_available] = "A";
-          $display($time, "A");
-        end else if (pc == 50 && instruction1 == 16'h0402) begin
-          uart_buffer[uart_buffer_available] = "R";
-          $display($time, "R");
-        end else begin
-          uart_buffer[uart_buffer_available] = "X";
-          $display($time, "X");
+        ready = 0;
+        $display($time, " decoding ", pc, ":", instruction1, " (", instruction1_1, ":",
+                 instruction1_2, ") ", instruction2);
+
+        if (reset_uart_buffer_available) begin
+          uart_buffer_available = 0;
+        end else if (!uart_buffer_full) begin
+          if (pc == 46 && instruction1 == 3073 && instruction2 == 1) begin
+            uart_buffer[uart_buffer_available] = "M";
+            $display($time, "M");
+          end else if (pc == 48 && instruction1 == 3073 && instruction2 == 2) begin
+            uart_buffer[uart_buffer_available] = "A";
+            $display($time, "A");
+          end else if (pc == 50 && instruction1 == 16'h0402) begin
+            uart_buffer[uart_buffer_available] = "R";
+            $display($time, "R");
+          end else begin
+            uart_buffer[uart_buffer_available] = "X";
+            $display($time, "X");
+          end
+          uart_buffer_available = uart_buffer_available + 1;
         end
-        uart_buffer_available = uart_buffer_available + 1;
-      end
 
-      if (instruction1_1 == OPCODE_JMP) begin
-        $display(" opcode = jmp to ", instruction2);  //DEBUG info         
-      end else if (instruction1_1 == OPCODE_RAM2REG) begin
-        $display(" opcode = ram2reg value from address ", instruction2, " to reg ",  //DEBUG info
-                 instruction1_1);  //DEBUG info
-        uart_buffer[uart_buffer_available] = "I";
-        $display($time, "I");
-      end else if (instruction1_1 == OPCODE_REG2RAM) begin
-        $display(" opcode = reg2ram save value ", registers[instruction1_2], " from register ",
-                 instruction1_2, " to address ", instruction2);
-        uart_buffer[uart_buffer_available] = "N";
-        $display($time, "N");
-      end else if (instruction1_1 == OPCODE_NUM2REG) begin
-        $display(" opcode = num2reg value ", instruction2, " to reg ",  //DEBUG info
-                 instruction1_2);  //DEBUG info
-        registers[instruction1_2] = instruction2;
-        uart_buffer[uart_buffer_available] = "C";
-        $display($time, "C");
-      end
-      if (instruction1_1 != OPCODE_REG2RAM && instruction1_1 != OPCODE_JMP) begin
-        $display($time, " decoding end ");
-        ready = 1;
+        if (instruction1_1 == OPCODE_JMP) begin
+          $display(" opcode = jmp to ", instruction2);  //DEBUG info         
+        end else if (instruction1_1 == OPCODE_RAM2REG) begin
+          $display(" opcode = ram2reg value from address ", instruction2, " to reg ",  //DEBUG info
+                   instruction1_1);  //DEBUG info
+          uart_buffer[uart_buffer_available] = "I";
+          $display($time, "I");
+        end else if (instruction1_1 == OPCODE_REG2RAM) begin
+          $display(" opcode = reg2ram save value ", registers[instruction1_2], " from register ",
+                   instruction1_2, " to address ", instruction2);
+          uart_buffer[uart_buffer_available] = "N";
+          $display($time, "N");
+        end else if (instruction1_1 == OPCODE_NUM2REG) begin
+          $display(" opcode = num2reg value ", instruction2, " to reg ",  //DEBUG info
+                   instruction1_2);  //DEBUG info
+          registers[instruction1_2] = instruction2;
+          uart_buffer[uart_buffer_available] = "C";
+          $display($time, "C");
+        end
+        if (instruction1_1 != OPCODE_REG2RAM && instruction1_1 != OPCODE_JMP) begin
+          $display($time, " decoding end ");
+          ready = 1;
+        end
+
+        executor_stage = 1;
       end
     end
   end
-
 endmodule
 
 
