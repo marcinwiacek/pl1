@@ -169,12 +169,14 @@ module stage1_fetcher (
       pc = pc + 1;
       fetcher_stage = fetcher_stage + 1;
       $display($time, read_value);
-    end else if (fetcher_stage == 3 && executor_ready) begin
+    end
+    if (fetcher_stage == 3 && executor_ready) begin
       $display($time, "start executor");
       executor_pc   = pc - 2;
       fetcher_stage = 4;
       executor_exec = 1;
-    end else if (fetcher_stage == 4 && executor_exec_confirmed) begin
+    end
+    if (fetcher_stage == 4 && executor_exec_confirmed) begin
       $display($time, "start executor2");
       fetcher_stage = 1;
     end
