@@ -116,8 +116,8 @@ module x (
       .exec(executor_exec),
       .exec_confirmed(executor_exec_confirmed),
       .pc(executor_pc),
-      .executor_instruction1(executor_instruction1),
-      .executor_instruction2(executor_instruction2),
+      .instruction1(executor_instruction1),
+      .instruction2(executor_instruction2),
       .ready(executor_ready),
 
       .read_address(read_address_executor),
@@ -151,7 +151,7 @@ module stage1_fetcher (
   reg rst_can_be_done = 1;
   reg [3:0] fetcher_stage;
 
-  always @(rst, read_address_ready, executor_ready, executor_exec_confirmed) begin
+  always @(rst, read_address_ready, executor_ready) begin
     if (rst && rst_can_be_done) begin
       rst_can_be_done = 0;
       $display($time, "stage 1 reset");
@@ -159,25 +159,26 @@ module stage1_fetcher (
       read_address = ADDRESS_PROGRAM;
       read_address_exec = 1;
       fetcher_stage = 1;
-    end else if (fetcher_stage < 3 && !rst && read_address_ready && pc <= 59) begin
+    end else if (fetcher_stage ==1 && !rst && read_address_ready && pc <= 59) begin
+      $display($time, "read ready");
       executor_exec   = 0;
       rst_can_be_done = 1;
-      $display($time, "read ready");
-      if (fetcher_stage == 1) executor_instruction1 = read_value;
-      if (fetcher_stage == 2) executor_instruction2 = read_value;
+         executor_instruction1 = read_value;
       read_address = pc + 1;
       pc = pc + 1;
-      fetcher_stage = fetcher_stage + 1;
+      fetcher_stage = 2;
       $display($time, read_value);
-    end
-    if (fetcher_stage == 3 && executor_ready) begin
+    end else if (fetcher_stage ==2 && read_address_ready) begin
+    $display($time, "read ready2");
+         executor_pc   = pc - 1;
+         executor_instruction2 = read_value; 
+         executor_exec = 1;
+            read_address = pc + 1;
+      pc = pc + 1;
+        fetcher_stage = 3;
+    end else if (fetcher_stage == 3 && executor_ready) begin
       $display($time, "start executor");
-      executor_pc   = pc - 2;
-      fetcher_stage = 4;
-      executor_exec = 1;
-    end
-    if (fetcher_stage == 4 && executor_exec_confirmed) begin
-      $display($time, "start executor2");
+   
       fetcher_stage = 1;
     end
   end
@@ -198,8 +199,8 @@ module stage2_executor (
     input exec,
     output reg exec_confirmed,
     input [5:0] pc,
-    input [15:0] executor_instruction1,
-    executor_instruction2,
+    input [15:0] instruction1,
+    instruction2,
     output reg ready,
 
     output reg [ 5:0] read_address,
@@ -212,7 +213,7 @@ module stage2_executor (
 );
 
   reg [3:0] executor_stage;
-  reg [15:0] instruction1, instruction2;
+
   reg [15:0] registers[0:31];  //64 8-bit registers * n=8 processes = 512 16-bit registers
   reg [7:0] instruction1_1;
   reg [7:0] instruction1_2;
@@ -230,13 +231,15 @@ module stage2_executor (
       .uart_buffer_full(uart_buffer_full),
       .tx(tx)
   );
+  
+     assign instruction1_1 = instruction1[15:8];
+        assign instruction1_2 = instruction1[7:0];
+  
+   reg rst_can_be_done = 1;
 
-  wire x;
-
-  assign x = instruction1 == executor_instruction1 && instruction2 == executor_instruction2;
-
-  always @(rst, exec, x) begin
-    if (rst == 1) begin
+  always @(posedge rst, posedge exec) begin
+    if (rst == 1 && rst_can_be_done) begin
+      rst_can_be_done = 0;
       $display($time, " stage 2 reset ");
       ready = 1;
       exec_confirmed = 0;
@@ -245,27 +248,17 @@ module stage2_executor (
       uart_buffer_available = 1;
       executor_stage = 1;
     end else if (exec == 1) begin
-      $display($time, "a ", executor_stage, " ", instruction1, " ", instruction2, " ",
-               executor_instruction1, " ", executor_instruction2);
-      if (executor_stage == 1) begin
-        exec_confirmed = 0;
-        instruction1   = executor_instruction1;
-        instruction1_1 = instruction1[15:8];
-        instruction1_2 = instruction1[7:0];
-        instruction2   = executor_instruction2;
+      rst_can_be_done = 1;
+      $display($time, "a ", executor_stage, " ", instruction1, " ", instruction2, " ");
+      
+     
+     
+       
         
            uart_buffer[uart_buffer_available] = "a";
           uart_buffer_available = uart_buffer_available + 1;
           
-        executor_stage = 2;
-        $display($time, "a");
-      end
-      if (executor_stage == 2 && x) begin
-           uart_buffer[uart_buffer_available] = "b";
-          uart_buffer_available = uart_buffer_available + 1;
 
-
-        exec_confirmed = 1;
         $display($time, "b");
 
         ready = 0;
@@ -297,26 +290,29 @@ module stage2_executor (
           $display(" opcode = ram2reg value from address ", instruction2, " to reg ",  //DEBUG info
                    instruction1_1);  //DEBUG info
           uart_buffer[uart_buffer_available] = "I";
+          uart_buffer_available = uart_buffer_available + 1;
           $display($time, "I");
         end else if (instruction1_1 == OPCODE_REG2RAM) begin
           $display(" opcode = reg2ram save value ", registers[instruction1_2], " from register ",
                    instruction1_2, " to address ", instruction2);
           uart_buffer[uart_buffer_available] = "N";
+          uart_buffer_available = uart_buffer_available + 1;
           $display($time, "N");
         end else if (instruction1_1 == OPCODE_NUM2REG) begin
           $display(" opcode = num2reg value ", instruction2, " to reg ",  //DEBUG info
                    instruction1_2);  //DEBUG info
           registers[instruction1_2] = instruction2;
           uart_buffer[uart_buffer_available] = "C";
+          uart_buffer_available = uart_buffer_available + 1;
           $display($time, "C");
         end
         if (instruction1_1 != OPCODE_REG2RAM && instruction1_1 != OPCODE_JMP) begin
           $display($time, " decoding end ");
-          ready = 1;
+          
         end
-
+ready = 1;
         executor_stage = 1;
-      end
+      
     end
   end
 endmodule
@@ -509,9 +505,10 @@ module ram (
       neg_flag <= 0;
     end else begin
       neg_flag <= pos_flag == 1 ? (addrbb == read_address ? 1 : 0) : 0;
+      if (pos_flag == 1  && addrbb == read_address) $display($time, "read " ,read_address,"=",get_value);
     end
-    // $display($time, "  ", pos_flag, " ", neg_flag, " ", read_address_ready, addrbb, " ",
-    //             read_address);
+     $display($time, "  ", pos_flag, " ", neg_flag, " ", read_address_ready, addrbb, " ",
+                 read_address, " ",get_value);
   end
 
 endmodule
