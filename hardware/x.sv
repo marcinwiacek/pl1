@@ -93,8 +93,10 @@ module x (
   wire [15:0] executor_instruction1, executor_instruction2, executor_instruction1_received, executor_instruction2_received;
 
   stage1_fetcher fetch (
+ .clk(clk),
       .rst(reset),
-
+      .tx (uart_rx_out),
+      
       .executor_exec(executor_exec),
       .executor_exec_confirmed(executor_exec_confirmed),
       .executor_pc(executor_pc),
@@ -113,7 +115,7 @@ module x (
       .read_value(read_value)
   );
 
-  stage2_executor execute (
+ /* stage2_executor execute (
       .clk(clk),
       .rst(reset),
       .tx (uart_rx_out),
@@ -134,12 +136,13 @@ module x (
       .save_value(save_value),
       .save_address(save_address),
       .save_save_address(save_save_address)
-  );
+  );*/
 
 endmodule
 
 module stage1_fetcher (
-    input rst,
+    input rst,clk,
+      output logic tx,
 
     output logic executor_exec,
     input executor_exec_confirmed,
@@ -164,56 +167,97 @@ module stage1_fetcher (
   reg rst_can_be_done = 1;
   reg [3:0] fetcher_stage;
 
-reg stage2_ready;
+/*reg stage2_ready;
 
 
 always @(executor_ready , executor_instruction1_received , executor_instruction2_received, executor_pc, fetcher_stage) begin
    stage2_ready = fetcher_stage == 3 && executor_ready && executor_instruction1 == executor_instruction1_received && 
-                  executor_instruction2 == executor_instruction2_received &&   executor_pc == executor_pc_received;
+                  executor_instruction2 == executor_instruction2_received &&   pc-1 == executor_pc_received;
                     $display($time, "stage 2 ready ", fetcher_stage == 3 && executor_ready && executor_instruction1 == executor_instruction1_received && 
                   executor_instruction2 == executor_instruction2_received &&   executor_pc == executor_pc_received
                   );
 end
+*/
+
+  reg [7:0] uart_buffer[0:128];
+  reg [6:0] uart_buffer_available;
+  wire reset_uart_buffer_available;
+  wire uart_buffer_full;
+
+  uartx_tx_with_buffer uartx_tx_with_buffer (
+      .clk(clk),
+      .uart_buffer(uart_buffer),
+      .uart_buffer_available(uart_buffer_available),
+      .reset_uart_buffer_available(reset_uart_buffer_available),
+      .uart_buffer_full(uart_buffer_full),
+      .tx(tx)
+  );
+  
+  
 
 
-  always @(posedge rst, posedge read_address_ready, posedge stage2_ready) begin
+  always @(posedge rst, posedge read_address_ready) begin
     if (rst && rst_can_be_done) begin
-      rst_can_be_done = 0;
+       read_address_exec = 1;  
+           rst_can_be_done = 0;
       $display($time, "stage 1 reset");
       pc = ADDRESS_PROGRAM;
       read_address = ADDRESS_PROGRAM;
     
       read_address_exec = 1;
       fetcher_stage = 1;
+
+       uart_buffer[0] = "S";
+            $display($time, "S");
+          uart_buffer_available = 1;
     end else if (fetcher_stage ==1 && !rst && read_address_ready && pc <= 59) begin
-      $display($time, "read ready ",read_address,"=",read_value);
-      read_address_exec = 0;
-      executor_exec   = 0;
-      rst_can_be_done = 1;
+         rst_can_be_done = 1;  
+         $display($time, "read ready ",read_address,"=",read_value);
+       uart_buffer[uart_buffer_available] = "a";
+            $display($time, "a");
+          uart_buffer_available = uart_buffer_available + 1;
+   //   read_address_exec = 0;
+   
+ 
          executor_instruction1 = read_value;
       read_address = pc + 1;
       pc = pc + 1;
-      read_address_exec = 1;      
+     
       fetcher_stage = 2;
     end else if (fetcher_stage ==2 && read_address_ready) begin
       $display($time, "read ready2 ",read_address,"=",read_value);
-      read_address_exec = 0;
-        
+             uart_buffer[uart_buffer_available] = "b";
+            $display($time, "b");
+          uart_buffer_available = uart_buffer_available + 1;
+
+
          executor_instruction2 = read_value; 
    executor_pc   = pc-1 ;       
-//    read_address = pc + 1; 
-    
-  //    pc = pc + 1;
-      fetcher_stage = 3;
-
-        //fetcher_stage = 1;
-    end else if (fetcher_stage == 3 && stage2_ready) begin
+     
+     if (reset_uart_buffer_available) begin
+          uart_buffer_available = 0;
+        end else if (!uart_buffer_full) begin
+          if (executor_pc == 46 && executor_instruction1 == 3073 && executor_instruction2 == 1) begin
+            uart_buffer[uart_buffer_available] = "M";
+            $display($time, "M");
+          end else if (executor_pc == 48 && executor_instruction1 == 3073 && executor_instruction2 == 2) begin
+            uart_buffer[uart_buffer_available] = "A";
+            $display($time, "A");
+          end else if (executor_pc == 50 && executor_instruction1 == 16'h0402) begin
+            uart_buffer[uart_buffer_available] = "R";
+            $display($time, "R");
+          end else begin
+            uart_buffer[uart_buffer_available] = "X";
+            $display($time, "X");
+          end
+          uart_buffer_available = uart_buffer_available + 1;
+       
+        end
       $display($time, "start executor");
-   executor_exec = 1; 
+   
     read_address = pc + 1; 
-    
       pc = pc + 1;
-      read_address_exec = 1;
+
       fetcher_stage = 1;
     end
   end
@@ -226,6 +270,7 @@ parameter OPCODE_RAM2REG = 2;  //register num, 16 bit source addr //ram -> reg
 parameter OPCODE_REG2RAM = 3;  //register num, 16 bit source addr //reg -> ram
 parameter OPCODE_NUM2REG = 4;  //register num, 16 bit value //value -> reg
 
+/*
 module stage2_executor (
     input clk,
     input rst,
@@ -363,7 +408,7 @@ ready = 1;
     end
   end
 endmodule
-
+*/
 
 module mmu (
     input rst,
@@ -495,7 +540,6 @@ module ram (
     input read_address_exec,
     input [5:0] read_address,
     output logic  read_address_ready,
-
     output logic [15:0] read_value,
 
     input [5:0] read_address_executor,
@@ -535,36 +579,27 @@ module ram (
       .read_value(get_value)
   );
 
-  reg pos_flag = 0;
-  reg [9:0] addrbb;
+ reg pos_flag = 0, neg_flag = 0;
+  reg [9:0] addrbb, addraa;
 
+  assign read_address_ready = pos_flag && neg_flag;
   assign read_value = get_value;
-  
-
-  
 
   always @(address_decoded) begin
-    // $display($time, " address decoded change ");
-    get_address = address_decoded;
-    addrbb = read_address;
+    $display($time, " address decoded change ");
+    get_address <= address_decoded;
+    addrbb <= read_address;
   end
-  
-  
+
   always @(clk) begin
     if (clk == 1) begin
-    read_address_ready = 0;
-      pos_flag = addrbb == read_address ? 1 : 0;
-     
-   //   $display($time,"pos ",read_address_ready);
+      pos_flag <= addrbb == read_address ? 1 : 0;
+      neg_flag <= 0;
     end else begin
-    read_address_ready = pos_flag && addrbb == read_address ? 1 : 0;
-    
-    
- //      $display($time,"neg ",read_address_ready);
-    //  if (pos_flag == 1  && addrbb == read_address) $display($time, "read " ,read_address,"=",get_value);
+      neg_flag <= pos_flag == 1 ? (addrbb == read_address ? 1 : 0) : 0;
     end
-    // $display($time, "  ", pos_flag, " ", neg_flag, " ", read_address_ready, addrbb, " ",
-     //            read_address, " ",get_value);
+    $display($time, "  ", pos_flag, " ", neg_flag, " ", read_address_ready, addrbb, " ",
+             read_address);
   end
 
 endmodule
