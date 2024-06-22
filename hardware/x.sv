@@ -168,13 +168,13 @@ module stage1_fetcher (
 
 reg stage2_ready;
 
-//always @(stage2_ready) begin
-//   $display($time, "st2ready ", stage2_ready);
-//end
+always @(stage2_ready) begin
+   $display($time, "st2ready ", stage2_ready);
+end
 
 //always @(executor_ready, fetcher_stage) begin
-   assign stage2_ready = fetcher_stage == 3; // && executor_instruction1 == executor_instruction1_received && 
-                  //executor_instruction2 == executor_instruction2_received &&   pc-1 == executor_pc_received ? 1:0;
+   assign stage2_ready = executor_ready && fetcher_stage == 3 && executor_instruction1 == executor_instruction1_received && 
+                  executor_instruction2 == executor_instruction2_received &&   pc-1 == executor_pc_received ? 1:0;
                   //executor_ready && 
 //end
 
@@ -194,9 +194,15 @@ reg stage2_ready;
   );
   */
   
+  logic [5:0] x;
+  
 
+always @(posedge read_address_ready, posedge stage2_ready) begin
+$display($time, "x change ");
+  x <= x==10?0:x+1;
+end
 
-  always @(posedge rst, posedge read_address_ready) begin
+  always @(rst, x) begin
     if (rst && rst_can_be_done) begin
       executor_instruction1 <= 0;
         executor_instruction2 <= 0;
@@ -256,8 +262,8 @@ executor_exec <= 0;
           uart_buffer_available = uart_buffer_available + 1;
        
         end*/
-   //fetcher_stage <= 3;   
-     //end else if (fetcher_stage == 3 && stage2_ready) begin
+   fetcher_stage <= 3;   
+     end else if (fetcher_stage == 3 && stage2_ready) begin
       $display($time, "start executor");
 executor_exec <= 1;
    
