@@ -89,8 +89,8 @@ module x (
   );
 
   wire executor_exec, executor_exec_confirmed, executor_ready;
-  wire [5:0] executor_pc;
-  wire [15:0] executor_instruction1, executor_instruction2;
+  wire [5:0] executor_pc, executor_pc_received;
+  wire [15:0] executor_instruction1, executor_instruction2, executor_instruction1_received, executor_instruction2_received;
 
   stage1_fetcher fetch (
       .rst(reset),
@@ -100,6 +100,11 @@ module x (
       .executor_pc(executor_pc),
       .executor_instruction1(executor_instruction1),
       .executor_instruction2(executor_instruction2),
+      
+       .executor_pc_received(executor_pc_received),
+      .executor_instruction1_received(executor_instruction1_received),
+      .executor_instruction2_received(executor_instruction2_received),
+      
       .executor_ready(executor_ready),
 
       .read_address(read_address),
@@ -114,7 +119,10 @@ module x (
       .tx (uart_rx_out),
 
       .exec(executor_exec),
-      .exec_confirmed(executor_exec_confirmed),
+       .pc_received(executor_pc_received),
+      .instruction1_received(executor_instruction1_received),
+      .instruction2_received(executor_instruction2_received),
+      
       .pc(executor_pc),
       .instruction1(executor_instruction1),
       .instruction2(executor_instruction2),
@@ -136,8 +144,13 @@ module stage1_fetcher (
     output reg executor_exec,
     input executor_exec_confirmed,
     output reg [5:0] executor_pc,
+    input [5:0] executor_pc_received,
+    
     output reg [15:0] executor_instruction1,
     executor_instruction2,
+       input [15:0] executor_instruction1_received,
+    executor_instruction2_received,
+    
     input reg executor_ready,
 
     output reg        read_address_exec,
@@ -151,12 +164,19 @@ module stage1_fetcher (
   reg rst_can_be_done = 1;
   reg [3:0] fetcher_stage;
 
-  always @(rst, read_address_ready, executor_ready) begin
+reg stage2_ready;
+
+assign stage2_ready = executor_ready && executor_instruction1 == executor_instruction1_received && 
+executor_instruction2 == executor_instruction2_received
+&&   executor_pc == executor_pc_received;
+
+  always @(posedge rst, posedge read_address_ready, posedge stage2_ready) begin
     if (rst && rst_can_be_done) begin
       rst_can_be_done = 0;
       $display($time, "stage 1 reset");
       pc = ADDRESS_PROGRAM;
       read_address = ADDRESS_PROGRAM;
+    executor_pc   = ADDRESS_PROGRAM;
       read_address_exec = 1;
       fetcher_stage = 1;
     end else if (fetcher_stage ==1 && !rst && read_address_ready && pc <= 59) begin
@@ -170,15 +190,17 @@ module stage1_fetcher (
       $display($time, read_value);
     end else if (fetcher_stage ==2 && read_address_ready) begin
     $display($time, "read ready2");
-         executor_pc   = pc - 1;
+        
          executor_instruction2 = read_value; 
-         executor_exec = 1;
-            read_address = pc + 1;
-      pc = pc + 1;
-        fetcher_stage = 3;
-    end else if (fetcher_stage == 3 && executor_ready) begin
-      $display($time, "start executor");
    
+          
+        fetcher_stage = 3;
+    end else if (fetcher_stage == 3 && stage2_ready) begin
+      $display($time, "start executor");
+   executor_exec = 1; 
+    read_address = pc + 1; 
+    executor_pc   = pc-1 ;
+      pc = pc + 1;
       fetcher_stage = 1;
     end
   end
@@ -197,10 +219,14 @@ module stage2_executor (
     output logic tx,
 
     input exec,
-    output reg exec_confirmed,
     input [5:0] pc,
     input [15:0] instruction1,
     instruction2,
+    
+    output reg [5:0] pc_received,
+    output reg [15:0] instruction1_received,
+    instruction2_received,
+    
     output reg ready,
 
     output reg [ 5:0] read_address,
@@ -211,6 +237,11 @@ module stage2_executor (
     input      [ 5:0] save_save_address,
     output reg [15:0] save_value
 );
+
+assign pc_received = pc;
+assign instruction1_received = instruction1;
+assign instruction2_received = instruction2;
+
 
   reg [3:0] executor_stage;
 
@@ -232,6 +263,8 @@ module stage2_executor (
       .tx(tx)
   );
   
+  
+  
      assign instruction1_1 = instruction1[15:8];
         assign instruction1_2 = instruction1[7:0];
   
@@ -242,7 +275,7 @@ module stage2_executor (
       rst_can_be_done = 0;
       $display($time, " stage 2 reset ");
       ready = 1;
-      exec_confirmed = 0;
+     
       uart_buffer[0] = "S";
       $display($time, "S");
       uart_buffer_available = 1;
@@ -505,10 +538,10 @@ module ram (
       neg_flag <= 0;
     end else begin
       neg_flag <= pos_flag == 1 ? (addrbb == read_address ? 1 : 0) : 0;
-      if (pos_flag == 1  && addrbb == read_address) $display($time, "read " ,read_address,"=",get_value);
+    //  if (pos_flag == 1  && addrbb == read_address) $display($time, "read " ,read_address,"=",get_value);
     end
-     $display($time, "  ", pos_flag, " ", neg_flag, " ", read_address_ready, addrbb, " ",
-                 read_address, " ",get_value);
+    // $display($time, "  ", pos_flag, " ", neg_flag, " ", read_address_ready, addrbb, " ",
+     //            read_address, " ",get_value);
   end
 
 endmodule
