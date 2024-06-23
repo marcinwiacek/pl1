@@ -51,7 +51,7 @@ parameter ADDRESS_REG_USED = 8;
 parameter ADDRESS_REG = 14;
 parameter ADDRESS_PROGRAM = ADDRESS_REG + 32;
 
-module x (
+module x_simple (
     input clk,
     input logic btnc,
     output logic uart_rx_out
@@ -66,361 +66,224 @@ module x (
     if (ctn < 10) ctn <= ctn + 1;
   end
 
-  wire [5:0] read_address, read_read_address, read_address_executor, read_read_address_executor, save_address, save_save_address;
-  wire [15:0] read_value, read_value_executor, save_value;
-  wire read_address_exec, read_address_ready;
+  reg write_enabled;
+  reg [5:0] write_address;
+  reg [15:0] write_value;
+  reg [5:0] read_address;
+  wire [15:0] read_value;
 
-  ram ram (
+  single_ram single_ram (
       .clk(clk),
-      .rst(reset),
-
-      .read_address_exec(read_address_exec),
+      .write_enabled(write_enabled),
+      .write_address(write_address),
+      .write_value(write_value),
       .read_address(read_address),
-      .read_address_ready(read_address_ready),
-      .read_value(read_value),
-
-      .read_address_executor(read_address_executor),
-      .read_read_address_executor(read_read_address_executor),
-      .read_value_executor(read_value_executor),
-
-      .save_value(save_value),
-      .save_address(save_address),
-      .save_save_address(save_save_address)
-  );
-
-  wire executor_exec, executor_exec_confirmed, executor_ready;
-  wire [5:0] executor_pc, executor_pc_received;
-  wire [15:0] executor_instruction1, executor_instruction2, executor_instruction1_received, executor_instruction2_received;
-
-  stage1_fetcher fetch (
- .clk(clk),
-      .rst(reset),
-     // .tx (uart_rx_out),
-      
-      .executor_exec(executor_exec),
-      .executor_exec_confirmed(executor_exec_confirmed),
-      .executor_pc(executor_pc),
-      .executor_instruction1(executor_instruction1),
-      .executor_instruction2(executor_instruction2),
-      
-       .executor_pc_received(executor_pc_received),
-      .executor_instruction1_received(executor_instruction1_received),
-      .executor_instruction2_received(executor_instruction2_received),
-      
-      .executor_ready(executor_ready),
-
-      .read_address(read_address),
-      .read_address_exec(read_address_exec),
-      .read_address_ready(read_address_ready),
       .read_value(read_value)
   );
 
-  stage2_executor execute (
+  reg [7:0] uart_buffer[0:128];
+  reg [6:0] uart_buffer_available;
+  wire reset_uart_buffer_available;
+  wire uart_buffer_full;
+
+  uartx_tx_with_buffer uartx_tx_with_buffer (
       .clk(clk),
-      .rst(reset),
-      .tx (uart_rx_out),
-
-      .exec(executor_exec),
-       .pc_received(executor_pc_received),
-      .instruction1_received(executor_instruction1_received),
-      .instruction2_received(executor_instruction2_received),
-      
-      .pc(executor_pc),
-      .instruction1(executor_instruction1),
-      .instruction2(executor_instruction2),
-      .ready(executor_ready),
-
-      .read_address(read_address_executor),
-      .read_read_address(read_read_address_executor),
-      .read_value(read_value_executor),
-      .save_value(save_value),
-      .save_address(save_address),
-      .save_save_address(save_save_address)
+      .uart_buffer(uart_buffer),
+      .uart_buffer_available(uart_buffer_available),
+      .reset_uart_buffer_available(reset_uart_buffer_available),
+      .uart_buffer_full(uart_buffer_full),
+      .tx(uart_rx_out)
   );
 
-endmodule
+  parameter OPCODE_JMP = 1;  //255 or register num for first 16-bits of the address, 16 bit address
+  parameter OPCODE_RAM2REG = 2;  //register num, 16 bit source addr //ram -> reg
+  parameter OPCODE_REG2RAM = 3;  //register num, 16 bit source addr //reg -> ram
+  parameter OPCODE_NUM2REG = 4;  //register num, 16 bit value //value -> reg
 
-module stage1_fetcher (
-    input rst,clk,
-     // output logic tx,
-
-    output logic executor_exec,
-    input executor_exec_confirmed,
-    output logic [5:0] executor_pc,
-    input [5:0] executor_pc_received,
-    
-    output logic [15:0] executor_instruction1,
-    executor_instruction2,
-       input [15:0] executor_instruction1_received,
-    executor_instruction2_received,
-    
-    input executor_ready,
-
-    output reg        read_address_exec,
-    output reg [ 5:0] read_address,
-    input             read_address_ready,
-    input      [15:0] read_value
-);
+  parameter STAGE_AFTER_RESET = 1;
+  parameter STAGE_GET_1_BYTE = 2;
+  parameter STAGE_GET_2_BYTE = 3;
 
   reg [5:0] pc;
   reg rst_can_be_done = 1;
-  reg [3:0] fetcher_stage;
-
-reg stage2_ready;
-
-always @(stage2_ready) begin
-   $display($time, "st2ready ", stage2_ready);
-end
-
-//always @(executor_ready, fetcher_stage) begin
-   assign stage2_ready = executor_ready && fetcher_stage == 3 && executor_instruction1 == executor_instruction1_received && 
-                  executor_instruction2 == executor_instruction2_received &&   pc-1 == executor_pc_received ? 1:0;
-                  //executor_ready && 
-//end
-
-/*
-  reg [7:0] uart_buffer[0:128];
-  reg [6:0] uart_buffer_available;
-  wire reset_uart_buffer_available;
-  wire uart_buffer_full;
-
-  uartx_tx_with_buffer uartx_tx_with_buffer (
-      .clk(clk),
-      .uart_buffer(uart_buffer),
-      .uart_buffer_available(uart_buffer_available),
-      .reset_uart_buffer_available(reset_uart_buffer_available),
-      .uart_buffer_full(uart_buffer_full),
-      .tx(tx)
-  );
-  */
-  
-  logic [5:0] x;
-  
-
-always @(posedge read_address_ready, posedge stage2_ready) begin
-$display($time, "x change ");
-  x <= x==10?0:x+1;
-end
-
-  always @(rst, x) begin
-    if (rst && rst_can_be_done) begin
-      executor_instruction1 <= 0;
-        executor_instruction2 <= 0;
-        executor_pc <= 0;
-       read_address_exec <= 1;  
-           rst_can_be_done <= 0;
-      $display($time, "stage 1 reset");
-      pc <= ADDRESS_PROGRAM;
-      read_address <= ADDRESS_PROGRAM;
-    
-      read_address_exec <= 1;
-      fetcher_stage <= 1;
-
-      // uart_buffer[0] = "S";
-            $display($time, "S");
-       //   uart_buffer_available = 1;
-    end else if (fetcher_stage ==1 && !rst && read_address_ready && pc <= 59) begin
-executor_exec <= 0;
-         rst_can_be_done <= 1;  
-         $display($time, "read ready ",read_address,"=",read_value);
-     //  uart_buffer[uart_buffer_available] = "a";
-            $display($time, "a");
-    //      uart_buffer_available = uart_buffer_available + 1;
-   //   read_address_exec = 0;
-   
- 
-         executor_instruction1 <= read_value;
-      read_address <= pc + 1;
-      pc <= pc + 1;
-     
-      fetcher_stage <= 2;
-    end else if (fetcher_stage ==2 && read_address_ready) begin
-      $display($time, "read ready2 ",read_address,"=",read_value);
-         //    uart_buffer[uart_buffer_available] = "b";
-         //   $display($time, "b");
-         // uart_buffer_available = uart_buffer_available + 1;
-  
-         executor_instruction2 <= read_value; 
-   executor_pc   <= pc-1;
-     
-    /* if (reset_uart_buffer_available) begin
-          uart_buffer_available = 0;
-        end else if (!uart_buffer_full) begin
-          if (executor_pc == 46 && executor_instruction1 == 3073 && executor_instruction2 == 1) begin
-            uart_buffer[uart_buffer_available] = "M";
-            $display($time, "M");
-          end else if (executor_pc == 48 && executor_instruction1 == 3073 && executor_instruction2 == 2) begin
-            uart_buffer[uart_buffer_available] = "A";
-            $display($time, "A");
-          end else if (executor_pc == 50 && executor_instruction1 == 16'h0402) begin
-            uart_buffer[uart_buffer_available] = "R";
-            $display($time, "R");
-          end else begin
-            uart_buffer[uart_buffer_available] = "X";
-            $display($time, "X");
-          end
-          uart_buffer_available = uart_buffer_available + 1;
-       
-        end*/
-   fetcher_stage <= 3;   
-     end else if (fetcher_stage == 3 && stage2_ready) begin
-      $display($time, "start executor");
-executor_exec <= 1;
-   
-    read_address <= pc + 1; 
-      pc <= pc + 1;
-
-      fetcher_stage <= 1;
-    end
-  end
-
-endmodule
-
-
-parameter OPCODE_JMP = 1;  //255 or register num for first 16-bits of the address, 16 bit address
-parameter OPCODE_RAM2REG = 2;  //register num, 16 bit source addr //ram -> reg
-parameter OPCODE_REG2RAM = 3;  //register num, 16 bit source addr //reg -> ram
-parameter OPCODE_NUM2REG = 4;  //register num, 16 bit value //value -> reg
-
-
-module stage2_executor (
-    input clk,
-    input rst,
-    output logic tx,
-
-    input exec,
-    input [5:0] pc,
-    input [15:0] instruction1,
-    instruction2,
-    
-    output logic [5:0] pc_received,
-    output logic [15:0] instruction1_received,
-    instruction2_received,
-    
-    output logic ready,
-
-    output reg [ 5:0] read_address,
-    input      [ 5:0] read_read_address,
-    input      [15:0] read_value,
-
-    output reg [ 5:0] save_address,
-    input      [ 5:0] save_save_address,
-    output reg [15:0] save_value
-);
-
-assign pc_received = pc;
-assign instruction1_received = instruction1;
-assign instruction2_received = instruction2;
-
-
-  reg [3:0] executor_stage;
-
+  reg [3:0] stage;
   reg [15:0] registers[0:31];  //64 8-bit registers * n=8 processes = 512 16-bit registers
+
+  reg [15:0] instruction1;
   logic [7:0] instruction1_1;
   logic [7:0] instruction1_2;
 
-  reg [7:0] uart_buffer[0:128];
-  reg [6:0] uart_buffer_available;
-  wire reset_uart_buffer_available;
-  wire uart_buffer_full;
+  assign instruction1_1 = instruction1[15:8];
+  assign instruction1_2 = instruction1[7:0];
 
-  uartx_tx_with_buffer uartx_tx_with_buffer (
-      .clk(clk),
-      .uart_buffer(uart_buffer),
-      .uart_buffer_available(uart_buffer_available),
-      .reset_uart_buffer_available(reset_uart_buffer_available),
-      .uart_buffer_full(uart_buffer_full),
-      .tx(tx)
-  );
-  
-  
-  
-     assign instruction1_1 = instruction1[15:8];
-        assign instruction1_2 = instruction1[7:0];
-  
-   reg rst_can_be_done = 1;
-
-  always @(posedge rst, posedge exec) begin
-    if (rst == 1 && rst_can_be_done) begin
+  always @(posedge reset, negedge clk) begin
+    if (reset && rst_can_be_done) begin
       rst_can_be_done = 0;
-      $display($time, " stage 2 reset ");
-      ready = 1;
-     
+      $display($time, "reset");
+      pc = ADDRESS_PROGRAM;
+      read_address = ADDRESS_PROGRAM;
+      stage = STAGE_AFTER_RESET;
       uart_buffer[0] = "S";
       $display($time, "S");
       uart_buffer_available = 1;
-      executor_stage = 1;
-    end else if (!rst && exec == 1) begin
-    ready = 0;
+    end else if (stage == STAGE_AFTER_RESET && !reset) begin
+      stage = STAGE_GET_1_BYTE;    
+    end else if (stage == STAGE_GET_1_BYTE && pc <= 59) begin
       rst_can_be_done = 1;
-      $display($time, "a ", executor_stage, " ", instruction1, " ", instruction2, " ");
-      
-     
-     
-       
-        
-           uart_buffer[uart_buffer_available] = "w";
-          uart_buffer_available = uart_buffer_available + 1;
-          
-
-        $display($time, "b");
-
-        
-        $display($time, " decoding ", pc, ":", instruction1, " (", instruction1_1, ":",
-                 instruction1_2, ") ", instruction2);
-
-      //  if (reset_uart_buffer_available) begin
-       //   uart_buffer_available = 0;
-      //  end else if (!uart_buffer_full) begin
-          if (pc == 46 && instruction1 == 3073 && instruction2 == 1) begin
-            uart_buffer[uart_buffer_available] = "m";
-            $display($time, "M");
-          end else if (pc == 48 && instruction1 == 3073 && instruction2 == 2) begin
-            uart_buffer[uart_buffer_available] = "a";
-            $display($time, "A");
-          end else if (pc == 50 && instruction1 == 16'h0402) begin
-            uart_buffer[uart_buffer_available] = "r";
-            $display($time, "R");
-          end else begin
-            uart_buffer[uart_buffer_available] = "x";
-            $display($time, "X");
-          end
-          uart_buffer_available = uart_buffer_available + 1;
-       // end
-
-        if (instruction1_1 == OPCODE_JMP) begin
-          $display(" opcode = jmp to ", instruction2);  //DEBUG info         
-        end else if (instruction1_1 == OPCODE_RAM2REG) begin
-          $display(" opcode = ram2reg value from address ", instruction2, " to reg ",  //DEBUG info
-                   instruction1_1);  //DEBUG info
-          uart_buffer[uart_buffer_available] = "2";
-          uart_buffer_available = uart_buffer_available + 1;
-          $display($time, "2");
-        end else if (instruction1_1 == OPCODE_REG2RAM) begin
-          $display(" opcode = reg2ram save value ", registers[instruction1_2], " from register ",
-                   instruction1_2, " to address ", instruction2);
-          uart_buffer[uart_buffer_available] = "3";
-          uart_buffer_available = uart_buffer_available + 1;
-          $display($time, "3");
-        end else if (instruction1_1 == OPCODE_NUM2REG) begin
-          $display(" opcode = num2reg value ", instruction2, " to reg ",  //DEBUG info
-                   instruction1_2);  //DEBUG info
-          registers[instruction1_2] = instruction2;
-          uart_buffer[uart_buffer_available] = "4";
-          uart_buffer_available = uart_buffer_available + 1;
-          $display($time, "4");
+      $display($time, "read ready ", read_address, "=", read_value);
+      uart_buffer[uart_buffer_available] = "a";
+      $display($time, "a");
+      uart_buffer_available = uart_buffer_available + 1;
+      instruction1 = read_value;
+      read_address = pc + 1;
+      pc = pc + 1;
+      stage = STAGE_GET_2_BYTE;
+    end else if (stage == STAGE_GET_2_BYTE) begin
+      $display($time, "read ready2 ", read_address, "=", read_value);
+      uart_buffer[uart_buffer_available] = "b";
+      uart_buffer_available = uart_buffer_available + 1;
+      $display($time, " decoding ", (pc-1), ":", instruction1, " (", instruction1_1, ":",
+               instruction1_2, ") ", read_value);
+      if (reset_uart_buffer_available) begin
+        uart_buffer_available = 0;
+      end else if (!uart_buffer_full) begin
+        if (pc - 1 == 46 && instruction1 == 3073 && read_value == 1) begin
+          uart_buffer[uart_buffer_available] = "m";
+          $display($time, "M");
+        end else if (pc - 1 == 48 && instruction1 == 3073 && read_value == 2) begin
+          uart_buffer[uart_buffer_available] = "a";
+          $display($time, "A");
+        end else if (pc - 1 == 50 && instruction1 == 1026) begin
+          uart_buffer[uart_buffer_available] = "r";
+          $display($time, "R");
+        end else begin
+          uart_buffer[uart_buffer_available] = "x";
+          $display($time, "X");
         end
-        if (instruction1_1 != OPCODE_REG2RAM && instruction1_1 != OPCODE_JMP) begin
-          $display($time, " decoding end ");
-          
-        end
-ready = 1;
-        executor_stage = 1;
-      
+        uart_buffer_available = uart_buffer_available + 1;
+      end
+      if (instruction1_1 == OPCODE_JMP) begin
+        $display(" opcode = jmp to ", read_value);  //DEBUG info         
+        uart_buffer[uart_buffer_available] = "1";
+        uart_buffer_available = uart_buffer_available + 1;
+        $display($time, "1");
+      end else if (instruction1_1 == OPCODE_RAM2REG) begin
+        $display(" opcode = ram2reg value from address ", read_value, " to reg ",  //DEBUG info
+                 instruction1_1);  //DEBUG info
+        uart_buffer[uart_buffer_available] = "2";
+        uart_buffer_available = uart_buffer_available + 1;
+        $display($time, "2");
+      end else if (instruction1_1 == OPCODE_REG2RAM) begin
+        $display(" opcode = reg2ram save value ", registers[instruction1_2], " from register ",
+                 instruction1_2, " to address ", read_value);
+        uart_buffer[uart_buffer_available] = "3";
+        uart_buffer_available = uart_buffer_available + 1;
+        $display($time, "3");
+      end else if (instruction1_1 == OPCODE_NUM2REG) begin
+        $display(" opcode = num2reg value ", read_value, " to reg ",  //DEBUG info
+                 instruction1_2);  //DEBUG info
+        registers[instruction1_2] = read_value;
+        uart_buffer[uart_buffer_available] = "4";
+        uart_buffer_available = uart_buffer_available + 1;
+        $display($time, "4");
+      end
+      read_address = pc + 1;
+      pc = pc + 1;
+      stage = STAGE_GET_1_BYTE;
     end
   end
 endmodule
 
+module single_ram (
+    input clk,
+    input write_enabled,
+    input [5:0] write_address,
+    input [15:0] write_value,
+    input [5:0] read_address,
+    output reg [15:0] read_value
+);
+
+  //   reg [15:0] ram[0:67];
+  //    initial begin  //DEBUG info
+  //      $readmemh("rom4.mem", ram);  //DEBUG info
+  //    end  //DEBUG info
+
+  reg [15:0] ram[0:67] = '{
+      16'h0110,
+      16'h0220,  //next,8'hprocess,8'haddress,8'h(no,8'hMMU),8'hoverwritten,8'hby,8'hCPU
+      16'h0330,
+      16'h0440,
+      16'h0000,
+      16'h0000,  //PC,8'hfor,8'hthis,8'hprocess,8'hoverwritten,8'hby,8'hCPU
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,  //registers,8'hused,8'h(currently,8'hignored)
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,  //registers,8'htaken,8'h"as,8'his"
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0000,
+      16'h0c01,
+      16'h0001,  //proc
+      16'h0c01,
+      16'h0002,  //proc
+      16'h0402,
+      16'h0003,  //num2reg
+      16'h0902,
+      16'h0002,  //loop,8'hwith,8'hcache:,8'hloopeqvalue
+      16'h0602,
+      16'h0001,  //regminusnum
+      16'h0602,
+      16'h0000,  //regminusnum
+      16'h0201,
+      16'h0001,  //after,8'hloop:,8'hram2reg
+      16'h0401,
+      16'h0005,  //num2reg
+      16'h0301,
+      16'h0046,  //reg2ram
+      16'h0F00,
+      16'h0002,  //int,8'h2
+      16'h010E,
+      16'h0030  //jmp,8'h0x30
+  };
+
+  always @(posedge clk) begin
+    if (write_enabled) ram[write_address] <= write_value;
+    read_value <= ram[read_address];
+  end
+endmodule
 
 module mmu (
     input rst,
@@ -538,173 +401,7 @@ module mmu_search (
         mmu_search <= 1;
         mmu_old_physical_segment <= mmu_chain_memory[mmu_start_process_physical_segment];
       end
-
     end
-  end
-
-endmodule
-
-module ram (
-    input rst,
-    input clk,
-    output reg mmu_ready,
-
-    input read_address_exec,
-    input [5:0] read_address,
-    output logic  read_address_ready,
-    output logic [15:0] read_value,
-
-    input [5:0] read_address_executor,
-    output reg [5:0] read_read_address_executor,
-    output reg [15:0] read_value_executor,
-
-    input [5:0] save_address,
-    output reg [5:0] save_save_address,
-    input [15:0] save_value
-);
-
-  reg [5:0] address_to_decode, address_decoded, address_to_decode2, address_decoded2;
-
-  mmu mmu (
-      .rst(rst),
-
-      .exec(read_address_exec),
-      .address_to_decode(read_address),
-      .address_decoded(address_decoded),
-
-      .address_to_decode2(address_to_decode2),
-      .address_decoded2  (address_decoded2)
-  );
-
-  reg write_enabled;
-  reg [5:0] write_address;
-  reg [15:0] write_value;
-  reg [5:0] get_address;
-  wire [15:0] get_value;
-
-  single_ram single_ram (
-      .clk(clk),
-      .write_enabled(write_enabled),
-      .write_address(write_address),
-      .write_value(write_value),
-      .read_address(get_address),
-      .read_value(get_value)
-  );
-
- reg pos_flag = 0, neg_flag = 0;
-  reg [9:0] addrbb, addraa;
-
-  assign read_address_ready = pos_flag && neg_flag;
-  assign read_value = get_value;
-
-  always @(address_decoded) begin
-    $display($time, " address decoded change ");
-    get_address <= address_decoded;
-    addrbb <= read_address;
-  end
-
-  always @(clk) begin
-    if (clk == 1) begin
-      pos_flag <= addrbb == read_address ? 1 : 0;
-      neg_flag <= 0;
-    end else begin
-      neg_flag <= pos_flag == 1 ? (addrbb == read_address ? 1 : 0) : 0;
-    end
-    //$display($time, "  ", pos_flag, " ", neg_flag, " ", read_address_ready, addrbb, " ",
-//             read_address);
-  end
-
-endmodule
-
-module single_ram (
-    input clk,
-    input write_enabled,
-    input [5:0] write_address,
-    input [15:0] write_value,
-    input [5:0] read_address,
-    output reg [15:0] read_value
-);
-
-  //   reg [15:0] ram[0:67];
-  //    initial begin  //DEBUG info
-  //      $readmemh("rom4.mem", ram);  //DEBUG info
-  //    end  //DEBUG info
-
-  reg [15:0] ram[0:67] = '{
-      16'h0110,
-      16'h0220,  //next,8'hprocess,8'haddress,8'h(no,8'hMMU),8'hoverwritten,8'hby,8'hCPU
-      16'h0330,
-      16'h0440,
-      16'h0000,
-      16'h0000,  //PC,8'hfor,8'hthis,8'hprocess,8'hoverwritten,8'hby,8'hCPU
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,  //registers,8'hused,8'h(currently,8'hignored)
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,  //registers,8'htaken,8'h"as,8'his"
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0000,
-      16'h0c01,
-      16'h0001,  //proc
-      16'h0c01,
-      16'h0002,  //proc
-      16'h0402,
-      16'h0003,  //num2reg
-      16'h0902,
-      16'h0002,  //loop,8'hwith,8'hcache:,8'hloopeqvalue
-      16'h0602,
-      16'h0001,  //regminusnum
-      16'h0602,
-      16'h0000,  //regminusnum
-      16'h0201,
-      16'h0001,  //after,8'hloop:,8'hram2reg
-      16'h0401,
-      16'h0005,  //num2reg
-      16'h0301,
-      16'h0046,  //reg2ram
-      16'h0F00,
-      16'h0002,  //int,8'h2
-      16'h010E,
-      16'h0030  //jmp,8'h0x30
-  };
-
-  always @(posedge clk) begin
-    if (write_enabled) ram[write_address] <= write_value;
-  //  $display($time,"readread ",read_address, " ",ram[read_address]);
-    read_value <= ram[read_address];
   end
 endmodule
 
@@ -750,7 +447,6 @@ module uartx_tx_with_buffer (
       if (complete) uart_buffer_state <= 0;
     end
   end
-
 endmodule
 
 
