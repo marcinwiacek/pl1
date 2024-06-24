@@ -165,12 +165,15 @@ module stage1_fetcher (
     input        [15:0] read_value
 );
 
-  reg [5:0] pc, pc2;
+  reg [5:0] pc;
+  wire [5:0] pc2;
   reg rst_can_be_done = 1;
-  reg [5:0] fetcher_stage, fetcher_stage2;
+  reg [5:0] fetcher_stage;
+  wire [5:0] fetcher_stage2;
 
   reg [7:0] uart_buffer[0:128];
-  reg [6:0] uart_buffer_available, uart_buffer_available2;
+  reg [6:0] uart_buffer_available;
+  wire[6:0] uart_buffer_available2;
   wire reset_uart_buffer_available;
   wire uart_buffer_full;
   
@@ -187,9 +190,13 @@ module stage1_fetcher (
   reg [3:0] clk1;
   reg [5:0] clk11=0;
 
+assign uart_buffer_available2 = uart_buffer_available;
+assign pc2 = pc;
+assign fetcher_stage2 = fetcher_stage;
+
 always @(fetcher_stage, fetcher_stage2, uart_buffer_available, uart_buffer_available2, pc, pc2) begin
   clk11= clk11==5?1:clk11+1;
-  clk1 = fetcher_stage == fetcher_stage2 && uart_buffer_available == uart_buffer_available2 && pc == pc2;
+  clk1 = !rst && fetcher_stage == fetcher_stage2 && uart_buffer_available == uart_buffer_available2 && pc == pc2;
 
 end
   
@@ -213,7 +220,7 @@ end
    
    end*/
   
-      always @(rst, clk11) begin
+      always @(rst, fetcher_stage2, clk1) begin
   
  $display($time, "entering main ",fetcher_stage ," ", fetcher_stage2 ," ",rst," ", read_address_ack," ",pc);
     
@@ -226,21 +233,21 @@ end
       rst_can_be_done = 0;
       $display($time, "stage 1 reset");
       pc = ADDRESS_PROGRAM;
-      pc2 = ADDRESS_PROGRAM;
+     
       
       read_address = ADDRESS_PROGRAM;
       
       uart_buffer[0] = "S";
       $display($time, "S");
       uart_buffer_available = 1;
-      uart_buffer_available2 = 1;
+     
      
   
       fetcher_stage = 1;
-  fetcher_stage2 = 1;
+ 
   
        //fetcher_stage2 = 1;     
-    end else             if (fetcher_stage == 1    && pc <50 && clk1) begin
+    end else             if (fetcher_stage2 == 1    && pc2 <52 && clk1) begin
     //   up<=0;
       /*fetcher_stage  =  2;
       fetcher_stage2  =   2;
@@ -277,20 +284,21 @@ end
              //    uart_buffer[uart_buffer_available] = pc == 46?"1":(pc == 47?"2":(pc == 48?"3":(pc == 49?"4":(pc == 50?"5":(pc == 51?"6":"x")))));
                  
             uart_buffer[uart_buffer_available] = "x";
+    uart_buffer_available = uart_buffer_available + 1;     
      
             pc = pc+1;
-            pc2 = pc2+1;
+           
            
         fetcher_stage  = 2;
-        fetcher_stage2  = 2;
-
-    
-     end else if (fetcher_stage  == 2 && clk1) begin
       
-          uart_buffer[uart_buffer_available+1] = "y";    
-    uart_buffer_available = uart_buffer_available + 2;
-      uart_buffer_available2 = uart_buffer_available2 + 2;
-        fetcher_stage2  = 1;
+    
+     end else if (fetcher_stage2  == 2 && clk1) begin
+      
+          uart_buffer[uart_buffer_available] = "y";    
+    uart_buffer_available = uart_buffer_available + 1;     
+   
+     
+  
         fetcher_stage  = 1;
         
     
