@@ -184,29 +184,32 @@ module stage1_fetcher (
       .tx(tx)
   );
   
-  reg [3:0] up = 0;
+  logic [3:0] clk1;
 
+assign clk1 = fetcher_stage == fetcher_stage2 && uart_buffer_available == uart_buffer_available2 && pc == pc2;
 
+  always @(clk1) begin
+    $display($time, "clk1 ", clk1);
+   
+   end
+   
   always @(fetcher_stage) begin
     $display($time, "fetcher ", fetcher_stage);
-  up[0] = ~up[0];
+  
   end
 
   always @(uart_buffer_available) begin
     $display($time, "uart ", uart_buffer_available);
-     up[1] = ~up[1];
+  
   end
   
   always @(pc) begin
     $display($time, "pc ", pc);
-   up[2] = ~up[2];
+   
    end
   
-   always @(up) begin
-    $display($time, "up ", up);
-  end
   
-      always @(rst, fetcher_stage, uart_buffer_available, pc) begin
+      always @(rst, clk1, fetcher_stage, fetcher_stage2) begin
   
  $display($time, "entering main ",fetcher_stage ," ", fetcher_stage2 ," ",rst," ", read_address_ack," ",pc);
     
@@ -219,20 +222,21 @@ module stage1_fetcher (
       rst_can_be_done <= 0;
       $display($time, "stage 1 reset");
       pc <= ADDRESS_PROGRAM;
+      pc2 <= ADDRESS_PROGRAM;
       
       read_address <= ADDRESS_PROGRAM;
       
       uart_buffer[0] <= "S";
       $display($time, "S");
       uart_buffer_available <= 1;
+      uart_buffer_available2 <= 1;
      
-    
-      
+  
       fetcher_stage <= 0;
+  fetcher_stage2 <= 0;
   
        //fetcher_stage2 = 1;     
-    end else if (up ==7 || up==0) begin
-       if (fetcher_stage == 0  && pc <50 ) begin
+    end else             if (fetcher_stage == 0  && pc <50 && clk1) begin
     //   up<=0;
       /*fetcher_stage  =  2;
       fetcher_stage2  =   2;
@@ -266,20 +270,24 @@ module stage1_fetcher (
       end*/
                  
       uart_buffer[uart_buffer_available] <= "x";      
-      uart_buffer_available <= uart_buffer_available + 1;
+      
       
      
             pc <= pc+1;
+            pc2 <= pc2+1;
            
         fetcher_stage  <= 1;
+        fetcher_stage2  <= 1;
 
     
-     end else if (fetcher_stage  == 1 ) begin
+     end else if (fetcher_stage  == 1 && clk1) begin
+      
+          uart_buffer[uart_buffer_available+1] <= "y";    
+    uart_buffer_available <= uart_buffer_available + 2;
+      uart_buffer_available2 <= uart_buffer_available2 + 2;
         fetcher_stage  <= 0;
+        fetcher_stage2  <= 0;
     
-     end
-      end else begin
-      //  up<=up+1;
    end
      
         // pc = 
