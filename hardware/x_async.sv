@@ -234,7 +234,7 @@ assign fetcher_stage4 = fetcher_stage3;
       fetcher_stage4  =  0;
     
       end else if (fetcher_stage == 2 && fetcher_stage2 == 2 && fetcher_stage3 == 2&& fetcher_stage4 == 2) begin*/
-      if (pc == 46) begin 
+    /*  if (pc == 46) begin 
          uart_buffer[uart_buffer_available] <= "1";
       end
       if (pc == 47) begin
@@ -251,9 +251,10 @@ assign fetcher_stage4 = fetcher_stage3;
          end      
       if (pc <46 || pc>50) begin
          uart_buffer[uart_buffer_available] <= "x";         
-      end
+      end*/
       
            
+            uart_buffer[uart_buffer_available] <= "x";      
       uart_buffer_available <= uart_buffer_available + 1;
      
             pc <= pc+1;
