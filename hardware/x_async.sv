@@ -165,27 +165,19 @@ module stage1_fetcher (
     input        [15:0] read_value
 );
 
-  reg [5:0] pc0;
-  wire [5:0] pc;
+  reg [5:0] pc;
   reg rst_can_be_done = 1;
-  reg [5:0] fetcher_stage;
-  wire[5:0] fetcher_stage2;
+  logic [5:0] fetcher_stage, fetcher_stage2, fetcher_stage3, fetcher_stage4;
 
-  reg stage2_ready;
-
-  //always @(executor_ready, fetcher_stage) begin
-  //assign stage2_ready = executor_ready && fetcher_stage == 3 && executor_instruction1 == executor_instruction1_received && 
-//                  executor_instruction2 == executor_instruction2_received &&   pc-1 == executor_pc_received ? 1:0;
-  //executor_ready && 
-  //end
-
+assign fetcher_stage2 = fetcher_stage;
+assign fetcher_stage3 = fetcher_stage2;
+assign fetcher_stage4 = fetcher_stage3;
 
   reg [7:0] uart_buffer[0:128];
-  reg [6:0] uart_buffer_available0;
-  wire [6:0]  uart_buffer_available;
+  reg [6:0] uart_buffer_available;
   wire reset_uart_buffer_available;
   wire uart_buffer_full;
-
+  
   uartx_tx_with_buffer uartx_tx_with_buffer (
       .clk(clk),
       .uart_buffer(uart_buffer),
@@ -201,19 +193,8 @@ module stage1_fetcher (
     $display($time, "fetcher ", fetcher_stage);
   end
 
-  //assign read_address_req = (fetcher_stage == 2&&fetcher_stage2 == 2&&fetcher_stage3 ==2&&fetcher_stage4 == 2) || 
-//     ( fetcher_stage == 5&&fetcher_stage2 == 5&&fetcher_stage3 == 5&&fetcher_stage4 == 5);
+      always @(rst, fetcher_stage, fetcher_stage2, fetcher_stage3,fetcher_stage4,read_address_ack) begin
 
-reg x = 0, y;
-  assign uart_buffer_available = uart_buffer_available0;
-assign y = x;
-assign pc = pc0;
-assign fetcher_stage2 = fetcher_stage;
-  // always_comb begin
-    //  always @(rst, fetcher_stage, fetcher_stage2, fetcher_stage3, fetcher_stage4, read_address_ack) begin
-    
-      always @(rst, fetcher_stage, fetcher_stage2, pc, pc0, uart_buffer_available, uart_buffer_available0, read_address_ack) begin
-  //always_latch begin
   
 
 
@@ -229,19 +210,18 @@ assign fetcher_stage2 = fetcher_stage;
 
       rst_can_be_done <= 0;
       $display($time, "stage 1 reset");
-      pc0 <= ADDRESS_PROGRAM;
+      pc <= ADDRESS_PROGRAM;
       read_address <= ADDRESS_PROGRAM;
       
       uart_buffer[0] <= "S";
       $display($time, "S");
-      uart_buffer_available0 <= 1;
+      uart_buffer_available <= 1;
 
       
       fetcher_stage <= 0;
      
-      x<=1;
     end else begin
-     if (fetcher_stage2 ==  fetcher_stage && pc == pc0 && uart_buffer_available == uart_buffer_available0 && fetcher_stage2 == 0 && pc0 <50 ) begin
+     if (fetcher_stage == 0 && fetcher_stage2 == 0 && fetcher_stage3 == 0 && fetcher_stage4 == 0 && pc <50 ) begin
       /*fetcher_stage  =  2;
       fetcher_stage2  =   2;
       fetcher_stage3  =   2;
@@ -254,31 +234,32 @@ assign fetcher_stage2 = fetcher_stage;
       fetcher_stage4  =  0;
     
       end else if (fetcher_stage == 2 && fetcher_stage2 == 2 && fetcher_stage3 == 2&& fetcher_stage4 == 2) begin*/
-      if (pc0 == 46) begin 
+      if (pc == 46) begin 
          uart_buffer[uart_buffer_available] <= "1";
       end
-      if (pc0 == 47) begin
+      if (pc == 47) begin
          uart_buffer[uart_buffer_available] <= "2";
       end
-      if (pc0 == 48) begin
+      if (pc == 48) begin
          uart_buffer[uart_buffer_available] <= "3";
       end
-      if (pc0 == 49) begin
+      if (pc == 49) begin
          uart_buffer[uart_buffer_available] <= "4";
       end
-      if (pc0 == 50) begin
+      if (pc == 50) begin
          uart_buffer[uart_buffer_available] <= "5";   
          end      
-      if (pc0 <46 || pc0>50) begin
+      if (pc <46 || pc>50) begin
          uart_buffer[uart_buffer_available] <= "x";         
       end
       
-              $display($time, "2");
-      uart_buffer_available0 <= uart_buffer_available0 + 1;
+           
+      uart_buffer_available <= uart_buffer_available + 1;
      
-            pc0 <= pc0+1;
+            pc <= pc+1;
+      fetcher_stage  <= 1;
+      end else if (fetcher_stage == 1 && fetcher_stage2 == 1 && fetcher_stage3 == 1 && fetcher_stage4 == 1 ) begin
       fetcher_stage  <= 0;
-      
    end
      
         // pc = 
