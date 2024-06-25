@@ -221,7 +221,7 @@ end
    
    end*/
   
-      always @(rst , clk1) begin
+      always @(rst , fetcher_stage2) begin
   
  $display($time, "entering main ",fetcher_stage ," ", fetcher_stage2 ," ",rst," ", read_address_ack," ",pc);
     
@@ -251,7 +251,7 @@ end
   
        //fetcher_stage2 = 1;     
     end
-    if (fetcher_stage2 == 1    && pc2 <52 && clk1) begin
+    if (!rst && fetcher_stage2 == 1    && pc <52) begin
     working = 1;
     //   up<=0;
       /*fetcher_stage  =  2;
@@ -298,7 +298,7 @@ end
       working = 0;
     
      end 
-     if (fetcher_stage2  == 2 && clk1) begin
+     if (fetcher_stage2  == 2 ) begin
       working = 1;
           uart_buffer[uart_buffer_available] = "y";    
     uart_buffer_available = uart_buffer_available + 1;     
