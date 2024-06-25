@@ -189,6 +189,7 @@ module stage1_fetcher (
   
   reg [3:0] clk1;
   reg [5:0] clk11=0;
+  reg working;
 
 assign uart_buffer_available2 = uart_buffer_available;
 assign pc2 = pc;
@@ -196,7 +197,7 @@ assign fetcher_stage2 = fetcher_stage;
 
 always @(fetcher_stage, fetcher_stage2, uart_buffer_available, uart_buffer_available2, pc, pc2) begin
   clk11= clk11==5?1:clk11+1;
-  clk1 = !rst && fetcher_stage == fetcher_stage2 && uart_buffer_available == uart_buffer_available2 && pc == pc2;
+  clk1 =   !rst && fetcher_stage == fetcher_stage2 && uart_buffer_available == uart_buffer_available2 && pc == pc2;
 
 end
   
@@ -220,10 +221,11 @@ end
    
    end*/
   
-      always @(rst, fetcher_stage2, clk1) begin
+      always @(rst , clk1) begin
   
  $display($time, "entering main ",fetcher_stage ," ", fetcher_stage2 ," ",rst," ", read_address_ack," ",pc);
     
+    working = 1;
     if (rst && rst_can_be_done) begin
    //  up <=0;
        executor_instruction1 = 0;
@@ -247,7 +249,8 @@ end
  
   
        //fetcher_stage2 = 1;     
-    end else             if (fetcher_stage2 == 1    && pc2 <52 && clk1) begin
+    end
+    if (fetcher_stage2 == 1    && pc2 <52 && clk1) begin
     //   up<=0;
       /*fetcher_stage  =  2;
       fetcher_stage2  =   2;
@@ -292,7 +295,8 @@ end
         fetcher_stage  = 2;
       
     
-     end else if (fetcher_stage2  == 2 && clk1) begin
+     end 
+     if (fetcher_stage2  == 2 && clk1) begin
       
           uart_buffer[uart_buffer_available] = "y";    
     uart_buffer_available = uart_buffer_available + 1;     
@@ -303,6 +307,7 @@ end
         
     
    end
+    working = 0;
      
         // pc = 
      //(fetcher_stage == 1 && fetcher_stage2 == 1 && fetcher_stage3 == 1 && !rst && read_address_ack && pc <= 59)||
