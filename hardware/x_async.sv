@@ -165,18 +165,18 @@ module stage1_fetcher (
     input        [15:0] read_value
 );
 
-  //(* ASYNC_REG = "TRUE" *) 
-  reg [5:0] pc;
-  (* ASYNC_REG = "TRUE" *) wire [5:0] pc2;
+  reg [5:0] pc=0;
   reg rst_can_be_done = 1;
-   reg [5:0] fetcher_stage ;
- (* ASYNC_REG = "TRUE" *)  wire [5:0] fetcher_stage2;
-
+ // (* ASYNC_REG = "TRUE" *) 
+ reg [5:0] fetcher_stage=0;
   reg [7:0] uart_buffer[0:128];
-  //(* ASYNC_REG = "TRUE" *)  
+ // (* ASYNC_REG = "TRUE" *) 
+ reg [6:0] uart_buffer_available=0;
+
+  wire [6:0] uart_buffer_available2;
+  (* ASYNC_REG = "TRUE" *)  reg uart_buffer_available_stable;
+    
   
-  reg [6:0] uart_buffer_available = 0;
-  (* ASYNC_REG = "TRUE" *) reg[6:0] uart_buffer_available2;
   wire reset_uart_buffer_available;
   wire uart_buffer_full;
   
@@ -184,90 +184,49 @@ module stage1_fetcher (
       .clk(clk),
       .uart_buffer(uart_buffer),
       .uart_buffer_available(uart_buffer_available),
+      .uart_buffer_available2(uart_buffer_available2),
+      .uart_buffer_available_stable(uart_buffer_available_stable),
       
       .reset_uart_buffer_available(reset_uart_buffer_available),
       .uart_buffer_full(uart_buffer_full),
       .tx(tx)
   );
   
-  reg [3:0] clk1;
-  reg [5:0] clk11=0;
-  reg working;
+  assign uart_buffer_available_stable = uart_buffer_available==uart_buffer_available2; 
 
-//assign uart_buffer_available2 = uart_buffer_available;
-//assign pc2 = pc;
-assign fetcher_stage2 = fetcher_stage;
-assign pc2 = pc;
-//assign fetcher_stage3 = fetcher_stage2;
-//assign fetcher_stage4 = fetcher_stage3;
-//assign clk1 = fetcher_stage2 == fetcher_stage && fetcher_stage3 == fetcher_stage2 && fetcher_stage4 == fetcher_stage3;
-
-//always @(fetcher_stage, fetcher_stage2, uart_buffer_available, uart_buffer_available2, pc, pc2) begin
- // clk11= clk11==5?1:clk11+1;
- // clk1 =  !rst && fetcher_stage == fetcher_stage2 && uart_buffer_available == uart_buffer_available2 && pc == pc2;
-
-//end
-  
- // always @(fetcher_stage, pc) begin
-//  clk11= clk11==5?1:clk11+1;
- // clk1 =  !rst && fetcher_stage == fetcher_stage2 && uart_buffer_available == uart_buffer_available2 && pc == pc2;
-
-//end
-
-  /*always @(clk1) begin
-    $display($time, "clk1 ", clk1);
-   
-   end
-   */
-  always @(fetcher_stage) begin
-    $display($time, "fetcher ", fetcher_stage);
-  
-  end
-
-  always @(uart_buffer_available) begin
-    $display($time, "uart ", uart_buffer_available);
-  
-  end
-  
-  always @(pc) begin
-    $display($time, "pc ", pc);
-   
-   end
-
-  
-  
-      always @(rst , fetcher_stage2) begin
-  
- $display($time, "entering main ",fetcher_stage ," ", fetcher_stage2 ," ",rst," ", read_address_ack," ",pc);
+reg [5:0] cntr=0;
     
+    always @(pc,  fetcher_stage, uart_buffer_available, uart_buffer_available_stable) begin
+      cntr = cntr==10?0:cntr+1;
+    end
     
-    if (rst && uart_buffer_available == 0 ) begin
-    rst_can_be_done = 0;
-    working = 1;
-   //  up <=0;
-       executor_instruction1 = 0;
+   always @(rst, cntr) begin
+  
+    $display($time, "entering main ",fetcher_stage ," ",rst," ", read_address_ack," ",pc);
+    
+    if (rst && rst_can_be_done) begin
+      
+      executor_instruction1 = 0;
       executor_instruction2 = 0;
       executor_pc = 0;
 
-      
       $display($time, "stage 1 reset");
       pc = ADDRESS_PROGRAM;
      
-      
+     
       read_address = ADDRESS_PROGRAM;
       
       uart_buffer[uart_buffer_available] = "S";
       $display($time, "S");
-      uart_buffer_available = uart_buffer_available+1;
+      uart_buffer_available = 1;
+   
   
-      fetcher_stage = 1;
- working = 0;
-  
-       //fetcher_stage2 = 1;     
-    end 
-     if (!rst && fetcher_stage2 == 1   && pc2 <52 ) begin
-   $display($time, "one");
-    working = 1;
+        rst_can_be_done = 0;
+              fetcher_stage = 1;
+        
+    end  else if (!rst && !rst_can_be_done && fetcher_stage == 1 && pc <49 && uart_buffer_available_stable) begin
+   
+      $display($time, "one");
     //   up<=0;
       /*fetcher_stage  =  2;
       fetcher_stage2  =   2;
@@ -303,103 +262,27 @@ assign pc2 = pc;
                  
              //    uart_buffer[uart_buffer_available] = pc == 46?"1":(pc == 47?"2":(pc == 48?"3":(pc == 49?"4":(pc == 50?"5":(pc == 51?"6":"x")))));
                  
-            uart_buffer[uart_buffer_available] = "x";
-    uart_buffer_available = uart_buffer_available + 1;     
-     
-            pc = pc+1;
-           
-           
-        fetcher_stage  = 2;
-      working = 0;
-    
-     end 
-     if (fetcher_stage2  == 2  ) begin
-     $display($time, "two");
-      working = 1;
-          uart_buffer[uart_buffer_available] = "y";    
-    uart_buffer_available = uart_buffer_available + 1;     
-   
-     
+       uart_buffer[uart_buffer_available] = "x";
+       uart_buffer_available = uart_buffer_available + 1;     
+      
+       
+
+       pc = pc+1;
   
-        fetcher_stage  = 1;
-        working = 0;
-    
-   end
-   
-     
-        // pc = 
-     //(fetcher_stage == 1 && fetcher_stage2 == 1 && fetcher_stage3 == 1 && !rst && read_address_ack && pc <= 59)||
-     //(fetcher_stage == 3 && fetcher_stage2 == 3 && fetcher_stage3 == 3 && read_address_ack)?pc+1:pc;
-   
-     /*
-    if (fetcher_stage == 0 && fetcher_stage2 == 0 && fetcher_stage3 == 0&& fetcher_stage4 == 0) begin
-      fetcher_stage  =  uart_buffer_available == uart_buffer_available2?2:1;
-      fetcher_stage2  =  uart_buffer_available == uart_buffer_available2?2:1;
-      fetcher_stage3  =  uart_buffer_available == uart_buffer_available2?2:1;
-      fetcher_stage4  =  uart_buffer_available == uart_buffer_available2?2:1;
-            $display($time, "0");
-      uart_buffer_available = uart_buffer_available + 1;
-      uart_buffer_available2 = uart_buffer_available2 + 1;
-    end else if (fetcher_stage == 1 && fetcher_stage2 == 1 && fetcher_stage3 == 1&& fetcher_stage4 == 1) begin
-      fetcher_stage  =  0;
-      fetcher_stage2  =  0;
-      fetcher_stage3  =  0;
-      fetcher_stage4  =  0;
-    
-    end else if (fetcher_stage == 2 && fetcher_stage2 == 2 && fetcher_stage3 == 2 && fetcher_stage4 == 2 && !rst && read_address_ack && pc <= 59) begin
-      rst_can_be_done = 1;
-      $display($time, "read ready ", read_address, "=", read_value);
-      uart_buffer[uart_buffer_available] = "a";
-      $display($time, "a");
-      uart_buffer_available = uart_buffer_available + 1;
-      uart_buffer_available2 = uart_buffer_available2 + 1;
+  
+       fetcher_stage  = 2;
+       
+     end  else if (fetcher_stage  == 2 && uart_buffer_available_stable) begin
+       $display($time, "two");
+            
 
-      executor_instruction1 = read_value;
-      read_address = pc + 1;
-      pc = pc + 1;
+       uart_buffer[uart_buffer_available] = "y";    
+       uart_buffer_available = uart_buffer_available + 1;     
+         
 
-      fetcher_stage = 3;
-      fetcher_stage2 = 3;
-      fetcher_stage3 = 3;
-      fetcher_stage4 = 3;
-    end else if (fetcher_stage == 3 && fetcher_stage2 == 3 && fetcher_stage3 == 3 && fetcher_stage4 == 3
-    ) begin
-      fetcher_stage  =  uart_buffer_available == uart_buffer_available2?5:4;
-      fetcher_stage2  =  uart_buffer_available == uart_buffer_available2?5:4;
-      fetcher_stage3  =  uart_buffer_available == uart_buffer_available2?5:4;
-      fetcher_stage4  =  uart_buffer_available == uart_buffer_available2?5:4;
-    end else if (fetcher_stage == 4 && fetcher_stage2 == 4 && fetcher_stage3 == 4 && fetcher_stage4 == 4) begin      
-      fetcher_stage  = 3;
-      fetcher_stage2 = 3;
-      fetcher_stage3 = 3;
-      fetcher_stage4 = 3;
-    end else if (fetcher_stage == 5 && fetcher_stage2 == 5 && fetcher_stage3 == 5&& fetcher_stage4 == 5 && read_address_ack) begin
-      $display($time, "read ready2 ", read_address, "=", read_value);
-          uart_buffer[uart_buffer_available] = "b";
-      //   $display($time, "b");
-       uart_buffer_available = uart_buffer_available + 1;
-      uart_buffer_available2 = uart_buffer_available2 + 1;
-
-      executor_instruction2 = read_value;
-      executor_pc = pc - 1;
-
-      //   fetcher_stage <= 3;   
-      //     end else if (fetcher_stage == 3 && stage2_ready) begin
-      //$display($time, "start executor");
-
-      read_address = pc + 1;
-      pc = pc + 1;
-
-      fetcher_stage = 0;
-      fetcher_stage2 = 0;
-      fetcher_stage3 = 0;
-      fetcher_stage4 = 0;
-    end else begin
-      x = 1;
-    end;
-    */
-   
-    
+       fetcher_stage  = 1;
+       
+     end
   end
 
 endmodule
@@ -827,8 +710,10 @@ endmodule
 
 module uartx_tx_with_buffer (
     input clk,
-    input [7:0] uart_buffer[0:128],
-    input [6:0] uart_buffer_available,
+  (* ASYNC_REG = "TRUE" *)  input [7:0] uart_buffer[0:128],
+  (* ASYNC_REG = "TRUE" *)  input [6:0] uart_buffer_available,
+ (* ASYNC_REG = "TRUE" *)   output logic [6:0] uart_buffer_available2,
+ (* ASYNC_REG = "TRUE" *)   input uart_buffer_available_stable,
     output logic reset_uart_buffer_available,
     output logic uart_buffer_full,
     output logic tx
@@ -840,6 +725,7 @@ module uartx_tx_with_buffer (
   reg start;
   wire complete;
 
+assign uart_buffer_available2 = uart_buffer_available;
   assign reset_uart_buffer_available = 0; //uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
   assign uart_buffer_full = uart_buffer_available == 127 ? 1 : 0;
   assign start = uart_buffer_state == 1;
@@ -854,11 +740,11 @@ module uartx_tx_with_buffer (
 
   always @(posedge clk) begin
     if (uart_buffer_state == 0) begin
-      if (uart_buffer_available > 0 &&   uart_buffer_processed < uart_buffer_available) begin
+      if (uart_buffer_available > 0 &&   uart_buffer_processed < uart_buffer_available && uart_buffer_available_stable) begin
         input_data <= uart_buffer[uart_buffer_processed];
         uart_buffer_state <= uart_buffer_state + 1;
         uart_buffer_processed <= uart_buffer_processed + 1;
-      end else if (  uart_buffer_processed > uart_buffer_available) begin
+      end else if (  uart_buffer_processed > uart_buffer_available && uart_buffer_available_stable) begin
         uart_buffer_processed <= 0;
       end
     end else if (uart_buffer_state == 1) begin
