@@ -172,10 +172,6 @@ module stage1_fetcher (
   reg [7:0] uart_buffer[0:128];
  // (* ASYNC_REG = "TRUE" *) 
  reg [6:0] uart_buffer_available=0;
-
-  wire [6:0] uart_buffer_available2;
-  (* ASYNC_REG = "TRUE" *)  reg uart_buffer_available_stable;
-    
   
   wire reset_uart_buffer_available;
   wire uart_buffer_full;
@@ -184,19 +180,16 @@ module stage1_fetcher (
       .clk(clk),
       .uart_buffer(uart_buffer),
       .uart_buffer_available(uart_buffer_available),
-      .uart_buffer_available2(uart_buffer_available2),
-      .uart_buffer_available_stable(uart_buffer_available_stable),
-      
       .reset_uart_buffer_available(reset_uart_buffer_available),
       .uart_buffer_full(uart_buffer_full),
       .tx(tx)
   );
-  
-  assign uart_buffer_available_stable = uart_buffer_available==uart_buffer_available2; 
 
 reg [5:0] cntr=0;
     
-    always @(pc,  fetcher_stage, uart_buffer_available, uart_buffer_available_stable) begin
+    integer i;
+    
+    always @(pc,  fetcher_stage) begin
       cntr = cntr==10?0:cntr+1;
     end
     
@@ -204,6 +197,10 @@ reg [5:0] cntr=0;
   
     $display($time, "entering main ",fetcher_stage ," ",rst," ", read_address_ack," ",pc);
     
+    
+     uart_buffer[uart_buffer_available] = rst && rst_can_be_done?"A":(fetcher_stage == 1 && pc <49?"x":"y");
+   uart_buffer_available = uart_buffer_available+1;
+   
     if (rst && rst_can_be_done) begin
       
       executor_instruction1 = 0;
@@ -216,15 +213,16 @@ reg [5:0] cntr=0;
      
       read_address = ADDRESS_PROGRAM;
       
-      uart_buffer[uart_buffer_available] = "S";
-      $display($time, "S");
-      uart_buffer_available = 1;
+      //uart_buffer[uart_buffer_available] = "S";
+      //$display($time, "S");
+      //uart_buffer_available = 1;
+   
    
   
         rst_can_be_done = 0;
               fetcher_stage = 1;
         
-    end  else if (!rst && !rst_can_be_done && fetcher_stage == 1 && pc <49 && uart_buffer_available_stable) begin
+    end  else  if (!rst && !rst_can_be_done && fetcher_stage == 1 && pc <49) begin
    
       $display($time, "one");
     //   up<=0;
@@ -262,22 +260,21 @@ reg [5:0] cntr=0;
                  
              //    uart_buffer[uart_buffer_available] = pc == 46?"1":(pc == 47?"2":(pc == 48?"3":(pc == 49?"4":(pc == 50?"5":(pc == 51?"6":"x")))));
                  
-       uart_buffer[uart_buffer_available] = "x";
-       uart_buffer_available = uart_buffer_available + 1;     
+       //uart_buffer[uart_buffer_available] = "x";
+       //uart_buffer_available = uart_buffer_available + 1;     
       
-       
-
        pc = pc+1;
   
   
        fetcher_stage  = 2;
        
-     end  else if (fetcher_stage  == 2 && uart_buffer_available_stable) begin
+     end  else if (fetcher_stage  == 2) begin
        $display($time, "two");
             
+ 
 
-       uart_buffer[uart_buffer_available] = "y";    
-       uart_buffer_available = uart_buffer_available + 1;     
+      // uart_buffer[uart_buffer_available] = "y";    
+       //uart_buffer_available = uart_buffer_available + 1;     
          
 
        fetcher_stage  = 1;
@@ -710,14 +707,13 @@ endmodule
 
 module uartx_tx_with_buffer (
     input clk,
-  (* ASYNC_REG = "TRUE" *)  input [7:0] uart_buffer[0:128],
-  (* ASYNC_REG = "TRUE" *)  input [6:0] uart_buffer_available,
- (* ASYNC_REG = "TRUE" *)   output logic [6:0] uart_buffer_available2,
- (* ASYNC_REG = "TRUE" *)   input uart_buffer_available_stable,
+input [7:0] uart_buffer[0:128],
+ input [6:0] uart_buffer_available,
     output logic reset_uart_buffer_available,
     output logic uart_buffer_full,
     output logic tx
 );
+
 
   reg [7:0] input_data;
   reg [6:0] uart_buffer_processed = 0;
@@ -725,7 +721,6 @@ module uartx_tx_with_buffer (
   reg start;
   wire complete;
 
-assign uart_buffer_available2 = uart_buffer_available;
   assign reset_uart_buffer_available = 0; //uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
   assign uart_buffer_full = uart_buffer_available == 127 ? 1 : 0;
   assign start = uart_buffer_state == 1;
@@ -740,11 +735,11 @@ assign uart_buffer_available2 = uart_buffer_available;
 
   always @(posedge clk) begin
     if (uart_buffer_state == 0) begin
-      if (uart_buffer_available > 0 &&   uart_buffer_processed < uart_buffer_available && uart_buffer_available_stable) begin
+      if (uart_buffer_available > 0 &&   uart_buffer_processed < uart_buffer_available) begin
         input_data <= uart_buffer[uart_buffer_processed];
         uart_buffer_state <= uart_buffer_state + 1;
         uart_buffer_processed <= uart_buffer_processed + 1;
-      end else if (  uart_buffer_processed > uart_buffer_available && uart_buffer_available_stable) begin
+      end else if (  uart_buffer_processed > uart_buffer_available) begin
         uart_buffer_processed <= 0;
       end
     end else if (uart_buffer_state == 1) begin
