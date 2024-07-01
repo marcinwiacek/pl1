@@ -126,70 +126,84 @@ module x_simple (
       uart_buffer[0] = "S";
       $display($time, "S");
       uart_buffer_available = 1;
-    end else if (stage == STAGE_AFTER_RESET && !reset) begin
-      stage = STAGE_GET_1_BYTE;    
-    end else if (stage == STAGE_GET_1_BYTE && pc <= 59) begin
-      rst_can_be_done = 1;
-      $display($time, "read ready ", read_address, "=", read_value);
-      uart_buffer[uart_buffer_available] = "a";
-      $display($time, "a");
-      uart_buffer_available = uart_buffer_available + 1;
-      instruction1 = read_value;
-      read_address = pc + 1;
-      pc = pc + 1;
-      stage = STAGE_GET_2_BYTE;
-    end else if (stage == STAGE_GET_2_BYTE) begin
-      $display($time, "read ready2 ", read_address, "=", read_value);
-      uart_buffer[uart_buffer_available] = "b";
-      uart_buffer_available = uart_buffer_available + 1;
-      $display($time, " decoding ", (pc-1), ":", instruction1, " (", instruction1_1, ":",
-               instruction1_2, ") ", read_value);
-      if (reset_uart_buffer_available) begin
-        uart_buffer_available = 0;
-      end else if (!uart_buffer_full) begin
-        if (pc - 1 == 46 && instruction1 == 3073 && read_value == 1) begin
-          uart_buffer[uart_buffer_available] = "m";
-          $display($time, "M");
-        end else if (pc - 1 == 48 && instruction1 == 3073 && read_value == 2) begin
-          uart_buffer[uart_buffer_available] = "a";
-          $display($time, "A");
-        end else if (pc - 1 == 50 && instruction1 == 1026) begin
-          uart_buffer[uart_buffer_available] = "r";
-          $display($time, "R");
-        end else begin
-          uart_buffer[uart_buffer_available] = "x";
-          $display($time, "X");
+    end else begin
+      case (stage)
+        STAGE_AFTER_RESET: begin
+          if (!reset) stage = STAGE_GET_1_BYTE;
         end
-        uart_buffer_available = uart_buffer_available + 1;
-      end
-      if (instruction1_1 == OPCODE_JMP) begin
-        $display(" opcode = jmp to ", read_value);  //DEBUG info         
-        uart_buffer[uart_buffer_available] = "1";
-        uart_buffer_available = uart_buffer_available + 1;
-        $display($time, "1");
-      end else if (instruction1_1 == OPCODE_RAM2REG) begin
-        $display(" opcode = ram2reg value from address ", read_value, " to reg ",  //DEBUG info
-                 instruction1_1);  //DEBUG info
-        uart_buffer[uart_buffer_available] = "2";
-        uart_buffer_available = uart_buffer_available + 1;
-        $display($time, "2");
-      end else if (instruction1_1 == OPCODE_REG2RAM) begin
-        $display(" opcode = reg2ram save value ", registers[instruction1_2], " from register ",
-                 instruction1_2, " to address ", read_value);
-        uart_buffer[uart_buffer_available] = "3";
-        uart_buffer_available = uart_buffer_available + 1;
-        $display($time, "3");
-      end else if (instruction1_1 == OPCODE_NUM2REG) begin
-        $display(" opcode = num2reg value ", read_value, " to reg ",  //DEBUG info
-                 instruction1_2);  //DEBUG info
-        registers[instruction1_2] = read_value;
-        uart_buffer[uart_buffer_available] = "4";
-        uart_buffer_available = uart_buffer_available + 1;
-        $display($time, "4");
-      end
-      read_address = pc + 1;
-      pc = pc + 1;
-      stage = STAGE_GET_1_BYTE;
+        STAGE_GET_1_BYTE: begin
+          if (pc <= 59) begin
+            rst_can_be_done = 1;
+            $display($time, "read ready ", read_address, "=", read_value);
+            uart_buffer[uart_buffer_available] = "a";
+            $display($time, "a");
+            uart_buffer_available = uart_buffer_available + 1;
+            instruction1 = read_value;
+            read_address = pc + 1;
+            pc = pc + 1;
+            stage = STAGE_GET_2_BYTE;
+          end
+        end
+        STAGE_GET_2_BYTE: begin
+          $display($time, "read ready2 ", read_address, "=", read_value);
+          uart_buffer[uart_buffer_available] = "b";
+          uart_buffer_available = uart_buffer_available + 1;
+          $display($time, " decoding ", (pc - 1), ":", instruction1, " (", instruction1_1, ":",
+                   instruction1_2, ") ", read_value);
+          if (reset_uart_buffer_available) begin
+            uart_buffer_available = 0;
+          end else if (!uart_buffer_full) begin
+            if (pc - 1 == 46 && instruction1 == 3073 && read_value == 1) begin
+              uart_buffer[uart_buffer_available] = "M";
+              $display($time, "M");
+            end else if (pc - 1 == 48 && instruction1 == 3073 && read_value == 2) begin
+              uart_buffer[uart_buffer_available] = "A";
+              $display($time, "A");
+            end else if (pc - 1 == 50 && instruction1 == 1026) begin
+              uart_buffer[uart_buffer_available] = "R";
+              $display($time, "R");
+            end else begin
+              uart_buffer[uart_buffer_available] = "X";
+              $display($time, "X");
+            end
+            uart_buffer_available = uart_buffer_available + 1;
+          end
+          case (instruction1_1)
+            OPCODE_JMP: begin
+              $display(" opcode = jmp to ", read_value);  //DEBUG info         
+              uart_buffer[uart_buffer_available] = "1";
+              uart_buffer_available = uart_buffer_available + 1;
+              $display($time, "1");
+            end
+            OPCODE_RAM2REG: begin
+              $display(" opcode = ram2reg value from address ", read_value,
+                       " to reg ",  //DEBUG info
+                       instruction1_1);  //DEBUG info
+              uart_buffer[uart_buffer_available] = "2";
+              uart_buffer_available = uart_buffer_available + 1;
+              $display($time, "2");
+            end
+            OPCODE_REG2RAM: begin
+              $display(" opcode = reg2ram save value ", registers[instruction1_2],
+                       " from register ", instruction1_2, " to address ", read_value);
+              uart_buffer[uart_buffer_available] = "3";
+              uart_buffer_available = uart_buffer_available + 1;
+              $display($time, "3");
+            end
+            OPCODE_NUM2REG: begin
+              $display(" opcode = num2reg value ", read_value, " to reg ",  //DEBUG info
+                       instruction1_2);  //DEBUG info
+              registers[instruction1_2] = read_value;
+              uart_buffer[uart_buffer_available] = "4";
+              uart_buffer_available = uart_buffer_available + 1;
+              $display($time, "4");
+            end
+          endcase
+          read_address = pc + 1;
+          pc = pc + 1;
+          stage = STAGE_GET_1_BYTE;
+        end
+      endcase
     end
   end
 endmodule
