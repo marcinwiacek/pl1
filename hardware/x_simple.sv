@@ -94,6 +94,11 @@ module x_simple (
       .uart_buffer_full(uart_buffer_full),
       .tx(uart_rx_out)
   );
+  
+  //reg [11:0] mmu_chain_memory[0:4095];  //next physical segment index for process (last entry = the same entry)
+  //reg [11:0] mmu_logical_pages_memory[0:4095];  //logical process page assigned to physical segment (0 means empty page, we setup value > 0 for first page with logical index 0 and ignore it)
+  //reg [11:0] mmu_start_process_physical_segment;  //needs to be updated on process switch
+
 
   parameter OPCODE_JMP = 1;  //255 or register num for first 16-bits of the address, 16 bit address
   parameter OPCODE_RAM2REG = 2;  //register num, 16 bit source addr //ram -> reg
@@ -116,7 +121,7 @@ module x_simple (
   assign instruction1_1 = instruction1[15:8];
   assign instruction1_2 = instruction1[7:0];
 
-  always @(reset, clk) begin
+  always @(negedge clk) begin
     if (reset && rst_can_be_done) begin
       rst_can_be_done = 0;
       $display($time, "reset");
@@ -132,7 +137,7 @@ module x_simple (
           if (!reset) stage = STAGE_GET_1_BYTE;
         end
         STAGE_GET_1_BYTE: begin
-          if (pc <= 59 && clk == 0) begin
+          if (pc <= 59) begin
             rst_can_be_done = 1;
             $display($time, "read ready ", read_address, "=", read_value);
             uart_buffer[uart_buffer_available] = "a";
@@ -145,7 +150,6 @@ module x_simple (
           end
         end
         STAGE_GET_2_BYTE: begin
-          if (clk == 0) begin
             $display($time, "read ready2 ", read_address, "=", read_value);
             uart_buffer[uart_buffer_available] = "b";
             uart_buffer_available = uart_buffer_available + 1;
@@ -204,7 +208,6 @@ module x_simple (
             pc = pc + 1;
             stage = STAGE_GET_1_BYTE;
           end
-        end
       endcase
     end
   end
