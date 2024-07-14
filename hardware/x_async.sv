@@ -187,11 +187,11 @@ module stage1_fetcher (
   
   (* ASYNC_REG = "TRUE" *)  logic x;
   
-  assign x = (!rst) || (fetcher_stage == 1 && uart_buffer[uart_buffer_available] == "A") ||
-    (fetcher_stage == 2 && pc <= ADDRESS_PROGRAM+5) ||
-    (fetcher_stage == 3 && uart_buffer[uart_buffer_available] == "x") ||
-    (fetcher_stage == 4) ||
-    (fetcher_stage == 5 && uart_buffer[uart_buffer_available] == "y");
+  assign x = (fetcher_stage == 2 && uart_buffer[uart_buffer_available] == "A") ||
+    (fetcher_stage == 4 && pc <= ADDRESS_PROGRAM+5) ||
+    (fetcher_stage == 6 && uart_buffer[uart_buffer_available] == "x") ||
+    (fetcher_stage == 8) ||
+    (fetcher_stage == 10 && uart_buffer[uart_buffer_available] == "y");
   
   
     
@@ -202,24 +202,37 @@ module stage1_fetcher (
       $display($time, "stage 1 reset");
       pc <= ADDRESS_PROGRAM;
       rst_can_be_done <= 0;
-      fetcher_stage <= 1;   
-    end  else  if (fetcher_stage == 1 && uart_buffer[uart_buffer_available] == "A") begin
+      fetcher_stage <= 1;  
+    end  else  if (fetcher_stage == 1) begin
+      fetcher_stage  <= 2;         
+    end  else  if (fetcher_stage == 2 && uart_buffer[uart_buffer_available] == "A") begin
       uart_buffer_available<=uart_buffer_available+1;
-      fetcher_stage  <= 2;    
-    end else if (fetcher_stage == 2 && pc <= ADDRESS_PROGRAM+5) begin         
+      fetcher_stage  <= 3;    
+    end  else  if (fetcher_stage == 3) begin
+      fetcher_stage  <= 4;         
+    end else if (fetcher_stage == 4 && pc <= ADDRESS_PROGRAM+5) begin         
       $display($time, "one");
       pc <= pc+1;
       uart_buffer[uart_buffer_available] <= "x";
-      fetcher_stage  <= 3;       
-     end else if (fetcher_stage == 3 && uart_buffer[uart_buffer_available] == "x") begin       
-      uart_buffer_available<=uart_buffer_available+1;
-      fetcher_stage  <= 4;
-    end else if (fetcher_stage == 4) begin         
-      uart_buffer[uart_buffer_available] <= "y";
       fetcher_stage  <= 5;
-     end else if (fetcher_stage == 5 && uart_buffer[uart_buffer_available] == "y") begin       
+    end  else  if (fetcher_stage == 5) begin
+      fetcher_stage  <= 6;         
+            
+     end else if (fetcher_stage == 6 && uart_buffer[uart_buffer_available] == "x") begin       
       uart_buffer_available<=uart_buffer_available+1;
-      fetcher_stage  <= 2;
+      fetcher_stage  <= 7;
+    end  else  if (fetcher_stage == 7) begin
+      fetcher_stage  <= 8;         
+      
+    end else if (fetcher_stage == 8) begin         
+      uart_buffer[uart_buffer_available] <= "y";
+      fetcher_stage  <= 9;
+    end  else  if (fetcher_stage == 9) begin
+      fetcher_stage  <= 10;         
+      
+     end else if (fetcher_stage == 10 && uart_buffer[uart_buffer_available] == "y") begin       
+      uart_buffer_available<=uart_buffer_available+1;
+      fetcher_stage  <= 3;
      end
   end
 
