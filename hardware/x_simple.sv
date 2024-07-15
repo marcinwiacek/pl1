@@ -94,11 +94,12 @@ module x_simple (
       .uart_buffer_full(uart_buffer_full),
       .tx(uart_rx_out)
   );
-  
-  //reg [11:0] mmu_chain_memory[0:4095];  //next physical segment index for process (last entry = the same entry)
-  //reg [11:0] mmu_logical_pages_memory[0:4095];  //logical process page assigned to physical segment (0 means empty page, we setup value > 0 for first page with logical index 0 and ignore it)
-  //reg [11:0] mmu_start_process_physical_segment;  //needs to be updated on process switch
 
+  reg [11:0] mmu_chain_memory[0:1000];  //next physical segment index for process (last entry = the same entry)
+  reg [11:0] mmu_logical_pages_memory[0:1000];  //logical process page assigned to physical segment (0 means empty page, we setup value > 0 for first page with logical index 0 and ignore it)
+  reg [11:0] mmu_start_process_physical_segment;  //needs to be updated on process switch
+  reg [10:0] mmu_address_to_search_segment;
+  reg [10:0] mmu_search_position;
 
   parameter OPCODE_JMP = 1;  //255 or register num for first 16-bits of the address, 16 bit address
   parameter OPCODE_RAM2REG = 2;  //register num, 16 bit source addr //ram -> reg
@@ -108,10 +109,12 @@ module x_simple (
   parameter STAGE_AFTER_RESET = 1;
   parameter STAGE_GET_1_BYTE = 2;
   parameter STAGE_GET_2_BYTE = 3;
+  parameter STAGE_CHECK_MMU_ADDRESS = 4;
+  parameter STAGE_SEARCH_MMU_ADDRESS = 5;
 
   reg [5:0] pc;
   reg rst_can_be_done = 1;
-  reg [3:0] stage;
+  reg [3:0] stage, stage_after_mmu;
   reg [15:0] registers[0:31];  //64 8-bit registers * n=8 processes = 512 16-bit registers
 
   reg [15:0] instruction1;
@@ -121,20 +124,72 @@ module x_simple (
   assign instruction1_1 = instruction1[15:8];
   assign instruction1_2 = instruction1[7:0];
 
+  integer temp1, temp2;
+
   always @(negedge clk) begin
     if (reset && rst_can_be_done) begin
       rst_can_be_done = 0;
       $display($time, "reset");
       pc = ADDRESS_PROGRAM;
       read_address = ADDRESS_PROGRAM;
-      stage = STAGE_AFTER_RESET;
+      mmu_address_to_search_segment = ADDRESS_PROGRAM / MMU_PAGE_SIZE;
+      stage = STAGE_CHECK_MMU_ADDRESS;
+      stage_after_mmu = STAGE_GET_1_BYTE;
       uart_buffer[0] = "S";
       $display($time, "S");
       uart_buffer_available = 1;
+
+      mmu_start_process_physical_segment = 0;
+
+      mmu_chain_memory[0] = 0;
+      for (i = 0; i < 1000; i = i + 1) begin
+        //value 0 means, that it's empty. in every process on first entry we setup something != 0 and ignore it
+        // (first process page is always from segment 0)
+        mmu_logical_pages_memory[i] = 0;
+      end
+
+      //some more complicated config used for testing //DEBUG info
+      mmu_chain_memory[0] = 5;  //DEBUG info
+      mmu_chain_memory[5] = 2;  //DEBUG info
+      mmu_chain_memory[2] = 1;  //DEBUG info
+      mmu_chain_memory[1] = 1;  //DEBUG info
+      mmu_logical_pages_memory[0] = 1;  //DEBUG info
+      mmu_logical_pages_memory[5] = 3;  //DEBUG info
+      mmu_logical_pages_memory[2] = 2;  //DEBUG info
+      mmu_logical_pages_memory[1] = 1;  //DEBUG info
+
+      `SHOW_MMU_DEBUG
     end else begin
       case (stage)
-        STAGE_AFTER_RESET: begin
-          if (!reset) stage = STAGE_GET_1_BYTE;
+        STAGE_CHECK_MMU_ADDRESS: begin
+          //  if (!reset) begin
+          if (mmu_start_process_physical_segment == 0) begin
+            read_address = read_address % MMU_PAGE_SIZE + mmu_address_to_search_segment*MMU_PAGE_SIZE;
+            stage = stage_after_mmu;
+          end else begin
+            stage = STAGE_SEARCH_MMU_ADDRESS;
+            mmu_search_position = mmu_chain_memory[mmu_address_to_search_segment];
+          end
+          //end
+        end
+        STAGE_SEARCH_MMU_ADDRESS: begin
+          if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
+            //if (mmu_search_position != mmu_chain_memory[mmu_address_to_search_segment]) begin
+//              $display($time, "swapping");
+              //move found address to the beginning
+  //            temp1 = mmu_chain_memory[mmu_address_to_search_segment];
+    //          temp2 = mmu_logical_pages_memory[mmu_chain_memory[mmu_address_to_search_segment]];
+      //        mmu_chain_memory[mmu_address_to_search_segment] = mmu_search_position;
+        //      mmu_logical_pages_memory[mmu_chain_memory[mmu_address_to_search_segment]] = mmu_address_to_search_segment;
+          //    mmu_chain_memory[mmu_search_position] = temp1;
+            //  mmu_logical_pages_memory[mmu_search_position] = temp2;
+//              `SHOW_MMU_DEBUG
+//            end
+            read_address = read_address % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
+            stage = stage_after_mmu;
+          end else begin
+            mmu_search_position = mmu_chain_memory[mmu_search_position];
+          end
         end
         STAGE_GET_1_BYTE: begin
           if (pc <= 59) begin
@@ -145,69 +200,71 @@ module x_simple (
             uart_buffer_available = uart_buffer_available + 1;
             instruction1 = read_value;
             read_address = pc + 1;
+            stage = STAGE_CHECK_MMU_ADDRESS;
+            stage_after_mmu = STAGE_GET_2_BYTE;
             pc = pc + 1;
-            stage = STAGE_GET_2_BYTE;
           end
         end
         STAGE_GET_2_BYTE: begin
-            $display($time, "read ready2 ", read_address, "=", read_value);
-            uart_buffer[uart_buffer_available] = "b";
-            uart_buffer_available = uart_buffer_available + 1;
-            $display($time, " decoding ", (pc - 1), ":", instruction1, " (", instruction1_1, ":",
-                     instruction1_2, ") ", read_value);
-            if (reset_uart_buffer_available) begin
-              uart_buffer_available = 0;
-            end else if (!uart_buffer_full) begin
-              if (pc - 1 == 46 && instruction1 == 3073 && read_value == 1) begin
-                uart_buffer[uart_buffer_available] = "M";
-                $display($time, "M");
-              end else if (pc - 1 == 48 && instruction1 == 3073 && read_value == 2) begin
-                uart_buffer[uart_buffer_available] = "A";
-                $display($time, "A");
-              end else if (pc - 1 == 50 && instruction1 == 1026) begin
-                uart_buffer[uart_buffer_available] = "R";
-                $display($time, "R");
-              end else begin
-                uart_buffer[uart_buffer_available] = "X";
-                $display($time, "X");
-              end
-              uart_buffer_available = uart_buffer_available + 1;
+          $display($time, "read ready2 ", read_address, "=", read_value);
+          uart_buffer[uart_buffer_available] = "b";
+          uart_buffer_available = uart_buffer_available + 1;
+          $display($time, " decoding ", (pc - 1), ":", instruction1, " (", instruction1_1, ":",
+                   instruction1_2, ") ", read_value);
+          if (reset_uart_buffer_available) begin
+            uart_buffer_available = 0;
+          end else if (!uart_buffer_full) begin
+            if (pc - 1 == 46 && instruction1 == 3073 && read_value == 1) begin
+              uart_buffer[uart_buffer_available] = "M";
+              $display($time, "M");
+            end else if (pc - 1 == 48 && instruction1 == 3073 && read_value == 2) begin
+              uart_buffer[uart_buffer_available] = "A";
+              $display($time, "A");
+            end else if (pc - 1 == 50 && instruction1 == 1026) begin
+              uart_buffer[uart_buffer_available] = "R";
+              $display($time, "R");
+            end else begin
+              uart_buffer[uart_buffer_available] = "X";
+              $display($time, "X");
             end
-            case (instruction1_1)
-              OPCODE_JMP: begin
-                $display(" opcode = jmp to ", read_value);  //DEBUG info         
-                uart_buffer[uart_buffer_available] = "1";
-                uart_buffer_available = uart_buffer_available + 1;
-                $display($time, "1");
-              end
-              OPCODE_RAM2REG: begin
-                $display(" opcode = ram2reg value from address ", read_value,
-                         " to reg ",  //DEBUG info
-                         instruction1_1);  //DEBUG info
-                uart_buffer[uart_buffer_available] = "2";
-                uart_buffer_available = uart_buffer_available + 1;
-                $display($time, "2");
-              end
-              OPCODE_REG2RAM: begin
-                $display(" opcode = reg2ram save value ", registers[instruction1_2],
-                         " from register ", instruction1_2, " to address ", read_value);
-                uart_buffer[uart_buffer_available] = "3";
-                uart_buffer_available = uart_buffer_available + 1;
-                $display($time, "3");
-              end
-              OPCODE_NUM2REG: begin
-                $display(" opcode = num2reg value ", read_value, " to reg ",  //DEBUG info
-                         instruction1_2);  //DEBUG info
-                registers[instruction1_2] = read_value;
-                uart_buffer[uart_buffer_available] = "4";
-                uart_buffer_available = uart_buffer_available + 1;
-                $display($time, "4");
-              end
-            endcase
-            read_address = pc + 1;
-            pc = pc + 1;
-            stage = STAGE_GET_1_BYTE;
+            uart_buffer_available = uart_buffer_available + 1;
           end
+          case (instruction1_1)
+            OPCODE_JMP: begin
+              $display(" opcode = jmp to ", read_value);  //DEBUG info         
+              uart_buffer[uart_buffer_available] = "1";
+              uart_buffer_available = uart_buffer_available + 1;
+              $display($time, "1");
+            end
+            OPCODE_RAM2REG: begin
+              $display(" opcode = ram2reg value from address ", read_value,
+                       " to reg ",  //DEBUG info
+                       instruction1_1);  //DEBUG info
+              uart_buffer[uart_buffer_available] = "2";
+              uart_buffer_available = uart_buffer_available + 1;
+              $display($time, "2");
+            end
+            OPCODE_REG2RAM: begin
+              $display(" opcode = reg2ram save value ", registers[instruction1_2],
+                       " from register ", instruction1_2, " to address ", read_value);
+              uart_buffer[uart_buffer_available] = "3";
+              uart_buffer_available = uart_buffer_available + 1;
+              $display($time, "3");
+            end
+            OPCODE_NUM2REG: begin
+              $display(" opcode = num2reg value ", read_value, " to reg ",  //DEBUG info
+                       instruction1_2);  //DEBUG info
+              registers[instruction1_2] = read_value;
+              uart_buffer[uart_buffer_available] = "4";
+              uart_buffer_available = uart_buffer_available + 1;
+              $display($time, "4");
+            end
+          endcase
+          read_address = pc + 1;
+          pc = pc + 1;
+          stage = STAGE_CHECK_MMU_ADDRESS;
+          stage_after_mmu = STAGE_GET_1_BYTE;
+        end
       endcase
     end
   end
@@ -301,126 +358,6 @@ module single_ram (
   always @(posedge clk) begin
     if (write_enabled) ram[write_address] <= write_value;
     read_value <= ram[read_address];
-  end
-endmodule
-
-module mmu (
-    input rst,
-
-    input exec,
-    input [5:0] address_to_decode,
-    output reg [5:0] address_decoded,
-
-    input [5:0] address_to_decode2,
-    output reg [5:0] address_decoded2
-);
-
-  integer i;
-
-  reg [11:0] mmu_chain_memory[0:4095];  //next physical segment index for process (last entry = the same entry)
-  reg [11:0] mmu_logical_pages_memory[0:4095];  //logical process page assigned to physical segment (0 means empty page, we setup value > 0 for first page with logical index 0 and ignore it)
-  reg [11:0] mmu_start_process_physical_segment;  //needs to be updated on process switch
-
-  reg mmu_ready = 0;
-
-  always @(posedge rst) begin
-    mmu_ready = 0;
-    mmu_start_process_physical_segment = 0;
-
-    mmu_chain_memory[0] = 0;
-    for (i = 0; i < 4096; i = i + 1) begin
-      //value 0 means, that it's empty. in every process on first entry we setup something != 0 and ignore it
-      // (first process page is always from segment 0)
-      mmu_logical_pages_memory[i] = 0;
-    end
-    mmu_logical_pages_memory[0] = 1;
-
-    //    some more complicated config used for testing //DEBUG info
-    //    mmu_chain_memory[0] <= 1;  //DEBUG info
-    //    mmu_chain_memory[1] <= 1;  //DEBUG info
-    //    mmu_logical_pages_memory[1] <= 1;  //DEBUG info
-
-    //some more complicated config used for testing //DEBUG info
-    mmu_chain_memory[0] = 5;  //DEBUG info
-    mmu_chain_memory[5] = 2;  //DEBUG info
-    mmu_chain_memory[2] = 1;  //DEBUG info
-    mmu_chain_memory[1] = 1;  //DEBUG info
-    mmu_logical_pages_memory[5] = 3;  //DEBUG info
-    mmu_logical_pages_memory[2] = 2;  //DEBUG info
-    mmu_logical_pages_memory[1] = 1;  //DEBUG info
-
-    //some more complicated config used for testing //DEBUG info
-    //mmu_chain_memory[0] <= 1;  //DEBUG info
-    //mmu_chain_memory[1] <= 1;  //DEBUG info
-    //mmu_logical_pages_memory[1] <= 1;  //DEBUG info
-    mmu_ready = 1;
-    $display($time, "mmu_reset");
-  end
-
-  mmu_search mmu_search (
-      .mmu_ready(mmu_ready),
-      .exec(exec),
-      .address_to_decode(address_to_decode),
-      .address_decoded(address_decoded),
-      .mmu_chain_memory(mmu_chain_memory),
-      .mmu_logical_pages_memory(mmu_logical_pages_memory),
-      .mmu_start_process_physical_segment(mmu_start_process_physical_segment)
-  );
-
-  /*  mmu_search mmu_search2 (
-      .address_to_decode(address_to_decode2),
-      .address_decoded(address_decoded2),
-      .mmu_chain_memory(mmu_chain_memory),
-      .mmu_logical_pages_memory(mmu_logical_pages_memory),
-      .mmu_start_process_physical_segment(mmu_start_process_physical_segment)
-  );*/
-
-endmodule
-
-module mmu_search (
-    input exec,
-    input mmu_ready,
-    input [5:0] address_to_decode,
-    output reg [5:0] address_decoded,
-    input [11:0] mmu_chain_memory[0:4095],
-    input [11:0] mmu_logical_pages_memory[0:4095],
-    input [11:0] mmu_start_process_physical_segment
-);
-
-  reg [11:0] mmu_logical_seg;
-  reg [11:0] mmu_old_physical_segment;
-  reg [2:0] mmu_search = 0;
-
-  integer i;  //DEBUG info
-
-  always @(address_to_decode, mmu_old_physical_segment, exec) begin
-    if (mmu_search == 1) begin
-      $display($time, " mmu search  ", address_to_decode, " logical seg ",
-               address_to_decode / MMU_PAGE_SIZE, " ", mmu_old_physical_segment);  //DEBUG info
-      if (mmu_logical_seg == mmu_logical_pages_memory[mmu_old_physical_segment]) begin
-        $display($time, " mmu search end");  //DEBUG info
-        address_decoded <= mmu_old_physical_segment * MMU_PAGE_SIZE + address_to_decode % MMU_PAGE_SIZE;
-        mmu_search <= 0;
-      end else if (mmu_old_physical_segment == mmu_chain_memory[mmu_old_physical_segment]) begin
-        $display($time, " error");  //DEBUG info
-      end else begin
-        mmu_old_physical_segment <= mmu_chain_memory[mmu_old_physical_segment];
-      end
-    end else if (mmu_search == 0 && exec == 1 && mmu_ready == 1) begin
-      $display($time, " mmu search start from ", address_to_decode, " start segment ",
-               mmu_start_process_physical_segment, " logical seg ",
-               address_to_decode / MMU_PAGE_SIZE, " ", mmu_old_physical_segment);  //DEBUG info
-      `SHOW_MMU_DEBUG
-      mmu_logical_seg <= address_to_decode / MMU_PAGE_SIZE;
-      if (address_to_decode / MMU_PAGE_SIZE == 0) begin
-        address_decoded <= mmu_start_process_physical_segment * MMU_PAGE_SIZE + address_to_decode % MMU_PAGE_SIZE;
-        $display($time, " mmu search end");  //DEBUG info
-        mmu_search <= 0;
-      end else begin
-        mmu_search <= 1;
-        mmu_old_physical_segment <= mmu_chain_memory[mmu_start_process_physical_segment];
-      end
-    end
   end
 endmodule
 
