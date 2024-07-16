@@ -95,12 +95,17 @@ module x_simple (
       .tx(uart_rx_out)
   );
 
-  reg [11:0] mmu_chain_memory[0:1000];  //next physical segment index for process (last entry = the same entry)
-  reg [11:0] mmu_logical_pages_memory[0:1000];  //logical process page assigned to physical segment (0 means empty page, we setup value > 0 for first page with logical index 0 and ignore it)
-  reg [11:0] mmu_start_process_physical_segment;  //needs to be updated on process switch
-  reg [10:0] mmu_address_to_search_segment;
-  reg [10:0] mmu_search_position;
-
+  reg [8:0] mmu_chain_memory[0:MMU_MAX_INDEX];  //next physical segment index for process (last entry = the same entry)
+  reg [8:0] mmu_logical_pages_memory[0:MMU_MAX_INDEX];  //logical process page assigned to physical segment (0 means empty page, we setup value > 0 for first page with logical index 0 and ignore it)
+  reg [8:0] mmu_start_process_physical_segment;  //needs to be updated on process switch
+  
+  reg [8:0] mmu_address_to_search;
+  reg [8:0] mmu_address_to_search_segment;
+  reg [8:0] mmu_search_position;
+  
+  reg [8:0] mmu_address_segment,mmu_address_low, mmu_address_up; //with current segment even dont's start MMU
+  
+  
   parameter OPCODE_JMP = 1;  //255 or register num for first 16-bits of the address, 16 bit address
   parameter OPCODE_RAM2REG = 2;  //register num, 16 bit source addr //ram -> reg
   parameter OPCODE_REG2RAM = 3;  //register num, 16 bit source addr //reg -> ram
@@ -110,7 +115,8 @@ module x_simple (
   parameter STAGE_GET_1_BYTE = 2;
   parameter STAGE_GET_2_BYTE = 3;
   parameter STAGE_CHECK_MMU_ADDRESS = 4;
-  parameter STAGE_SEARCH_MMU_ADDRESS = 5;
+  parameter STAGE_SEARCH1_MMU_ADDRESS = 5;
+  parameter STAGE_SEARCH2_MMU_ADDRESS = 6;
 
   reg [5:0] pc;
   reg rst_can_be_done = 1;
@@ -124,17 +130,18 @@ module x_simple (
   assign instruction1_1 = instruction1[15:8];
   assign instruction1_2 = instruction1[7:0];
 
-  integer temp1, temp2;
+  reg[11:0] temp1, temp2, temp3;
 
   always @(negedge clk) begin
     if (reset && rst_can_be_done) begin
       rst_can_be_done = 0;
       $display($time, "reset");
+
       pc = ADDRESS_PROGRAM;
+      //we start from segment number 0 in first process      
       read_address = ADDRESS_PROGRAM;
-      mmu_address_to_search_segment = ADDRESS_PROGRAM / MMU_PAGE_SIZE;
-      stage = STAGE_CHECK_MMU_ADDRESS;
-      stage_after_mmu = STAGE_GET_1_BYTE;
+      stage = STAGE_GET_1_BYTE;
+
       uart_buffer[0] = "S";
       $display($time, "S");
       uart_buffer_available = 1;
@@ -142,7 +149,7 @@ module x_simple (
       mmu_start_process_physical_segment = 0;
 
       mmu_chain_memory[0] = 0;
-      for (i = 0; i < 1000; i = i + 1) begin
+      for (i = 0; i < MMU_MAX_INDEX; i = i + 1) begin
         //value 0 means, that it's empty. in every process on first entry we setup something != 0 and ignore it
         // (first process page is always from segment 0)
         mmu_logical_pages_memory[i] = 0;
@@ -157,35 +164,45 @@ module x_simple (
       mmu_logical_pages_memory[5] = 3;  //DEBUG info
       mmu_logical_pages_memory[2] = 2;  //DEBUG info
       mmu_logical_pages_memory[1] = 1;  //DEBUG info
+      
+      mmu_address_low = 0;
+      mmu_address_up = MMU_PAGE_SIZE - 1;   
+      mmu_address_segment = 0;   
 
       `SHOW_MMU_DEBUG
     end else begin
       case (stage)
         STAGE_CHECK_MMU_ADDRESS: begin
-          //  if (!reset) begin
-          if (mmu_start_process_physical_segment == 0) begin
-            read_address = read_address % MMU_PAGE_SIZE + mmu_address_to_search_segment*MMU_PAGE_SIZE;
+          if (mmu_address_to_search_segment == 0) begin
+            read_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_start_process_physical_segment*MMU_PAGE_SIZE;
             stage = stage_after_mmu;
           end else begin
-            stage = STAGE_SEARCH_MMU_ADDRESS;
-            mmu_search_position = mmu_chain_memory[mmu_address_to_search_segment];
+            stage = STAGE_SEARCH1_MMU_ADDRESS;
+            mmu_search_position = mmu_chain_memory[mmu_start_process_physical_segment];
           end
-          //end
         end
-        STAGE_SEARCH_MMU_ADDRESS: begin
+        STAGE_SEARCH1_MMU_ADDRESS: begin
           if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
-            //if (mmu_search_position != mmu_chain_memory[mmu_address_to_search_segment]) begin
-//              $display($time, "swapping");
-              //move found address to the beginning
-  //            temp1 = mmu_chain_memory[mmu_address_to_search_segment];
-    //          temp2 = mmu_logical_pages_memory[mmu_chain_memory[mmu_address_to_search_segment]];
-      //        mmu_chain_memory[mmu_address_to_search_segment] = mmu_search_position;
-        //      mmu_logical_pages_memory[mmu_chain_memory[mmu_address_to_search_segment]] = mmu_address_to_search_segment;
-          //    mmu_chain_memory[mmu_search_position] = temp1;
-            //  mmu_logical_pages_memory[mmu_search_position] = temp2;
-//              `SHOW_MMU_DEBUG
-//            end
-            read_address = read_address % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
+            read_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
+            stage = stage_after_mmu;
+          end else begin
+            temp1 = mmu_chain_memory[mmu_search_position];
+            temp2 = mmu_logical_pages_memory[mmu_search_position];
+            temp3 = mmu_search_position;
+            mmu_search_position = mmu_chain_memory[mmu_search_position];
+            stage = STAGE_SEARCH2_MMU_ADDRESS;
+          end
+        end
+        STAGE_SEARCH2_MMU_ADDRESS: begin
+          if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin         
+            //move found address to the beginning to speed up search in the future
+            $display($time, "swapping");
+            mmu_chain_memory[temp3] = mmu_chain_memory[mmu_search_position]; 
+            mmu_logical_pages_memory[temp3] = mmu_logical_pages_memory[mmu_search_position];
+            mmu_chain_memory[mmu_search_position] = temp1; 
+            mmu_logical_pages_memory[mmu_search_position] = temp2;               
+            `SHOW_MMU_DEBUG
+            read_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
             stage = stage_after_mmu;
           end else begin
             mmu_search_position = mmu_chain_memory[mmu_search_position];
@@ -199,9 +216,14 @@ module x_simple (
             $display($time, "a");
             uart_buffer_available = uart_buffer_available + 1;
             instruction1 = read_value;
-            read_address = pc + 1;
-            stage = STAGE_CHECK_MMU_ADDRESS;
-            stage_after_mmu = STAGE_GET_2_BYTE;
+            if (pc+1<=mmu_address_up) begin
+              read_address = pc + 1; //fixme
+              stage = STAGE_GET_2_BYTE;
+            end else begin
+              mmu_address_to_search = pc + 1;
+              stage = STAGE_CHECK_MMU_ADDRESS;
+              stage_after_mmu = STAGE_GET_2_BYTE;
+            end 
             pc = pc + 1;
           end
         end
@@ -260,10 +282,15 @@ module x_simple (
               $display($time, "4");
             end
           endcase
-          read_address = pc + 1;
+          if (pc+1<=mmu_address_up) begin
+              read_address = pc + 1; //fixme
+              stage = STAGE_GET_1_BYTE;
+          end else begin
+              mmu_address_to_search = pc + 1;
+              stage = STAGE_CHECK_MMU_ADDRESS;
+              stage_after_mmu = STAGE_GET_1_BYTE;
+          end 
           pc = pc + 1;
-          stage = STAGE_CHECK_MMU_ADDRESS;
-          stage_after_mmu = STAGE_GET_1_BYTE;
         end
       endcase
     end
