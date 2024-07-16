@@ -13,8 +13,6 @@ parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page 
 parameter RAM_SIZE = 32767;
 parameter MMU_MAX_INDEX = 455;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 
-integer i;  //DEBUG info
-
 /* DEBUG info */ `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
 /* DEBUG info */     if (ARG == 1) begin \
 /* DEBUG info */       $write($time, INFO); \
@@ -105,7 +103,6 @@ module x_simple (
   
   reg [8:0] mmu_address_segment,mmu_address_low, mmu_address_up; //with current segment even dont's start MMU
   
-  
   parameter OPCODE_JMP = 1;  //255 or register num for first 16-bits of the address, 16 bit address
   parameter OPCODE_RAM2REG = 2;  //register num, 16 bit source addr //ram -> reg
   parameter OPCODE_REG2RAM = 3;  //register num, 16 bit source addr //reg -> ram
@@ -131,6 +128,8 @@ module x_simple (
   assign instruction1_2 = instruction1[7:0];
 
   reg[11:0] temp1, temp2, temp3;
+
+  integer i;  //DEBUG info
 
   always @(negedge clk) begin
     if (reset && rst_can_be_done) begin
@@ -306,11 +305,12 @@ module single_ram (
     output reg [15:0] read_value
 );
 
-  //   reg [15:0] ram[0:67];
-  //    initial begin  //DEBUG info
-  //      $readmemh("rom4.mem", ram);  //DEBUG info
-  //    end  //DEBUG info
+     reg [15:0] ram[0:67];
+      initial begin  //DEBUG info
+        $readmemh("rom4.mem", ram);  //DEBUG info
+      end  //DEBUG info
 
+/*
   reg [15:0] ram[0:67] = '{
       16'h0110,
       16'h0220,  //next,8'hprocess,8'haddress,8'h(no,8'hMMU),8'hoverwritten,8'hby,8'hCPU
@@ -381,7 +381,7 @@ module single_ram (
       16'h010E,
       16'h0030  //jmp,8'h0x30
   };
-
+*/
   always @(posedge clk) begin
     if (write_enabled) ram[write_address] <= write_value;
     read_value <= ram[read_address];
