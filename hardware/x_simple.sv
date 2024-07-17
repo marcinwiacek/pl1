@@ -65,9 +65,9 @@ module x_simple (
   end
 
   reg write_enabled;
-  reg [5:0] write_address;
+  reg [15:0] write_address;
   reg [15:0] write_value;
-  reg [5:0] read_address;
+  reg [15:0] read_address;
   wire [15:0] read_value;
 
   single_ram single_ram (
@@ -103,10 +103,19 @@ module x_simple (
   
   reg [8:0] mmu_address_segment,mmu_address_low, mmu_address_up; //with current segment even dont's start MMU
   
-  parameter OPCODE_JMP = 1;  //255 or register num for first 16-bits of the address, 16 bit address
-  parameter OPCODE_RAM2REG = 2;  //register num, 16 bit source addr //ram -> reg
-  parameter OPCODE_REG2RAM = 3;  //register num, 16 bit source addr //reg -> ram
-  parameter OPCODE_NUM2REG = 4;  //register num, 16 bit value //value -> reg
+  parameter OPCODE_JMP = 1;  //24 bit target address
+  parameter OPCODE_JMP16 = 2;  //x, register num with target addr (we read one reg)
+  parameter OPCODE_JMP32 = 3;  //x, first register num with target addr (we read two reg)
+  parameter OPCODE_JMP64 = 4;  //x, first register num with target addr (we read four reg)  
+  parameter OPCODE_RAM2REG = 5;   //register num, 16 bit source addr //ram -> reg
+  parameter OPCODE_RAM2REG16 = 6; //start register num, how many registers, register num with source addr (we read one reg), //ram -> reg
+  parameter OPCODE_RAM2REG32 = 7; //start register num, how many registers, first register num with source addr (we read two reg), //ram -> reg
+  parameter OPCODE_RAM2REG64 = 8; //start register num, how many registers, first register num with source addr (we read four reg), //ram -> reg
+  parameter OPCODE_REG2RAM = 9;   //register num, 16 bit target addr //reg -> ram
+  parameter OPCODE_REG2RAM16 = 10; //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
+  parameter OPCODE_REG2RAM32 = 11; //start register num, how many registers, first register num with target addr (we read two reg), //reg -> ram
+  parameter OPCODE_REG2RAM64 = 12; //start register num, how many registers, first register num with target addr (we read four reg), //reg -> ram
+  parameter OPCODE_NUM2REG = 14;  //register num, 16 bit value //value -> reg
 
   parameter STAGE_AFTER_RESET = 1;
   parameter STAGE_GET_1_BYTE = 2;
@@ -118,14 +127,18 @@ module x_simple (
   reg [5:0] pc;
   reg rst_can_be_done = 1;
   reg [3:0] stage, stage_after_mmu;
-  reg [15:0] registers[0:31];  //64 8-bit registers * n=8 processes = 512 16-bit registers
+  reg [15:0] registers[0:31];  //512 bits = 32 x 16-bit registers
 
   reg [15:0] instruction1;
   logic [7:0] instruction1_1;
   logic [7:0] instruction1_2;
+  logic [7:0] instruction2_1;
+  logic [7:0] instruction2_2;
 
   assign instruction1_1 = instruction1[15:8];
   assign instruction1_2 = instruction1[7:0];
+  assign instruction2_1 = read_value[15:8];
+  assign instruction2_2 = read_value[7:0];
 
   reg[11:0] temp1, temp2, temp3;
 
@@ -150,7 +163,7 @@ module x_simple (
       mmu_chain_memory[0] = 0;
       for (i = 0; i < MMU_MAX_INDEX; i = i + 1) begin
         //value 0 means, that it's empty. in every process on first entry we setup something != 0 and ignore it
-        // (first process page is always from segment 0)
+        // (first process page starts always from segment 0)
         mmu_logical_pages_memory[i] = 0;
       end
 
@@ -299,18 +312,19 @@ endmodule
 module single_ram (
     input clk,
     input write_enabled,
-    input [5:0] write_address,
+    input [15:0] write_address,
     input [15:0] write_value,
-    input [5:0] read_address,
+    input [15:0] read_address,
     output reg [15:0] read_value
 );
 
+/*
      reg [15:0] ram[0:67];
       initial begin  //DEBUG info
         $readmemh("rom4.mem", ram);  //DEBUG info
       end  //DEBUG info
+*/
 
-/*
   reg [15:0] ram[0:67] = '{
       16'h0110,
       16'h0220,  //next,8'hprocess,8'haddress,8'h(no,8'hMMU),8'hoverwritten,8'hby,8'hCPU
@@ -381,7 +395,7 @@ module single_ram (
       16'h010E,
       16'h0030  //jmp,8'h0x30
   };
-*/
+
   always @(posedge clk) begin
     if (write_enabled) ram[write_address] <= write_value;
     read_value <= ram[read_address];
