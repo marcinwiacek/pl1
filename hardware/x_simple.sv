@@ -16,15 +16,28 @@ parameter RAM_SIZE = 32767;
 parameter MMU_MAX_INDEX = 455;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
-uart_buffer[uart_buffer_available++] = ARG; \
-if (HARDWARE_DEBUG == 1) $write(ARG); 
+/* DEBUG info */    uart_buffer[uart_buffer_available++] = ARG; \
+/* DEBUG info */    if (HARDWARE_DEBUG == 1) $write(ARG); 
 
-/* DEBUG info */ `define HARD_DEBUG2(ARG, ARG2) \
-if (ARG2) begin \
-uart_buffer[uart_buffer_available++] = ARG; \
-if (HARDWARE_DEBUG == 1) $write(ARG); \
-end 
+/* DEBUG info */ `define HARD_DEBUG2(ARG) \
+/* DEBUG info */ for (i = 0; i <= 9; i = i + 1) begin \
+/* DEBUG info */   if (ARG == i) begin \
+/* DEBUG info */      uart_buffer[uart_buffer_available++] = i + 48; \
+/* DEBUG info */      if (HARDWARE_DEBUG == 1) $write("%c",i+48); \
+/* DEBUG info */   end \
+/* DEBUG info */ end \
+/* DEBUG info */ for (i = 10; i <= 25; i = i + 1) begin \
+/* DEBUG info */   if (ARG == i) begin \
+/* DEBUG info */      uart_buffer[uart_buffer_available++] = i + 65 - 10; \
+/* DEBUG info */      if (HARDWARE_DEBUG == 1) $write("%c",i+65 -10); \
+/* DEBUG info */   end \
+/* DEBUG info */ end \
+/* DEBUG info */   if (ARG > 25) begin \
+/* DEBUG info */      uart_buffer[uart_buffer_available++] = "f"; \
+/* DEBUG info */      if (HARDWARE_DEBUG == 1) $write("f"); \
+/* DEBUG info */   end 
 
+                  
 /* DEBUG info */ `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
 /* DEBUG info */     if (ARG == 1) begin \
 /* DEBUG info */       $write($time, INFO); \
@@ -276,42 +289,8 @@ module x_simple (
                 ") ",
                 read_value
             );
-          `HARD_DEBUG2("0", instruction1_1 == 0);
-          `HARD_DEBUG2("1", instruction1_1 == 1);
-          `HARD_DEBUG2("2", instruction1_1 == 2);
-          `HARD_DEBUG2("3", instruction1_1 == 3);
-          `HARD_DEBUG2("4", instruction1_1 == 4);
-          `HARD_DEBUG2("5", instruction1_1 == 5);
-          `HARD_DEBUG2("6", instruction1_1 == 6);
-          `HARD_DEBUG2("7", instruction1_1 == 7);
-          `HARD_DEBUG2("8", instruction1_1 == 8);
-          `HARD_DEBUG2("9", instruction1_1 == 9);
-          `HARD_DEBUG2("A", instruction1_1 == 10);
-          `HARD_DEBUG2("B", instruction1_1 == 11);
-          `HARD_DEBUG2("C", instruction1_1 == 12);
-          `HARD_DEBUG2("D", instruction1_1 == 13);
-          `HARD_DEBUG2("E", instruction1_1 == 14);
-          `HARD_DEBUG2("F", instruction1_1 == 15);
-          `HARD_DEBUG2("G", instruction1_1 == 16);
-          `HARD_DEBUG2("f", instruction1_1 > 16);
-          `HARD_DEBUG2("0", instruction1_2 == 0);
-          `HARD_DEBUG2("1", instruction1_2 == 1);
-          `HARD_DEBUG2("2", instruction1_2 == 2);
-          `HARD_DEBUG2("3", instruction1_2 == 3);
-          `HARD_DEBUG2("4", instruction1_2 == 4);
-          `HARD_DEBUG2("5", instruction1_2 == 5);
-          `HARD_DEBUG2("6", instruction1_2 == 6);
-          `HARD_DEBUG2("7", instruction1_2 == 7);
-          `HARD_DEBUG2("8", instruction1_2 == 8);
-          `HARD_DEBUG2("9", instruction1_2 == 9);
-          `HARD_DEBUG2("A", instruction1_2 == 10);
-          `HARD_DEBUG2("B", instruction1_2 == 11);
-          `HARD_DEBUG2("C", instruction1_2 == 12);
-          `HARD_DEBUG2("D", instruction1_2 == 13);
-          `HARD_DEBUG2("E", instruction1_2 == 14);
-          `HARD_DEBUG2("F", instruction1_2 == 15);
-          `HARD_DEBUG2("G", instruction1_2 == 16);
-          `HARD_DEBUG2("f", instruction1_2 > 16);
+          `HARD_DEBUG2( instruction1_1 );       
+          `HARD_DEBUG2( instruction1_2 );
           case (instruction1_1)
             OPCODE_JMP: begin
               if (OTHER_DEBUG == 1)
