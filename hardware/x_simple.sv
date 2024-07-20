@@ -434,9 +434,10 @@ module x_simple (
                     " to reg ",  //DEBUG info
                     instruction1_2_1,"-",(instruction1_2_1+instruction1_2_2)
                   );  //DEBUG info
-                for (i = instruction1_2_1;i<instruction1_2_1;i=i+1) begin
-                   registers[i] = read_value;
-                end
+                 
+                  for (i = 0;i<32;i=i+1) begin                    
+                    if (i>=instruction1_2_1 && i<=(instruction1_2_1+instruction1_2_2)) registers[i] = read_value;
+                  end
               end               
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
@@ -451,9 +452,9 @@ module x_simple (
                     " to reg ",  //DEBUG info
                     instruction1_2_1,"-",(instruction1_2_1+instruction1_2_2)
                   );  //DEBUG info
-                for (i = instruction1_2_1;i<instruction1_2_1;i=i+1) begin
-                   registers[i] = registers[i] + read_value;
-                end
+               for (i = 0;i<32;i=i+1) begin                    
+                    if (i>=instruction1_2_1 && i<=(instruction1_2_1+instruction1_2_2)) registers[i] = registers[i] + read_value;
+                  end
               end               
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg -= value
@@ -468,9 +469,9 @@ module x_simple (
                     " to reg ",  //DEBUG info
                     instruction1_2_1,"-",(instruction1_2_1+instruction1_2_2)
                   );  //DEBUG info
-                for (i = instruction1_2_1;i<instruction1_2_1;i=i+1) begin
-                   registers[i] = registers[i] - read_value;
-                end
+               for (i = 0;i<32;i=i+1) begin                    
+                    if (i>=instruction1_2_1 && i<=(instruction1_2_1+instruction1_2_2)) registers[i] = registers[i] - read_value;
+                  end
               end               
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
@@ -485,9 +486,9 @@ module x_simple (
                     " to reg ",  //DEBUG info
                     instruction1_2_1,"-",(instruction1_2_1+instruction1_2_2)
                   );  //DEBUG info
-                for (i = instruction1_2_1;i<instruction1_2_1;i=i+1) begin
-                   registers[i] = registers[i] * read_value;
-                end
+                for (i = 0;i<32;i=i+1) begin                    
+                    if (i>=instruction1_2_1 && i<=(instruction1_2_1+instruction1_2_2)) registers[i] = registers[i] * read_value;
+                  end
               end               
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg /= value
@@ -504,10 +505,10 @@ module x_simple (
                     " to reg ",  //DEBUG info
                     instruction1_2_1,"-",(instruction1_2_1+instruction1_2_2)
                   );  //DEBUG info
-                for (i = instruction1_2_1;i<instruction1_2_1;i=i+1) begin
-                   registers[i] = registers[i] / read_value;
-                end
-              end               
+for (i = 0;i<32;i=i+1) begin                    
+                    if (i>=instruction1_2_1 && i<=(instruction1_2_1+instruction1_2_2)) registers[i] = registers[i] / read_value;
+                  end          
+                      end               
             end
           endcase
           if (error_code == ERROR_NONE && stage != STAGE_GET_RAM_BYTE) begin
