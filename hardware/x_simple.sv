@@ -8,8 +8,8 @@ parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter OTHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
-parameter HARDWARE_DEBUG = 0;
+parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter HARDWARE_DEBUG = 1;
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
@@ -160,6 +160,7 @@ module x_simple (
   parameter STAGE_GET_PARAM_BYTE = 8;
   parameter STAGE_SET_PARAM_BYTE = 9;
   parameter STAGE_GET_RAM_BYTE = 10;
+  parameter STAGE_HLT = 11;  
 
   parameter ERROR_NONE = 0;
   parameter ERROR_WRONG_ADDRESS = 1;
@@ -264,7 +265,7 @@ module x_simple (
           end
         end
         STAGE_GET_1_BYTE: begin
-          if (pc <= 59) begin
+          if (pc <= 62) begin
             rst_can_be_done = 1;
             if (READ_DEBUG == 1) $display($time, "read ready ", read_address, "=", read_value);
             `HARD_DEBUG("a");
@@ -275,6 +276,8 @@ module x_simple (
             stage_after_mmu = STAGE_GET_2_BYTE;
 
             pc = pc + 1;
+          end else begin
+            stage = STAGE_HLT;
           end
         end
         STAGE_GET_2_BYTE: begin
@@ -572,12 +575,13 @@ module x_simple (
           end
         end
       endcase
-      if (error_code != ERROR_NONE) begin
+      if (error_code != ERROR_NONE && stage!=STAGE_HLT) begin
         `HARD_DEBUG("B");
         `HARD_DEBUG("S");
         `HARD_DEBUG("O");
         `HARD_DEBUG("D");
         `HARD_DEBUG2(error_code);
+        stage = STAGE_HLT;
       end else if (stage == STAGE_CHECK_MMU_ADDRESS) begin
         `HARD_DEBUG("m");
         mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
@@ -662,19 +666,19 @@ module single_ram (
       16'h0001,  //proc
       16'h0c01,
       16'h0002,  //proc
-      16'h0402,
+      16'h1202,
       16'h0003,  //num2reg
-      16'h0902,
+      16'hff02,
       16'h0002,  //loop,8'hwith,8'hcache:,8'hloopeqvalue
-      16'h0602,
+      16'h1402,
       16'h0001,  //regminusnum
-      16'h0602,
+      16'h1402,
       16'h0000,  //regminusnum
       16'h0201,
       16'h0001,  //after,8'hloop:,8'hram2reg
-      16'h0401,
+      16'h1201,
       16'h0005,  //num2reg
-      16'h0301,
+      16'h0E01,
       16'h0046,  //reg2ram
       16'h0F00,
       16'h0002,  //int,8'h2
