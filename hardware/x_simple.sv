@@ -17,14 +17,14 @@ parameter RAM_SIZE = 32767;
 parameter MMU_MAX_INDEX = 455;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
-/* DEBUG info */    uart_buffer[uart_buffer_available] = ARG; \
-/* DEBUG info */    uart_buffer_available = uart_buffer_available+1; \
-/* DEBUG info */    if (HARDWARE_DEBUG == 1)  $write(ARG); 
+/* DEBUG info */     uart_buffer[uart_buffer_available] = ARG; \
+/* DEBUG info */     uart_buffer_available = uart_buffer_available+1; \
+/* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG); 
 
 /* DEBUG info */ `define HARD_DEBUG2(ARG) \
-/* DEBUG info */        uart_buffer[uart_buffer_available] = ARG > 25?"f":(ARG<10? ARG + 48:ARG + 65 - 10); \
-/* DEBUG info */        uart_buffer_available = uart_buffer_available+1; \
-/* DEBUG info */        if (HARDWARE_DEBUG == 1) $write("%c",ARG>25?"f":(ARG<10? ARG + 48:ARG + 65 - 10)); \
+/* DEBUG info */     uart_buffer[uart_buffer_available] = ARG > 25?"f":(ARG<10? ARG + 48:ARG + 65 - 10); \
+/* DEBUG info */     uart_buffer_available = uart_buffer_available+1; \
+/* DEBUG info */     if (HARDWARE_DEBUG == 1) $write("%c",ARG>25?"f":(ARG<10? ARG + 48:ARG + 65 - 10)); \
 
 /* DEBUG info */ `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
 /* DEBUG info */     if (ARG == 1) begin \
@@ -119,36 +119,36 @@ module x_simple (
   //  parameter OPCODE_JMP32 = 3;  //x, first register num with target addr (we read two reg)
   //  parameter OPCODE_JMP64 = 4;  //x, first register num with target addr (we read four reg)  
   parameter OPCODE_JMP_PLUS = 5;  //x, 16 bit how many instructions
-  parameter OPCODE_JMP_PLUS16 = 36;  //x, register num with info (we read one reg)
-  parameter OPCODE_JMP_MINUS = 6;  //x, 16 bit how many instructions  
-  parameter OPCODE_JMP_MINUS16 = 37;  //x, register num with info (we read one reg)
+  parameter OPCODE_JMP_PLUS16 = 6;  //x, register num with info (we read one reg)
+  parameter OPCODE_JMP_MINUS = 7;  //x, 16 bit how many instructions  
+  parameter OPCODE_JMP_MINUS16 = 8;  //x, register num with info (we read one reg)
 
-  parameter OPCODE_RAM2REG = 7;  //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
-  parameter OPCODE_RAM2REG16 = 8; //start register num, how many registers, register num with source addr (we read one reg), //ram -> reg
-  //  parameter OPCODE_RAM2REG32 = 9; //start register num, how many registers, first register num with source addr (we read two reg), //ram -> reg
-  //  parameter OPCODE_RAM2REG64 = 10; //start register num, how many registers, first register num with source addr (we read four reg), //ram -> reg
+  parameter OPCODE_RAM2REG = 9;  //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
+  parameter OPCODE_RAM2REG16 = 10; //start register num, how many registers, register num with source addr (we read one reg), //ram -> reg
+  //  parameter OPCODE_RAM2REG32 = 11; //start register num, how many registers, first register num with source addr (we read two reg), //ram -> reg
+  //  parameter OPCODE_RAM2REG64 = 12; //start register num, how many registers, first register num with source addr (we read four reg), //ram -> reg
 
-  parameter OPCODE_REG2RAM = 11;  //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
-  parameter OPCODE_REG2RAM16 = 12; //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
-  //  parameter OPCODE_REG2RAM32 = 14; //start register num, how many registers, first register num with target addr (we read two reg), //reg -> ram
-  //  parameter OPCODE_REG2RAM64 = 15; //start register num, how many registers, first register num with target addr (we read four reg), //reg -> ram
+  parameter OPCODE_REG2RAM = 14;  //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
+  parameter OPCODE_REG2RAM16 = 15; //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
+  //  parameter OPCODE_REG2RAM32 = 16; //start register num, how many registers, first register num with target addr (we read two reg), //reg -> ram
+  //  parameter OPCODE_REG2RAM64 = 17; //start register num, how many registers, first register num with target addr (we read four reg), //reg -> ram
 
-  parameter OPCODE_NUM2REG = 16;  //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
+  parameter OPCODE_NUM2REG = 18;  //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
   parameter OPCODE_REG_PLUS =19; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
-  parameter OPCODE_REG_MINUS =21; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-  parameter OPCODE_REG_MUL =23; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
-  parameter OPCODE_REG_DIV =24; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
+  parameter OPCODE_REG_MINUS =20; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+  parameter OPCODE_REG_MUL =21; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
+  parameter OPCODE_REG_DIV =22; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
 
-  parameter OPCODE_TILL_VALUE =26;   //register num, value, how many instructions (8 bit value) // do..while
-  parameter OPCODE_TILL_NON_VALUE=27;   //register num, value, how many instructions (8 bit value) //do..while
-  parameter OPCODE_LOOP = 28;  //x, x, how many instructions (8 bit value) //for...
-  parameter OPCODE_PROC = 29;  //new process //how many segments, start segment number (16 bit)
-  parameter OPCODE_EXIT = 30;  //exit process
-  parameter OPCODE_REG_INT = 31;  //x, int number (8 bit)
-  parameter OPCODE_INT = 32;  //x, int number (8 bit)
-  parameter OPCODE_INT_RET = 33;  //x, int number
-  parameter OPCODE_FREE = 34;  //free ram pages x-y 
-  parameter OPCODE_FREE_LEVEL =35; //free ram pages allocated after page x (or pages with concrete level) 
+  parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions (8 bit value) // do..while
+  parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions (8 bit value) //do..while
+  parameter OPCODE_LOOP = 25;  //x, x, how many instructions (8 bit value) //for...
+  parameter OPCODE_PROC = 26;  //new process //how many segments, start segment number (16 bit)
+  parameter OPCODE_EXIT = 27;  //exit process
+  parameter OPCODE_REG_INT = 28;  //x, int number (8 bit)
+  parameter OPCODE_INT = 29;  //x, int number (8 bit)
+  parameter OPCODE_INT_RET = 30;  //x, int number
+  parameter OPCODE_FREE = 31;  //free ram pages x-y 
+  parameter OPCODE_FREE_LEVEL =32; //free ram pages allocated after page x (or pages with concrete level) 
 
   parameter STAGE_AFTER_RESET = 1;
   parameter STAGE_GET_1_BYTE = 2;
@@ -225,6 +225,9 @@ module x_simple (
       mmu_logical_pages_memory[2] = 2;  //DEBUG info
       mmu_logical_pages_memory[1] = 1;  //DEBUG info
 
+      for (i=0;i<32;i=i+1) begin
+        registers[i] = 0;
+      end
    //   `SHOW_MMU_DEBUG
     end else begin
       case (stage)
@@ -280,7 +283,7 @@ module x_simple (
           if (OTHER_DEBUG == 1)
             $display(
                 $time,
-                " decoding pc: ",
+                " pc: ",
                 (pc - 1),
                 " byte1: ",
                 instruction1_1,
@@ -314,12 +317,12 @@ module x_simple (
               if (read_value >= 32) begin
                 error_code = ERROR_WRONG_REG_NUM;
               end else begin
-                if (registers[read_value] % 2 == 1) begin
+                if ((registers[read_value] -1)% 2 == 1) begin
                   error_code = ERROR_WRONG_ADDRESS;
                 end else begin
                   if (OTHER_DEBUG == 1 && read_value < 32)
                     $display(
-                        $time, " opcode = jmp to ", registers[read_value]
+                        $time, " opcode = jmp to ", (registers[read_value]-1)
                     );  //DEBUG info                       
                   pc = registers[read_value];
                   stage = STAGE_SET_PC;
@@ -332,12 +335,12 @@ module x_simple (
                 $display(
                     $time,
                     " opcode = jmp plus to ",
-                    pc + read_value * 2,
+                    pc + read_value * 2-1,
                     " (",
                     read_value,
                     " instructions)"
                 );  //DEBUG info      
-              pc += read_value * 2;
+              pc += read_value * 2-1;
               stage = STAGE_SET_PC;
             end
             //x, register num with info (we read one reg)
@@ -349,12 +352,12 @@ module x_simple (
                   $display(
                       $time,
                       " opcode = jmp plus16 to ",
-                      pc + registers[read_value] * 2,
+                      pc + registers[read_value] * 2 - 1,
                       " (",
                       registers[read_value],
                       " instructions)"
                   );  //DEBUG info      
-                pc += registers[read_value] * 2;
+                pc += registers[read_value] * 2 - 1;
                 stage = STAGE_SET_PC;
               end
             end
