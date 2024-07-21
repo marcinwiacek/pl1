@@ -17,13 +17,11 @@ parameter RAM_SIZE = 32767;
 parameter MMU_MAX_INDEX = 455;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
-/* DEBUG info */     uart_buffer[uart_buffer_available] = ARG; \
-/* DEBUG info */     uart_buffer_available = uart_buffer_available+1; \
+/* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG); 
 
 /* DEBUG info */ `define HARD_DEBUG2(ARG) \
-/* DEBUG info */     uart_buffer[uart_buffer_available] = ARG > 25?"f":(ARG<10? ARG + 48:ARG + 65 - 10); \
-/* DEBUG info */     uart_buffer_available = uart_buffer_available+1; \
+/* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG > 25?"f":(ARG<10? ARG + 48:ARG + 65 - 10); \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1) $write("%c",ARG>25?"f":(ARG<10? ARG + 48:ARG + 65 - 10)); \
 
 /* DEBUG info */ `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
@@ -93,7 +91,7 @@ module x_simple (
   );
 
   reg [7:0] uart_buffer[0:128];
-  reg [6:0] uart_buffer_available;
+  reg [6:0] uart_buffer_available=0;
   wire reset_uart_buffer_available;
   wire uart_buffer_full;
 
@@ -234,13 +232,13 @@ module x_simple (
       case (stage)
         STAGE_SEARCH1_MMU_ADDRESS: begin
           if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
-            uart_buffer[uart_buffer_available++] = "#";
+      
             `HARD_DEBUG("#");
             read_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
             stage = stage_after_mmu;
           end else begin
             `HARD_DEBUG("$");
-            uart_buffer[uart_buffer_available++] = "$";
+       
             temp1 = mmu_chain_memory[mmu_search_position];
             temp2 = mmu_logical_pages_memory[mmu_search_position];
             temp3 = mmu_search_position;
@@ -461,7 +459,7 @@ module x_simple (
               end
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
-            OPCODE_REG_PLUS: begin
+           /* OPCODE_REG_PLUS: begin
               if (instruction1_2_1 + instruction1_2_2 >= 32) begin
                 error_code = ERROR_WRONG_REG_NUM;
               end else begin
@@ -516,7 +514,7 @@ module x_simple (
                       instruction1_2_1,
                       "-",
                       (instruction1_2_1 + instruction1_2_2)
-                  );  //DEBUG info
+                  );  //DEBUG info                
                 for (i = 0; i < 32; i = i + 1) begin
                   if (i >= instruction1_2_1 && i <= (instruction1_2_1 + instruction1_2_2))
                     registers[i] = registers[i] * read_value;
@@ -545,7 +543,7 @@ module x_simple (
                     registers[i] = registers[i] / read_value;
                 end
               end
-            end
+            end*/
             // default: begin
             //    error_code = ERROR_WRONG_OPCODE;
             // end
