@@ -225,21 +225,21 @@ module x_simple (
       mmu_logical_pages_memory[2] = 2;  //DEBUG info
       mmu_logical_pages_memory[1] = 1;  //DEBUG info
 
-      for (i=0;i<32;i=i+1) begin
+      for (i = 0; i < 32; i = i + 1) begin
         registers[i] = 0;
       end
-   //   `SHOW_MMU_DEBUG
+      //   `SHOW_MMU_DEBUG
     end else begin
       case (stage)
         STAGE_SEARCH1_MMU_ADDRESS: begin
           if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
-      uart_buffer[uart_buffer_available++] = "#";
+            uart_buffer[uart_buffer_available++] = "#";
             `HARD_DEBUG("#");
             read_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
             stage = stage_after_mmu;
           end else begin
             `HARD_DEBUG("$");
-         uart_buffer[uart_buffer_available++] = "$";
+            uart_buffer[uart_buffer_available++] = "$";
             temp1 = mmu_chain_memory[mmu_search_position];
             temp2 = mmu_logical_pages_memory[mmu_search_position];
             temp3 = mmu_search_position;
@@ -255,11 +255,11 @@ module x_simple (
             mmu_logical_pages_memory[temp3] = mmu_logical_pages_memory[mmu_search_position];
             mmu_chain_memory[mmu_search_position] = temp1;
             mmu_logical_pages_memory[mmu_search_position] = temp2;
-         //   `SHOW_MMU_DEBUG
+            //   `SHOW_MMU_DEBUG
             read_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
             stage = stage_after_mmu;
           end else begin
-            `HARD_DEBUG("^");     
+            `HARD_DEBUG("^");
             mmu_search_position = mmu_chain_memory[mmu_search_position];
           end
         end
@@ -317,12 +317,12 @@ module x_simple (
               if (read_value >= 32) begin
                 error_code = ERROR_WRONG_REG_NUM;
               end else begin
-                if ((registers[read_value] -1)% 2 == 1) begin
+                if ((registers[read_value] - 1) % 2 == 1) begin
                   error_code = ERROR_WRONG_ADDRESS;
                 end else begin
                   if (OTHER_DEBUG == 1 && read_value < 32)
                     $display(
-                        $time, " opcode = jmp to ", (registers[read_value]-1)
+                        $time, " opcode = jmp to ", (registers[read_value] - 1)
                     );  //DEBUG info                       
                   pc = registers[read_value];
                   stage = STAGE_SET_PC;
@@ -335,12 +335,12 @@ module x_simple (
                 $display(
                     $time,
                     " opcode = jmp plus to ",
-                    pc + read_value * 2-1,
+                    pc + read_value * 2 - 1,
                     " (",
                     read_value,
                     " instructions)"
                 );  //DEBUG info      
-              pc += read_value * 2-1;
+              pc += read_value * 2 - 1;
               stage = STAGE_SET_PC;
             end
             //x, register num with info (we read one reg)
@@ -543,9 +543,9 @@ module x_simple (
                 end
               end
             end
-           // default: begin
-           //    error_code = ERROR_WRONG_OPCODE;
-           // end
+            // default: begin
+            //    error_code = ERROR_WRONG_OPCODE;
+            // end
           endcase
           if (error_code == ERROR_NONE && stage != STAGE_GET_RAM_BYTE) begin
             if (stage != STAGE_SET_PC) begin
@@ -603,8 +603,8 @@ module single_ram (
     output reg [15:0] read_value
 );
 
-  
-   /*  reg [15:0] ram[0:67];
+
+  /*  reg [15:0] ram[0:67];
       initial begin  //DEBUG info
         $readmemh("rom4.mem", ram);  //DEBUG info
       end  //DEBUG info
@@ -681,7 +681,7 @@ module single_ram (
       16'h010E,
       16'h0030  //jmp,8'h0x30
   };
-  
+
 
   always @(posedge clk) begin
     if (write_enabled) ram[write_address] <= write_value;
