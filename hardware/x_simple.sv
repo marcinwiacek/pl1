@@ -459,7 +459,7 @@ module x_simple (
               end
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
-           /* OPCODE_REG_PLUS: begin
+            OPCODE_REG_PLUS: begin
               if (instruction1_2_1 + instruction1_2_2 >= 32) begin
                 error_code = ERROR_WRONG_REG_NUM;
               end else begin
@@ -500,6 +500,7 @@ module x_simple (
                 end
               end
             end
+            /*
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
             OPCODE_REG_MUL: begin
               if (instruction1_2_1 + instruction1_2_2 >= 32) begin
