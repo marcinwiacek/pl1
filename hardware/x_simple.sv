@@ -17,20 +17,14 @@ parameter RAM_SIZE = 32767;
 parameter MMU_MAX_INDEX = 455;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
-/* DEBUG info */    uart_buffer[uart_buffer_available++] = ARG; \
-/* DEBUG info */   if (HARDWARE_DEBUG == 1)  $write(ARG); 
+/* DEBUG info */    uart_buffer[uart_buffer_available] = ARG; \
+/* DEBUG info */    uart_buffer_available = uart_buffer_available+1; \
+/* DEBUG info */    if (HARDWARE_DEBUG == 1)  $write(ARG); 
 
 /* DEBUG info */ `define HARD_DEBUG2(ARG) \
-/* DEBUG info */ for (i = 0; i <= 25; i = i + 1) begin \
-/* DEBUG info */   if (ARG == i) begin \
-/* DEBUG info */      uart_buffer[uart_buffer_available++] = i<10? i + 48:i + 65 - 10; \
-/* DEBUG info */      if (HARDWARE_DEBUG == 1) $write("%c",i<10? i + 48:i + 65 - 10); \
-/* DEBUG info */   end \
-/* DEBUG info */ end \
-/* DEBUG info */   if (ARG > 25) begin \
-/* DEBUG info */      uart_buffer[uart_buffer_available++] = "f"; \
-/* DEBUG info */      $write(HARDWARE_DEBUG == 1?"f":""); \
-/* DEBUG info */   end 
+/* DEBUG info */        uart_buffer[uart_buffer_available] = ARG > 25?"f":(ARG<10? ARG + 48:ARG + 65 - 10); \
+/* DEBUG info */        uart_buffer_available = uart_buffer_available+1; \
+/* DEBUG info */        if (HARDWARE_DEBUG == 1) $write("%c",ARG>25?"f":(ARG<10? ARG + 48:ARG + 65 - 10)); \
 
 /* DEBUG info */ `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
 /* DEBUG info */     if (ARG == 1) begin \
@@ -171,6 +165,7 @@ module x_simple (
   parameter ERROR_WRONG_ADDRESS = 1;
   parameter ERROR_DIVIDE_BY_ZERO = 2;
   parameter ERROR_WRONG_REG_NUM = 3;
+  parameter ERROR_WRONG_OPCODE = 4;
 
   reg [5:0] pc;
   reg rst_can_be_done = 1;
@@ -230,16 +225,18 @@ module x_simple (
       mmu_logical_pages_memory[2] = 2;  //DEBUG info
       mmu_logical_pages_memory[1] = 1;  //DEBUG info
 
-      `SHOW_MMU_DEBUG
+   //   `SHOW_MMU_DEBUG
     end else begin
       case (stage)
         STAGE_SEARCH1_MMU_ADDRESS: begin
           if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
+      uart_buffer[uart_buffer_available++] = "#";
             `HARD_DEBUG("#");
             read_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
             stage = stage_after_mmu;
           end else begin
             `HARD_DEBUG("$");
+         uart_buffer[uart_buffer_available++] = "$";
             temp1 = mmu_chain_memory[mmu_search_position];
             temp2 = mmu_logical_pages_memory[mmu_search_position];
             temp3 = mmu_search_position;
@@ -255,11 +252,11 @@ module x_simple (
             mmu_logical_pages_memory[temp3] = mmu_logical_pages_memory[mmu_search_position];
             mmu_chain_memory[mmu_search_position] = temp1;
             mmu_logical_pages_memory[mmu_search_position] = temp2;
-            `SHOW_MMU_DEBUG
+         //   `SHOW_MMU_DEBUG
             read_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
             stage = stage_after_mmu;
           end else begin
-            `HARD_DEBUG("^");
+            `HARD_DEBUG("^");     
             mmu_search_position = mmu_chain_memory[mmu_search_position];
           end
         end
@@ -283,9 +280,9 @@ module x_simple (
           if (OTHER_DEBUG == 1)
             $display(
                 $time,
-                " decoding ",
+                " decoding pc: ",
                 (pc - 1),
-                " (",
+                " byte1: ",
                 instruction1_1,
                 ":",
                 instruction1_2,
@@ -293,7 +290,7 @@ module x_simple (
                 instruction1_2_1,
                 "-",
                 instruction1_2_2,
-                ")) ",
+                ") byte2: ",
                 read_value
             );
           `HARD_DEBUG2(instruction1_1);
@@ -543,6 +540,9 @@ module x_simple (
                 end
               end
             end
+           // default: begin
+           //    error_code = ERROR_WRONG_OPCODE;
+           // end
           endcase
           if (error_code == ERROR_NONE && stage != STAGE_GET_RAM_BYTE) begin
             if (stage != STAGE_SET_PC) begin
@@ -600,12 +600,13 @@ module single_ram (
     output reg [15:0] read_value
 );
 
-  /*
-     reg [15:0] ram[0:67];
+  
+   /*  reg [15:0] ram[0:67];
       initial begin  //DEBUG info
         $readmemh("rom4.mem", ram);  //DEBUG info
       end  //DEBUG info
 */
+
 
   reg [15:0] ram[0:67] = '{
       16'h0110,
@@ -677,6 +678,7 @@ module single_ram (
       16'h010E,
       16'h0030  //jmp,8'h0x30
   };
+  
 
   always @(posedge clk) begin
     if (write_enabled) ram[write_address] <= write_value;
