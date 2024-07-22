@@ -20,7 +20,8 @@ parameter MMU_MAX_INDEX = 455;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG); 
 
-/* DEBUG info */ `define HARD_DEBUG2(ARG) \
+/* DEBUG info */ `define HARD_DEBUG2(
+    ARG) \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG/16>10? ARG/16 + 65 - 10:ARG/16+ 48; \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG%16>10? ARG%16 + 65 - 10:ARG%16+ 48; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1) $write("%c",ARG/16>10? ARG/16 + 65 - 10:ARG/16+ 48,"%c",ARG%16>10? ARG%16 + 65 - 10:ARG%16+ 48);
@@ -55,53 +56,53 @@ parameter MMU_MAX_INDEX = 455;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 /* DEBUG info */        end
 
 (* use_dsp = "yes" *) module plus (
- input clk,
-  input [15:0] a,
-  input [15:0] b,
-  output reg [15:0] c
+    input clk,
+    input [15:0] a,
+    input [15:0] b,
+    output reg [15:0] c
 );
 
-always @(posedge clk) begin
-   c = a+b;
-end
+  always @(posedge clk) begin
+    c = a + b;
+  end
 endmodule
 
 (* use_dsp = "yes" *) module minus (
- input clk,
-  input [15:0] a,
-  input [15:0] b,
-  output reg [15:0] c
+    input clk,
+    input [15:0] a,
+    input [15:0] b,
+    output reg [15:0] c
 );
-always @(posedge clk) begin
-   c = a-b;
-end
+  always @(posedge clk) begin
+    c = a - b;
+  end
 endmodule
 
 
-(* use_dsp = "yes" *)  module mul (
- input clk,
-  input [15:0] a,
-  input [15:0] b,
-  output reg [15:0] c
+(* use_dsp = "yes" *) module mul (
+    input clk,
+    input [15:0] a,
+    input [15:0] b,
+    output reg [15:0] c
 );
-always @(posedge clk) begin
-   c = a*b;
-end
+  always @(posedge clk) begin
+    c = a * b;
+  end
 endmodule
 
 (* use_dsp = "yes" *) module div (
-input clk,
-  input [15:0] a,
-  input [15:0] b,
-  output reg [15:0] c
+    input clk,
+    input [15:0] a,
+    input [15:0] b,
+    output reg [15:0] c
 );
-always @(posedge clk) begin
-   c = a/b;
-end
+  always @(posedge clk) begin
+    c = a / b;
+  end
 endmodule
 
 module x_simple (
-     input clk,
+    input clk,
     input logic btnc,
     output logic uart_rx_out
 );
@@ -220,14 +221,14 @@ module x_simple (
   reg [8:0] mmu_address_to_search_segment;
   reg [8:0] mmu_search_position;
 
-  reg rst_can_be_done = 1, working=1;
+  reg rst_can_be_done = 1, working = 1;
   reg [5:0] pc;
   reg [5:0] error_code = 0;
   reg [3:0] stage, stage_after_mmu;
   reg [15:0] registers[0:31];  //512 bits = 32 x 16-bit registers
-  
+
   reg [5:0] ram_read_reg_start, ram_read_reg_end;
-  reg [2:0] alu_op,alu_num;
+  reg [2:0] alu_op, alu_num;
   reg [11:0] temp1, temp2, temp3;
 
   reg   [15:0] instruction1;
@@ -248,23 +249,43 @@ module x_simple (
   integer i;  //DEBUG info
 
 
-  reg[15:0] mul_a, mul_b;
+  reg [15:0] mul_a, mul_b;
   wire [15:0] mul_c;
-  reg[15:0] div_a, div_b;
+  reg [15:0] div_a, div_b;
   wire [15:0] div_c;
-  reg[15:0] plus_a, plus_b;
+  reg [15:0] plus_a, plus_b;
   wire [15:0] plus_c;
-  reg[15:0] minus_a, minus_b;
+  reg [15:0] minus_a, minus_b;
   wire [15:0] minus_c;
 
-mul mul(.clk(clk),.a(mul_a),.b(mul_b), .c(mul_c));
-div div(.clk(clk),.a(div_a),.b(div_b), .c(div_c));
-plus plus(.clk(clk),.a(plus_a),.b(plus_b), .c(plus_c));
-minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
+  mul mul (
+      .clk(clk),
+      .a  (mul_a),
+      .b  (mul_b),
+      .c  (mul_c)
+  );
+  div div (
+      .clk(clk),
+      .a  (div_a),
+      .b  (div_b),
+      .c  (div_c)
+  );
+  plus plus (
+      .clk(clk),
+      .a  (plus_a),
+      .b  (plus_b),
+      .c  (plus_c)
+  );
+  minus minus (
+      .clk(clk),
+      .a  (minus_a),
+      .b  (minus_b),
+      .c  (minus_c)
+  );
 
-  
-  always @(negedge clk) begin   
-    if (reset==1 && rst_can_be_done==1) begin
+
+  always @(negedge clk) begin
+    if (reset == 1 && rst_can_be_done == 1) begin
       rst_can_be_done = 0;
       if (OTHER_DEBUG == 1) $display($time, " reset");
 
@@ -291,7 +312,7 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
       mmu_logical_pages_memory[2] = 2;  //DEBUG info
       mmu_logical_pages_memory[1] = 1;  //DEBUG info
       `SHOW_MMU_DEBUG
-      
+
       for (i = 0; i < 32; i = i + 1) begin
         registers[i] = 0;
       end
@@ -300,9 +321,9 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
       read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation
       stage = STAGE_GET_1_BYTE;
 
-      error_code = ERROR_NONE;   
+      error_code = ERROR_NONE;
       working = 0;
-    end else if (working ==0 && error_code == ERROR_NONE) begin
+    end else if (working == 0 && error_code == ERROR_NONE) begin
       working = 1;
       rst_can_be_done = 1;
       case (stage)
@@ -313,7 +334,7 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
             `HARD_DEBUG("a");
             instruction1 = read_value;
             pc = pc + 1;
-            mmu_address_to_search = pc;           
+            mmu_address_to_search = pc;
             stage_after_mmu = STAGE_GET_2_BYTE;
             stage = STAGE_CHECK_MMU_ADDRESS;
           end else begin
@@ -454,7 +475,7 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
                       "-",
                       (instruction1_2_1 + instruction1_2_2)
                   );  //DEBUG info
-                
+
                 stage_after_mmu = STAGE_GET_RAM_BYTE;
                 mmu_address_to_search = read_value;
                 ram_read_reg_start = instruction1_2_1;
@@ -466,7 +487,7 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
             OPCODE_RAM2REG16: begin
               if (instruction1_2 + instruction2_1 >= 32 || instruction2_2 >= 32) begin
                 error_code = ERROR_WRONG_REG_NUM;
-              end else begin               
+              end else begin
                 stage_after_mmu = STAGE_GET_RAM_BYTE;
                 mmu_address_to_search = registers[instruction2_2];
                 ram_read_reg_start = instruction1_2;
@@ -486,9 +507,9 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
                     "-",
                     (instruction1_2_1 + instruction1_2_2)
                 );  //DEBUG info
-              alu_op = ALU_SET;
-              alu_num =255;                    
-              stage  = STAGE_ALU;
+              alu_op  = ALU_SET;
+              alu_num = 255;
+              stage   = STAGE_ALU;
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
             OPCODE_REG_PLUS: begin
@@ -502,9 +523,9 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
                     "-",
                     (instruction1_2_1 + instruction1_2_2)
                 );  //DEBUG info
-              alu_op = ALU_ADD;
-              alu_num =255;                    
-              stage  = STAGE_ALU;
+              alu_op  = ALU_ADD;
+              alu_num = 255;
+              stage   = STAGE_ALU;
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg -= value
             OPCODE_REG_MINUS: begin
@@ -518,9 +539,9 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
                     "-",
                     (instruction1_2_1 + instruction1_2_2)
                 );  //DEBUG info
-              alu_op = ALU_DEC;
-              alu_num =255;                    
-              stage  = STAGE_ALU;
+              alu_op  = ALU_DEC;
+              alu_num = 255;
+              stage   = STAGE_ALU;
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
             OPCODE_REG_MUL: begin
@@ -534,9 +555,9 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
                     "-",
                     (instruction1_2_1 + instruction1_2_2)
                 );  //DEBUG info     
-              alu_op = ALU_MUL;
-              alu_num =255;                    
-              stage  = STAGE_ALU;
+              alu_op  = ALU_MUL;
+              alu_num = 255;
+              stage   = STAGE_ALU;
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg /= value
             OPCODE_REG_DIV: begin
@@ -574,14 +595,14 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
           registers[ram_read_reg_start] = read_value;
           ram_read_reg_start = ram_read_reg_start + 1;
           if (ram_read_reg_start == ram_read_reg_end) begin
-            mmu_address_to_search = pc;           
+            mmu_address_to_search = pc;
             stage_after_mmu = STAGE_GET_1_BYTE;
           end else begin
             mmu_address_to_search = mmu_address_to_search + 1;
             stage_after_mmu = STAGE_GET_RAM_BYTE;
           end
           stage = STAGE_CHECK_MMU_ADDRESS;
-        end        
+        end
         STAGE_CHECK_MMU_ADDRESS: begin
           `HARD_DEBUG("m");
           mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
@@ -589,7 +610,7 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
             `HARD_DEBUG("M");
             read_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_start_process_physical_segment*MMU_PAGE_SIZE;
             stage = stage_after_mmu;
-          end else begin          
+          end else begin
             mmu_search_position = mmu_chain_memory[mmu_start_process_physical_segment];
             stage = STAGE_SEARCH1_MMU_ADDRESS;
           end
@@ -628,64 +649,64 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
           if (instruction1_2_1 + instruction1_2_2 >= 32) begin
             error_code = ERROR_WRONG_REG_NUM;
           end else begin
-            if (alu_num==255) begin
-               alu_num = instruction1_2_1;
+            if (alu_num == 255) begin
+              alu_num = instruction1_2_1;
             end else begin
-               case (alu_op)
-                  ALU_ADD: begin
-                     registers[alu_num] = plus_c;
-                  end
-                  ALU_DEC: begin
-                     registers[alu_num] = minus_c;
-                  end
-                  ALU_MUL: begin
-                     registers[alu_num] = mul_c;
-                  end
-                  ALU_DIV: begin
-                     registers[alu_num] = div_c;
-                  end
-                endcase
-               alu_num = alu_num+1;
+              case (alu_op)
+                ALU_ADD: begin
+                  registers[alu_num] = plus_c;
+                end
+                ALU_DEC: begin
+                  registers[alu_num] = minus_c;
+                end
+                ALU_MUL: begin
+                  registers[alu_num] = mul_c;
+                end
+                ALU_DIV: begin
+                  registers[alu_num] = div_c;
+                end
+              endcase
+              alu_num = alu_num + 1;
             end
             if (alu_num > instruction1_2_1 + instruction1_2_2) begin
               mmu_address_to_search = pc;
               stage_after_mmu = STAGE_GET_1_BYTE;
               stage = STAGE_CHECK_MMU_ADDRESS;
             end else begin
-               case (alu_op)
-                  ALU_SET: registers[alu_num] = read_value;
-                  ALU_ADD: begin
-                     plus_a = registers[alu_num];
-                     plus_b = read_value;                      
-                  end
-                  ALU_DEC: begin
-                     minus_a = registers[alu_num];
-                     minus_b = read_value;                      
-                  end
-                  ALU_MUL: begin
-                     mul_a = registers[alu_num];
-                     mul_b = read_value;                      
-                  end
-                  ALU_DIV: begin
-                     div_a = registers[alu_num];
-                     div_b = read_value;                      
-                  end
-                endcase
+              case (alu_op)
+                ALU_SET: registers[alu_num] = read_value;
+                ALU_ADD: begin
+                  plus_a = registers[alu_num];
+                  plus_b = read_value;
+                end
+                ALU_DEC: begin
+                  minus_a = registers[alu_num];
+                  minus_b = read_value;
+                end
+                ALU_MUL: begin
+                  mul_a = registers[alu_num];
+                  mul_b = read_value;
+                end
+                ALU_DIV: begin
+                  div_a = registers[alu_num];
+                  div_b = read_value;
+                end
+              endcase
             end
-          end 
-        end  
+          end
+        end
       endcase
       if (error_code != ERROR_NONE) begin
-       // `HARD_DEBUG2(instruction1_1);
-      //  `HARD_DEBUG2(instruction1_2);
+        // `HARD_DEBUG2(instruction1_1);
+        //  `HARD_DEBUG2(instruction1_2);
         `HARD_DEBUG("B");
         `HARD_DEBUG("S");
         `HARD_DEBUG("O");
         `HARD_DEBUG("D");
         `HARD_DEBUG2(error_code);
         stage = STAGE_HLT;
-      end    
-      working = 0;     
+      end
+      working = 0;
     end
   end
 endmodule
@@ -705,7 +726,7 @@ module single_ram (
       end  //DEBUG info
 */
 
- reg [15:0] ram[0:67] = '{
+  reg [15:0] ram[0:67] = '{
       16'h0110,
       16'h0220,  //next,8'hprocess,8'haddress,8'h(no,8'hMMU),8'hoverwritten,8'hby,8'hCPU
       16'h0330,
@@ -783,7 +804,7 @@ module single_ram (
 endmodule
 
 module uartx_tx_with_buffer (
-   input clk,
+    input clk,
     input [7:0] uart_buffer[0:128],
     input [6:0] uart_buffer_available,
     output logic reset_uart_buffer_available,
