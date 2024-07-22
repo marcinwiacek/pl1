@@ -100,7 +100,6 @@ always @(posedge clk) begin
 end
 endmodule
 
-(* use_dsp = "yes" *)
 module x_simple (
      input clk,
     input logic btnc,
@@ -691,7 +690,6 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
   end
 endmodule
 
-(* use_dsp = "yes" *) 
 module single_ram (
     input clk,
     input write_enabled,
@@ -784,7 +782,6 @@ module single_ram (
   end
 endmodule
 
-(* use_dsp = "yes" *) 
 module uartx_tx_with_buffer (
    input clk,
     input [7:0] uart_buffer[0:128],
@@ -833,7 +830,6 @@ endmodule
 //115200, 8 bits (LSB first), 1 stop, no parity
 //values on tx: ...1, 0 (start bit), (8 data bits), 1 (stop bit), 1... 
 //(we make some delay in the end before next seq; every bit is sent CLK_PER_BIT cycles)
-(* use_dsp = "yes" *) 
 module uart_tx (
     input clk,
     input start,
