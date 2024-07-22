@@ -55,36 +55,49 @@ parameter MMU_MAX_INDEX = 455;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 /* DEBUG info */        end
 
 (* use_dsp = "yes" *) module plus (
+(* gated_clock = "yes" *) input clk,
   input [15:0] a,
   input [15:0] b,
   output reg [15:0] c
 );
-  assign c = a+b;
+
+always @(posedge clk) begin
+   c = a+b;
+end
 endmodule
 
 (* use_dsp = "yes" *) module minus (
+(* gated_clock = "yes" *) input clk,
   input [15:0] a,
   input [15:0] b,
   output reg [15:0] c
 );
-  assign c = a-b;
+always @(posedge clk) begin
+   c = a-b;
+end
 endmodule
 
 
 (* use_dsp = "yes" *)  module mul (
+(* gated_clock = "yes" *) input clk,
   input [15:0] a,
   input [15:0] b,
   output reg [15:0] c
 );
-  assign c = a*b;
+always @(posedge clk) begin
+   c = a*b;
+end
 endmodule
 
 (* use_dsp = "yes" *) module div (
+(* gated_clock = "yes" *) input clk,
   input [15:0] a,
   input [15:0] b,
   output reg [15:0] c
 );
-  assign c = a/b;
+always @(posedge clk) begin
+   c = a/b;
+end
 endmodule
 
 module x_simple (
@@ -214,7 +227,7 @@ module x_simple (
   reg [15:0] registers[0:31];  //512 bits = 32 x 16-bit registers
   
   reg [5:0] ram_read_reg_start, ram_read_reg_end;
-  reg [2:0] alu_op;
+  reg [2:0] alu_op,alu_num;
   reg [11:0] temp1, temp2, temp3;
 
   reg   [15:0] instruction1;
@@ -244,10 +257,10 @@ module x_simple (
   reg[15:0] minus_a, minus_b;
   wire [15:0] minus_c;
 
-mul mul(.a(mul_a),.b(mul_b), .c(mul_c));
-div div(.a(div_a),.b(div_b), .c(div_c));
-plus plus(.a(plus_a),.b(plus_b), .c(plus_c));
-minus minus(.a(minus_a),.b(minus_b), .c(minus_c));
+mul mul(.clk(clk),.a(mul_a),.b(mul_b), .c(mul_c));
+div div(.clk(clk),.a(div_a),.b(div_b), .c(div_c));
+plus plus(.clk(clk),.a(plus_a),.b(plus_b), .c(plus_c));
+minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
 
   
   always @(negedge clk) begin   
@@ -474,6 +487,7 @@ minus minus(.a(minus_a),.b(minus_b), .c(minus_c));
                     (instruction1_2_1 + instruction1_2_2)
                 );  //DEBUG info
               alu_op = ALU_SET;
+              alu_num =255;                    
               stage  = STAGE_ALU;
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
@@ -489,6 +503,7 @@ minus minus(.a(minus_a),.b(minus_b), .c(minus_c));
                     (instruction1_2_1 + instruction1_2_2)
                 );  //DEBUG info
               alu_op = ALU_ADD;
+              alu_num =255;                    
               stage  = STAGE_ALU;
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg -= value
@@ -504,6 +519,7 @@ minus minus(.a(minus_a),.b(minus_b), .c(minus_c));
                     (instruction1_2_1 + instruction1_2_2)
                 );  //DEBUG info
               alu_op = ALU_DEC;
+              alu_num =255;                    
               stage  = STAGE_ALU;
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
@@ -519,6 +535,7 @@ minus minus(.a(minus_a),.b(minus_b), .c(minus_c));
                     (instruction1_2_1 + instruction1_2_2)
                 );  //DEBUG info     
               alu_op = ALU_MUL;
+              alu_num =255;                    
               stage  = STAGE_ALU;
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg /= value
@@ -611,40 +628,56 @@ minus minus(.a(minus_a),.b(minus_b), .c(minus_c));
           if (instruction1_2_1 + instruction1_2_2 >= 32) begin
             error_code = ERROR_WRONG_REG_NUM;
           end else begin
-            for (i = 0; i < 32; i = i + 1) begin
-              if (i >= instruction1_2_1 && i <= (instruction1_2_1 + instruction1_2_2)) begin
+            if (alu_num==255) begin
+               alu_num = instruction1_2_1;
+            end else begin
               (* parallel_case *) (* full_case *) case (alu_op)
-                  ALU_SET: registers[i] = read_value;
                   ALU_ADD: begin
-                     plus_a = registers[i];
-                     plus_b = read_value;                      
-                     registers[i] = plus_c;
+                     registers[alu_num] = plus_c;
                   end
                   ALU_DEC: begin
-                     minus_a = registers[i];
-                     minus_b = read_value;                      
-                     registers[i] = minus_c;
+                     registers[alu_num] = minus_c;
                   end
                   ALU_MUL: begin
-                     mul_a = registers[i];
-                     mul_b = read_value;                      
-                     registers[i] = mul_c;
+                     registers[alu_num] = mul_c;
                   end
                   ALU_DIV: begin
-                     div_a = registers[i];
-                     div_b = read_value;                      
-                     registers[i] = div_c;
+                     registers[alu_num] = div_c;
                   end
                 endcase
-              end
+               alu_num = alu_num+1;
             end
-            mmu_address_to_search = pc;
-            stage_after_mmu = STAGE_GET_1_BYTE;
-            stage = STAGE_CHECK_MMU_ADDRESS;
-          end
+            if (alu_num > instruction1_2_1 + instruction1_2_2) begin
+              mmu_address_to_search = pc;
+              stage_after_mmu = STAGE_GET_1_BYTE;
+              stage = STAGE_CHECK_MMU_ADDRESS;
+            end else begin
+              (* parallel_case *) (* full_case *) case (alu_op)
+                  ALU_SET: registers[alu_num] = read_value;
+                  ALU_ADD: begin
+                     plus_a = registers[alu_num];
+                     plus_b = read_value;                      
+                  end
+                  ALU_DEC: begin
+                     minus_a = registers[alu_num];
+                     minus_b = read_value;                      
+                  end
+                  ALU_MUL: begin
+                     mul_a = registers[alu_num];
+                     mul_b = read_value;                      
+                  end
+                  ALU_DIV: begin
+                     div_a = registers[alu_num];
+                     div_b = read_value;                      
+                  end
+                endcase
+            end
+          end 
         end  
       endcase
       if (error_code != ERROR_NONE) begin
+        `HARD_DEBUG2(instruction1_1);
+        `HARD_DEBUG2(instruction1_2);
         `HARD_DEBUG("B");
         `HARD_DEBUG("S");
         `HARD_DEBUG("O");
