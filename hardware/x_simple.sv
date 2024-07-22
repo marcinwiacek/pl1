@@ -54,8 +54,41 @@ parameter MMU_MAX_INDEX = 455;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 /* DEBUG info */          ); \
 /* DEBUG info */        end
 
+(* use_dsp = "yes" *) module plus (
+  input [15:0] a,
+  input [15:0] b,
+  output reg [15:0] c
+);
+  assign c = a+b;
+endmodule
+
+(* use_dsp = "yes" *) module minus (
+  input [15:0] a,
+  input [15:0] b,
+  output reg [15:0] c
+);
+  assign c = a-b;
+endmodule
+
+
+(* use_dsp = "yes" *)  module mul (
+  input [15:0] a,
+  input [15:0] b,
+  output reg [15:0] c
+);
+  assign c = a*b;
+endmodule
+
+(* use_dsp = "yes" *) module div (
+  input [15:0] a,
+  input [15:0] b,
+  output reg [15:0] c
+);
+  assign c = a/b;
+endmodule
+
 module x_simple (
-    input clk,
+    (* gated_clock = "yes" *) input clk,
     input logic btnc,
     output logic uart_rx_out
 );
@@ -201,6 +234,22 @@ module x_simple (
 
   integer i;  //DEBUG info
 
+
+  reg[15:0] mul_a, mul_b;
+  wire [15:0] mul_c;
+  reg[15:0] div_a, div_b;
+  wire [15:0] div_c;
+  reg[15:0] plus_a, plus_b;
+  wire [15:0] plus_c;
+  reg[15:0] minus_a, minus_b;
+  wire [15:0] minus_c;
+
+mul mul(.a(mul_a),.b(mul_b), .c(mul_c));
+div div(.a(div_a),.b(div_b), .c(div_c));
+plus plus(.a(plus_a),.b(plus_b), .c(plus_c));
+minus minus(.a(minus_a),.b(minus_b), .c(minus_c));
+
+  
   always @(negedge clk) begin   
     if (reset==1 && rst_can_be_done==1) begin
       rst_can_be_done = 0;
@@ -243,7 +292,7 @@ module x_simple (
     end else if (working ==0 && error_code == ERROR_NONE) begin
       working = 1;
       rst_can_be_done = 1;
-      case (stage)
+      (* parallel_case *) (* full_case *) case (stage)
         STAGE_GET_1_BYTE: begin
           if (pc <= 62) begin
             rst_can_be_done = 1;
@@ -278,7 +327,7 @@ module x_simple (
             );
           `HARD_DEBUG2(instruction1_1);
           `HARD_DEBUG2(instruction1_2);
-          case (instruction1_1)
+          (* parallel_case *) (* full_case *) case (instruction1_1)
             //24 bit target address
             OPCODE_JMP: begin
               if ((read_value + (256 * 256) * instruction1_2) % 2 == 1) begin
@@ -564,12 +613,28 @@ module x_simple (
           end else begin
             for (i = 0; i < 32; i = i + 1) begin
               if (i >= instruction1_2_1 && i <= (instruction1_2_1 + instruction1_2_2)) begin
-                case (alu_op)
+              (* parallel_case *) (* full_case *) case (alu_op)
                   ALU_SET: registers[i] = read_value;
-                  ALU_ADD: registers[i] = registers[i] + read_value;
-                  ALU_DEC: registers[i] = registers[i] - read_value;
-                  ALU_MUL: registers[i] = registers[i] * read_value;
-                  ALU_DIV: registers[i] = registers[i] / read_value;
+                  ALU_ADD: begin
+                     plus_a = registers[i];
+                     plus_b = read_value;                      
+                     registers[i] = plus_c;
+                  end
+                  ALU_DEC: begin
+                     minus_a = registers[i];
+                     minus_b = read_value;                      
+                     registers[i] = minus_c;
+                  end
+                  ALU_MUL: begin
+                     mul_a = registers[i];
+                     mul_b = read_value;                      
+                     registers[i] = mul_c;
+                  end
+                  ALU_DIV: begin
+                     div_a = registers[i];
+                     div_b = read_value;                      
+                     registers[i] = div_c;
+                  end
                 endcase
               end
             end
@@ -593,7 +658,7 @@ module x_simple (
 endmodule
 
 module single_ram (
-    input clk,
+    (* gated_clock = "yes" *) input clk,
     input write_enabled,
     input [15:0] write_address,
     input [15:0] write_value,
@@ -607,7 +672,7 @@ module single_ram (
       end  //DEBUG info
 */
 
-  reg [15:0] ram[0:67] = '{
+  (* ram_style = "mixed" *) (* ram_decomp = "power" *) reg [15:0] ram[0:67] = '{
       16'h0110,
       16'h0220,  //next,8'hprocess,8'haddress,8'h(no,8'hMMU),8'hoverwritten,8'hby,8'hCPU
       16'h0330,
@@ -685,7 +750,7 @@ module single_ram (
 endmodule
 
 module uartx_tx_with_buffer (
-    input clk,
+    (* gated_clock = "yes" *) input clk,
     input [7:0] uart_buffer[0:128],
     input [6:0] uart_buffer_available,
     output logic reset_uart_buffer_available,
@@ -733,7 +798,7 @@ endmodule
 //values on tx: ...1, 0 (start bit), (8 data bits), 1 (stop bit), 1... 
 //(we make some delay in the end before next seq; every bit is sent CLK_PER_BIT cycles)
 module uart_tx (
-    input clk,
+    (* gated_clock = "yes" *) input clk,
     input start,
     input [7:0] input_data,
     output logic complete,
