@@ -55,7 +55,7 @@ parameter MMU_MAX_INDEX = 455;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 /* DEBUG info */        end
 
 (* use_dsp = "yes" *) module plus (
-(* gated_clock = "yes" *) input clk,
+ input clk,
   input [15:0] a,
   input [15:0] b,
   output reg [15:0] c
@@ -67,7 +67,7 @@ end
 endmodule
 
 (* use_dsp = "yes" *) module minus (
-(* gated_clock = "yes" *) input clk,
+ input clk,
   input [15:0] a,
   input [15:0] b,
   output reg [15:0] c
@@ -79,7 +79,7 @@ endmodule
 
 
 (* use_dsp = "yes" *)  module mul (
-(* gated_clock = "yes" *) input clk,
+ input clk,
   input [15:0] a,
   input [15:0] b,
   output reg [15:0] c
@@ -90,7 +90,7 @@ end
 endmodule
 
 (* use_dsp = "yes" *) module div (
-(* gated_clock = "yes" *) input clk,
+input clk,
   input [15:0] a,
   input [15:0] b,
   output reg [15:0] c
@@ -100,8 +100,9 @@ always @(posedge clk) begin
 end
 endmodule
 
+(* use_dsp = "yes" *)
 module x_simple (
-    (* gated_clock = "yes" *) input clk,
+     input clk,
     input logic btnc,
     output logic uart_rx_out
 );
@@ -222,7 +223,7 @@ module x_simple (
 
   reg rst_can_be_done = 1, working=1;
   reg [5:0] pc;
-  reg [5:0] error_code = ERROR_WRONG_OPCODE;
+  reg [5:0] error_code = 0;
   reg [3:0] stage, stage_after_mmu;
   reg [15:0] registers[0:31];  //512 bits = 32 x 16-bit registers
   
@@ -305,7 +306,7 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
     end else if (working ==0 && error_code == ERROR_NONE) begin
       working = 1;
       rst_can_be_done = 1;
-      (* parallel_case *) (* full_case *) case (stage)
+      case (stage)
         STAGE_GET_1_BYTE: begin
           if (pc <= 62) begin
             rst_can_be_done = 1;
@@ -340,7 +341,7 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
             );
           `HARD_DEBUG2(instruction1_1);
           `HARD_DEBUG2(instruction1_2);
-          (* parallel_case *) (* full_case *) case (instruction1_1)
+          case (instruction1_1)
             //24 bit target address
             OPCODE_JMP: begin
               if ((read_value + (256 * 256) * instruction1_2) % 2 == 1) begin
@@ -631,7 +632,7 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
             if (alu_num==255) begin
                alu_num = instruction1_2_1;
             end else begin
-              (* parallel_case *) (* full_case *) case (alu_op)
+               case (alu_op)
                   ALU_ADD: begin
                      registers[alu_num] = plus_c;
                   end
@@ -652,7 +653,7 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
               stage_after_mmu = STAGE_GET_1_BYTE;
               stage = STAGE_CHECK_MMU_ADDRESS;
             end else begin
-              (* parallel_case *) (* full_case *) case (alu_op)
+               case (alu_op)
                   ALU_SET: registers[alu_num] = read_value;
                   ALU_ADD: begin
                      plus_a = registers[alu_num];
@@ -676,8 +677,8 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
         end  
       endcase
       if (error_code != ERROR_NONE) begin
-        `HARD_DEBUG2(instruction1_1);
-        `HARD_DEBUG2(instruction1_2);
+       // `HARD_DEBUG2(instruction1_1);
+      //  `HARD_DEBUG2(instruction1_2);
         `HARD_DEBUG("B");
         `HARD_DEBUG("S");
         `HARD_DEBUG("O");
@@ -690,8 +691,9 @@ minus minus(.clk(clk),.a(minus_a),.b(minus_b), .c(minus_c));
   end
 endmodule
 
+(* use_dsp = "yes" *) 
 module single_ram (
-    (* gated_clock = "yes" *) input clk,
+    input clk,
     input write_enabled,
     input [15:0] write_address,
     input [15:0] write_value,
@@ -705,7 +707,7 @@ module single_ram (
       end  //DEBUG info
 */
 
-  (* ram_style = "mixed" *) (* ram_decomp = "power" *) reg [15:0] ram[0:67] = '{
+ reg [15:0] ram[0:67] = '{
       16'h0110,
       16'h0220,  //next,8'hprocess,8'haddress,8'h(no,8'hMMU),8'hoverwritten,8'hby,8'hCPU
       16'h0330,
@@ -782,8 +784,9 @@ module single_ram (
   end
 endmodule
 
+(* use_dsp = "yes" *) 
 module uartx_tx_with_buffer (
-    (* gated_clock = "yes" *) input clk,
+   input clk,
     input [7:0] uart_buffer[0:128],
     input [6:0] uart_buffer_available,
     output logic reset_uart_buffer_available,
@@ -830,8 +833,9 @@ endmodule
 //115200, 8 bits (LSB first), 1 stop, no parity
 //values on tx: ...1, 0 (start bit), (8 data bits), 1 (stop bit), 1... 
 //(we make some delay in the end before next seq; every bit is sent CLK_PER_BIT cycles)
+(* use_dsp = "yes" *) 
 module uart_tx (
-    (* gated_clock = "yes" *) input clk,
+    input clk,
     input start,
     input [7:0] input_data,
     output logic complete,
