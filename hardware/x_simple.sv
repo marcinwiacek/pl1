@@ -8,9 +8,9 @@ parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter HARDWARE_DEBUG = 1;
-parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter OTHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter HARDWARE_DEBUG = 0;
+parameter READ_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
 parameter RAM_SIZE = 32767;
@@ -225,7 +225,7 @@ module x_simple (
   reg [15:0] registers[0:31];  //512 bits = 32 x 16-bit registers
 
   reg [5:0] ram_read_save_reg_start, ram_read_save_reg_end;
-  reg [2:0] alu_op, alu_num;
+  reg [7:0] alu_op, alu_num;
   reg [11:0] temp1, temp2, temp3;
 
   reg   [15:0] instruction1;
@@ -331,9 +331,8 @@ module x_simple (
             `HARD_DEBUG("a");
             instruction1 = read_value;
             pc = pc + 1;
-            mmu_address_to_search = pc;
-            stage_after_mmu = STAGE_GET_2_BYTE;
-            stage = STAGE_CHECK_MMU_ADDRESS;
+            read_address = read_address+1;
+            stage = STAGE_GET_2_BYTE;
           end else begin
             stage = STAGE_HLT;
           end
@@ -343,7 +342,7 @@ module x_simple (
           if (READ_DEBUG == 1) $display($time, "read ready2 ", read_address, "=", read_value);
           if (OTHER_DEBUG == 1)
             $display(
-                $time,
+                $time,mmu_start_process_physical_segment," ",
                 (pc - 1),
                 " b1: ",
                 instruction1_1,
@@ -550,7 +549,7 @@ module x_simple (
                     (instruction1_2_1 + instruction1_2_2)
                 );  //DEBUG info
               alu_op  = ALU_SET;
-              alu_num = 255;
+              alu_num = instruction1_2_1;
               stage   = STAGE_ALU;
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
@@ -658,6 +657,8 @@ module x_simple (
           stage = STAGE_CHECK_MMU_ADDRESS;
         end
         STAGE_CHECK_MMU_ADDRESS: begin
+         $display(
+                      $time,"mmu");
           `HARD_DEBUG("m");
           mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
           if (mmu_address_to_search_segment == 0) begin
@@ -700,6 +701,11 @@ module x_simple (
           end
         end
         STAGE_ALU: begin
+         $display(
+                      $time,
+                      " alu ",alu_num
+                  );  //DEBUG info
+                  
           if (instruction1_2_1 + instruction1_2_2 >= 32) begin
             error_code = ERROR_WRONG_REG_NUM;
           end else begin
