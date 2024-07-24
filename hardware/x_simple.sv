@@ -152,17 +152,14 @@ module x_simple (
   parameter OPCODE_JMP_PLUS16 = 6;  //x, register num with info (we read one reg)
   parameter OPCODE_JMP_MINUS = 7;  //x, 16 bit how many instructions  
   parameter OPCODE_JMP_MINUS16 = 8;  //x, register num with info (we read one reg)
-
   parameter OPCODE_RAM2REG = 9;  //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
-  parameter OPCODE_RAM2REG16 = 10; //start register num, how many registers, register num with source addr (we read one reg), //ram -> reg
+  parameter OPCODE_RAM2REG16 = 10; //start register num, how many registers, register num with source addr (we read one reg), //ram -> reg  
   //  parameter OPCODE_RAM2REG32 = 11; //start register num, how many registers, first register num with source addr (we read two reg), //ram -> reg
   //  parameter OPCODE_RAM2REG64 = 12; //start register num, how many registers, first register num with source addr (we read four reg), //ram -> reg
-
   parameter OPCODE_REG2RAM = 14;  //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
   parameter OPCODE_REG2RAM16 = 15; //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
   //  parameter OPCODE_REG2RAM32 = 16; //start register num, how many registers, first register num with target addr (we read two reg), //reg -> ram
   //  parameter OPCODE_REG2RAM64 = 17; //start register num, how many registers, first register num with target addr (we read four reg), //reg -> ram
-
   parameter OPCODE_NUM2REG = 18;  //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
   parameter OPCODE_REG_PLUS =19; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
   parameter OPCODE_REG_MINUS =20; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
@@ -192,6 +189,7 @@ module x_simple (
   parameter STAGE_GET_RAM_BYTE = 10;
   parameter STAGE_HLT = 11;
   parameter STAGE_ALU = 12;
+  parameter STAGE_SET_RAM_BYTE = 14;
 
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
@@ -226,7 +224,7 @@ module x_simple (
   reg [3:0] stage, stage_after_mmu;
   reg [15:0] registers[0:31];  //512 bits = 32 x 16-bit registers
 
-  reg [5:0] ram_read_reg_start, ram_read_reg_end;
+  reg [5:0] ram_read_save_reg_start, ram_read_save_reg_end;
   reg [2:0] alu_op, alu_num;
   reg [11:0] temp1, temp2, temp3;
 
@@ -463,6 +461,8 @@ module x_simple (
             OPCODE_RAM2REG: begin
               if (instruction1_2_1 + instruction1_2_2 >= 32) begin
                 error_code = ERROR_WRONG_REG_NUM;
+              end else if (read_value < ADDRESS_PROGRAM) begin
+                error_code = ERROR_WRONG_ADDRESS;
               end else begin
                 if (OTHER_DEBUG == 1)
                   $display(
@@ -475,10 +475,11 @@ module x_simple (
                       (instruction1_2_1 + instruction1_2_2)
                   );  //DEBUG info
 
+
                 stage_after_mmu = STAGE_GET_RAM_BYTE;
                 mmu_address_to_search = read_value;
-                ram_read_reg_start = instruction1_2_1;
-                ram_read_reg_end = instruction1_2_1 + instruction1_2_2;
+                ram_read_save_reg_start = instruction1_2_1;
+                ram_read_save_reg_end = instruction1_2_1 + instruction1_2_2;
                 stage = STAGE_CHECK_MMU_ADDRESS;
               end
             end
@@ -486,11 +487,53 @@ module x_simple (
             OPCODE_RAM2REG16: begin
               if (instruction1_2 + instruction2_1 >= 32 || instruction2_2 >= 32) begin
                 error_code = ERROR_WRONG_REG_NUM;
+              end else if (read_value < ADDRESS_PROGRAM) begin
+                error_code = ERROR_WRONG_ADDRESS;
               end else begin
                 stage_after_mmu = STAGE_GET_RAM_BYTE;
                 mmu_address_to_search = registers[instruction2_2];
-                ram_read_reg_start = instruction1_2;
-                ram_read_reg_end = instruction1_2 + instruction2_1;
+                ram_read_save_reg_start = instruction1_2;
+                ram_read_save_reg_end = instruction1_2 + instruction2_1;
+                stage = STAGE_CHECK_MMU_ADDRESS;
+              end
+            end
+            //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
+            OPCODE_REG2RAM: begin
+              if (instruction1_2_1 + instruction1_2_2 >= 32) begin
+                error_code = ERROR_WRONG_REG_NUM;
+              end else if (read_value < ADDRESS_PROGRAM) begin
+                error_code = ERROR_WRONG_ADDRESS;
+              end else begin
+                if (OTHER_DEBUG == 1)
+                  $display(
+                      $time,
+                      " opcode = reg2ram save reg ",
+                      instruction1_2_1,
+                      "-",
+                      (instruction1_2_1 + instruction1_2_2),
+                      " to address from ",
+                      read_value,
+                  );  //DEBUG info
+                write_value = registers[instruction1_2_1];
+                stage_after_mmu = STAGE_SET_RAM_BYTE;
+                mmu_address_to_search = read_value;
+                ram_read_save_reg_start = instruction1_2_1;
+                ram_read_save_reg_end = instruction1_2_1 + instruction1_2_2;
+                stage = STAGE_CHECK_MMU_ADDRESS;
+              end
+            end
+            //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
+            OPCODE_REG2RAM16: begin
+              if (instruction1_2 + instruction2_1 >= 32 || instruction2_2 >= 32) begin
+                error_code = ERROR_WRONG_REG_NUM;
+              end else if (read_value < ADDRESS_PROGRAM) begin
+                error_code = ERROR_WRONG_ADDRESS;
+              end else begin
+                write_value = registers[instruction1_2];
+                stage_after_mmu = STAGE_SET_RAM_BYTE;
+                mmu_address_to_search = registers[instruction2_2];
+                ram_read_save_reg_start = instruction1_2;
+                ram_read_save_reg_end = instruction1_2 + instruction2_1;
                 stage = STAGE_CHECK_MMU_ADDRESS;
               end
             end
@@ -591,14 +634,26 @@ module x_simple (
           end
         end
         STAGE_GET_RAM_BYTE: begin
-          registers[ram_read_reg_start] = read_value;
-          ram_read_reg_start = ram_read_reg_start + 1;
-          if (ram_read_reg_start == ram_read_reg_end) begin
+          registers[ram_read_save_reg_start] = read_value;
+          ram_read_save_reg_start = ram_read_save_reg_start + 1;
+          if (ram_read_save_reg_start == ram_read_save_reg_end) begin
             mmu_address_to_search = pc;
             stage_after_mmu = STAGE_GET_1_BYTE;
           end else begin
             mmu_address_to_search = mmu_address_to_search + 1;
             stage_after_mmu = STAGE_GET_RAM_BYTE;
+          end
+          stage = STAGE_CHECK_MMU_ADDRESS;
+        end
+        STAGE_SET_RAM_BYTE: begin
+          ram_read_save_reg_start = ram_read_save_reg_start + 1;
+          if (ram_read_save_reg_start == ram_read_save_reg_end) begin
+            mmu_address_to_search = pc;
+            stage_after_mmu = STAGE_GET_1_BYTE;
+          end else begin
+            write_value = registers[ram_read_save_reg_start];
+            mmu_address_to_search = mmu_address_to_search + 1;
+            stage_after_mmu = STAGE_SET_RAM_BYTE;
           end
           stage = STAGE_CHECK_MMU_ADDRESS;
         end
