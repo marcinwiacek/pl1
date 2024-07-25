@@ -836,7 +836,7 @@ module single_ram (
 
   // verilog_format:off
 
-  reg [15:0] ram[0:432] = '{
+  reg [0:432] [15:0] ram = {
       16'h0110, 16'h0220,  16'h0330, 16'h0440, //next process address (no MMU) overwritten by CPU, we use first bytes only      
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
       
