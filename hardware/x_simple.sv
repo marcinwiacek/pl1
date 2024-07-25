@@ -80,7 +80,6 @@ endmodule
   end
 endmodule
 
-
 (* use_dsp = "yes" *) module mul (
     input clk,
     input [15:0] a,
@@ -368,7 +367,7 @@ module x_simple (
                 if (OP_DEBUG == 1)
                   $display(
                       $time, " opcode = jmp to ", (read_value + (256 * 256) * instruction1_2)
-                  );  //DEBUG info    
+                  );  //DEBUG info
                 pc = (read_value + (256 * 256) * instruction1_2);
                 stage = STAGE_SET_PC;
               end
@@ -383,7 +382,7 @@ module x_simple (
                 if (OP_DEBUG == 1)
                   $display(
                       $time, " opcode = jmp to ", (registers[read_value] - 1)
-                  );  //DEBUG info                       
+                  );  //DEBUG info
                 pc = registers[read_value];
                 stage = STAGE_SET_PC;
               end
@@ -415,7 +414,7 @@ module x_simple (
                       " (",
                       registers[read_value],
                       " instructions)"
-                  );  //DEBUG info      
+                  );  //DEBUG info
                 pc += registers[read_value] * 2 - 1;
                 stage = STAGE_SET_PC;
               end
@@ -433,7 +432,7 @@ module x_simple (
                       " (",
                       read_value,
                       " instructions)"
-                  );  //DEBUG info      
+                  );  //DEBUG info
                 pc -= read_value * 2 - 1;
                 stage = STAGE_SET_PC;
               end
@@ -839,11 +838,11 @@ module single_ram (
   reg [0:432] [15:0] ram = {
       16'h0110, 16'h0220,  16'h0330, 16'h0440, //next process address (no MMU) overwritten by CPU, we use first bytes only      
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
-      
+
       16'h0000, 16'h0000,  //registers used (currently ignored)
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
-      
+
       16'h0000, 16'h0000, 16'h0000, 16'h0000, //registers taken "as is"
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
@@ -868,7 +867,7 @@ module single_ram (
       16'h0E01, 16'h0046,  //reg2ram
       16'h0F00, 16'h0002,  //int,8'h2
       16'h010E, 16'h0030,  //jmp,8'h0x30
-      
+
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
