@@ -4,15 +4,15 @@
 parameter WRITE_RAM_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_RAM_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_CHANGES_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter HARDWARE_DEBUG = 0;
+parameter HARDWARE_DEBUG = 1;
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
-parameter OP_DEBUG = 1;
+parameter OP_DEBUG = 0;
 parameter ALU_DEBUG = 0;
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
@@ -296,8 +296,6 @@ module x_simple (
       uart_buffer_available = 0;
       `HARD_DEBUG("\n");
       `HARD_DEBUG("S");
-
-      mmu_start_process_physical_segment = 0;
       
       for (i = 0; i < MMU_MAX_INDEX; i = i + 1) begin
         mmu_chain_memory[i] = 0;
@@ -305,6 +303,7 @@ module x_simple (
       end
 
       //some more complicated config used for testing //DEBUG info
+      mmu_start_process_physical_segment = 0;
       mmu_chain_memory[0] = 5;  //DEBUG info
       mmu_chain_memory[5] = 2;  //DEBUG info
       mmu_chain_memory[2] = 1;  //DEBUG info
@@ -694,7 +693,7 @@ module x_simple (
             stage_after_mmu = STAGE_SET_RAM_BYTE;
           end
           stage = STAGE_CHECK_MMU_ADDRESS;
-        end
+        end  
         STAGE_CHECK_MMU_ADDRESS: begin
           `HARD_DEBUG("m");
           mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
@@ -706,9 +705,9 @@ module x_simple (
                 " segment ",
                 mmu_address_to_search_segment
             );
-            mmu_search_position = mmu_start_process_physical_segment;
-            stage = STAGE_SEARCH1_MMU_ADDRESS;
-        end
+          mmu_search_position = mmu_start_process_physical_segment;
+          stage = STAGE_SEARCH1_MMU_ADDRESS;
+        end        
         STAGE_ALU: begin
           if (ALU_DEBUG == 1)
             $display(
@@ -793,7 +792,7 @@ module x_simple (
               read_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
             end
             stage = stage_after_mmu;
-          end else if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
+          //end else if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
             //element pointing to itself
             //needs to allocate new segment
           end else begin
@@ -801,7 +800,7 @@ module x_simple (
             mmu_prev_search_position = mmu_search_position;
             mmu_search_position = mmu_chain_memory[mmu_search_position];
           end
-      end
+        end              
       if (error_code != ERROR_NONE) begin
         // `HARD_DEBUG2(instruction1_1);
         //  `HARD_DEBUG2(instruction1_2);
@@ -833,8 +832,9 @@ module single_ram (
 */
 
   // verilog_format:off
-
-  reg [0:432] [15:0] ram = {
+  // reg [15:0] ram  [0:432]= {   in Vivado (required by board)
+  //  reg [0:432] [15:0] ram = {   in iVerilog
+  reg [15:0] ram  [0:432]= {
       16'h0110, 16'h0220,  16'h0330, 16'h0440, //next process address (no MMU) overwritten by CPU, we use first bytes only      
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
 
