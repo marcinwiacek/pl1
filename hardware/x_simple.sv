@@ -17,7 +17,7 @@ parameter ALU_DEBUG = 0;
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
 parameter RAM_SIZE = 32767;
-parameter MMU_MAX_INDEX = 455;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
+parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG; \
@@ -108,8 +108,8 @@ endmodule
 
 module x_simple (
     input clk,
-    input logic btnc,
-    output logic uart_rx_out
+    input bit btnc,
+    output bit uart_rx_out
 );
 
   bit [31:0] ctn = 0;
@@ -238,12 +238,12 @@ module x_simple (
   bit [7:0] alu_op, alu_num;
 
   bit   [15:0] instruction1;
-  logic [ 7:0] instruction1_1;
-  logic [ 7:0] instruction1_2;
-  logic [ 4:0] instruction1_2_1;
-  logic [ 2:0] instruction1_2_2;
-  logic [ 7:0] instruction2_1;
-  logic [ 7:0] instruction2_2;
+  bit [ 7:0] instruction1_1;
+  bit [ 7:0] instruction1_2;
+  bit [ 4:0] instruction1_2_1;
+  bit [ 2:0] instruction1_2_2;
+  bit [ 7:0] instruction2_1;
+  bit [ 7:0] instruction2_2;
 
   assign instruction1_1   = instruction1[15:8];
   assign instruction1_2   = instruction1[7:0];
@@ -293,8 +293,6 @@ module x_simple (
       rst_can_be_done = 0;
       if (OTHER_DEBUG == 1) $display($time, " reset");
 
-mmu_chain_memory =  '{default:0};
-mmu_logical_pages_memory =  '{default:0};
   //    for (i = 0; i < MMU_MAX_INDEX; i = i + 1) begin
        // mmu_logical_pages_memory[i] = 0;
       //  mmu_chain_memory[i] = 0;
@@ -317,6 +315,9 @@ mmu_logical_pages_memory =  '{default:0};
 //        mmu_chain_memory[i] = 0;
 //      end
           
+          mmu_chain_memory =  '{default:0};
+mmu_logical_pages_memory =  '{default:0};
+
       //some more complicated config used for testing //DEBUG info
       mmu_start_process_physical_segment = 0;
       mmu_chain_memory[0] = 5;  //DEBUG info
@@ -919,9 +920,9 @@ module uartx_tx_with_buffer (
     input clk,
     input [7:0] uart_buffer[0:128],
     input [6:0] uart_buffer_available,
-    output logic reset_uart_buffer_available,
-    output logic uart_buffer_full,
-    output logic tx
+    output bit reset_uart_buffer_available,
+    output bit uart_buffer_full,
+    output bit tx
 );
 
   bit [7:0] input_data;
@@ -967,8 +968,8 @@ module uart_tx (
     input clk,
     input start,
     input [7:0] input_data,
-    output logic complete,
-    output logic uarttx
+    output bit complete,
+    output bit uarttx
 );
 
   parameter CLK_PER_BIT = 100000000 / 115200;  //100 Mhz / transmission speed in bits per second
