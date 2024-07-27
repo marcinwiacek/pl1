@@ -20,7 +20,7 @@ parameter RAM_SIZE = 32767;
 parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
-/* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
+/* DEBUG info */     if (reset_uart_buffer_available) uart_buffer_available = 0; \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG);
  
