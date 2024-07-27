@@ -699,7 +699,35 @@ module x_simple (
           end
           stage = STAGE_CHECK_MMU_ADDRESS;
         end  
-        STAGE_ALU: begin
+        
+      endcase
+    
+      if (error_code != ERROR_NONE) begin
+        // `HARD_DEBUG2(instruction1_1);
+        //  `HARD_DEBUG2(instruction1_2);
+        `HARD_DEBUG("B");
+        `HARD_DEBUG("S");
+        `HARD_DEBUG("O");
+        `HARD_DEBUG("D");
+        `HARD_DEBUG2(error_code);
+        stage = STAGE_HLT;
+      end
+      if (stage == STAGE_CHECK_MMU_ADDRESS) begin
+          `HARD_DEBUG("m");
+          mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
+          if (MMU_TRANSLATION_DEBUG == 1)
+            $display(
+                $time,
+                " mmu, address ",
+                mmu_address_to_search,
+                " segment ",
+                mmu_address_to_search_segment
+            );
+          mmu_search_position = mmu_start_process_physical_segment;
+          stage = STAGE_SEARCH1_MMU_ADDRESS;
+      end
+            case (stage)
+      STAGE_ALU: begin
           if (ALU_DEBUG == 1)
             $display(
                 $time,
@@ -762,22 +790,8 @@ module x_simple (
             end
           end
         end
-      endcase
-        if (stage == STAGE_CHECK_MMU_ADDRESS) begin
-          `HARD_DEBUG("m");
-          mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
-          if (MMU_TRANSLATION_DEBUG == 1)
-            $display(
-                $time,
-                " mmu, address ",
-                mmu_address_to_search,
-                " segment ",
-                mmu_address_to_search_segment
-            );
-          mmu_search_position = mmu_start_process_physical_segment;
-          stage = STAGE_SEARCH1_MMU_ADDRESS;
-        end        
-      if (stage == STAGE_SEARCH1_MMU_ADDRESS) begin
+         
+      STAGE_SEARCH1_MMU_ADDRESS: begin
           if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
             `HARD_DEBUG("%");
             if (MMU_TRANSLATION_DEBUG)
@@ -806,16 +820,8 @@ module x_simple (
             mmu_search_position = mmu_chain_memory[mmu_search_position];
           end
         end              
-      if (error_code != ERROR_NONE) begin
-        // `HARD_DEBUG2(instruction1_1);
-        //  `HARD_DEBUG2(instruction1_2);
-        `HARD_DEBUG("B");
-        `HARD_DEBUG("S");
-        `HARD_DEBUG("O");
-        `HARD_DEBUG("D");
-        `HARD_DEBUG2(error_code);
-        stage = STAGE_HLT;
-      end
+        endcase
+        
       working = 0;
     end
   end
@@ -837,9 +843,8 @@ module single_ram (
 */
 
   // verilog_format:off
-  // reg [15:0] ram  [0:432]= {   in Vivado (required by board)
-  //  reg [0:432] [15:0] ram = {   in iVerilog
-  reg [15:0] ram  [0:432]= {
+   reg [15:0] ram  [0:432]= {  // in Vivado (required by board)
+  //  reg [0:432] [15:0] ram = {  // in iVerilog
       16'h0110, 16'h0220,  16'h0330, 16'h0440, //next process address (no MMU) overwritten by CPU, we use first bytes only      
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
 
