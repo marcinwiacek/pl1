@@ -65,7 +65,7 @@ parameter MMU_MAX_INDEX = 455;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
     input clk,
     input [15:0] a,
     input [15:0] b,
-    output reg [15:0] c
+    output bit [15:0] c
 );
 
   always @(posedge clk) begin
@@ -77,7 +77,7 @@ endmodule
     input clk,
     input [15:0] a,
     input [15:0] b,
-    output reg [15:0] c
+    output bit [15:0] c
 );
   always @(posedge clk) begin
     c = a - b;
@@ -88,7 +88,7 @@ endmodule
     input clk,
     input [15:0] a,
     input [15:0] b,
-    output reg [15:0] c
+    output bit [15:0] c
 );
   always @(posedge clk) begin
     c = a * b;
@@ -99,7 +99,7 @@ endmodule
     input clk,
     input [15:0] a,
     input [15:0] b,
-    output reg [15:0] c
+    output bit [15:0] c
 );
   always @(posedge clk) begin
     c = a / b;
@@ -112,8 +112,8 @@ module x_simple (
     output logic uart_rx_out
 );
 
-  reg [31:0] ctn = 0;
-  reg reset;
+  bit [31:0] ctn = 0;
+  bit reset;
 
   assign reset = ctn == 1 || btnc;
 
@@ -121,10 +121,10 @@ module x_simple (
     if (ctn < 10) ctn <= ctn + 1;
   end
 
-  reg write_enabled;
-  reg [15:0] write_address;
-  reg [15:0] write_value;
-  reg [15:0] read_address;
+  bit write_enabled;
+  bit [15:0] write_address;
+  bit [15:0] write_value;
+  bit [15:0] read_address;
   wire [15:0] read_value;
 
   single_ram single_ram (
@@ -136,8 +136,8 @@ module x_simple (
       .read_value(read_value)
   );
 
-  reg [7:0] uart_buffer[0:128];
-  reg [6:0] uart_buffer_available = 0;
+  bit [7:0] uart_buffer[0:128];
+  bit [6:0] uart_buffer_available = 0;
   wire reset_uart_buffer_available;
   wire uart_buffer_full;
 
@@ -219,25 +219,25 @@ module x_simple (
   // mmu_chain_memory == own physical segment (element is pointing to itself) -> end segment
   // mmu_logical_pages_memory == 0 && mmu_chain_memory == 0 -> free segment for all physical segments != 0 (see note in next line)
   // 0,0 can be assigned to process starting from physical segment 0 -> we handle it with mmu_first_possible_free_physical_segment 
-  reg [8:0] mmu_chain_memory[0:MMU_MAX_INDEX];  //next physical segment index for process
-  reg [8:0] mmu_logical_pages_memory[0:MMU_MAX_INDEX];  //logical process page assigned to physical segment
-  reg [8:0] mmu_first_possible_free_physical_segment;  //updated on create / delete (when == 0, we assume it must be free; in other cases it's just start index for loop)
-  reg [8:0] mmu_start_process_physical_segment;  //needs to be updated on process switch and MMU sorting
+  bit [8:0] mmu_chain_memory[0:MMU_MAX_INDEX];  //next physical segment index for process
+  bit [8:0] mmu_logical_pages_memory[0:MMU_MAX_INDEX];  //logical process page assigned to physical segment
+  bit [8:0] mmu_first_possible_free_physical_segment;  //updated on create / delete (when == 0, we assume it must be free; in other cases it's just start index for loop)
+  bit [8:0] mmu_start_process_physical_segment;  //needs to be updated on process switch and MMU sorting
 
-  reg [8:0] mmu_address_to_search;
-  reg [8:0] mmu_address_to_search_segment;
-  reg [8:0] mmu_search_position, mmu_prev_search_position;
+  bit [8:0] mmu_address_to_search;
+  bit [8:0] mmu_address_to_search_segment;
+  bit [8:0] mmu_search_position, mmu_prev_search_position;
 
-  reg rst_can_be_done = 1, working = 1;
-  reg [5:0] pc;
-  reg [5:0] error_code = 0;
-  reg [3:0] stage, stage_after_mmu;
-  reg [15:0] registers[0:31];  //512 bits = 32 x 16-bit registers
+  bit rst_can_be_done = 1, working = 1;
+  bit [5:0] pc;
+  bit [5:0] error_code = 0;
+  bit [3:0] stage, stage_after_mmu;
+  bit [15:0] registers[0:31];  //512 bits = 32 x 16-bit registers
 
-  reg [5:0] ram_read_save_reg_start, ram_read_save_reg_end;
-  reg [7:0] alu_op, alu_num;
+  bit [5:0] ram_read_save_reg_start, ram_read_save_reg_end;
+  bit [7:0] alu_op, alu_num;
 
-  reg   [15:0] instruction1;
+  bit   [15:0] instruction1;
   logic [ 7:0] instruction1_1;
   logic [ 7:0] instruction1_2;
   logic [ 4:0] instruction1_2_1;
@@ -254,13 +254,13 @@ module x_simple (
 
   integer i;  //DEBUG info
 
-  reg [15:0] mul_a, mul_b;
+  bit [15:0] mul_a, mul_b;
   wire [15:0] mul_c;
-  reg [15:0] div_a, div_b;
+  bit [15:0] div_a, div_b;
   wire [15:0] div_c;
-  reg [15:0] plus_a, plus_b;
+  bit [15:0] plus_a, plus_b;
   wire [15:0] plus_c;
-  reg [15:0] minus_a, minus_b;
+  bit [15:0] minus_a, minus_b;
   wire [15:0] minus_c;
 
   mul mul (
@@ -293,14 +293,17 @@ module x_simple (
       rst_can_be_done = 0;
       if (OTHER_DEBUG == 1) $display($time, " reset");
 
-      for (i = 0; i < MMU_MAX_INDEX; i = i + 1) begin
-        mmu_logical_pages_memory[i] = 0;
-        mmu_chain_memory[i] = 0;
-      end      
+mmu_chain_memory =  '{default:0};
+mmu_logical_pages_memory =  '{default:0};
+  //    for (i = 0; i < MMU_MAX_INDEX; i = i + 1) begin
+       // mmu_logical_pages_memory[i] = 0;
+      //  mmu_chain_memory[i] = 0;
+    //  end      
 
-      for (i = 0; i < 32; i = i + 1) begin
-        registers[i] = 0;
-      end
+        registers =   '{default:0};
+      //for (i = 0; i < 32; i = i + 1) begin
+//        registers[i] = 0;
+//      end
 
       pc = ADDRESS_PROGRAM;
       read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation
@@ -833,7 +836,7 @@ module single_ram (
     input [15:0] write_address,
     input [15:0] write_value,
     input [15:0] read_address,
-    output reg [15:0] read_value
+    output bit [15:0] read_value
 );
 
   /*  reg [15:0] ram[0:67];
@@ -843,7 +846,7 @@ module single_ram (
 */
 
   // verilog_format:off
-   reg [15:0] ram  [0:432]= {  // in Vivado (required by board)
+   bit [15:0] ram  [0:432]= {  // in Vivado (required by board)
   //  reg [0:432] [15:0] ram = {  // in iVerilog
       16'h0110, 16'h0220,  16'h0330, 16'h0440, //next process address (no MMU) overwritten by CPU, we use first bytes only      
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
@@ -921,10 +924,10 @@ module uartx_tx_with_buffer (
     output logic tx
 );
 
-  reg [7:0] input_data;
-  reg [6:0] uart_buffer_processed = 0;
-  reg [3:0] uart_buffer_state = 0;
-  reg start;
+  bit [7:0] input_data;
+  bit [6:0] uart_buffer_processed = 0;
+  bit [3:0] uart_buffer_state = 0;
+  bit start;
   wire complete;
 
   assign reset_uart_buffer_available = 0; //uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
@@ -977,8 +980,8 @@ module uart_tx (
   parameter STATE_DATA_BIT_7 = 9;
   parameter STATE_STOP_BIT = 10;  //1
 
-  reg [ 6:0] uart_tx_state = STATE_IDLE;
-  reg [10:0] counter = CLK_PER_BIT;
+  bit [ 6:0] uart_tx_state = STATE_IDLE;
+  bit [10:0] counter = CLK_PER_BIT;
 
   assign uarttx = uart_tx_state == STATE_IDLE || uart_tx_state == STATE_STOP_BIT ? 1:(uart_tx_state == STATE_START_BIT ? 0:input_data[uart_tx_state-STATE_DATA_BIT_0]);
   assign complete = uart_tx_state == STATE_IDLE;
