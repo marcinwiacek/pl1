@@ -297,8 +297,8 @@ module x_simple (
       rst_can_be_done = 0;
       if (OTHER_DEBUG == 1) $display($time, " reset");
 
-      //mmu_logical_pages_memory =  '{default:0};
-      //mmu_chain_memory =  '{default:0};
+      mmu_logical_pages_memory =  '{default:0};
+      mmu_chain_memory =  '{default:0};
 
       registers =   '{default:0};
 
