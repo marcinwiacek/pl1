@@ -295,7 +295,16 @@ module x_simple (
 
       for (i = 0; i < MMU_MAX_INDEX; i = i + 1) begin
         mmu_logical_pages_memory[i] = 0;
+        mmu_chain_memory[i] = 0;
       end      
+
+      for (i = 0; i < 32; i = i + 1) begin
+        registers[i] = 0;
+      end
+
+      pc = ADDRESS_PROGRAM;
+      read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation
+      stage = STAGE_GET_1_BYTE;
       
       uart_buffer_available = 0;
       `HARD_DEBUG("\n");
@@ -318,15 +327,6 @@ module x_simple (
       mmu_first_possible_free_physical_segment = 1;
       `SHOW_MMU_DEBUG
 
-      for (i = 0; i < 32; i = i + 1) begin
-        registers[i] = 0;
-      end
-
-
-
-      pc = ADDRESS_PROGRAM;
-      read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation
-      stage = STAGE_GET_1_BYTE;
 
       error_code = ERROR_NONE;
       working = 0;
