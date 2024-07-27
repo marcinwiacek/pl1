@@ -264,6 +264,8 @@ module x_simple (
   wire [15:0] plus_c;
   bit [15:0] minus_a, minus_b;
   wire [15:0] minus_c;
+  
+  bit[15:0] x;
 
   mul mul (
       .clk(clk),
@@ -295,48 +297,15 @@ module x_simple (
       rst_can_be_done = 0;
       if (OTHER_DEBUG == 1) $display($time, " reset");
 
-  //    for (i = 0; i < MMU_MAX_INDEX; i = i + 1) begin
-       // mmu_logical_pages_memory[i] = 0;
-      //  mmu_chain_memory[i] = 0;
-    //  end      
-
+//mmu_logical_pages_memory =  '{default:0};
+//mmu_chain_memory =  '{default:0};
           
-      
-stage = STAGE_INIT1;
+  //      registers =   '{default:0};
 
-      error_code = ERROR_NONE;
-      working = 0;
-    end else if (working == 0 && error_code == ERROR_NONE) begin
-      working = 1;
-      rst_can_be_done = 1;
-      if (STAGE_DEBUG) $display($time, " stage ", stage);
-      case (stage)
-      STAGE_INIT1: begin
-mmu_logical_pages_memory =  '{default:0};
-mmu_chain_memory =  '{default:0};
-      
-stage = STAGE_INIT2;
-      end
-      STAGE_INIT2: begin
-      
-        registers =   '{default:0};
-      //for (i = 0; i < 32; i = i + 1) begin
-//        registers[i] = 0;
-//      end
+       pc = ADDRESS_PROGRAM;
+      read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation    
 
-     
-      
-      uart_buffer_available = 0;
-      `HARD_DEBUG("\n");
-      `HARD_DEBUG("S");
-  
-  //for (i = 0; i < MMU_MAX_INDEX; i = i + 1) begin
-//        mmu_chain_memory[i] = 0;
-//      end
-         
-
-      //some more complicated config used for testing //DEBUG info
-      mmu_start_process_physical_segment = 0;
+  //some more complicated config used for testing //DEBUG info
       mmu_chain_memory[0] = 5;  //DEBUG info
       mmu_chain_memory[5] = 2;  //DEBUG info
       mmu_chain_memory[2] = 1;  //DEBUG info
@@ -345,13 +314,22 @@ stage = STAGE_INIT2;
       mmu_logical_pages_memory[5] = 3;  //DEBUG info
       mmu_logical_pages_memory[2] = 2;  //DEBUG info
       mmu_logical_pages_memory[1] = 1;  //DEBUG info
+      mmu_start_process_physical_segment = 0;
       mmu_first_possible_free_physical_segment = 1;
       `SHOW_MMU_DEBUG
+          
+      uart_buffer_available = 0;
+      `HARD_DEBUG("\n");
+      `HARD_DEBUG("S");
       
-       pc = ADDRESS_PROGRAM;
-      read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation
-      stage = STAGE_GET_1_BYTE;
-      end
+      error_code = ERROR_NONE;
+      working = 0;
+    stage = STAGE_GET_1_BYTE;
+    end else if (working == 0 && error_code == ERROR_NONE) begin
+      working = 1;
+      rst_can_be_done = 1;
+      if (STAGE_DEBUG) $display($time, " stage ", stage);
+      case (stage)
         STAGE_GET_1_BYTE: begin
           if (pc <= 62) begin
             rst_can_be_done = 1;
@@ -717,19 +695,7 @@ stage = STAGE_INIT2;
           stage = STAGE_CHECK_MMU_ADDRESS;
         end  
         
-      endcase
-    
-      if (error_code != ERROR_NONE) begin
-        // `HARD_DEBUG2(instruction1_1);
-        //  `HARD_DEBUG2(instruction1_2);
-        `HARD_DEBUG("B");
-        `HARD_DEBUG("S");
-        `HARD_DEBUG("O");
-        `HARD_DEBUG("D");
-        `HARD_DEBUG2(error_code);
-        stage = STAGE_HLT;
-      end
-      if (stage == STAGE_CHECK_MMU_ADDRESS) begin
+         STAGE_CHECK_MMU_ADDRESS: begin
           `HARD_DEBUG("m");
           mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
           if (MMU_TRANSLATION_DEBUG == 1)
@@ -743,8 +709,37 @@ stage = STAGE_INIT2;
           mmu_search_position = mmu_start_process_physical_segment;
           stage = STAGE_SEARCH1_MMU_ADDRESS;
       end
-            case (stage)
-      STAGE_ALU: begin
+        STAGE_SEARCH1_MMU_ADDRESS: begin
+          if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
+            `HARD_DEBUG("%");
+            if (MMU_TRANSLATION_DEBUG)
+              $display($time, " physical segment in position ", mmu_search_position);
+            //move found address to the beginning to speed up search in the future       
+            if (mmu_start_process_physical_segment != mmu_search_position) begin
+              mmu_chain_memory[mmu_prev_search_position] = mmu_chain_memory[mmu_search_position]==mmu_search_position?
+                  mmu_prev_search_position:mmu_chain_memory[mmu_search_position];
+              mmu_chain_memory[mmu_search_position] = mmu_start_process_physical_segment;
+              mmu_start_process_physical_segment = mmu_search_position; 
+              `SHOW_MMU_DEBUG
+            end
+            if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
+              write_enabled = 1;
+              write_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
+            end else begin
+              read_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
+            end
+            stage = stage_after_mmu;
+          //end else if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
+            //element pointing to itself
+            //needs to allocate new segment
+          end else begin
+            `HARD_DEBUG("^");
+            mmu_prev_search_position = mmu_search_position;
+            mmu_search_position = mmu_chain_memory[mmu_search_position];
+          end
+        end              
+        
+            STAGE_ALU: begin
           if (ALU_DEBUG == 1)
             $display(
                 $time,
@@ -806,39 +801,23 @@ stage = STAGE_INIT2;
               endcase
             end
           end
-        end
-         
-      STAGE_SEARCH1_MMU_ADDRESS: begin
-          if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
-            `HARD_DEBUG("%");
-            if (MMU_TRANSLATION_DEBUG)
-              $display($time, " physical segment in position ", mmu_search_position);
-            //move found address to the beginning to speed up search in the future       
-            if (mmu_start_process_physical_segment != mmu_search_position) begin
-              mmu_chain_memory[mmu_prev_search_position] = mmu_chain_memory[mmu_search_position]==mmu_search_position?
-                  mmu_prev_search_position:mmu_chain_memory[mmu_search_position];
-              mmu_chain_memory[mmu_search_position] = mmu_start_process_physical_segment;
-              mmu_start_process_physical_segment = mmu_search_position; 
-              `SHOW_MMU_DEBUG
-            end
-            if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
-              write_enabled = 1;
-              write_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
-            end else begin
-              read_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
-            end
-            stage = stage_after_mmu;
-          //end else if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
-            //element pointing to itself
-            //needs to allocate new segment
-          end else begin
-            `HARD_DEBUG("^");
-            mmu_prev_search_position = mmu_search_position;
-            mmu_search_position = mmu_chain_memory[mmu_search_position];
-          end
-        end              
-        endcase
+      
+         end
         
+      endcase
+    
+      if (error_code != ERROR_NONE) begin
+        // `HARD_DEBUG2(instruction1_1);
+        //  `HARD_DEBUG2(instruction1_2);
+        `HARD_DEBUG("B");
+        `HARD_DEBUG("S");
+        `HARD_DEBUG("O");
+        `HARD_DEBUG("D");
+        `HARD_DEBUG2(error_code);
+        stage = STAGE_HLT;
+      end
+     
+  
       working = 0;
     end
   end
