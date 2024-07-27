@@ -195,6 +195,8 @@ module x_simple (
   parameter STAGE_HLT = 10;
   parameter STAGE_ALU = 11;
   parameter STAGE_SET_RAM_BYTE = 12;
+  parameter STAGE_INIT1 = 14;
+  parameter STAGE_INIT2 = 15;
 
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
@@ -231,7 +233,7 @@ module x_simple (
   bit rst_can_be_done = 1, working = 1;
   bit [5:0] pc;
   bit [5:0] error_code = 0;
-  bit [3:0] stage, stage_after_mmu;
+  bit [7:0] stage, stage_after_mmu;
   bit [15:0] registers[0:31];  //512 bits = 32 x 16-bit registers
 
   bit [5:0] ram_read_save_reg_start, ram_read_save_reg_end;
@@ -298,14 +300,31 @@ module x_simple (
       //  mmu_chain_memory[i] = 0;
     //  end      
 
+          
+      
+stage = STAGE_INIT1;
+
+      error_code = ERROR_NONE;
+      working = 0;
+    end else if (working == 0 && error_code == ERROR_NONE) begin
+      working = 1;
+      rst_can_be_done = 1;
+      if (STAGE_DEBUG) $display($time, " stage ", stage);
+      case (stage)
+      STAGE_INIT1: begin
+mmu_logical_pages_memory =  '{default:0};
+mmu_chain_memory =  '{default:0};
+      
+stage = STAGE_INIT2;
+      end
+      STAGE_INIT2: begin
+      
         registers =   '{default:0};
       //for (i = 0; i < 32; i = i + 1) begin
 //        registers[i] = 0;
 //      end
 
-      pc = ADDRESS_PROGRAM;
-      read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation
-      stage = STAGE_GET_1_BYTE;
+     
       
       uart_buffer_available = 0;
       `HARD_DEBUG("\n");
@@ -314,9 +333,7 @@ module x_simple (
   //for (i = 0; i < MMU_MAX_INDEX; i = i + 1) begin
 //        mmu_chain_memory[i] = 0;
 //      end
-          
-          mmu_chain_memory =  '{default:0};
-mmu_logical_pages_memory =  '{default:0};
+         
 
       //some more complicated config used for testing //DEBUG info
       mmu_start_process_physical_segment = 0;
@@ -330,15 +347,11 @@ mmu_logical_pages_memory =  '{default:0};
       mmu_logical_pages_memory[1] = 1;  //DEBUG info
       mmu_first_possible_free_physical_segment = 1;
       `SHOW_MMU_DEBUG
-
-
-      error_code = ERROR_NONE;
-      working = 0;
-    end else if (working == 0 && error_code == ERROR_NONE) begin
-      working = 1;
-      rst_can_be_done = 1;
-      if (STAGE_DEBUG) $display($time, " stage ", stage);
-      case (stage)
+      
+       pc = ADDRESS_PROGRAM;
+      read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation
+      stage = STAGE_GET_1_BYTE;
+      end
         STAGE_GET_1_BYTE: begin
           if (pc <= 62) begin
             rst_can_be_done = 1;
