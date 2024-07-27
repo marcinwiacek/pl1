@@ -239,7 +239,7 @@ module x_simple (
   bit [5:0] ram_read_save_reg_start, ram_read_save_reg_end;
   bit [7:0] alu_op, alu_num;
 
-  bit   [15:0] instruction1;
+  bit [15:0] instruction1;
   bit [ 7:0] instruction1_1;
   bit [ 7:0] instruction1_2;
   bit [ 4:0] instruction1_2_1;
@@ -264,8 +264,8 @@ module x_simple (
   wire [15:0] plus_c;
   bit [15:0] minus_a, minus_b;
   wire [15:0] minus_c;
-  
-  bit[15:0] x;
+
+  bit  [15:0] x;
 
   mul mul (
       .clk(clk),
@@ -297,15 +297,15 @@ module x_simple (
       rst_can_be_done = 0;
       if (OTHER_DEBUG == 1) $display($time, " reset");
 
-//mmu_logical_pages_memory =  '{default:0};
-//mmu_chain_memory =  '{default:0};
-          
-  //      registers =   '{default:0};
+      //mmu_logical_pages_memory =  '{default:0};
+      //mmu_chain_memory =  '{default:0};
 
-       pc = ADDRESS_PROGRAM;
+      registers =   '{default:0};
+
+      pc = ADDRESS_PROGRAM;
       read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation    
 
-  //some more complicated config used for testing //DEBUG info
+      //some more complicated config used for testing //DEBUG info
       mmu_chain_memory[0] = 5;  //DEBUG info
       mmu_chain_memory[5] = 2;  //DEBUG info
       mmu_chain_memory[2] = 1;  //DEBUG info
@@ -317,14 +317,14 @@ module x_simple (
       mmu_start_process_physical_segment = 0;
       mmu_first_possible_free_physical_segment = 1;
       `SHOW_MMU_DEBUG
-          
+
       uart_buffer_available = 0;
       `HARD_DEBUG("\n");
       `HARD_DEBUG("S");
-      
+
       error_code = ERROR_NONE;
       working = 0;
-    stage = STAGE_GET_1_BYTE;
+      stage = STAGE_GET_1_BYTE;
     end else if (working == 0 && error_code == ERROR_NONE) begin
       working = 1;
       rst_can_be_done = 1;
@@ -387,9 +387,7 @@ module x_simple (
                 error_code = ERROR_WRONG_ADDRESS;
               end else begin
                 if (OP_DEBUG == 1)
-                  $display(
-                      $time, " opcode = jmp to ", (registers[read_value] - 1)
-                  );  //DEBUG info
+                  $display($time, " opcode = jmp to ", (registers[read_value] - 1));  //DEBUG info
                 pc = registers[read_value];
                 stage = STAGE_SET_PC;
               end
@@ -693,9 +691,9 @@ module x_simple (
             stage_after_mmu = STAGE_SET_RAM_BYTE;
           end
           stage = STAGE_CHECK_MMU_ADDRESS;
-        end  
-        
-         STAGE_CHECK_MMU_ADDRESS: begin
+        end
+
+        STAGE_CHECK_MMU_ADDRESS: begin
           `HARD_DEBUG("m");
           mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
           if (MMU_TRANSLATION_DEBUG == 1)
@@ -708,7 +706,7 @@ module x_simple (
             );
           mmu_search_position = mmu_start_process_physical_segment;
           stage = STAGE_SEARCH1_MMU_ADDRESS;
-      end
+        end
         STAGE_SEARCH1_MMU_ADDRESS: begin
           if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
             `HARD_DEBUG("%");
@@ -719,7 +717,7 @@ module x_simple (
               mmu_chain_memory[mmu_prev_search_position] = mmu_chain_memory[mmu_search_position]==mmu_search_position?
                   mmu_prev_search_position:mmu_chain_memory[mmu_search_position];
               mmu_chain_memory[mmu_search_position] = mmu_start_process_physical_segment;
-              mmu_start_process_physical_segment = mmu_search_position; 
+              mmu_start_process_physical_segment = mmu_search_position;
               `SHOW_MMU_DEBUG
             end
             if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
@@ -729,7 +727,7 @@ module x_simple (
               read_address = mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
             end
             stage = stage_after_mmu;
-          //end else if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
+            //end else if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
             //element pointing to itself
             //needs to allocate new segment
           end else begin
@@ -737,9 +735,9 @@ module x_simple (
             mmu_prev_search_position = mmu_search_position;
             mmu_search_position = mmu_chain_memory[mmu_search_position];
           end
-        end              
-        
-            STAGE_ALU: begin
+        end
+
+        STAGE_ALU: begin
           if (ALU_DEBUG == 1)
             $display(
                 $time,
@@ -801,11 +799,11 @@ module x_simple (
               endcase
             end
           end
-      
-         end
-        
+
+        end
+
       endcase
-    
+
       if (error_code != ERROR_NONE) begin
         // `HARD_DEBUG2(instruction1_1);
         //  `HARD_DEBUG2(instruction1_2);
@@ -816,8 +814,8 @@ module x_simple (
         `HARD_DEBUG2(error_code);
         stage = STAGE_HLT;
       end
-     
-  
+
+
       working = 0;
     end
   end
