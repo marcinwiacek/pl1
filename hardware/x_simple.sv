@@ -20,10 +20,12 @@ parameter RAM_SIZE = 32767;
 parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
+/* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG; \
-/* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG); 
-
+/* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG);
+ 
 /* DEBUG info */ `define HARD_DEBUG2(ARG) \
+/* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG/16>10? ARG/16 + 65 - 10:ARG/16+ 48; \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG%16>10? ARG%16 + 65 - 10:ARG%16+ 48; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1) $write("%c",ARG/16>10? ARG/16 + 65 - 10:ARG/16+ 48,"%c",ARG%16>10? ARG%16 + 65 - 10:ARG%16+ 48);
@@ -923,7 +925,7 @@ module uartx_tx_with_buffer (
   bit start;
   wire complete;
 
-  assign reset_uart_buffer_available = 0; //uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
+  assign reset_uart_buffer_available = uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
   assign uart_buffer_full = uart_buffer_available == 127 ? 1 : 0;
   assign start = uart_buffer_state == 1;
 
