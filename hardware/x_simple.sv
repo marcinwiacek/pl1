@@ -23,8 +23,9 @@ parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 /* DEBUG info */     if (reset_uart_buffer_available) uart_buffer_available = 0; \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG);
- 
-/* DEBUG info */ `define HARD_DEBUG2(ARG) \
+
+/* DEBUG info */ `define HARD_DEBUG2(
+    ARG) \
 /* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG/16>10? ARG/16 + 65 - 10:ARG/16+ 48; \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG%16>10? ARG%16 + 65 - 10:ARG%16+ 48; \
@@ -199,6 +200,11 @@ module x_simple (
   parameter STAGE_SET_RAM_BYTE = 12;
   parameter STAGE_INIT1 = 14;
   parameter STAGE_INIT2 = 15;
+  parameter STAGE_SAVE_PC = 16;
+  parameter STAGE_SAVE_REG = 17;
+  parameter STAGE_READ_NEXT_PROCESS = 18;
+  parameter STAGE_READ_REG = 19;
+  parameter STAGE_READ_PC = 20;
 
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
@@ -232,7 +238,9 @@ module x_simple (
   bit [8:0] mmu_address_to_search_segment;
   bit [8:0] mmu_search_position, mmu_prev_search_position;
 
+  bit [4:0] how_many = 0;
   bit [4:0] process_num = 0;
+  bit [15:0] process_address = 0, next_process_address = 0;
   bit [5:0] pc[0:9];
   bit [5:0] error_code[0:9];
   bit [15:0] registers[0:9][0:31];  //512 bits = 32 x 16-bit registers
@@ -297,15 +305,15 @@ module x_simple (
       rst_can_be_done = 0;
       if (OTHER_DEBUG == 1) $display($time, " reset");
 
-      error_code =  '{default:0};
+      error_code = '{default: 0};
 
-      mmu_logical_pages_memory =  '{default:0};
-      mmu_chain_memory =  '{default:0};
+      mmu_logical_pages_memory = '{default: 0};
+      mmu_chain_memory = '{default: 0};
 
-      registers =   '{default:0};
+      registers = '{default: 0};
 
       process_num = 0;
-      
+
       pc[process_num] = ADDRESS_PROGRAM;
       read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation    
 
@@ -348,6 +356,7 @@ module x_simple (
           end
         end
         STAGE_GET_2_BYTE: begin
+          how_many = how_many + 1;
           `HARD_DEBUG("b");
           if (READ_DEBUG == 1) $display($time, " read ready2 ", read_address, "=", read_value);
           if (OTHER_DEBUG == 1)
@@ -391,7 +400,9 @@ module x_simple (
                 error_code[process_num] = ERROR_WRONG_ADDRESS;
               end else begin
                 if (OP_DEBUG == 1)
-                  $display($time, " opcode = jmp to ", (registers[process_num][read_value] - 1));  //DEBUG info
+                  $display(
+                      $time, " opcode = jmp to ", (registers[process_num][read_value] - 1)
+                  );  //DEBUG info
                 pc[process_num] = registers[process_num][read_value];
                 stage = STAGE_SET_PC;
               end
@@ -696,7 +707,6 @@ module x_simple (
           end
           stage = STAGE_CHECK_MMU_ADDRESS;
         end
-
         STAGE_CHECK_MMU_ADDRESS: begin
           `HARD_DEBUG("m");
           mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
@@ -740,7 +750,6 @@ module x_simple (
             mmu_search_position = mmu_chain_memory[mmu_search_position];
           end
         end
-
         STAGE_ALU: begin
           if (ALU_DEBUG == 1)
             $display(
@@ -803,23 +812,62 @@ module x_simple (
               endcase
             end
           end
-
         end
-
+        STAGE_SAVE_PC: begin
+          ram_read_save_reg_start = 0;
+          write_address = process_address + ADDRESS_REG;
+          write_value = registers[process_num][0];
+          stage = STAGE_SAVE_REG;
+        end
+        STAGE_SAVE_REG: begin
+          if (ram_read_save_reg_start == 32) begin
+            write_enabled = 0;
+            read_address = next_process_address + ADDRESS_NEXT_PROCESS;
+            stage = STAGE_READ_NEXT_PROCESS;
+          end else begin
+            ram_read_save_reg_start = ram_read_save_reg_start + 1;
+            write_address = write_address + 1;
+            write_value = registers[process_num][ram_read_save_reg_start];
+          end
+        end
+        STAGE_READ_NEXT_PROCESS: begin
+          process_address = next_process_address;
+          next_process_address = read_value;
+          read_address = process_address + ADDRESS_PC;
+          stage = STAGE_READ_PC;
+        end
+        STAGE_READ_PC: begin
+          pc[process_num] = read_value;
+          ram_read_save_reg_start = 0;
+          read_address = process_address + ADDRESS_REG;
+          stage = STAGE_READ_REG;
+        end
+        STAGE_READ_REG: begin
+          if (ram_read_save_reg_start == 32) begin
+            mmu_address_to_search = pc[process_num];
+            stage_after_mmu = STAGE_GET_1_BYTE;
+            stage = STAGE_CHECK_MMU_ADDRESS;
+          end else begin
+            registers[process_num][ram_read_save_reg_start] = read_value;
+            ram_read_save_reg_start = ram_read_save_reg_start + 1;
+            read_address = read_address + 1;
+          end
+        end
       endcase
-
       if (error_code[process_num] != ERROR_NONE) begin
-        // `HARD_DEBUG2(instruction1_1);
-        //  `HARD_DEBUG2(instruction1_2);
         `HARD_DEBUG("B");
         `HARD_DEBUG("S");
         `HARD_DEBUG("O");
         `HARD_DEBUG("D");
         `HARD_DEBUG2(error_code[process_num]);
         stage = STAGE_HLT;
+      end else if (stage==STAGE_CHECK_MMU_ADDRESS && stage_after_mmu == STAGE_GET_1_BYTE && how_many==2 && process_address != next_process_address) begin
+        how_many = 0;
+        write_address = process_address + ADDRESS_PC;
+        write_value = pc[process_num];
+        write_enabled = 1;
+        stage = STAGE_SAVE_PC;
       end
-
-
       working = 0;
     end
   end
