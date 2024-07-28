@@ -8,11 +8,11 @@ parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter HARDWARE_DEBUG = 1;
+parameter OTHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter HARDWARE_DEBUG = 0;
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 0;
-parameter OP_DEBUG = 0;
+parameter STAGE_DEBUG = 1;
+parameter OP_DEBUG = 1;
 parameter ALU_DEBUG = 0;
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
@@ -24,8 +24,7 @@ parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG);
 
-/* DEBUG info */ `define HARD_DEBUG2(
-    ARG) \
+/* DEBUG info */ `define HARD_DEBUG2(ARG) \
 /* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG/16>10? ARG/16 + 65 - 10:ARG/16+ 48; \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG%16>10? ARG%16 + 65 - 10:ARG%16+ 48; \
@@ -318,16 +317,41 @@ module x_simple (
       read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation    
 
       //some more complicated config used for testing //DEBUG info
-      mmu_chain_memory[0] = 5;  //DEBUG info
-      mmu_chain_memory[5] = 2;  //DEBUG info
-      mmu_chain_memory[2] = 1;  //DEBUG info
-      mmu_chain_memory[1] = 1;  //DEBUG info
+      //first process
+      mmu_chain_memory[0] = 1;  //DEBUG info
+      mmu_chain_memory[1] = 2;  //DEBUG info
+      mmu_chain_memory[2] = 3;  //DEBUG info
+      mmu_chain_memory[3] = 3;  //DEBUG info
       mmu_logical_pages_memory[0] = 0;  //DEBUG info
-      mmu_logical_pages_memory[5] = 3;  //DEBUG info
-      mmu_logical_pages_memory[2] = 2;  //DEBUG info
       mmu_logical_pages_memory[1] = 1;  //DEBUG info
+      mmu_logical_pages_memory[2] = 2;  //DEBUG info
+      mmu_logical_pages_memory[3] = 3;  //DEBUG info
       mmu_start_process_physical_segment = 0;
-      mmu_first_possible_free_physical_segment = 1;
+      process_address = 0;
+      next_process_address = 4*MMU_PAGE_SIZE;
+      //second process
+      mmu_chain_memory[4] = 5;  //DEBUG info
+      mmu_chain_memory[5] = 6;  //DEBUG info
+      mmu_chain_memory[6] = 7;  //DEBUG info
+      mmu_chain_memory[7] = 7;  //DEBUG info
+      mmu_logical_pages_memory[4] = 0;  //DEBUG info
+      mmu_logical_pages_memory[5] = 1;  //DEBUG info
+      mmu_logical_pages_memory[6] = 2;  //DEBUG info
+      mmu_logical_pages_memory[7] = 3;  //DEBUG info
+      mmu_first_possible_free_physical_segment = 8;
+      
+      //some more complicated config used for testing //DEBUG info
+//      mmu_chain_memory[0] = 5;  //DEBUG info
+//      mmu_chain_memory[5] = 2;  //DEBUG info
+//      mmu_chain_memory[2] = 1;  //DEBUG info
+//      mmu_chain_memory[1] = 1;  //DEBUG info
+//      mmu_logical_pages_memory[0] = 0;  //DEBUG info
+//      mmu_logical_pages_memory[5] = 3;  //DEBUG info
+//      mmu_logical_pages_memory[2] = 2;  //DEBUG info
+//      mmu_logical_pages_memory[1] = 1;  //DEBUG info
+//      mmu_start_process_physical_segment = 0;
+//      mmu_first_possible_free_physical_segment = 1;
+
       `SHOW_MMU_DEBUG
 
       uart_buffer_available = 0;
@@ -889,8 +913,10 @@ module single_ram (
 */
 
   // verilog_format:off
-   bit [15:0] ram  [0:432]= {  // in Vivado (required by board)
-  //  reg [0:432] [15:0] ram = {  // in iVerilog
+   bit [15:0] ram  [0:559]= {  // in Vivado (required by board)
+  //  reg [0:559] [15:0] ram = {  // in iVerilog
+  
+      //first process - 4 pages (280 elements)
       16'h0110, 16'h0220,  16'h0330, 16'h0440, //next process address (no MMU) overwritten by CPU, we use first bytes only      
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
 
@@ -935,6 +961,40 @@ module single_ram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      
+      //second process - 4 pages (280 elements)
+      16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
+      16'h0000, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
+
+      16'h0000, 16'h0000,  //registers used (currently ignored)
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+
+      16'h0000, 16'h0000, 16'h0000, 16'h0000, //registers taken "as is"
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+
+      16'h1210, 16'h0a35, //value to reg
+      16'h0e10, 16'h0064, //save to ram
+      16'h0911, 16'h0064, //ram to reg
+      16'h0e10, 16'h00D4, //save to ram      
+      16'h0c01, 16'h0001,  //proc
+      16'h0c01, 16'h0002,  //proc
+      16'h1202, 16'h0003,  //num2reg
+      16'hff02, 16'h0002,  //loop,8'hwith,8'hcache:,8'hloopeqvalue
+      16'h1402, 16'h0001,  //regminusnum
+      16'h1402, 16'h0000,  //regminusnum
+      16'h0201, 16'h0001,  //after,8'hloop:,8'hram2reg
+      16'h1201, 16'h0005,  //num2reg
+      16'h0E01, 16'h0046,  //reg2ram
+      16'h0F00, 16'h0002,  //int,8'h2
+      16'h010E, 16'h0030,  //jmp,8'h0x30
+
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
@@ -943,8 +1003,11 @@ module single_ram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000      
-  };
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000
+    };
 
   // verilog_format:on
 
