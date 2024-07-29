@@ -9,10 +9,10 @@ parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter HARDWARE_DEBUG = 0;
+parameter HARDWARE_DEBUG = 1;
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
-parameter OP_DEBUG = 1;
+parameter OP_DEBUG = 0;
 parameter ALU_DEBUG = 0;
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
@@ -70,8 +70,23 @@ parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
     output bit [15:0] c
 );
 
-  always @(posedge clk) begin
-    c = a + b;
+   bit unsigned [15:0] aa;
+            bit unsigned [15:0] bb;
+  bit unsigned [15:0] tmp1;
+    bit unsigned [15:0] tmp2;
+    bit unsigned [15:0] tmp3;
+        bit unsigned [15:0] tmp4;
+    
+    assign     tmp1 = aa+bb;
+    assign c =tmp4;
+
+  always @(posedge clk) begin  
+  aa<=a;
+  bb<=b;
+ 
+    tmp2 <= tmp1;
+    tmp3 <= tmp2;
+    tmp4 <= tmp3;
   end
 endmodule
 
@@ -81,30 +96,64 @@ endmodule
     input [15:0] b,
     output bit [15:0] c
 );
-  always @(posedge clk) begin
-    c = a - b;
+   bit unsigned [15:0] aa;
+            bit unsigned [15:0] bb;
+  bit unsigned [15:0] tmp1;
+    bit unsigned [15:0] tmp2;
+    bit unsigned [15:0] tmp3;
+        bit unsigned [15:0] tmp4;
+    
+    assign     tmp1 = aa-bb;
+    assign c =tmp4;
+
+  always @(posedge clk) begin  
+  aa<=a;
+  bb<=b;
+ 
+    tmp2 <= tmp1;
+    tmp3 <= tmp2;
+    tmp4 <= tmp3;
   end
 endmodule
 
 (* use_dsp = "yes" *) module mul (
     input clk,
-    input [15:0] a,
-    input [15:0] b,
-    output bit [15:0] c
+     input unsigned [15:0] a,
+    input unsigned [15:0] b,
+    output bit unsigned [15:0] c
 );
-  always @(posedge clk) begin
-    c = a * b;
+
+//parameter NUM_STAGE = 4;
+    
+        bit unsigned [15:0] aa;
+            bit unsigned [15:0] bb;
+  bit unsigned [15:0] tmp1;
+    bit unsigned [15:0] tmp2;
+    bit unsigned [15:0] tmp3;
+        bit unsigned [15:0] tmp4;
+    
+    assign     tmp1 = aa*bb;
+    assign c =tmp4;
+
+  always @(posedge clk) begin  
+  aa<=a;
+  bb<=b;
+ 
+    tmp2 <= tmp1;
+    tmp3 <= tmp2;
+    tmp4 <= tmp3;
   end
 endmodule
 
 (* use_dsp = "yes" *) module div (
     input clk,
-    input [15:0] a,
-    input [15:0] b,
-    output bit [15:0] c
+    input unsigned [15:0] a,
+    input unsigned [15:0] b,
+    output  bit unsigned [15:0] c
 );
+    
   always @(posedge clk) begin
-    c = a / b;
+    c <= a / b;
   end
 endmodule
 
@@ -263,7 +312,7 @@ module x_simple (
   assign instruction2_1   = read_value[15:8];
   assign instruction2_2   = read_value[7:0];
 
-  bit [15:0] mul_a, mul_b;
+  bit unsigned [15:0] mul_a, mul_b;
   wire [15:0] mul_c;
   bit [15:0] div_a, div_b;
   wire [15:0] div_c;
@@ -271,7 +320,7 @@ module x_simple (
   wire [15:0] plus_c;
   bit [15:0] minus_a, minus_b;
   wire [15:0] minus_c;
-
+  
   mul mul (
       .clk(clk),
       .a  (mul_a),
@@ -732,6 +781,14 @@ module x_simple (
           stage = STAGE_CHECK_MMU_ADDRESS;
         end
         STAGE_CHECK_MMU_ADDRESS: begin
+           if (stage_after_mmu == STAGE_GET_1_BYTE && how_many==3 && process_address != next_process_address) begin
+             how_many = 0;
+             write_address = process_address + ADDRESS_PC;
+             write_value = pc[process_num];
+             write_enabled = 1;
+             if (TASK_SWITCHER_DEBUG)$display($time, " save pc ",(process_address + ADDRESS_PC),"=",pc[process_num]);
+             stage = STAGE_SAVE_PC;
+          end else begin
           `HARD_DEBUG("m");
           mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
           if (MMU_TRANSLATION_DEBUG == 1)
@@ -744,6 +801,7 @@ module x_simple (
             );
           mmu_search_position = mmu_start_process_physical_segment;
           stage = STAGE_SEARCH1_MMU_ADDRESS;
+          end
         end
         STAGE_SEARCH1_MMU_ADDRESS: begin
           if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
@@ -811,8 +869,7 @@ module x_simple (
               endcase
               alu_num = alu_num + 1;
             end
-            if (alu_num > instruction1_2_1 + instruction1_2_2) begin
-           
+            if (alu_num > instruction1_2_1 + instruction1_2_2) begin           
               mmu_address_to_search = pc[process_num];
               stage_after_mmu = STAGE_GET_1_BYTE;
               stage = STAGE_CHECK_MMU_ADDRESS;
@@ -890,13 +947,6 @@ module x_simple (
         `HARD_DEBUG("D");
         `HARD_DEBUG2(error_code[process_num]);
         stage = STAGE_HLT;
-      end else if (stage==STAGE_CHECK_MMU_ADDRESS && stage_after_mmu == STAGE_GET_1_BYTE && how_many==2 && process_address != next_process_address) begin
-        how_many = 0;
-        write_address = process_address + ADDRESS_PC;
-        write_value = pc[process_num];
-        write_enabled = 1;
-        if (TASK_SWITCHER_DEBUG)$display($time, " save pc ",(process_address + ADDRESS_PC),"=",pc[process_num]);
-        stage = STAGE_SAVE_PC;
       end
       working = 0;
     end
@@ -919,7 +969,7 @@ module single_ram (
 */
 
   // verilog_format:off
-   bit [15:0] ram  [0:559]= {  // in Vivado (required by board)
+   (* ram_style = "mixed" *)  bit [15:0] ram  [0:559]= {  // in Vivado (required by board)
   //  reg [0:559] [15:0] ram = {  // in iVerilog
   
       //first process - 4 pages (280 elements)
