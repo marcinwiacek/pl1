@@ -8,10 +8,10 @@ parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter OTHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter HARDWARE_DEBUG = 0;
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 1;
+parameter STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
 parameter ALU_DEBUG = 0;
 
@@ -161,18 +161,18 @@ module x_simple (
   parameter OPCODE_JMP_MINUS = 7;  //x, 16 bit how many instructions  
   parameter OPCODE_JMP_MINUS16 = 8;  //x, register num with info (we read one reg)
   parameter OPCODE_RAM2REG = 9;  //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
-  parameter OPCODE_RAM2REG16 = 10; //start register num, how many registers, register num with source addr (we read one reg), //ram -> reg  
+  parameter OPCODE_RAM2REG16 = 'ha; //start register num, how many registers, register num with source addr (we read one reg), //ram -> reg  
   //  parameter OPCODE_RAM2REG32 = 11; //start register num, how many registers, first register num with source addr (we read two reg), //ram -> reg
   //  parameter OPCODE_RAM2REG64 = 12; //start register num, how many registers, first register num with source addr (we read four reg), //ram -> reg
-  parameter OPCODE_REG2RAM = 14;  //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
-  parameter OPCODE_REG2RAM16 = 15; //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
+  parameter OPCODE_REG2RAM = 'he; //14 //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
+  parameter OPCODE_REG2RAM16 = 'hf; //15 //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
   //  parameter OPCODE_REG2RAM32 = 16; //start register num, how many registers, first register num with target addr (we read two reg), //reg -> ram
   //  parameter OPCODE_REG2RAM64 = 17; //start register num, how many registers, first register num with target addr (we read four reg), //reg -> ram
-  parameter OPCODE_NUM2REG = 18;  //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
-  parameter OPCODE_REG_PLUS =19; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
-  parameter OPCODE_REG_MINUS =20; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-  parameter OPCODE_REG_MUL =21; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
-  parameter OPCODE_REG_DIV =22; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
+  parameter OPCODE_NUM2REG = 'h12; //18;  //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
+  parameter OPCODE_REG_PLUS = 'h14;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
+  parameter OPCODE_REG_MINUS = 'h15; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+  parameter OPCODE_REG_MUL = 'h16; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
+  parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
 
   parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions (8 bit value) // do..while
   parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions (8 bit value) //do..while
@@ -240,7 +240,7 @@ module x_simple (
   bit [4:0] how_many = 0;
   bit [4:0] process_num = 0;
   bit [15:0] process_address = 0, next_process_address = 0;
-  bit [5:0] pc[0:9];
+  bit [15:0] pc[0:9];
   bit [5:0] error_code[0:9];
   bit [15:0] registers[0:9][0:31];  //512 bits = 32 x 16-bit registers
 
@@ -364,7 +364,7 @@ module x_simple (
     end else if (working == 0 && error_code[process_num] == ERROR_NONE) begin
       working = 1;
       rst_can_be_done = 1;
-      if (STAGE_DEBUG) $display($time, " stage ", stage);
+      if (STAGE_DEBUG) $display($time, " stage ", stage, " pc ",pc[process_num]);
       case (stage)
         STAGE_GET_1_BYTE: begin
           if (pc[process_num] <= 62) begin
@@ -383,7 +383,7 @@ module x_simple (
           how_many = how_many + 1;
           `HARD_DEBUG("b");
           if (READ_DEBUG == 1) $display($time, " read ready2 ", read_address, "=", read_value);
-          if (OTHER_DEBUG == 1)
+          if (OP_DEBUG == 1)
             $display(
                 $time,
                 mmu_start_process_physical_segment,
@@ -812,6 +812,7 @@ module x_simple (
               alu_num = alu_num + 1;
             end
             if (alu_num > instruction1_2_1 + instruction1_2_2) begin
+           
               mmu_address_to_search = pc[process_num];
               stage_after_mmu = STAGE_GET_1_BYTE;
               stage = STAGE_CHECK_MMU_ADDRESS;
@@ -857,17 +858,21 @@ module x_simple (
         STAGE_READ_NEXT_PROCESS: begin
           process_address = next_process_address;
           next_process_address = read_value;
+           if (TASK_SWITCHER_DEBUG)$display($time, " new next process address= ",read_value);
           read_address = process_address + ADDRESS_PC;
           stage = STAGE_READ_PC;
         end
         STAGE_READ_PC: begin
           pc[process_num] = read_value;
+           if (TASK_SWITCHER_DEBUG)$display($time, " new next pc= ",read_value);
           ram_read_save_reg_start = 0;
           read_address = process_address + ADDRESS_REG;
           stage = STAGE_READ_REG;
         end
         STAGE_READ_REG: begin
-          if (ram_read_save_reg_start == 32) begin
+          if (ram_read_save_reg_start == 32) begin          
+            mmu_start_process_physical_segment = process_address / MMU_PAGE_SIZE;  
+            `SHOW_MMU_DEBUG    
             mmu_address_to_search = pc[process_num];
             stage_after_mmu = STAGE_GET_1_BYTE;
             stage = STAGE_CHECK_MMU_ADDRESS;
@@ -890,6 +895,7 @@ module x_simple (
         write_address = process_address + ADDRESS_PC;
         write_value = pc[process_num];
         write_enabled = 1;
+        if (TASK_SWITCHER_DEBUG)$display($time, " save pc ",(process_address + ADDRESS_PC),"=",pc[process_num]);
         stage = STAGE_SAVE_PC;
       end
       working = 0;
@@ -917,7 +923,7 @@ module single_ram (
   //  reg [0:559] [15:0] ram = {  // in iVerilog
   
       //first process - 4 pages (280 elements)
-      16'h0110, 16'h0220,  16'h0330, 16'h0440, //next process address (no MMU) overwritten by CPU, we use first bytes only      
+      16'h01E0, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
 
       16'h0000, 16'h0000,  //registers used (currently ignored)
@@ -933,7 +939,7 @@ module single_ram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
 
-      16'h1210, 16'h0a35, //value to reg
+      16'h1210, 16'd2613, //value to reg
       16'h0e10, 16'h0064, //save to ram
       16'h0911, 16'h0064, //ram to reg
       16'h0e10, 16'h00D4, //save to ram      
@@ -964,7 +970,7 @@ module single_ram (
       
       //second process - 4 pages (280 elements)
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
-      16'h0000, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
+      16'h002E, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
 
       16'h0000, 16'h0000,  //registers used (currently ignored)
       16'h0000, 16'h0000,
