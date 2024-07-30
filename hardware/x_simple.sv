@@ -134,12 +134,21 @@ endmodule
     output bit unsigned [15:0] c
 );
 
+bit unsigned [15:0] aa,bb,tmp1,tmp2,tmp3,tmp4;
+
+  assign tmp1 = aa / bb;
+  assign c    = tmp4;
+
   always @(posedge clk) begin
-    c <= a / b;
+    aa   <= a;
+    bb   <= b;
+    tmp2 <= tmp1;
+    tmp3 <= tmp2;
+    tmp4 <= tmp3;
   end
 endmodule
 
-module mmu (
+(* use_dsp = "yes" *) module mmu (
     input clk,
     input reset,
     input bit search_mmu_address,
@@ -156,8 +165,8 @@ module mmu (
   // mmu_chain_memory == own physical segment (element is pointing to itself) -> end segment
   // mmu_logical_pages_memory == 0 && mmu_chain_memory == 0 -> free segment for all physical segments != 0 (see note in next line)
   // 0,0 can be assigned to process starting from physical segment 0 -> we handle it with mmu_first_possible_free_physical_segment 
-  bit [8:0] mmu_chain_memory[0:MMU_MAX_INDEX];  //next physical segment index for process
-  bit [8:0] mmu_logical_pages_memory[0:MMU_MAX_INDEX];  //logical process page assigned to physical segment
+ (* ram_style = "mixed" *) bit [8:0] mmu_chain_memory[0:MMU_MAX_INDEX];  //next physical segment index for process
+  (* ram_style = "mixed" *) bit [8:0] mmu_logical_pages_memory[0:MMU_MAX_INDEX];  //logical process page assigned to physical segment
   bit [8:0] mmu_first_possible_free_physical_segment;  //updated on create / delete (when == 0, we assume it must be free; in other cases it's just start index for loop)
   bit [8:0] mmu_start_process_physical_segment;  //needs to be updated on process switch and MMU sorting
 
@@ -371,7 +380,7 @@ module x_simple (
   bit [15:0] process_address = 0, next_process_address = 0;
   bit [15:0] pc[0:9];
   bit [5:0] error_code[0:9];
-  bit [15:0] registers[0:9][0:31];  //512 bits = 32 x 16-bit registers
+  (* ram_style = "mixed" *) bit [15:0] registers[0:9][0:31];  //512 bits = 32 x 16-bit registers
 
   bit rst_can_be_done = 1, working = 1;
   bit [7:0] stage, stage_after_mmu;
