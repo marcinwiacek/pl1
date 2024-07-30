@@ -1,20 +1,20 @@
 `timescale 1ns / 1ps
 
 //options below are less important than options higher //DEBUG info
+parameter HARDWARE_DEBUG = 1;
+
 parameter WRITE_RAM_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_RAM_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_CHANGES_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter OTHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
-parameter OP_DEBUG = 0;
+parameter OP_DEBUG = 1;
 parameter ALU_DEBUG = 0;
-
-parameter HARDWARE_DEBUG = 1;
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
 parameter RAM_SIZE = 32767;
@@ -41,7 +41,7 @@ parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 /* DEBUG info */     end
 
 /* DEBUG info */  `define SHOW_MMU_DEBUG \
-/* DEBUG info */     if (MMU_CHANGES_DEBUG == 1) begin \
+/* DEBUG info */     if (MMU_CHANGES_DEBUG == 1 && !HARDWARE_DEBUG) begin \
 /* DEBUG info */       $write($time, " mmu "); \
 /* DEBUG info */       for (i = 0; i <= 10; i = i + 1) begin \
 /* DEBUG info */         if (mmu_start_process_physical_segment == i) $write("s"); \
@@ -56,7 +56,7 @@ parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 /* DEBUG info */     end
 
 /* DEBUG info */  `define SHOW_TASK_INFO(ARG) \
-/* DEBUG info */     if (TASK_SWITCHER_DEBUG == 1) begin \
+/* DEBUG info */     if (TASK_SWITCHER_DEBUG == 1 && !HARDWARE_DEBUG) begin \
 /* DEBUG info */          $write($time, " ",ARG," pc ", address_pc[process_index]); \
 /* DEBUG info */          $display( \
 /* DEBUG info */              " ",ARG," process seg/addr ", mmu_start_process_segment, process_start_address[process_index], \
@@ -145,7 +145,11 @@ module mmu (
     input bit search_mmu_address,
     input bit [15:0] mmu_address_to_search,
     output bit search_mmu_address_ready,
-    output bit [15:0] mmu_address_found
+    output bit [15:0] mmu_address_found,
+    
+    input bit set_mmu_start_process_physical_segment,
+    input bit[15:0] new_mmu_start_process_physical_segment,
+    output bit set_mmu_start_process_physical_segment_ready
 );
 
   // special cases:
@@ -168,7 +172,7 @@ module mmu (
   always @(posedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
       rst_can_be_done = 0;
-      if (OTHER_DEBUG == 1) $display($time, " reset");
+      if (OTHER_DEBUG && !HARDWARE_DEBUG) $display($time, " reset");
 
       mmu_logical_pages_memory = '{default: 0};
       mmu_chain_memory = '{default: 0};
@@ -198,6 +202,9 @@ module mmu (
       mmu_first_possible_free_physical_segment = 8;
 
       `SHOW_MMU_DEBUG
+    end else if (set_mmu_start_process_physical_segment && stage == 0) begin
+          mmu_start_process_physical_segment = new_mmu_start_process_physical_segment;
+          set_mmu_start_process_physical_segment_ready = 1;
     end else if (search_mmu_address && stage == 0) begin
     rst_can_be_done = 0;
       search_mmu_address_ready = 0;
@@ -205,7 +212,7 @@ module mmu (
       stage = 1;
       //`HARD_DEBUG("m");
       mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
-      if (MMU_TRANSLATION_DEBUG == 1)
+      if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
         $display(
             $time,
             " mmu, address ",
@@ -218,7 +225,7 @@ module mmu (
     end else if (stage == 2) begin
       if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
         //`HARD_DEBUG("%");
-        if (MMU_TRANSLATION_DEBUG)
+        if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
           $display($time, " physical segment in position ", mmu_search_position);
         //move found address to the beginning to speed up search in the future       
         if (mmu_start_process_physical_segment != mmu_search_position) begin
@@ -423,6 +430,9 @@ module x_simple (
   bit [15:0] mmu_address_to_search;
   wire search_mmu_address_ready;
   wire [15:0] mmu_address_found;
+     bit set_mmu_start_process_physical_segment;
+    bit[15:0] new_mmu_start_process_physical_segment;
+    wire set_mmu_start_process_physical_segment_ready;
 
   mmu mmu (
       .clk(clk),
@@ -430,7 +440,11 @@ module x_simple (
       .search_mmu_address(search_mmu_address),
       .mmu_address_to_search(mmu_address_to_search),
       .search_mmu_address_ready(search_mmu_address_ready),
-      .mmu_address_found(mmu_address_found)
+      .mmu_address_found(mmu_address_found),
+     .set_mmu_start_process_physical_segment(set_mmu_start_process_physical_segment),
+    .new_mmu_start_process_physical_segment(new_mmu_start_process_physical_segment),
+    .set_mmu_start_process_physical_segment_ready(set_mmu_start_process_physical_segment_ready)
+      
   );
 
   integer i;  //DEBUG info
@@ -438,7 +452,7 @@ module x_simple (
   always @(negedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
       rst_can_be_done = 0;
-      if (OTHER_DEBUG == 1) $display($time, " reset");
+      if (OTHER_DEBUG && !HARDWARE_DEBUG) $display($time, " reset");
 
       error_code = '{default: 0};
 
@@ -462,12 +476,14 @@ module x_simple (
     end else if (working == 0 && error_code[process_num] == ERROR_NONE) begin
       working = 1;
       rst_can_be_done = 1;
-      if (STAGE_DEBUG) $display($time, " stage ", stage, " pc ", pc[process_num]);
+      if (STAGE_DEBUG && !HARDWARE_DEBUG) $display($time, " stage ", stage, " pc ", pc[process_num]);
       case (stage)
         STAGE_GET_1_BYTE: begin
           if (pc[process_num] <= 62) begin
+               set_mmu_start_process_physical_segment = 0;
+
             rst_can_be_done = 1;
-            if (READ_DEBUG == 1) $display($time, " read ready ", read_address, "=", read_value);
+            if (READ_DEBUG && !HARDWARE_DEBUG) $display($time, " read ready ", read_address, "=", read_value);
             `HARD_DEBUG("a");
             instruction1 = read_value;
             pc[process_num] = pc[process_num] + 1;
@@ -480,8 +496,8 @@ module x_simple (
         STAGE_GET_2_BYTE: begin
           how_many = how_many + 1;
           `HARD_DEBUG("b");
-          if (READ_DEBUG == 1) $display($time, " read ready2 ", read_address, "=", read_value);
-          if (OP_DEBUG == 1)
+          if (READ_DEBUG && !HARDWARE_DEBUG) $display($time, " read ready2 ", read_address, "=", read_value);
+          if (OP_DEBUG && !HARDWARE_DEBUG)
             $display(
                 $time,
                 // mmu_start_process_physical_segment,
@@ -506,7 +522,7 @@ module x_simple (
               if ((read_value + (256 * 256) * instruction1_2) % 2 == 1) begin
                 error_code[process_num] = ERROR_WRONG_ADDRESS;
               end else begin
-                if (OP_DEBUG == 1)
+                if (OP_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time, " opcode = jmp to ", (read_value + (256 * 256) * instruction1_2)
                   );  //DEBUG info
@@ -521,7 +537,7 @@ module x_simple (
               end else if ((registers[process_num][read_value] - 1) % 2 == 1) begin
                 error_code[process_num] = ERROR_WRONG_ADDRESS;
               end else begin
-                if (OP_DEBUG == 1)
+                if (OP_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time, " opcode = jmp to ", (registers[process_num][read_value] - 1)
                   );  //DEBUG info
@@ -531,7 +547,7 @@ module x_simple (
             end
             //x, register num with target addr (we read one reg)
             OPCODE_JMP_PLUS: begin
-              if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
                 $display(
                     $time,
                     " opcode = jmp plus to ",
@@ -548,7 +564,7 @@ module x_simple (
               if (read_value >= 32) begin
                 error_code[process_num] = ERROR_WRONG_REG_NUM;
               end else begin
-                if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time,
                       " opcode = jmp plus16 to ",
@@ -566,7 +582,7 @@ module x_simple (
               if (pc[process_num] - read_value * 2 < ADDRESS_PROGRAM) begin
                 error_code[process_num] = ERROR_WRONG_ADDRESS;
               end else begin
-                if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time,
                       " opcode = jmp minus to ",
@@ -586,7 +602,7 @@ module x_simple (
               end else if (pc[process_num] - registers[process_num][read_value] * 2 < ADDRESS_PROGRAM) begin
                 error_code[process_num] = ERROR_WRONG_ADDRESS;
               end else begin
-                if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time,
                       " opcode = jmp minus16 to ",
@@ -606,7 +622,7 @@ module x_simple (
               end else if (read_value < ADDRESS_PROGRAM) begin
                 error_code[process_num] = ERROR_WRONG_ADDRESS;
               end else begin
-                if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time,
                       " opcode = ram2reg read value from address ",
@@ -631,7 +647,7 @@ module x_simple (
               end else if (read_value < ADDRESS_PROGRAM) begin
                 error_code[process_num] = ERROR_WRONG_ADDRESS;
               end else begin
-                if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time,
                       " opcode = ram2reg16 read from ram (address ",
@@ -656,7 +672,7 @@ module x_simple (
               end else if (read_value < ADDRESS_PROGRAM) begin
                 error_code[process_num] = ERROR_WRONG_ADDRESS;
               end else begin
-                if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time,
                       " opcode = reg2ram save reg ",
@@ -683,7 +699,7 @@ module x_simple (
               end else if (read_value < ADDRESS_PROGRAM) begin
                 error_code[process_num] = ERROR_WRONG_ADDRESS;
               end else begin
-                if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time,
                       " opcode = reg2ram16 save to ram (address ",
@@ -704,7 +720,7 @@ module x_simple (
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
             OPCODE_NUM2REG: begin
-              if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
                 $display(
                     $time,
                     " opcode = num2reg save value ",
@@ -720,7 +736,7 @@ module x_simple (
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
             OPCODE_REG_PLUS: begin
-              if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
                 $display(
                     $time,
                     " opcode = regplus add value ",
@@ -736,7 +752,7 @@ module x_simple (
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg -= value
             OPCODE_REG_MINUS: begin
-              if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
                 $display(
                     $time,
                     " opcode = regminus dec value ",
@@ -752,7 +768,7 @@ module x_simple (
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
             OPCODE_REG_MUL: begin
-              if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
                 $display(
                     $time,
                     " opcode = regmul mul value ",
@@ -771,7 +787,7 @@ module x_simple (
               if (read_value == 0) begin
                 error_code[process_num] = ERROR_DIVIDE_BY_ZERO;
               end else begin
-                if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time,
                       " opcode = regdiv div value ",
@@ -801,7 +817,7 @@ module x_simple (
         end
         STAGE_GET_RAM_BYTE: begin
           registers[process_num][ram_read_save_reg_start] = read_value;
-          if (OP_DEBUG == 1)
+              if (OP_DEBUG && !HARDWARE_DEBUG)
             $display(
                 $time,
                 " read value for reg ",
@@ -837,12 +853,12 @@ module x_simple (
           stage = STAGE_CHECK_MMU_ADDRESS;
         end
         STAGE_CHECK_MMU_ADDRESS: begin
-          if (stage_after_mmu == STAGE_GET_1_BYTE && how_many==30 && process_address != next_process_address) begin
+          if (stage_after_mmu == STAGE_GET_1_BYTE && how_many==2 && process_address != next_process_address) begin
             how_many = 0;
             write_address = process_address + ADDRESS_PC;
             write_value = pc[process_num];
             write_enabled = 1;
-            if (TASK_SWITCHER_DEBUG)
+            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display($time, " save pc ", (process_address + ADDRESS_PC), "=", pc[process_num]);
             stage = STAGE_SAVE_PC;
             search_mmu_address = 0;
@@ -858,7 +874,7 @@ module x_simple (
           end
         end
         STAGE_ALU: begin
-          if (ALU_DEBUG == 1)
+          if (ALU_DEBUG && !HARDWARE_DEBUG)
             $display(
                 $time,
                 " alu_num ",
@@ -876,7 +892,7 @@ module x_simple (
             end else begin
               case (alu_op)
                 ALU_SET: begin
-                  if (OP_DEBUG == 1) $display($time, " set reg ", alu_num, " with ", read_value);
+                  if (OP_DEBUG && !HARDWARE_DEBUG) $display($time, " set reg ", alu_num, " with ", read_value);
                   registers[process_num][alu_num] = read_value;
                 end
                 ALU_ADD: begin
@@ -941,19 +957,21 @@ module x_simple (
         STAGE_READ_NEXT_PROCESS: begin
           process_address = next_process_address;
           next_process_address = read_value;
-          if (TASK_SWITCHER_DEBUG) $display($time, " new next process address= ", read_value);
+          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new next process address= ", read_value);
           read_address = process_address + ADDRESS_PC;
           stage = STAGE_READ_PC;
         end
         STAGE_READ_PC: begin
           pc[process_num] = read_value;
-          if (TASK_SWITCHER_DEBUG) $display($time, " new next pc= ", read_value);
+          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new next pc= ", read_value);
           ram_read_save_reg_start = 0;
           read_address = process_address + ADDRESS_REG;
           stage = STAGE_READ_REG;
         end
         STAGE_READ_REG: begin
           if (ram_read_save_reg_start == 32) begin
+              set_mmu_start_process_physical_segment = 1;
+    new_mmu_start_process_physical_segment = process_address / MMU_PAGE_SIZE;    
             //       mmu_start_process_physical_segment = process_address / MMU_PAGE_SIZE;  
             //  `SHOW_MMU_DEBUG    
             mmu_address_to_search = pc[process_num];
@@ -1095,9 +1113,9 @@ module single_ram (
   // verilog_format:on
 
   always @(posedge clk) begin
-    if (write_enabled && WRITE_RAM_DEBUG == 1)
+    if (write_enabled && WRITE_RAM_DEBUG && !HARDWARE_DEBUG)
       $display($time, " ram write ", write_address, " = ", write_value);
-    if (READ_RAM_DEBUG == 1) $display($time, " ram read ", read_address, " = ", ram[read_address]);
+    if (READ_RAM_DEBUG && !HARDWARE_DEBUG) $display($time, " ram read ", read_address, " = ", ram[read_address]);
 
     if (write_enabled) ram[write_address] <= write_value;
     read_value <= ram[read_address];
