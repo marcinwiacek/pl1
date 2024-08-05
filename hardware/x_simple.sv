@@ -177,9 +177,9 @@ module mmu (
   bit [5:0] stage;
   bit rst_can_be_done = 1;
   bit [8:0] temp;
-  
+
   integer i;
-  
+
   always @(posedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
       rst_can_be_done = 0;
@@ -193,18 +193,18 @@ module mmu (
 
       stage = 3;
     end else if (set_mmu_start_process_physical_segment && stage == 0) begin
-       if (set_mmu_start_process_physical_segment_ready==0) begin
-      /* prepare mmu before task switching - start point should point to segment 0 */
-      temp = mmu_chain_memory[mmu_start_process_physical_segment_zero];
-      mmu_chain_memory[mmu_start_process_physical_segment_zero] = mmu_chain_memory[mmu_start_process_physical_segment];
-      mmu_chain_memory[mmu_start_process_physical_segment] = temp;
+      if (set_mmu_start_process_physical_segment_ready == 0) begin
+        /* prepare mmu before task switching - start point should point to segment 0 */
+        temp = mmu_chain_memory[mmu_start_process_physical_segment_zero];
+        mmu_chain_memory[mmu_start_process_physical_segment_zero] = mmu_chain_memory[mmu_start_process_physical_segment];
+        mmu_chain_memory[mmu_start_process_physical_segment] = temp;
 
-      `SHOW_MMU_DEBUG
-      mmu_start_process_physical_segment = new_mmu_start_process_physical_segment;
-      mmu_start_process_physical_segment_zero = new_mmu_start_process_physical_segment;
+        `SHOW_MMU_DEBUG
+        mmu_start_process_physical_segment = new_mmu_start_process_physical_segment;
+        mmu_start_process_physical_segment_zero = new_mmu_start_process_physical_segment;
 
-      set_mmu_start_process_physical_segment_ready = 1;
-      `SHOW_MMU_DEBUG
+        set_mmu_start_process_physical_segment_ready = 1;
+        `SHOW_MMU_DEBUG
       end
     end else if (search_mmu_address && stage == 0) begin
       set_mmu_start_process_physical_segment_ready = 0;
@@ -361,7 +361,7 @@ module x_simple (
   parameter STAGE_GET_1_BYTE = 2;
   parameter STAGE_GET_2_BYTE = 3;
   parameter STAGE_CHECK_MMU_ADDRESS = 4;
-  parameter STAGE_SET_PC = 5; //jump instructions
+  parameter STAGE_SET_PC = 5;  //jump instructions
   parameter STAGE_GET_PARAM_BYTE = 6;
   parameter STAGE_SET_PARAM_BYTE = 7;
   parameter STAGE_GET_RAM_BYTE = 8;
@@ -538,10 +538,15 @@ module x_simple (
                 $time,
                 process_address,
                 " pc ",
-                (pc[process_num] - 1)," b1 %c",instruction1_1/16>10? instruction1_1/16 + 65 - 10:instruction1_1/16+ 48,
-        "%c",instruction1_1%16>10? instruction1_1%16 + 65 - 10:instruction1_1%16+ 48,               
-                "%c",instruction1_2/16>10? instruction1_2/16 + 65 - 10:instruction1_2/16+ 48,
-        "%c",instruction1_2%16>10? instruction1_2%16 + 65 - 10:instruction1_2%16+ 48,
+                (pc[process_num] - 1),
+                " b1 %c",
+                instruction1_1 / 16 > 10 ? instruction1_1 / 16 + 65 - 10 : instruction1_1 / 16 + 48,
+                "%c",
+                instruction1_1 % 16 > 10 ? instruction1_1 % 16 + 65 - 10 : instruction1_1 % 16 + 48,
+                "%c",
+                instruction1_2 / 16 > 10 ? instruction1_2 / 16 + 65 - 10 : instruction1_2 / 16 + 48,
+                "%c",
+                instruction1_2 % 16 > 10 ? instruction1_2 % 16 + 65 - 10 : instruction1_2 % 16 + 48,
                 "h (",
                 instruction1_2_1,
                 "-",
