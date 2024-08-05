@@ -148,7 +148,7 @@ endmodule
   end
 endmodule
 
-(* use_dsp = "yes" *) module mmu (
+module mmu (
     input clk,
     input reset,
     input bit search_mmu_address,
@@ -180,6 +180,8 @@ endmodule
 
   integer i;
 
+bit [8:0] temp;
+
   always @(posedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
       rst_can_be_done = 0;
@@ -192,7 +194,22 @@ endmodule
       set_mmu_start_process_physical_segment_ready = 0;
 
       stage = 3;
+    end else if (set_mmu_start_process_physical_segment && stage == 0) begin
+       if (set_mmu_start_process_physical_segment_ready==0) begin
+      /* prepare mmu before task switching - start point should point to segment 0 */
+      temp = mmu_chain_memory[mmu_start_process_physical_segment_zero];
+      mmu_chain_memory[mmu_start_process_physical_segment_zero] = mmu_chain_memory[mmu_start_process_physical_segment];
+      mmu_chain_memory[mmu_start_process_physical_segment] = temp;
+
+      `SHOW_MMU_DEBUG
+      mmu_start_process_physical_segment = new_mmu_start_process_physical_segment;
+      mmu_start_process_physical_segment_zero = new_mmu_start_process_physical_segment;
+
+      set_mmu_start_process_physical_segment_ready = 1;
+      `SHOW_MMU_DEBUG
+      end
     end else if (search_mmu_address && stage == 0) begin
+      set_mmu_start_process_physical_segment_ready = 0;
       rst_can_be_done = 0;
       search_mmu_address_ready = 0;
 
@@ -235,6 +252,7 @@ endmodule
       end
     end else if (stage == 3) begin
       mmu_start_process_physical_segment = 0;
+           mmu_start_process_physical_segment_zero = 0;
 
       //some more complicated config used for testing //DEBUG info
       //first process
@@ -259,24 +277,12 @@ endmodule
 
       `SHOW_MMU_DEBUG
       stage = 0;
-    end else if (set_mmu_start_process_physical_segment && stage == 0 && set_mmu_start_process_physical_segment_ready==0) begin
-      /* prepare mmu before task switching - start point should point to segment 0 */
-      i = mmu_chain_memory[mmu_start_process_physical_segment_zero];
-      mmu_chain_memory[mmu_start_process_physical_segment_zero] = mmu_chain_memory[mmu_start_process_physical_segment];
-      mmu_chain_memory[mmu_start_process_physical_segment] = i;
-
-      `SHOW_MMU_DEBUG
-      mmu_start_process_physical_segment = new_mmu_start_process_physical_segment;
-      mmu_start_process_physical_segment_zero = new_mmu_start_process_physical_segment;
-
-
-      set_mmu_start_process_physical_segment_ready = 1;
-      `SHOW_MMU_DEBUG
+   
     end
   end
 endmodule
 
-(* use_dsp = "yes" *) module x_simple (
+module x_simple (
     input clk,
     input bit btnc,
     output bit uart_rx_out
@@ -461,7 +467,6 @@ endmodule
   bit set_mmu_start_process_physical_segment;
   bit [15:0] new_mmu_start_process_physical_segment;
   wire set_mmu_start_process_physical_segment_ready;
-
 
   mmu mmu (
       .clk(clk),
@@ -1006,7 +1011,6 @@ endmodule
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
             $display($time, " new next process address= ", read_value);
           read_address = process_address + ADDRESS_PC;
-
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
             $display(
                 $time,
@@ -1015,8 +1019,6 @@ endmodule
                 " ",
                 new_mmu_start_process_physical_segment
             );
-
-
           stage = STAGE_READ_PC;
         end
         STAGE_READ_PC: begin
