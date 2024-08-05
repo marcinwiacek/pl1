@@ -180,6 +180,10 @@ module mmu (
 
   integer i;
 
+  parameter MMU_IDLE = 0;
+  parameter MMU_SEARCH = 1;
+  parameter MMU_INIT = 2;
+
   always @(posedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
       rst_can_be_done = 0;
@@ -191,7 +195,7 @@ module mmu (
 
       set_mmu_start_process_physical_segment_ready = 0;
 
-      stage = 3;
+      stage = MMU_INIT;
     end else if (set_mmu_start_process_physical_segment && stage == 0) begin
       if (set_mmu_start_process_physical_segment_ready == 0) begin
         /* prepare mmu before task switching - start point should point to segment 0 */
@@ -206,12 +210,10 @@ module mmu (
         set_mmu_start_process_physical_segment_ready = 1;
         `SHOW_MMU_DEBUG
       end
-    end else if (search_mmu_address && stage == 0) begin
+    end else if (search_mmu_address && stage == MMU_IDLE) begin
       set_mmu_start_process_physical_segment_ready = 0;
       rst_can_be_done = 0;
       search_mmu_address_ready = 0;
-
-      stage = 1;
       //`HARD_DEBUG("m");
       mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
       if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
@@ -223,8 +225,8 @@ module mmu (
             mmu_address_to_search_segment
         );
       mmu_search_position = mmu_start_process_physical_segment;
-      stage = 2;
-    end else if (stage == 2) begin
+      stage = MMU_SEARCH;
+    end else if (stage == MMU_SEARCH) begin
       if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
         //`HARD_DEBUG("%");
         if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
@@ -239,7 +241,7 @@ module mmu (
         end
         mmu_address_found =  mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
         search_mmu_address_ready = 1;
-        stage = 0;
+        stage = MMU_IDLE;
         //end else if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
         //element pointing to itself
         //needs to allocate new segment
@@ -248,7 +250,7 @@ module mmu (
         mmu_prev_search_position = mmu_search_position;
         mmu_search_position = mmu_chain_memory[mmu_search_position];
       end
-    end else if (stage == 3) begin
+    end else if (stage == MMU_INIT) begin
       //reset part 2
       mmu_start_process_physical_segment = 0;
       mmu_start_process_physical_segment_zero = 0;
@@ -275,7 +277,7 @@ module mmu (
       mmu_first_possible_free_physical_segment = 8;
 
       `SHOW_MMU_DEBUG
-      stage = 0;
+      stage = MMU_IDLE;
     end
   end
 endmodule
