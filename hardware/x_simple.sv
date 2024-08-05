@@ -1,16 +1,16 @@
 `timescale 1ns / 1ps
 
 //options below are less important than options higher //DEBUG info
-parameter HARDWARE_DEBUG = 1;
+parameter HARDWARE_DEBUG = 0;
 
 parameter WRITE_RAM_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_RAM_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter OTHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
@@ -159,7 +159,6 @@ module mmu (
     input bit set_mmu_start_process_physical_segment,
     input bit [15:0] new_mmu_start_process_physical_segment,
     output bit set_mmu_start_process_physical_segment_ready
-
 );
 
   // special cases:
@@ -177,11 +176,10 @@ module mmu (
 
   bit [5:0] stage;
   bit rst_can_be_done = 1;
-
+  bit [8:0] temp;
+  
   integer i;
-
-bit [8:0] temp;
-
+  
   always @(posedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
       rst_can_be_done = 0;
@@ -251,8 +249,9 @@ bit [8:0] temp;
         mmu_search_position = mmu_chain_memory[mmu_search_position];
       end
     end else if (stage == 3) begin
+      //reset part 2
       mmu_start_process_physical_segment = 0;
-           mmu_start_process_physical_segment_zero = 0;
+      mmu_start_process_physical_segment_zero = 0;
 
       //some more complicated config used for testing //DEBUG info
       //first process
@@ -277,7 +276,6 @@ bit [8:0] temp;
 
       `SHOW_MMU_DEBUG
       stage = 0;
-   
     end
   end
 endmodule
@@ -363,21 +361,19 @@ module x_simple (
   parameter STAGE_GET_1_BYTE = 2;
   parameter STAGE_GET_2_BYTE = 3;
   parameter STAGE_CHECK_MMU_ADDRESS = 4;
-  parameter STAGE_SEARCH1_MMU_ADDRESS = 5;
-  parameter STAGE_SET_PC = 6;
-  parameter STAGE_GET_PARAM_BYTE = 7;
-  parameter STAGE_SET_PARAM_BYTE = 8;
-  parameter STAGE_GET_RAM_BYTE = 9;
+  parameter STAGE_SET_PC = 5; //jump instructions
+  parameter STAGE_GET_PARAM_BYTE = 6;
+  parameter STAGE_SET_PARAM_BYTE = 7;
+  parameter STAGE_GET_RAM_BYTE = 8;
+  parameter STAGE_SET_RAM_BYTE = 9;
   parameter STAGE_HLT = 10;
   parameter STAGE_ALU = 11;
-  parameter STAGE_SET_RAM_BYTE = 12;
-  parameter STAGE_INIT1 = 14;
-  parameter STAGE_INIT2 = 15;
-  parameter STAGE_SAVE_PC = 16;
-  parameter STAGE_SAVE_REG = 17;
-  parameter STAGE_READ_NEXT_PROCESS = 18;
-  parameter STAGE_READ_REG = 19;
-  parameter STAGE_READ_PC = 20;
+  /*task switching*/
+  parameter STAGE_SAVE_PC = 12;
+  parameter STAGE_SAVE_REG = 14;
+  parameter STAGE_READ_NEXT_PROCESS = 15;
+  parameter STAGE_READ_REG = 16;
+  parameter STAGE_READ_PC = 17;
 
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
@@ -540,18 +536,17 @@ module x_simple (
           if (OP_DEBUG && !HARDWARE_DEBUG)
             $display(
                 $time,
-                // mmu_start_process_physical_segment,
-                " ",
-                (pc[process_num] - 1),
-                " b1: ",
-                instruction1_1,
-                ":",
-                instruction1_2,
-                "(",
+                process_address,
+                " pc ",
+                (pc[process_num] - 1)," b1 %c",instruction1_1/16>10? instruction1_1/16 + 65 - 10:instruction1_1/16+ 48,
+        "%c",instruction1_1%16>10? instruction1_1%16 + 65 - 10:instruction1_1%16+ 48,               
+                "%c",instruction1_2/16>10? instruction1_2/16 + 65 - 10:instruction1_2/16+ 48,
+        "%c",instruction1_2%16>10? instruction1_2%16 + 65 - 10:instruction1_2%16+ 48,
+                "h (",
                 instruction1_2_1,
                 "-",
                 instruction1_2_2,
-                ") b2: ",
+                ") b2 ",
                 read_value
             );
           `HARD_DEBUG2(instruction1_1);
