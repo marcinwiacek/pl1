@@ -1,14 +1,14 @@
 `timescale 1ns / 1ps
 
 //options below are less important than options higher //DEBUG info
-parameter HARDWARE_DEBUG = 0;
+parameter HARDWARE_DEBUG =1;
 
 parameter WRITE_RAM_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_RAM_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_CHANGES_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -148,7 +148,7 @@ endmodule
   end
 endmodule
 
-module mmu (
+(* use_dsp = "yes" *) module mmu (
     input clk,
     input reset,
     input bit search_mmu_address,
@@ -159,6 +159,7 @@ module mmu (
     input bit set_mmu_start_process_physical_segment,
     input bit [15:0] new_mmu_start_process_physical_segment,
     output bit set_mmu_start_process_physical_segment_ready
+  
 );
 
   // special cases:
@@ -168,7 +169,8 @@ module mmu (
   bit [8:0] mmu_chain_memory[0:MMU_MAX_INDEX];  //next physical segment index for process
   bit [8:0] mmu_logical_pages_memory[0:MMU_MAX_INDEX];  //logical process page assigned to physical segment
   bit [8:0] mmu_first_possible_free_physical_segment;  //updated on create / delete (when == 0, we assume it must be free; in other cases it's just start index for loop)
-  bit [8:0] mmu_start_process_physical_segment;  //needs to be updated on process switch and MMU sorting
+  bit [8:0] mmu_start_process_physical_segment;  //updated on process switch and MMU sorting
+  bit [8:0] mmu_start_process_physical_segment_zero; //updated on process switch
 
   bit [8:0] mmu_address_to_search_segment;
   bit [8:0] mmu_search_position, mmu_prev_search_position;
@@ -187,37 +189,9 @@ module mmu (
       mmu_chain_memory = '{default: 0};
       search_mmu_address_ready = 0;
 
+set_mmu_start_process_physical_segment_ready=0;
+
       stage = 3;
-    end else if (stage == 3) begin
-      mmu_start_process_physical_segment = 0;
-
-      //some more complicated config used for testing //DEBUG info
-      //first process
-      mmu_chain_memory[0] = 1;  //DEBUG info
-      mmu_chain_memory[1] = 2;  //DEBUG info
-      mmu_chain_memory[2] = 3;  //DEBUG info
-      mmu_chain_memory[3] = 3;  //DEBUG info
-      mmu_logical_pages_memory[0] = 0;  //DEBUG info
-      mmu_logical_pages_memory[1] = 1;  //DEBUG info
-      mmu_logical_pages_memory[2] = 2;  //DEBUG info
-      mmu_logical_pages_memory[3] = 3;  //DEBUG info
-      //second process
-      mmu_chain_memory[4] = 5;  //DEBUG info
-      mmu_chain_memory[5] = 6;  //DEBUG info
-      mmu_chain_memory[6] = 7;  //DEBUG info
-      mmu_chain_memory[7] = 7;  //DEBUG info
-      mmu_logical_pages_memory[4] = 0;  //DEBUG info
-      mmu_logical_pages_memory[5] = 1;  //DEBUG info
-      mmu_logical_pages_memory[6] = 2;  //DEBUG info
-      mmu_logical_pages_memory[7] = 3;  //DEBUG info
-      mmu_first_possible_free_physical_segment = 8;
-
-      `SHOW_MMU_DEBUG
-      stage = 0;
-    end else if (set_mmu_start_process_physical_segment && stage == 0) begin
-      mmu_start_process_physical_segment = new_mmu_start_process_physical_segment;
-      set_mmu_start_process_physical_segment_ready = 1;
-       `SHOW_MMU_DEBUG
     end else if (search_mmu_address && stage == 0) begin
       rst_can_be_done = 0;
       search_mmu_address_ready = 0;
@@ -259,11 +233,50 @@ module mmu (
         mmu_prev_search_position = mmu_search_position;
         mmu_search_position = mmu_chain_memory[mmu_search_position];
       end
-    end
+    end else if (stage == 3) begin
+      mmu_start_process_physical_segment = 0;
+
+      //some more complicated config used for testing //DEBUG info
+      //first process
+      mmu_chain_memory[0] = 1;  //DEBUG info
+      mmu_chain_memory[1] = 2;  //DEBUG info
+      mmu_chain_memory[2] = 3;  //DEBUG info
+      mmu_chain_memory[3] = 3;  //DEBUG info
+      mmu_logical_pages_memory[0] = 0;  //DEBUG info
+      mmu_logical_pages_memory[1] = 1;  //DEBUG info
+      mmu_logical_pages_memory[2] = 2;  //DEBUG info
+      mmu_logical_pages_memory[3] = 3;  //DEBUG info
+      //second process
+      mmu_chain_memory[4] = 5;  //DEBUG info
+      mmu_chain_memory[5] = 6;  //DEBUG info
+      mmu_chain_memory[6] = 7;  //DEBUG info
+      mmu_chain_memory[7] = 7;  //DEBUG info
+      mmu_logical_pages_memory[4] = 0;  //DEBUG info
+      mmu_logical_pages_memory[5] = 1;  //DEBUG info
+      mmu_logical_pages_memory[6] = 2;  //DEBUG info
+      mmu_logical_pages_memory[7] = 3;  //DEBUG info
+      mmu_first_possible_free_physical_segment = 8;
+
+      `SHOW_MMU_DEBUG
+      stage = 0;
+    end else if (set_mmu_start_process_physical_segment && stage == 0 && set_mmu_start_process_physical_segment_ready==0) begin
+      /* prepare mmu before task switching - start point should point to segment 0 */
+      i = mmu_chain_memory[mmu_start_process_physical_segment_zero];
+      mmu_chain_memory[mmu_start_process_physical_segment_zero] = mmu_chain_memory[mmu_start_process_physical_segment];
+      mmu_chain_memory[mmu_start_process_physical_segment] = i;
+      
+`SHOW_MMU_DEBUG
+      mmu_start_process_physical_segment = new_mmu_start_process_physical_segment;
+      mmu_start_process_physical_segment_zero = new_mmu_start_process_physical_segment;
+      
+     
+      set_mmu_start_process_physical_segment_ready = 1;
+       `SHOW_MMU_DEBUG
+   end
   end
 endmodule
 
-module x_simple (
+(* use_dsp = "yes" *) module x_simple (
     input clk,
     input bit btnc,
     output bit uart_rx_out
@@ -413,6 +426,8 @@ module x_simple (
   wire [15:0] plus_c;
   bit [15:0] minus_a, minus_b;
   wire [15:0] minus_c;
+  
+  bit[7:0] instructions;
 
   mul mul (
       .clk(clk),
@@ -447,6 +462,7 @@ module x_simple (
   bit [15:0] new_mmu_start_process_physical_segment;
   wire set_mmu_start_process_physical_segment_ready;
 
+
   mmu mmu (
       .clk(clk),
       .reset(reset),
@@ -457,6 +473,7 @@ module x_simple (
       .set_mmu_start_process_physical_segment(set_mmu_start_process_physical_segment),
       .new_mmu_start_process_physical_segment(new_mmu_start_process_physical_segment),
       .set_mmu_start_process_physical_segment_ready(set_mmu_start_process_physical_segment_ready)
+    
   );
 
   integer i;  //DEBUG info
@@ -468,6 +485,8 @@ module x_simple (
 
       error_code = '{default: 0};
       registers = '{default: 0};
+
+instructions = 0;
 
       stage = STAGE_AFTER_RESET;
     end else if (stage == STAGE_AFTER_RESET) begin
@@ -492,7 +511,7 @@ module x_simple (
         $display($time, " stage ", stage, " pc ", pc[process_num]);
       case (stage)
         STAGE_GET_1_BYTE: begin
-          if (pc[process_num] <= 62) begin
+          if (instructions<10) begin
             set_mmu_start_process_physical_segment = 0;
 
             rst_can_be_done = 1;
@@ -508,6 +527,7 @@ module x_simple (
           end
         end
         STAGE_GET_2_BYTE: begin
+instructions=instructions+1;
           how_many = how_many + 1;
           `HARD_DEBUG("b");
           if (READ_DEBUG && !HARDWARE_DEBUG)
@@ -869,6 +889,8 @@ module x_simple (
         end
         STAGE_CHECK_MMU_ADDRESS: begin
           if (stage_after_mmu == STAGE_GET_1_BYTE && how_many==2 && process_address != next_process_address) begin
+           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
+           $display($time, " task switcher");
             how_many = 0;
             write_address = process_address + ADDRESS_PC;
             write_value = pc[process_num];
@@ -954,6 +976,7 @@ module x_simple (
           end
         end
         STAGE_SAVE_PC: begin
+         if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
          $display($time, " TASK SWITCHER");
           ram_read_save_reg_start = 0;
           write_address = process_address + ADDRESS_REG;
@@ -962,8 +985,14 @@ module x_simple (
         end
         STAGE_SAVE_REG: begin
           if (ram_read_save_reg_start == 32) begin
+            //in parallel update MMU
+                     set_mmu_start_process_physical_segment = 1;
+            new_mmu_start_process_physical_segment = next_process_address / MMU_PAGE_SIZE;       
+            //read next process address
             write_enabled = 0;
             read_address = next_process_address + ADDRESS_NEXT_PROCESS;
+             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
+            $display($time, " next process RAM address= ", next_process_address + ADDRESS_NEXT_PROCESS);
             stage = STAGE_READ_NEXT_PROCESS;
           end else begin
             ram_read_save_reg_start = ram_read_save_reg_start + 1;
@@ -974,25 +1003,26 @@ module x_simple (
         STAGE_READ_NEXT_PROCESS: begin
           process_address = next_process_address;
           next_process_address = read_value;
-          //if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
+          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
             $display($time, " new next process address= ", read_value);
           read_address = process_address + ADDRESS_PC;
+          
+              if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
+            $display($time, " new process address after read= ",process_address," ", new_mmu_start_process_physical_segment);
+
+
           stage = STAGE_READ_PC;
         end
-        STAGE_READ_PC: begin
+        STAGE_READ_PC: begin      
+          set_mmu_start_process_physical_segment=0;
           pc[process_num] = read_value;
-          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new next pc= ", read_value);
+          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new  pc= ", read_value);
           ram_read_save_reg_start = 0;
           read_address = process_address + ADDRESS_REG;
           stage = STAGE_READ_REG;
         end
         STAGE_READ_REG: begin
-          if (ram_read_save_reg_start == 32) begin
-            set_mmu_start_process_physical_segment = 1;
-            new_mmu_start_process_physical_segment = process_address / MMU_PAGE_SIZE;
-            $display($time, " new next process address= ", new_mmu_start_process_physical_segment);
-            //       mmu_start_process_physical_segment = process_address / MMU_PAGE_SIZE;  
-            //  `SHOW_MMU_DEBUG    
+          if (ram_read_save_reg_start == 32) begin  
             mmu_address_to_search = pc[process_num];
             search_mmu_address = 1;
             stage_after_mmu = STAGE_GET_1_BYTE;
@@ -1035,8 +1065,8 @@ module single_ram (
   //  reg [0:559] [15:0] ram = {  // in iVerilog
   
       //first process - 4 pages (280 elements)
-      16'h01E0, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
-      16'h0000, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
+      16'h0118, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
+      16'h002E, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
 
       16'h0000, 16'h0000,  //registers used (currently ignored)
       16'h0000, 16'h0000,

@@ -19,7 +19,7 @@ initial begin
     rst=1;
     #1
     rst=0;
-    #600
+    #100000
     $finish();
 end
 
