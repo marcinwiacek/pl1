@@ -161,7 +161,10 @@ module mmu (
     output bit set_mmu_start_process_physical_segment_ready,
     
     input bit mmu_delete_process,
-    output bit mmu_delete_process_ready
+    output bit mmu_delete_process_ready,
+    
+     input bit mmu_split_process,
+    output bit mmu_split_process_ready
 );
 
   // special cases:
@@ -187,6 +190,7 @@ module mmu (
   parameter MMU_SEARCH = 1;
   parameter MMU_INIT = 2;
   parameter MMU_DELETE = 3;
+  parameter MMU_SPLIT = 4;
 
   always @(posedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
@@ -269,6 +273,16 @@ module mmu (
       end else begin
         mmu_logical_pages_memory[mmu_search_position] = 0;
         mmu_chain_memory[mmu_search_position] = 0;
+        mmu_search_position = mmu_chain_memory[mmu_search_position];
+      end    
+    end else if (mmu_split_process && stage == MMU_IDLE) begin
+      mmu_search_position = mmu_start_process_physical_segment;
+      stage = MMU_SPLIT;
+    end else if (stage == MMU_SPLIT) begin
+       if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
+        mmu_split_process_ready = 1;
+        stage = MMU_IDLE;
+      end else begin
         mmu_search_position = mmu_chain_memory[mmu_search_position];
       end    
     end else if (stage == MMU_INIT) begin
@@ -369,11 +383,11 @@ module x_simple (
   parameter OPCODE_REG_MUL = 'h16; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
   parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
   parameter OPCODE_EXIT = 'h18;  //exit process
-
+  parameter OPCODE_PROC = 'h19;  //new process //how many segments, start segment number (16 bit)
+  
   parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions (8 bit value) // do..while
   parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions (8 bit value) //do..while
   parameter OPCODE_LOOP = 25;  //x, x, how many instructions (8 bit value) //for...
-  parameter OPCODE_PROC = 26;  //new process //how many segments, start segment number (16 bit)
   parameter OPCODE_REG_INT = 28;  //x, int number (8 bit)
   parameter OPCODE_INT = 29;  //x, int number (8 bit)
   parameter OPCODE_INT_RET = 30;  //x, int number
@@ -392,6 +406,7 @@ module x_simple (
   parameter STAGE_HLT = 10;
   parameter STAGE_ALU = 11;
   parameter STAGE_DELETE_PROCESS = 18;
+  parameter STAGE_SPLIT_PROCESS = 19;  
   /*task switching*/
   parameter STAGE_SAVE_PC = 12;
   parameter STAGE_SAVE_REG = 14;
@@ -489,6 +504,8 @@ module x_simple (
   wire set_mmu_start_process_physical_segment_ready;
   bit mmu_delete_process;
   wire mmu_delete_process_ready;
+  bit mmu_split_process;
+  wire mmu_split_process_ready;
 
   mmu mmu (
       .clk(clk),
@@ -501,7 +518,9 @@ module x_simple (
       .new_mmu_start_process_physical_segment(new_mmu_start_process_physical_segment),
       .set_mmu_start_process_physical_segment_ready(set_mmu_start_process_physical_segment_ready),
       .mmu_delete_process(mmu_delete_process),
-      .mmu_delete_process_ready(mmu_delete_process_ready)
+      .mmu_delete_process_ready(mmu_delete_process_ready),
+      .mmu_split_process(mmu_split_process),
+      .mmu_split_process_ready(mmu_split_process_ready)      
   );
 
   integer i;  //DEBUG info
@@ -868,10 +887,16 @@ module x_simple (
                 stage  = STAGE_ALU;
               end
             end
+            //exit process
             OPCODE_EXIT: begin
               mmu_delete_process = 1;
               stage = STAGE_DELETE_PROCESS;
             end
+            //new process //how many segments, start segment number (16 bit
+            OPCODE_PROC: begin
+              mmu_split_process = 1;
+              stage = STAGE_SPLIT_PROCESS;
+            end            
             // default: begin
             //    error_code = ERROR_WRONG_OPCODE;
             // end
@@ -1085,6 +1110,10 @@ module x_simple (
                   $time, " next process RAM address= ", next_process_address + ADDRESS_NEXT_PROCESS
               );
             stage = STAGE_READ_NEXT_PROCESS;
+          end
+        end
+        STAGE_SPLIT_PROCESS: begin
+          if (mmu_split_process_ready) begin
           end
         end
       endcase
