@@ -158,7 +158,10 @@ module mmu (
 
     input bit set_mmu_start_process_physical_segment,
     input bit [15:0] new_mmu_start_process_physical_segment,
-    output bit set_mmu_start_process_physical_segment_ready
+    output bit set_mmu_start_process_physical_segment_ready,
+    
+    input bit mmu_delete_process,
+    output bit mmu_delete_process_ready
 );
 
   // special cases:
@@ -183,6 +186,7 @@ module mmu (
   parameter MMU_IDLE = 0;
   parameter MMU_SEARCH = 1;
   parameter MMU_INIT = 2;
+  parameter MMU_DELETE = 3;
 
   always @(posedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
@@ -196,20 +200,6 @@ module mmu (
       set_mmu_start_process_physical_segment_ready = 0;
 
       stage = MMU_INIT;
-    end else if (set_mmu_start_process_physical_segment && stage == 0) begin
-      if (set_mmu_start_process_physical_segment_ready == 0) begin
-        /* prepare mmu before task switching - start point should point to segment 0 */
-        temp = mmu_chain_memory[mmu_start_process_physical_segment_zero];
-        mmu_chain_memory[mmu_start_process_physical_segment_zero] = mmu_chain_memory[mmu_start_process_physical_segment];
-        mmu_chain_memory[mmu_start_process_physical_segment] = temp;
-
-        `SHOW_MMU_DEBUG
-        mmu_start_process_physical_segment = new_mmu_start_process_physical_segment;
-        mmu_start_process_physical_segment_zero = new_mmu_start_process_physical_segment;
-
-        set_mmu_start_process_physical_segment_ready = 1;
-        `SHOW_MMU_DEBUG
-      end
     end else if (search_mmu_address && stage == MMU_IDLE) begin
       set_mmu_start_process_physical_segment_ready = 0;
       rst_can_be_done = 0;
@@ -250,6 +240,37 @@ module mmu (
         mmu_prev_search_position = mmu_search_position;
         mmu_search_position = mmu_chain_memory[mmu_search_position];
       end
+    end else if (set_mmu_start_process_physical_segment && stage == MMU_IDLE) begin
+      if (set_mmu_start_process_physical_segment_ready == 0) begin
+        /* prepare mmu before task switching - start point should point to segment 0 */
+        temp = mmu_chain_memory[mmu_start_process_physical_segment_zero];
+        mmu_chain_memory[mmu_start_process_physical_segment_zero] = mmu_chain_memory[mmu_start_process_physical_segment];
+        mmu_chain_memory[mmu_start_process_physical_segment] = temp;
+
+        `SHOW_MMU_DEBUG
+        mmu_start_process_physical_segment = new_mmu_start_process_physical_segment;
+        mmu_start_process_physical_segment_zero = new_mmu_start_process_physical_segment;
+
+        set_mmu_start_process_physical_segment_ready = 1;
+        `SHOW_MMU_DEBUG
+      end
+    end else if (mmu_delete_process && stage == MMU_IDLE) begin
+      mmu_search_position = mmu_start_process_physical_segment;
+      stage = MMU_DELETE;
+    end else if (stage == MMU_DELETE) begin
+       if (mmu_first_possible_free_physical_segment >  mmu_search_position) begin
+         mmu_first_possible_free_physical_segment = mmu_search_position;         
+       end
+       if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
+        mmu_logical_pages_memory[mmu_search_position] = 0;
+        mmu_chain_memory[mmu_search_position] = 0;
+        mmu_delete_process_ready = 1;
+        stage = MMU_IDLE;
+      end else begin
+        mmu_logical_pages_memory[mmu_search_position] = 0;
+        mmu_chain_memory[mmu_search_position] = 0;
+        mmu_search_position = mmu_chain_memory[mmu_search_position];
+      end    
     end else if (stage == MMU_INIT) begin
       //reset part 2
       mmu_start_process_physical_segment = 0;
@@ -347,12 +368,12 @@ module x_simple (
   parameter OPCODE_REG_MINUS = 'h15; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
   parameter OPCODE_REG_MUL = 'h16; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
   parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
+  parameter OPCODE_EXIT = 'h18;  //exit process
 
   parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions (8 bit value) // do..while
   parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions (8 bit value) //do..while
   parameter OPCODE_LOOP = 25;  //x, x, how many instructions (8 bit value) //for...
   parameter OPCODE_PROC = 26;  //new process //how many segments, start segment number (16 bit)
-  parameter OPCODE_EXIT = 27;  //exit process
   parameter OPCODE_REG_INT = 28;  //x, int number (8 bit)
   parameter OPCODE_INT = 29;  //x, int number (8 bit)
   parameter OPCODE_INT_RET = 30;  //x, int number
@@ -370,6 +391,7 @@ module x_simple (
   parameter STAGE_SET_RAM_BYTE = 9;
   parameter STAGE_HLT = 10;
   parameter STAGE_ALU = 11;
+  parameter STAGE_DELETE_PROCESS = 18;
   /*task switching*/
   parameter STAGE_SAVE_PC = 12;
   parameter STAGE_SAVE_REG = 14;
@@ -465,6 +487,8 @@ module x_simple (
   bit set_mmu_start_process_physical_segment;
   bit [15:0] new_mmu_start_process_physical_segment;
   wire set_mmu_start_process_physical_segment_ready;
+  bit mmu_delete_process;
+  wire mmu_delete_process_ready;
 
   mmu mmu (
       .clk(clk),
@@ -475,8 +499,9 @@ module x_simple (
       .mmu_address_found(mmu_address_found),
       .set_mmu_start_process_physical_segment(set_mmu_start_process_physical_segment),
       .new_mmu_start_process_physical_segment(new_mmu_start_process_physical_segment),
-      .set_mmu_start_process_physical_segment_ready(set_mmu_start_process_physical_segment_ready)
-
+      .set_mmu_start_process_physical_segment_ready(set_mmu_start_process_physical_segment_ready),
+      .mmu_delete_process(mmu_delete_process),
+      .mmu_delete_process_ready(mmu_delete_process_ready)
   );
 
   integer i;  //DEBUG info
@@ -843,6 +868,10 @@ module x_simple (
                 stage  = STAGE_ALU;
               end
             end
+            OPCODE_EXIT: begin
+              mmu_delete_process = 1;
+              stage = STAGE_DELETE_PROCESS;
+            end
             // default: begin
             //    error_code = ERROR_WRONG_OPCODE;
             // end
@@ -1041,6 +1070,21 @@ module x_simple (
             registers[process_num][ram_read_save_reg_start] = read_value;
             ram_read_save_reg_start = ram_read_save_reg_start + 1;
             read_address = read_address + 1;
+          end
+        end
+        STAGE_DELETE_PROCESS: begin
+          if (mmu_delete_process_ready) begin
+            //in parallel update MMU
+            set_mmu_start_process_physical_segment = 1;
+            new_mmu_start_process_physical_segment = next_process_address / MMU_PAGE_SIZE;
+            //read next process address
+            write_enabled = 0;
+            read_address = next_process_address + ADDRESS_NEXT_PROCESS;
+            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
+              $display(
+                  $time, " next process RAM address= ", next_process_address + ADDRESS_NEXT_PROCESS
+              );
+            stage = STAGE_READ_NEXT_PROCESS;
           end
         end
       endcase
