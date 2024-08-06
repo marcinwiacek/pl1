@@ -32,7 +32,7 @@ parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG%16>10? ARG%16 + 65 - 10:ARG%16+ 48; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1) $write("%c",ARG/16>10? ARG/16 + 65 - 10:ARG/16+ 48,"%c",ARG%16>10? ARG%16 + 65 - 10:ARG%16+ 48);
 // verilog_format:on
- 
+
 /* DEBUG info */ `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
 /* DEBUG info */     if (ARG == 1) begin \
 /* DEBUG info */       $write($time, INFO); \
@@ -209,119 +209,119 @@ module mmu (
 
       stage = MMU_INIT;
     end else if (stage == MMU_IDLE) begin
-          if (search_mmu_address) begin
-            set_mmu_start_process_physical_segment_ready = 0;
-            search_mmu_address_ready = 0;
-            mmu_delete_process_ready = 0;
-            rst_can_be_done = 0;
-            
-            mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
-            if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
-              $display(
-                  $time,
-                  " mmu, address ",
-                  mmu_address_to_search,
-                  " segment ",
-                  mmu_address_to_search_segment
-              );
-            mmu_search_position = mmu_start_process_physical_segment;
-            stage = MMU_SEARCH;
-          end else if (set_mmu_start_process_physical_segment && set_mmu_start_process_physical_segment_ready == 0) begin
-            if (reset_mmu_start_process_physical_segment) begin
-              /* prepare mmu before task switching - start point should point to segment 0 */
-              temp = mmu_chain_memory[mmu_start_process_physical_segment_zero];
-              mmu_chain_memory[mmu_start_process_physical_segment_zero] = mmu_chain_memory[mmu_start_process_physical_segment];
-              mmu_chain_memory[mmu_start_process_physical_segment] = temp;
-              `SHOW_MMU_DEBUG
-            end
+      if (search_mmu_address) begin
+        set_mmu_start_process_physical_segment_ready = 0;
+        search_mmu_address_ready = 0;
+        mmu_delete_process_ready = 0;
+        rst_can_be_done = 0;
 
-            mmu_start_process_physical_segment = new_mmu_start_process_physical_segment;
-            mmu_start_process_physical_segment_zero = new_mmu_start_process_physical_segment;
-
-            set_mmu_start_process_physical_segment_ready = 1;
-            `SHOW_MMU_DEBUG
-          end else if (mmu_delete_process && mmu_delete_process_ready == 0) begin
-            mmu_search_position = mmu_start_process_physical_segment;
-            stage = MMU_DELETE;
-          end else if (mmu_split_process && mmu_split_process_ready == 0) begin
-            mmu_search_position = mmu_start_process_physical_segment;
-            stage = MMU_SPLIT;
-          end
-        end else if (stage==MMU_SEARCH) begin
-          if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
-            //`HARD_DEBUG("%");
-            if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
-              $display($time, " physical segment in position ", mmu_search_position);
-            //move found address to the beginning to speed up search in the future       
-            if (mmu_start_process_physical_segment != mmu_search_position) begin
-              mmu_chain_memory[mmu_prev_search_position] = mmu_chain_memory[mmu_search_position]==mmu_search_position?
-                  mmu_prev_search_position:mmu_chain_memory[mmu_search_position];
-              mmu_chain_memory[mmu_search_position] = mmu_start_process_physical_segment;
-              mmu_start_process_physical_segment = mmu_search_position;
-              `SHOW_MMU_DEBUG
-            end
-            mmu_address_found =  mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
-            search_mmu_address_ready = 1;
-            stage = MMU_IDLE;
-            //end else if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
-            //element pointing to itself
-            //needs to allocate new segment
-          end else begin
-            mmu_prev_search_position = mmu_search_position;
-            mmu_search_position = mmu_chain_memory[mmu_search_position];
-          end
-        end else if (stage==MMU_DELETE) begin
-          if (mmu_first_possible_free_physical_segment > mmu_search_position) begin
-            mmu_first_possible_free_physical_segment = mmu_search_position;
-          end
-          mmu_logical_pages_memory[mmu_search_position] = 0;
-          if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
-            //   $display($time, " delete end ",mmu_search_position);
-            mmu_chain_memory[mmu_search_position] = 0;
-            mmu_delete_process_ready = 1;
-            `SHOW_MMU_DEBUG
-            stage = MMU_IDLE;
-          end else begin
-            temp = mmu_search_position;
-            // $display($time, " delete ",mmu_search_position);
-            mmu_search_position = mmu_chain_memory[mmu_search_position];
-            mmu_chain_memory[temp] = 0;
-          end
-        end else if (stage==MMU_SPLIT) begin
-          if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
-            mmu_split_process_ready = 1;
-            stage = MMU_IDLE;
-          end else begin
-            mmu_search_position = mmu_chain_memory[mmu_search_position];
-          end
-        end else if (stage==MMU_INIT) begin
-          mmu_start_process_physical_segment = 0;
-          mmu_start_process_physical_segment_zero = 0;
-
-          //some more complicated config used for testing //DEBUG info
-          //first process
-          mmu_chain_memory[0] = 1;  //DEBUG info
-          mmu_chain_memory[1] = 2;  //DEBUG info
-          mmu_chain_memory[2] = 3;  //DEBUG info
-          mmu_chain_memory[3] = 3;  //DEBUG info
-          mmu_logical_pages_memory[0] = 0;  //DEBUG info
-          mmu_logical_pages_memory[1] = 1;  //DEBUG info
-          mmu_logical_pages_memory[2] = 2;  //DEBUG info
-          mmu_logical_pages_memory[3] = 3;  //DEBUG info
-          //second process
-          mmu_chain_memory[4] = 5;  //DEBUG info
-          mmu_chain_memory[5] = 6;  //DEBUG info
-          mmu_chain_memory[6] = 7;  //DEBUG info
-          mmu_chain_memory[7] = 7;  //DEBUG info
-          mmu_logical_pages_memory[4] = 0;  //DEBUG info
-          mmu_logical_pages_memory[5] = 1;  //DEBUG info
-          mmu_logical_pages_memory[6] = 2;  //DEBUG info
-          mmu_logical_pages_memory[7] = 3;  //DEBUG info
-          mmu_first_possible_free_physical_segment = 8;
-
+        mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
+        if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+          $display(
+              $time,
+              " mmu, address ",
+              mmu_address_to_search,
+              " segment ",
+              mmu_address_to_search_segment
+          );
+        mmu_search_position = mmu_start_process_physical_segment;
+        stage = MMU_SEARCH;
+      end else if (set_mmu_start_process_physical_segment && set_mmu_start_process_physical_segment_ready == 0) begin
+        if (reset_mmu_start_process_physical_segment) begin
+          /* prepare mmu before task switching - start point should point to segment 0 */
+          temp = mmu_chain_memory[mmu_start_process_physical_segment_zero];
+          mmu_chain_memory[mmu_start_process_physical_segment_zero] = mmu_chain_memory[mmu_start_process_physical_segment];
+          mmu_chain_memory[mmu_start_process_physical_segment] = temp;
           `SHOW_MMU_DEBUG
-          stage = MMU_IDLE;
         end
+
+        mmu_start_process_physical_segment = new_mmu_start_process_physical_segment;
+        mmu_start_process_physical_segment_zero = new_mmu_start_process_physical_segment;
+
+        set_mmu_start_process_physical_segment_ready = 1;
+        `SHOW_MMU_DEBUG
+      end else if (mmu_delete_process && mmu_delete_process_ready == 0) begin
+        mmu_search_position = mmu_start_process_physical_segment;
+        stage = MMU_DELETE;
+      end else if (mmu_split_process && mmu_split_process_ready == 0) begin
+        mmu_search_position = mmu_start_process_physical_segment;
+        stage = MMU_SPLIT;
+      end
+    end else if (stage == MMU_SEARCH) begin
+      if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
+        //`HARD_DEBUG("%");
+        if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+          $display($time, " physical segment in position ", mmu_search_position);
+        //move found address to the beginning to speed up search in the future       
+        if (mmu_start_process_physical_segment != mmu_search_position) begin
+          mmu_chain_memory[mmu_prev_search_position] = mmu_chain_memory[mmu_search_position]==mmu_search_position?
+                  mmu_prev_search_position:mmu_chain_memory[mmu_search_position];
+          mmu_chain_memory[mmu_search_position] = mmu_start_process_physical_segment;
+          mmu_start_process_physical_segment = mmu_search_position;
+          `SHOW_MMU_DEBUG
+        end
+        mmu_address_found =  mmu_address_to_search % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
+        search_mmu_address_ready = 1;
+        stage = MMU_IDLE;
+        //end else if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
+        //element pointing to itself
+        //needs to allocate new segment
+      end else begin
+        mmu_prev_search_position = mmu_search_position;
+        mmu_search_position = mmu_chain_memory[mmu_search_position];
+      end
+    end else if (stage == MMU_DELETE) begin
+      if (mmu_first_possible_free_physical_segment > mmu_search_position) begin
+        mmu_first_possible_free_physical_segment = mmu_search_position;
+      end
+      mmu_logical_pages_memory[mmu_search_position] = 0;
+      if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
+        //   $display($time, " delete end ",mmu_search_position);
+        mmu_chain_memory[mmu_search_position] = 0;
+        mmu_delete_process_ready = 1;
+        `SHOW_MMU_DEBUG
+        stage = MMU_IDLE;
+      end else begin
+        temp = mmu_search_position;
+        // $display($time, " delete ",mmu_search_position);
+        mmu_search_position = mmu_chain_memory[mmu_search_position];
+        mmu_chain_memory[temp] = 0;
+      end
+    end else if (stage == MMU_SPLIT) begin
+      if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
+        mmu_split_process_ready = 1;
+        stage = MMU_IDLE;
+      end else begin
+        mmu_search_position = mmu_chain_memory[mmu_search_position];
+      end
+    end else if (stage == MMU_INIT) begin
+      mmu_start_process_physical_segment = 0;
+      mmu_start_process_physical_segment_zero = 0;
+
+      //some more complicated config used for testing //DEBUG info
+      //first process
+      mmu_chain_memory[0] = 1;  //DEBUG info
+      mmu_chain_memory[1] = 2;  //DEBUG info
+      mmu_chain_memory[2] = 3;  //DEBUG info
+      mmu_chain_memory[3] = 3;  //DEBUG info
+      mmu_logical_pages_memory[0] = 0;  //DEBUG info
+      mmu_logical_pages_memory[1] = 1;  //DEBUG info
+      mmu_logical_pages_memory[2] = 2;  //DEBUG info
+      mmu_logical_pages_memory[3] = 3;  //DEBUG info
+      //second process
+      mmu_chain_memory[4] = 5;  //DEBUG info
+      mmu_chain_memory[5] = 6;  //DEBUG info
+      mmu_chain_memory[6] = 7;  //DEBUG info
+      mmu_chain_memory[7] = 7;  //DEBUG info
+      mmu_logical_pages_memory[4] = 0;  //DEBUG info
+      mmu_logical_pages_memory[5] = 1;  //DEBUG info
+      mmu_logical_pages_memory[6] = 2;  //DEBUG info
+      mmu_logical_pages_memory[7] = 3;  //DEBUG info
+      mmu_first_possible_free_physical_segment = 8;
+
+      `SHOW_MMU_DEBUG
+      stage = MMU_IDLE;
+    end
   end
 endmodule
 
