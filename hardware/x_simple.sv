@@ -25,7 +25,8 @@ parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG);
 
-/* DEBUG info */ `define HARD_DEBUG2(ARG) \
+/* DEBUG info */ `define HARD_DEBUG2(
+    ARG) \
 /* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG/16>10? ARG/16 + 65 - 10:ARG/16+ 48; \
 /* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG%16>10? ARG%16 + 65 - 10:ARG%16+ 48; \
@@ -160,11 +161,11 @@ module mmu (
     input bit reset_mmu_start_process_physical_segment,
     input bit [15:0] new_mmu_start_process_physical_segment,
     output bit set_mmu_start_process_physical_segment_ready,
-    
-    input bit mmu_delete_process,
+
+    input  bit mmu_delete_process,
     output bit mmu_delete_process_ready,
-    
-     input bit mmu_split_process,
+
+    input  bit mmu_split_process,
     output bit mmu_split_process_ready
 );
 
@@ -267,32 +268,32 @@ module mmu (
       mmu_search_position = mmu_start_process_physical_segment;
       stage = MMU_DELETE;
     end else if (stage == MMU_DELETE) begin
-       if (mmu_first_possible_free_physical_segment >  mmu_search_position) begin
-         mmu_first_possible_free_physical_segment = mmu_search_position;         
-       end
-        mmu_logical_pages_memory[mmu_search_position] = 0;        
-       if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
-      //   $display($time, " delete end ",mmu_search_position);
+      if (mmu_first_possible_free_physical_segment > mmu_search_position) begin
+        mmu_first_possible_free_physical_segment = mmu_search_position;
+      end
+      mmu_logical_pages_memory[mmu_search_position] = 0;
+      if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
+        //   $display($time, " delete end ",mmu_search_position);
         mmu_chain_memory[mmu_search_position] = 0;
         mmu_delete_process_ready = 1;
         `SHOW_MMU_DEBUG
         stage = MMU_IDLE;
       end else begin
-       temp = mmu_search_position;
+        temp = mmu_search_position;
         // $display($time, " delete ",mmu_search_position);
         mmu_search_position = mmu_chain_memory[mmu_search_position];
-         mmu_chain_memory[temp] = 0;
-      end    
+        mmu_chain_memory[temp] = 0;
+      end
     end else if (mmu_split_process && stage == MMU_IDLE) begin
       mmu_search_position = mmu_start_process_physical_segment;
       stage = MMU_SPLIT;
     end else if (stage == MMU_SPLIT) begin
-       if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
+      if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
         mmu_split_process_ready = 1;
         stage = MMU_IDLE;
       end else begin
         mmu_search_position = mmu_chain_memory[mmu_search_position];
-      end    
+      end
     end else if (stage == MMU_INIT) begin
       //reset part 2
       mmu_start_process_physical_segment = 0;
@@ -392,7 +393,7 @@ module x_simple (
   parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
   parameter OPCODE_EXIT = 'h18;  //exit process
   parameter OPCODE_PROC = 'h19;  //new process //how many segments, start segment number (16 bit)
-  
+
   parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions (8 bit value) // do..while
   parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions (8 bit value) //do..while
   parameter OPCODE_LOOP = 25;  //x, x, how many instructions (8 bit value) //for...
@@ -414,7 +415,7 @@ module x_simple (
   parameter STAGE_HLT = 10;
   parameter STAGE_ALU = 11;
   parameter STAGE_DELETE_PROCESS = 18;
-  parameter STAGE_SPLIT_PROCESS = 19;  
+  parameter STAGE_SPLIT_PROCESS = 19;
   /*task switching*/
   parameter STAGE_SAVE_PC = 12;
   parameter STAGE_SAVE_REG = 14;
@@ -899,22 +900,16 @@ module x_simple (
             end
             //exit process
             OPCODE_EXIT: begin
-             if (OP_DEBUG && !HARDWARE_DEBUG)
-                  $display(
-                      $time,
-                      " opcode = exit");                     
+              if (OP_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = exit");
               mmu_delete_process = 1;
               stage = STAGE_DELETE_PROCESS;
             end
             //new process //how many segments, start segment number (16 bit
             OPCODE_PROC: begin
-             if (OP_DEBUG && !HARDWARE_DEBUG)
-                  $display(
-                      $time,
-                      " opcode = proc");                     
+              if (OP_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = proc");
               mmu_split_process = 1;
               stage = STAGE_SPLIT_PROCESS;
-            end            
+            end
             // default: begin
             //    error_code = ERROR_WRONG_OPCODE;
             // end
@@ -1063,7 +1058,7 @@ module x_simple (
         STAGE_SAVE_REG: begin
           if (ram_read_save_reg_start == 32) begin
             //in parallel update MMU
-            reset_mmu_start_process_physical_segment = 1;                      
+            reset_mmu_start_process_physical_segment = 1;
             set_mmu_start_process_physical_segment = 1;
             new_mmu_start_process_physical_segment = next_process_address / MMU_PAGE_SIZE;
             //read next process address
@@ -1118,16 +1113,16 @@ module x_simple (
           end
         end
         STAGE_DELETE_PROCESS: begin
-          if (mmu_delete_process_ready) begin           
+          if (mmu_delete_process_ready) begin
             mmu_delete_process = 0;
-            process_address = prev_process_address; 
+            process_address = prev_process_address;
             //in parallel update MMU
-            reset_mmu_start_process_physical_segment = 0;                      
+            reset_mmu_start_process_physical_segment = 0;
             set_mmu_start_process_physical_segment = 1;
             new_mmu_start_process_physical_segment = next_process_address / MMU_PAGE_SIZE;
             //read next pc
-             read_address = process_address + ADDRESS_PC;
-             stage = STAGE_READ_PC;
+            read_address = process_address + ADDRESS_PC;
+            stage = STAGE_READ_PC;
           end
         end
         STAGE_SPLIT_PROCESS: begin
