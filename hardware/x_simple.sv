@@ -290,20 +290,19 @@ module mmu (
     end else if (stage == MMU_SPLIT) begin
       if (mmu_logical_pages_memory[mmu_search_position]>=mmu_address_a && 
            mmu_logical_pages_memory[mmu_search_position] <=mmu_address_b) begin
-            mmu_logical_pages_memory[mmu_search_position] = mmu_logical_pages_memory[mmu_search_position] - mmu_address_a;
-            
-              if (       mmu_logical_pages_memory[mmu_search_position] == 0 ) begin
-                  mmu_address_found = mmu_search_position;
-              end else begin
-                 mmu_chain_memory[mmu_new_search_position] = mmu_search_position;
-              end   
-                 mmu_new_search_position = mmu_search_position;
-                 mmu_chain_memory[mmu_prev_search_position] = mmu_chain_memory[mmu_search_position]; 
-                 mmu_logical_pages_memory[mmu_search_position] = mmu_logical_pages_memory[mmu_search_position] - mmu_address_a;             
+        mmu_logical_pages_memory[mmu_search_position] = mmu_logical_pages_memory[mmu_search_position] - mmu_address_a;
+        if (mmu_logical_pages_memory[mmu_search_position] == 0) begin
+          mmu_address_found = mmu_search_position;
+        end else begin
+          mmu_chain_memory[mmu_new_search_position] = mmu_search_position;
+        end
+        mmu_new_search_position = mmu_search_position;
+        mmu_chain_memory[mmu_prev_search_position] = mmu_chain_memory[mmu_search_position];
+        mmu_logical_pages_memory[mmu_search_position] = mmu_logical_pages_memory[mmu_search_position] - mmu_address_a;
       end
       if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
-                 mmu_chain_memory[mmu_prev_search_position] = mmu_prev_search_position;       
-                 mmu_chain_memory[mmu_search_position] = mmu_search_position; 
+        mmu_chain_memory[mmu_prev_search_position] = mmu_prev_search_position;
+        mmu_chain_memory[mmu_search_position] = mmu_search_position;
         mmu_split_process_ready = 1;
         stage = MMU_IDLE;
       end else begin
