@@ -4,10 +4,10 @@
 parameter HARDWARE_DEBUG = 0;
 
 parameter WRITE_RAM_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter READ_RAM_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter READ_RAM_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -153,22 +153,15 @@ endmodule
 module mmu (
     input clk,
     input reset,
-    input bit search_mmu_address,
-    output bit search_mmu_address_ready,
-    output bit [15:0] mmu_address_found,
-
+    input bit search_mmu_address,       
     input  bit set_mmu_start_process_physical_segment,
     input  bit reset_mmu_start_process_physical_segment,
-    output bit set_mmu_start_process_physical_segment_ready,
-
     input  bit mmu_delete_process,
-    output bit mmu_delete_process_ready,
-
     input  bit mmu_split_process,
-    output bit mmu_split_process_ready,
-
     input bit [15:0] mmu_address_a,
-    mmu_address_b
+    mmu_address_b,
+    output bit [15:0] mmu_address_c,
+    output bit mmu_action_ready
 );
 
   // special cases:
@@ -204,17 +197,10 @@ module mmu (
       mmu_logical_pages_memory = '{default: 0};
       mmu_chain_memory = '{default: 0};
 
-      set_mmu_start_process_physical_segment_ready = 0;
-      search_mmu_address_ready = 0;
-      mmu_delete_process_ready = 0;
-
       stage = MMU_INIT;
     end else if (stage == MMU_IDLE) begin
-      if (search_mmu_address) begin
-        set_mmu_start_process_physical_segment_ready = 0;
-        search_mmu_address_ready = 0;
-        mmu_delete_process_ready = 0;
-
+      if (search_mmu_address) begin                
+        mmu_action_ready = 0;
         rst_can_be_done = 0;
 
         mmu_address_to_search_segment = mmu_address_a / MMU_PAGE_SIZE;
@@ -236,12 +222,14 @@ module mmu (
         mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
         mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
 
-        set_mmu_start_process_physical_segment_ready = 1;
+        mmu_action_ready = 1;
         `SHOW_MMU_DEBUG
       end else if (mmu_delete_process) begin
+        mmu_action_ready = 0;
         mmu_search_position = mmu_start_process_physical_segment;
         stage = MMU_DELETE;
       end else if (mmu_split_process) begin
+        mmu_action_ready = 0;
         mmu_search_position = mmu_start_process_physical_segment;
         mmu_prev_search_position = mmu_start_process_physical_segment;
         mmu_new_search_position = 0;
@@ -260,8 +248,8 @@ module mmu (
           mmu_start_process_physical_segment = mmu_search_position;
           `SHOW_MMU_DEBUG
         end
-        mmu_address_found = mmu_address_a % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
-        search_mmu_address_ready = 1;
+        mmu_address_c = mmu_address_a % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
+        mmu_action_ready = 1;
         stage = MMU_IDLE;
         //end else if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
         //element pointing to itself
@@ -278,7 +266,7 @@ module mmu (
       if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
         //   $display($time, " delete end ",mmu_search_position);
         mmu_chain_memory[mmu_search_position] = 0;
-        mmu_delete_process_ready = 1;
+        mmu_action_ready = 1;
         `SHOW_MMU_DEBUG
         stage = MMU_IDLE;
       end else begin
@@ -292,7 +280,7 @@ module mmu (
            mmu_logical_pages_memory[mmu_search_position] <=mmu_address_b) begin
         mmu_logical_pages_memory[mmu_search_position] = mmu_logical_pages_memory[mmu_search_position] - mmu_address_a;
         if (mmu_logical_pages_memory[mmu_search_position] == 0) begin
-          mmu_address_found = mmu_search_position;
+          mmu_address_c = mmu_search_position;
         end else begin
           mmu_chain_memory[mmu_new_search_position] = mmu_search_position;
         end
@@ -303,7 +291,7 @@ module mmu (
       if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
         mmu_chain_memory[mmu_prev_search_position] = mmu_prev_search_position;
         mmu_chain_memory[mmu_search_position] = mmu_search_position;
-        mmu_split_process_ready = 1;
+        mmu_action_ready = 1;
         stage = MMU_IDLE;
       end else begin
         mmu_search_position = mmu_chain_memory[mmu_search_position];
@@ -518,32 +506,26 @@ module x_simple (
   );
 
   bit search_mmu_address = 0;
-  wire search_mmu_address_ready;
-  wire [15:0] mmu_address_found;
-  bit set_mmu_start_process_physical_segment;
-  wire set_mmu_start_process_physical_segment_ready;
-  bit mmu_delete_process;
-  wire mmu_delete_process_ready;
-  bit mmu_split_process;
-  wire mmu_split_process_ready;
+  bit set_mmu_start_process_physical_segment;  
   bit reset_mmu_start_process_physical_segment;
+  bit mmu_delete_process;
+  bit mmu_split_process;
   bit [15:0] mmu_address_a, mmu_address_b;
+  wire [15:0] mmu_address_c;
+  wire mmu_action_ready;
 
   mmu mmu (
       .clk(clk),
       .reset(reset),
       .search_mmu_address(search_mmu_address),
-      .search_mmu_address_ready(search_mmu_address_ready),
-      .mmu_address_found(mmu_address_found),
       .set_mmu_start_process_physical_segment(set_mmu_start_process_physical_segment),
       .reset_mmu_start_process_physical_segment(reset_mmu_start_process_physical_segment),
-      .set_mmu_start_process_physical_segment_ready(set_mmu_start_process_physical_segment_ready),
       .mmu_delete_process(mmu_delete_process),
-      .mmu_delete_process_ready(mmu_delete_process_ready),
       .mmu_split_process(mmu_split_process),
-      .mmu_split_process_ready(mmu_split_process_ready),
       .mmu_address_a(mmu_address_a),
-      .mmu_address_b(mmu_address_b)
+      .mmu_address_b(mmu_address_b),
+      .mmu_address_c(mmu_address_c),
+      .mmu_action_ready(mmu_action_ready)     
   );
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
@@ -965,12 +947,12 @@ module x_simple (
               $display($time, " save pc ", (process_address + ADDRESS_PC), "=", pc[process_num]);
             stage = STAGE_SAVE_PC;
             search_mmu_address = 0;
-          end else if (search_mmu_address_ready) begin
+          end else if (mmu_action_ready) begin
             if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
               write_enabled = 1;
-              write_address = mmu_address_found;
+              write_address = mmu_address_c;
             end else begin
-              read_address = mmu_address_found;
+              read_address = mmu_address_c;
             end
             stage = stage_after_mmu;
             search_mmu_address = 0;
@@ -1099,7 +1081,7 @@ module x_simple (
         end
         STAGE_DELETE_PROCESS: begin
           mmu_delete_process = 0;
-          if (mmu_delete_process_ready) begin
+          if (mmu_action_ready) begin
             process_address = prev_process_address;
             //in parallel update MMU
             reset_mmu_start_process_physical_segment = 0;
@@ -1112,7 +1094,7 @@ module x_simple (
         end
         STAGE_SPLIT_PROCESS: begin
           mmu_split_process = 0;
-          if (mmu_split_process_ready) begin
+          if (mmu_action_ready) begin
           end
         end
       endcase
