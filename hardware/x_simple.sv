@@ -153,12 +153,12 @@ endmodule
 module mmu (
     input clk,
     input reset,
-    input bit search_mmu_address,    
+    input bit search_mmu_address,
     output bit search_mmu_address_ready,
     output bit [15:0] mmu_address_found,
 
-    input bit set_mmu_start_process_physical_segment,
-    input bit reset_mmu_start_process_physical_segment,
+    input  bit set_mmu_start_process_physical_segment,
+    input  bit reset_mmu_start_process_physical_segment,
     output bit set_mmu_start_process_physical_segment_ready,
 
     input  bit mmu_delete_process,
@@ -166,8 +166,9 @@ module mmu (
 
     input  bit mmu_split_process,
     output bit mmu_split_process_ready,
-    
-    input bit [15:0] mmu_address_a, mmu_address_b
+
+    input bit [15:0] mmu_address_a,
+    mmu_address_b
 );
 
   // special cases:
@@ -202,7 +203,7 @@ module mmu (
 
       mmu_logical_pages_memory = '{default: 0};
       mmu_chain_memory = '{default: 0};
-    
+
       set_mmu_start_process_physical_segment_ready = 0;
       search_mmu_address_ready = 0;
       mmu_delete_process_ready = 0;
@@ -213,17 +214,13 @@ module mmu (
         set_mmu_start_process_physical_segment_ready = 0;
         search_mmu_address_ready = 0;
         mmu_delete_process_ready = 0;
-        
+
         rst_can_be_done = 0;
 
         mmu_address_to_search_segment = mmu_address_a / MMU_PAGE_SIZE;
         if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
           $display(
-              $time,
-              " mmu, address ",
-              mmu_address_a,
-              " segment ",
-              mmu_address_to_search_segment
+              $time, " mmu, address ", mmu_address_a, " segment ", mmu_address_to_search_segment
           );
         mmu_search_position = mmu_start_process_physical_segment;
         stage = MMU_SEARCH;
@@ -246,7 +243,7 @@ module mmu (
         stage = MMU_DELETE;
       end else if (mmu_split_process) begin
         mmu_search_position = mmu_start_process_physical_segment;
-        mmu_prev_search_position = mmu_start_process_physical_segment;        
+        mmu_prev_search_position = mmu_start_process_physical_segment;
         stage = MMU_SPLIT;
       end
     end else if (stage == MMU_SEARCH) begin
@@ -262,7 +259,7 @@ module mmu (
           mmu_start_process_physical_segment = mmu_search_position;
           `SHOW_MMU_DEBUG
         end
-        mmu_address_found =  mmu_address_a % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
+        mmu_address_found = mmu_address_a % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
         search_mmu_address_ready = 1;
         stage = MMU_IDLE;
         //end else if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
@@ -290,9 +287,9 @@ module mmu (
         mmu_chain_memory[temp] = 0;
       end
     end else if (stage == MMU_SPLIT) begin
-       if (mmu_logical_pages_memory[mmu_search_position]>=mmu_address_a && 
-           mmu_logical_pages_memory[mmu_search_position] <=mmu_address_b) begin         
-       end
+      if (mmu_logical_pages_memory[mmu_search_position]>=mmu_address_a && 
+           mmu_logical_pages_memory[mmu_search_position] <=mmu_address_b) begin
+      end
       if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
         mmu_split_process_ready = 1;
         stage = MMU_IDLE;
@@ -519,7 +516,7 @@ module x_simple (
   wire mmu_split_process_ready;
   bit reset_mmu_start_process_physical_segment;
   bit [15:0] mmu_address_a, mmu_address_b;
-  
+
   mmu mmu (
       .clk(clk),
       .reset(reset),
@@ -534,10 +531,10 @@ module x_simple (
       .mmu_split_process(mmu_split_process),
       .mmu_split_process_ready(mmu_split_process_ready),
       .mmu_address_a(mmu_address_a),
-      .mmu_address_b(mmu_address_b)      
+      .mmu_address_b(mmu_address_b)
   );
 
-`define MAKE_MMU_SEARCH(ARG, ARG2) \
+  `define MAKE_MMU_SEARCH(ARG, ARG2) \
    mmu_address_a = ARG; \
    search_mmu_address = 1; \
    stage_after_mmu = ARG2; \
@@ -575,8 +572,8 @@ module x_simple (
     end else if (error_code[process_num] == ERROR_NONE) begin
       if (STAGE_DEBUG && !HARDWARE_DEBUG)
         $display($time, " stage ", stage, " pc ", pc[process_num]);
-     // (*parallel_case *)(*full_case *) 
-     case (stage)
+      // (*parallel_case *)(*full_case *) 
+      case (stage)
         STAGE_GET_1_BYTE: begin
           if (instructions < 10) begin
             rst_can_be_done = 1;
@@ -738,7 +735,7 @@ module x_simple (
                       (instruction1_2_1 + instruction1_2_2)
                   );  //DEBUG info
                 ram_read_save_reg_start = instruction1_2_1;
-                ram_read_save_reg_end = instruction1_2_1 + instruction1_2_2;
+                ram_read_save_reg_end   = instruction1_2_1 + instruction1_2_2;
                 `MAKE_MMU_SEARCH(read_value, STAGE_GET_RAM_BYTE);
               end
             end
@@ -760,8 +757,8 @@ module x_simple (
                       (instruction1_2 + instruction2_1)
                   );  //DEBUG info             
                 ram_read_save_reg_start = instruction1_2;
-                ram_read_save_reg_end = instruction1_2 + instruction2_1;
-                `MAKE_MMU_SEARCH(registers[process_num][instruction2_2], STAGE_GET_RAM_BYTE);                
+                ram_read_save_reg_end   = instruction1_2 + instruction2_1;
+                `MAKE_MMU_SEARCH(registers[process_num][instruction2_2], STAGE_GET_RAM_BYTE);
               end
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
@@ -785,7 +782,7 @@ module x_simple (
                 ram_read_save_reg_start = instruction1_2_1;
                 ram_read_save_reg_end = instruction1_2_1 + instruction1_2_2;
                 write_value = registers[process_num][instruction1_2_1];
-                `MAKE_MMU_SEARCH(read_value, STAGE_SET_RAM_BYTE);                
+                `MAKE_MMU_SEARCH(read_value, STAGE_SET_RAM_BYTE);
               end
             end
             //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
@@ -808,7 +805,7 @@ module x_simple (
                 ram_read_save_reg_start = instruction1_2;
                 ram_read_save_reg_end = instruction1_2 + instruction2_1;
                 write_value = registers[process_num][instruction1_2];
-                `MAKE_MMU_SEARCH(registers[process_num][instruction2_2], STAGE_SET_RAM_BYTE);                
+                `MAKE_MMU_SEARCH(registers[process_num][instruction2_2], STAGE_SET_RAM_BYTE);
               end
             end
             //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
@@ -914,7 +911,7 @@ module x_simple (
             pc[process_num] = pc[process_num] + 1;
           end
           if (stage == STAGE_GET_2_BYTE) begin
-           `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);                
+            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
           end
         end
         STAGE_GET_RAM_BYTE: begin
@@ -930,27 +927,27 @@ module x_simple (
                 read_value
             );
           if (ram_read_save_reg_start == ram_read_save_reg_end) begin
-           `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);                
+            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
           end else begin
             ram_read_save_reg_start = ram_read_save_reg_start + 1;
-           `MAKE_MMU_SEARCH(mmu_address_a + 1, STAGE_GET_RAM_BYTE);                
+            `MAKE_MMU_SEARCH(mmu_address_a + 1, STAGE_GET_RAM_BYTE);
           end
         end
         STAGE_SET_RAM_BYTE: begin
           if (ram_read_save_reg_start == ram_read_save_reg_end) begin
             write_enabled = 0;
-           `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);                
+            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
           end else begin
             ram_read_save_reg_start = ram_read_save_reg_start + 1;
             write_value = registers[process_num][ram_read_save_reg_start];
-           `MAKE_MMU_SEARCH(mmu_address_a + 1, STAGE_SET_RAM_BYTE);                
+            `MAKE_MMU_SEARCH(mmu_address_a + 1, STAGE_SET_RAM_BYTE);
           end
         end
         STAGE_CHECK_MMU_ADDRESS: begin
           if (stage_after_mmu == STAGE_GET_1_BYTE && how_many==2 && process_address != next_process_address) begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " task switcher");
             write_address = process_address + ADDRESS_PC;
-            write_value = pc[process_num];
+            write_value   = pc[process_num];
             write_enabled = 1;
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display($time, " save pc ", (process_address + ADDRESS_PC), "=", pc[process_num]);
@@ -1006,7 +1003,7 @@ module x_simple (
               alu_num = alu_num + 1;
             end
             if (alu_num > instruction1_2_1 + instruction1_2_2) begin
-             `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);                
+              `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
             end else begin
               case (alu_op)
                 ALU_ADD: begin
@@ -1066,11 +1063,7 @@ module x_simple (
           read_address = process_address + ADDRESS_PC;
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
             $display(
-                $time,
-                " new process address after read= ",
-                process_address,
-                " ",
-                mmu_address_a
+                $time, " new process address after read= ", process_address, " ", mmu_address_a
             );
           stage = STAGE_READ_PC;
         end
@@ -1085,7 +1078,7 @@ module x_simple (
         STAGE_READ_REG: begin
           if (ram_read_save_reg_start == 32) begin
             how_many = 0;
-            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);                           
+            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
           end else begin
             registers[process_num][ram_read_save_reg_start] = read_value;
             ram_read_save_reg_start = ram_read_save_reg_start + 1;
@@ -1094,7 +1087,7 @@ module x_simple (
         end
         STAGE_DELETE_PROCESS: begin
           mmu_delete_process = 0;
-          if (mmu_delete_process_ready) begin            
+          if (mmu_delete_process_ready) begin
             process_address = prev_process_address;
             //in parallel update MMU
             reset_mmu_start_process_physical_segment = 0;
