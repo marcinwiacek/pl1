@@ -182,7 +182,7 @@ module mmu (
   bit [8:0] mmu_start_process_physical_segment_zero;  //updated on process switch
 
   bit [8:0] mmu_address_to_search_segment;
-  bit [8:0] mmu_search_position, mmu_prev_search_position;
+  bit [8:0] mmu_search_position, mmu_prev_search_position, mmu_new_search_position;
 
   bit [5:0] stage;
   bit rst_can_be_done = 1;
@@ -244,6 +244,7 @@ module mmu (
       end else if (mmu_split_process) begin
         mmu_search_position = mmu_start_process_physical_segment;
         mmu_prev_search_position = mmu_start_process_physical_segment;
+        mmu_new_search_position = 0;
         stage = MMU_SPLIT;
       end
     end else if (stage == MMU_SEARCH) begin
@@ -289,8 +290,20 @@ module mmu (
     end else if (stage == MMU_SPLIT) begin
       if (mmu_logical_pages_memory[mmu_search_position]>=mmu_address_a && 
            mmu_logical_pages_memory[mmu_search_position] <=mmu_address_b) begin
+            mmu_logical_pages_memory[mmu_search_position] = mmu_logical_pages_memory[mmu_search_position] - mmu_address_a;
+            
+              if (       mmu_logical_pages_memory[mmu_search_position] == 0 ) begin
+                  mmu_address_found = mmu_search_position;
+              end else begin
+                 mmu_chain_memory[mmu_new_search_position] = mmu_search_position;
+              end   
+                 mmu_new_search_position = mmu_search_position;
+                 mmu_chain_memory[mmu_prev_search_position] = mmu_chain_memory[mmu_search_position]; 
+                 mmu_logical_pages_memory[mmu_search_position] = mmu_logical_pages_memory[mmu_search_position] - mmu_address_a;             
       end
       if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
+                 mmu_chain_memory[mmu_prev_search_position] = mmu_prev_search_position;       
+                 mmu_chain_memory[mmu_search_position] = mmu_search_position; 
         mmu_split_process_ready = 1;
         stage = MMU_IDLE;
       end else begin
