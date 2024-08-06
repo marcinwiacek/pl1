@@ -208,9 +208,7 @@ module mmu (
       set_mmu_start_process_physical_segment_ready = 0;
 
       stage = MMU_INIT;
-    end else begin
-      case (stage)
-        MMU_IDLE: begin
+    end else if (stage == MMU_IDLE) begin
           if (search_mmu_address) begin
             set_mmu_start_process_physical_segment_ready = 0;
             search_mmu_address_ready = 0;
@@ -249,8 +247,7 @@ module mmu (
             mmu_search_position = mmu_start_process_physical_segment;
             stage = MMU_SPLIT;
           end
-        end
-        MMU_SEARCH: begin
+        end else if (stage==MMU_SEARCH) begin
           if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
             //`HARD_DEBUG("%");
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
@@ -273,8 +270,7 @@ module mmu (
             mmu_prev_search_position = mmu_search_position;
             mmu_search_position = mmu_chain_memory[mmu_search_position];
           end
-        end
-        MMU_DELETE: begin
+        end else if (stage==MMU_DELETE) begin
           if (mmu_first_possible_free_physical_segment > mmu_search_position) begin
             mmu_first_possible_free_physical_segment = mmu_search_position;
           end
@@ -291,16 +287,14 @@ module mmu (
             mmu_search_position = mmu_chain_memory[mmu_search_position];
             mmu_chain_memory[temp] = 0;
           end
-        end
-        MMU_SPLIT: begin
+        end else if (stage==MMU_SPLIT) begin
           if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
             mmu_split_process_ready = 1;
             stage = MMU_IDLE;
           end else begin
             mmu_search_position = mmu_chain_memory[mmu_search_position];
           end
-        end
-        MMU_INIT: begin
+        end else if (stage==MMU_INIT) begin
           mmu_start_process_physical_segment = 0;
           mmu_start_process_physical_segment_zero = 0;
 
@@ -328,8 +322,6 @@ module mmu (
           `SHOW_MMU_DEBUG
           stage = MMU_IDLE;
         end
-      endcase
-    end
   end
 endmodule
 
@@ -574,7 +566,7 @@ module x_simple (
       rst_can_be_done = 1;
       if (STAGE_DEBUG && !HARDWARE_DEBUG)
         $display($time, " stage ", stage, " pc ", pc[process_num]);
-      case (stage)
+      (* parallel_case *) (* full_case *) case (stage)
         STAGE_GET_1_BYTE: begin
           if (instructions < 10) begin
             set_mmu_start_process_physical_segment = 0;
@@ -620,7 +612,7 @@ module x_simple (
             );
           `HARD_DEBUG2(instruction1_1);
           `HARD_DEBUG2(instruction1_2);
-          case (instruction1_1)
+          (* parallel_case *) (* full_case *) case (instruction1_1)
             //24 bit target address
             OPCODE_JMP: begin
               if ((read_value + (256 * 256) * instruction1_2) % 2 == 1) begin
