@@ -963,7 +963,6 @@ module x_simple (
         STAGE_CHECK_MMU_ADDRESS: begin
           if (stage_after_mmu == STAGE_GET_1_BYTE && how_many==2 && process_address != next_process_address) begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " task switcher");
-            how_many = 0;
             write_address = process_address + ADDRESS_PC;
             write_value = pc[process_num];
             write_enabled = 1;
@@ -1102,6 +1101,7 @@ module x_simple (
         end
         STAGE_READ_REG: begin
           if (ram_read_save_reg_start == 32) begin
+            how_many = 0;
             mmu_address_to_search = pc[process_num];
             search_mmu_address = 1;
             stage_after_mmu = STAGE_GET_1_BYTE;
