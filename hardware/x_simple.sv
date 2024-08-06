@@ -150,6 +150,25 @@ endmodule
   end
 endmodule
 
+module mmu_lutram(
+input clk,
+  input [15:0] read_addr,
+  output logic [8:0] read_value,
+  input write_enable,
+  input [15:0] write_addr,
+  input [8:0] write_value  
+);
+
+bit [8:0] ram[0:MMU_MAX_INDEX];
+
+assign read_value = ram[read_addr];
+
+always @(negedge clk) begin
+  if (write_enable) ram[write_addr]<=write_value;
+end
+
+endmodule
+
 module mmu (
     input clk,
     input reset,
@@ -357,7 +376,7 @@ module x_simple (
   bit [15:0] read_address;
   wire [15:0] read_value;
 
-  single_ram single_ram (
+  single_blockram single_blockram (
       .clk(clk),
       .write_enabled(write_enabled),
       .write_address(write_address),
@@ -1123,7 +1142,7 @@ module x_simple (
   end
 endmodule
 
-module single_ram (
+module single_blockram (
     input clk,
     input write_enabled,
     input [15:0] write_address,
