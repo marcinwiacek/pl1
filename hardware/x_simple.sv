@@ -202,10 +202,10 @@ module mmu (
 
       mmu_logical_pages_memory = '{default: 0};
       mmu_chain_memory = '{default: 0};
+    
+      set_mmu_start_process_physical_segment_ready = 0;
       search_mmu_address_ready = 0;
       mmu_delete_process_ready = 0;
-
-      set_mmu_start_process_physical_segment_ready = 0;
 
       stage = MMU_INIT;
     end else if (stage == MMU_IDLE) begin
@@ -213,6 +213,7 @@ module mmu (
         set_mmu_start_process_physical_segment_ready = 0;
         search_mmu_address_ready = 0;
         mmu_delete_process_ready = 0;
+        
         rst_can_be_done = 0;
 
         mmu_address_to_search_segment = mmu_address_to_search / MMU_PAGE_SIZE;
@@ -226,7 +227,7 @@ module mmu (
           );
         mmu_search_position = mmu_start_process_physical_segment;
         stage = MMU_SEARCH;
-      end else if (set_mmu_start_process_physical_segment && set_mmu_start_process_physical_segment_ready == 0) begin
+      end else if (set_mmu_start_process_physical_segment) begin
         if (reset_mmu_start_process_physical_segment) begin
           /* prepare mmu before task switching - start point should point to segment 0 */
           temp = mmu_chain_memory[mmu_start_process_physical_segment_zero];
@@ -240,10 +241,10 @@ module mmu (
 
         set_mmu_start_process_physical_segment_ready = 1;
         `SHOW_MMU_DEBUG
-      end else if (mmu_delete_process && mmu_delete_process_ready == 0) begin
+      end else if (mmu_delete_process) begin
         mmu_search_position = mmu_start_process_physical_segment;
         stage = MMU_DELETE;
-      end else if (mmu_split_process && mmu_split_process_ready == 0) begin
+      end else if (mmu_split_process) begin
         mmu_search_position = mmu_start_process_physical_segment;
         stage = MMU_SPLIT;
       end
@@ -563,14 +564,12 @@ module x_simple (
       working = 0;
       stage = STAGE_GET_1_BYTE;
     end else if (error_code[process_num] == ERROR_NONE) begin
-      rst_can_be_done = 1;
       if (STAGE_DEBUG && !HARDWARE_DEBUG)
         $display($time, " stage ", stage, " pc ", pc[process_num]);
-      (* parallel_case *) (* full_case *) case (stage)
+     // (*parallel_case *)(*full_case *) 
+     case (stage)
         STAGE_GET_1_BYTE: begin
           if (instructions < 10) begin
-            set_mmu_start_process_physical_segment = 0;
-
             rst_can_be_done = 1;
             if (READ_DEBUG && !HARDWARE_DEBUG)
               $display($time, " read ready ", read_address, "=", read_value);
@@ -612,7 +611,8 @@ module x_simple (
             );
           `HARD_DEBUG2(instruction1_1);
           `HARD_DEBUG2(instruction1_2);
-          (* parallel_case *) (* full_case *) case (instruction1_1)
+          //(*parallel_case *) (*full_case *) 
+          case (instruction1_1)
             //24 bit target address
             OPCODE_JMP: begin
               if ((read_value + (256 * 256) * instruction1_2) % 2 == 1) begin
@@ -1075,6 +1075,7 @@ module x_simple (
           end
         end
         STAGE_READ_NEXT_PROCESS: begin
+          set_mmu_start_process_physical_segment = 0;
           prev_process_address = process_address;
           process_address = next_process_address;
           next_process_address = read_value;
@@ -1112,8 +1113,8 @@ module x_simple (
           end
         end
         STAGE_DELETE_PROCESS: begin
-          if (mmu_delete_process_ready) begin
-            mmu_delete_process = 0;
+          mmu_delete_process = 0;
+          if (mmu_delete_process_ready) begin            
             process_address = prev_process_address;
             //in parallel update MMU
             reset_mmu_start_process_physical_segment = 0;
@@ -1125,6 +1126,7 @@ module x_simple (
           end
         end
         STAGE_SPLIT_PROCESS: begin
+          mmu_split_process = 0;
           if (mmu_split_process_ready) begin
           end
         end
