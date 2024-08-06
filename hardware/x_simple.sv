@@ -1,12 +1,12 @@
 `timescale 1ns / 1ps
 
 //options below are less important than options higher //DEBUG info
-parameter HARDWARE_DEBUG = 0;
+parameter HARDWARE_DEBUG = 1;
 
-parameter WRITE_RAM_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter READ_RAM_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_CHANGES_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -229,6 +229,7 @@ module mmu (
         mmu_search_position = mmu_start_process_physical_segment;
         stage = MMU_DELETE;
       end else if (mmu_split_process) begin
+         //$display($time, " start point ",mmu_start_process_physical_segment);
         mmu_action_ready = 0;
         mmu_search_position = mmu_start_process_physical_segment;
         mmu_prev_search_position = mmu_start_process_physical_segment;
@@ -278,25 +279,33 @@ module mmu (
     end else if (stage == MMU_SPLIT) begin
       if (mmu_logical_pages_memory[mmu_search_position]>=mmu_address_a && 
            mmu_logical_pages_memory[mmu_search_position] <=mmu_address_b) begin
+        //update new process chain
+        mmu_chain_memory[mmu_prev_search_position] = mmu_chain_memory[mmu_search_position];        
+        //update old process chain
         mmu_logical_pages_memory[mmu_search_position] = mmu_logical_pages_memory[mmu_search_position] - mmu_address_a;
         if (mmu_logical_pages_memory[mmu_search_position] == 0) begin
           mmu_address_c = mmu_search_position;
         end else begin
           mmu_chain_memory[mmu_new_search_position] = mmu_search_position;
-        end
-        mmu_new_search_position = mmu_search_position;
-        mmu_chain_memory[mmu_prev_search_position] = mmu_chain_memory[mmu_search_position];
-        mmu_logical_pages_memory[mmu_search_position] = mmu_logical_pages_memory[mmu_search_position] - mmu_address_a;
+        end        
+        mmu_new_search_position = mmu_search_position;  
+      end else begin     
+        mmu_prev_search_position = mmu_search_position;
       end
       if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
+        //close both chains
+        mmu_chain_memory[mmu_new_search_position] = mmu_new_search_position;
         mmu_chain_memory[mmu_prev_search_position] = mmu_prev_search_position;
-        mmu_chain_memory[mmu_search_position] = mmu_search_position;
+        
         mmu_action_ready = 1;
         stage = MMU_IDLE;
+        `SHOW_MMU_DEBUG
       end else begin
         mmu_search_position = mmu_chain_memory[mmu_search_position];
       end
     end else if (stage == MMU_INIT) begin
+      rst_can_be_done = 0;
+    
       mmu_start_process_physical_segment = 0;
       mmu_start_process_physical_segment_zero = 0;
 
@@ -894,6 +903,8 @@ module x_simple (
             //new process //how many segments, start segment number (16 bit
             OPCODE_PROC: begin
               if (OP_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = proc");
+              mmu_address_a = read_value;
+              mmu_address_b = read_value+instruction1_2;
               mmu_split_process = 1;
               stage = STAGE_SPLIT_PROCESS;
             end
@@ -1095,6 +1106,9 @@ module x_simple (
         STAGE_SPLIT_PROCESS: begin
           mmu_split_process = 0;
           if (mmu_action_ready) begin
+            //$display($time, " new  process chain starts in ", mmu_address_c);
+            //for now         
+            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE); 
           end
         end
       endcase
@@ -1192,8 +1206,9 @@ module single_ram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
 
       16'h1210, 16'h0a35, //value to reg
-      16'h1800, 16'h0000, //process end
+     // 16'h1800, 16'h0000, //process end
 //      16'h0e10, 16'h0064, //save to ram
+      16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'h0064, //ram to reg
       16'h0e10, 16'h00D4, //save to ram      
       16'h0c01, 16'h0001,  //proc
@@ -1225,9 +1240,9 @@ module single_ram (
   // verilog_format:on
 
   always @(posedge clk) begin
-    if (write_enabled && WRITE_RAM_DEBUG && !HARDWARE_DEBUG)
+    if (write_enabled && RAM_WRITE_DEBUG && !HARDWARE_DEBUG)
       $display($time, " ram write ", write_address, " = ", write_value);
-    if (READ_RAM_DEBUG && !HARDWARE_DEBUG)
+    if (RAM_READ_DEBUG && !HARDWARE_DEBUG)
       $display($time, " ram read ", read_address, " = ", ram[read_address]);
 
     if (write_enabled) ram[write_address] <= write_value;
