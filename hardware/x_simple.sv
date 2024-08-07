@@ -198,7 +198,7 @@ module mmu (
 
   bit [5:0] stage;
   bit rst_can_be_done = 1;
-  bit [8:0] temp;
+  bit [8:0] temp, temp2;
 
   integer i;
 
@@ -234,7 +234,8 @@ module mmu (
         if (reset_mmu_start_process_physical_segment) begin
           /* prepare mmu before task switching - start point should point to segment 0 */
           temp = mmu_chain_memory[mmu_start_process_physical_segment_zero];
-          mmu_chain_memory[mmu_start_process_physical_segment_zero] = mmu_chain_memory[mmu_start_process_physical_segment];
+          temp2 = mmu_chain_memory[mmu_start_process_physical_segment];
+          mmu_chain_memory[mmu_start_process_physical_segment_zero] = temp2;
           mmu_chain_memory[mmu_start_process_physical_segment] = temp;
           `SHOW_MMU_DEBUG
         end
