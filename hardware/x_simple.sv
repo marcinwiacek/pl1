@@ -208,6 +208,7 @@ module mmu (
   parameter MMU_DELETE = 3;
   parameter MMU_SPLIT = 4;
   parameter MMU_SPLIT2 = 5;  
+   parameter MMU_DELETE2 = 6;
 
   always @(posedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
@@ -285,6 +286,8 @@ module mmu (
         mmu_first_possible_free_physical_segment = mmu_search_position;
       end
       mmu_logical_pages_memory[mmu_search_position] = 0;
+      stage = MMU_DELETE2;
+    end else if (stage == MMU_DELETE2) begin 
       if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
         //   $display($time, " delete end ",mmu_search_position);
         mmu_chain_memory[mmu_search_position] = 0;
@@ -296,6 +299,7 @@ module mmu (
         // $display($time, " delete ",mmu_search_position);
         mmu_search_position = mmu_chain_memory[mmu_search_position];
         mmu_chain_memory[temp] = 0;
+        stage = MMU_DELETE;
       end
     end else if (stage == MMU_SPLIT) begin
       if (mmu_logical_pages_memory[mmu_search_position]>=mmu_address_a && 
