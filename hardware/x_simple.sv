@@ -150,7 +150,7 @@ endmodule
   end
 endmodule
 
-module mmu_lutram(
+/*module mmu_lutram(
 input clk,
   input [15:0] read_addr,
   output logic [8:0] read_value,
@@ -167,7 +167,7 @@ always @(negedge clk) begin
   if (write_enable) ram[write_addr]<=write_value;
 end
 
-endmodule
+endmodule*/
 
 module mmu (
     input clk,
@@ -207,6 +207,7 @@ module mmu (
   parameter MMU_INIT = 2;
   parameter MMU_DELETE = 3;
   parameter MMU_SPLIT = 4;
+  parameter MMU_SPLIT2 = 5;  
 
   always @(posedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
@@ -296,7 +297,7 @@ module mmu (
         mmu_chain_memory[temp] = 0;
       end
     end else if (stage == MMU_SPLIT) begin
-   /*   if (mmu_logical_pages_memory[mmu_search_position]>=mmu_address_a && 
+      if (mmu_logical_pages_memory[mmu_search_position]>=mmu_address_a && 
            mmu_logical_pages_memory[mmu_search_position] <=mmu_address_b) begin
         //update new process chain
         mmu_chain_memory[mmu_prev_search_position] = mmu_chain_memory[mmu_search_position];        
@@ -311,17 +312,20 @@ module mmu (
       end else begin     
         mmu_prev_search_position = mmu_search_position;
       end
+      stage = MMU_SPLIT2;
+    end else if (stage == MMU_SPLIT2) begin      
       if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
         //close both chains
         mmu_chain_memory[mmu_new_search_position] = mmu_new_search_position;
         mmu_chain_memory[mmu_prev_search_position] = mmu_prev_search_position;
-     */   
+       
         mmu_action_ready = 1;
         stage = MMU_IDLE;
         `SHOW_MMU_DEBUG
-      //end else begin
-       // mmu_search_position = mmu_chain_memory[mmu_search_position];
-      //end
+      end else begin
+        mmu_search_position = mmu_chain_memory[mmu_search_position];
+        stage = MMU_SPLIT;
+      end
     end else if (stage == MMU_INIT) begin
       rst_can_be_done = 0;
     
