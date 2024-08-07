@@ -296,7 +296,7 @@ module mmu (
         mmu_chain_memory[temp] = 0;
       end
     end else if (stage == MMU_SPLIT) begin
-      if (mmu_logical_pages_memory[mmu_search_position]>=mmu_address_a && 
+   /*   if (mmu_logical_pages_memory[mmu_search_position]>=mmu_address_a && 
            mmu_logical_pages_memory[mmu_search_position] <=mmu_address_b) begin
         //update new process chain
         mmu_chain_memory[mmu_prev_search_position] = mmu_chain_memory[mmu_search_position];        
@@ -315,13 +315,13 @@ module mmu (
         //close both chains
         mmu_chain_memory[mmu_new_search_position] = mmu_new_search_position;
         mmu_chain_memory[mmu_prev_search_position] = mmu_prev_search_position;
-        
+     */   
         mmu_action_ready = 1;
         stage = MMU_IDLE;
         `SHOW_MMU_DEBUG
-      end else begin
-        mmu_search_position = mmu_chain_memory[mmu_search_position];
-      end
+      //end else begin
+       // mmu_search_position = mmu_chain_memory[mmu_search_position];
+      //end
     end else if (stage == MMU_INIT) begin
       rst_can_be_done = 0;
     
@@ -968,6 +968,7 @@ module x_simple (
           end
         end
         STAGE_CHECK_MMU_ADDRESS: begin
+          search_mmu_address = 0;
           if (stage_after_mmu == STAGE_GET_1_BYTE && how_many==2 && process_address != next_process_address) begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " task switcher");
             write_address = process_address + ADDRESS_PC;
@@ -976,7 +977,6 @@ module x_simple (
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display($time, " save pc ", (process_address + ADDRESS_PC), "=", pc[process_num]);
             stage = STAGE_SAVE_PC;
-            search_mmu_address = 0;
           end else if (mmu_action_ready) begin
             if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
               write_enabled = 1;
@@ -984,8 +984,7 @@ module x_simple (
             end else begin
               read_address = mmu_address_c;
             end
-            stage = stage_after_mmu;
-            search_mmu_address = 0;
+            stage = stage_after_mmu;            
           end
         end
         STAGE_ALU: begin

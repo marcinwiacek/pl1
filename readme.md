@@ -203,3 +203,14 @@ when nothing is done, I know, that something is very very wrong).
 2. ```js-beautify -e "\n" ng1.js > x```
 3. ```html-beautify -e "\n" project.html > x```
 4. ```sudo apt install retext```
+
+# Development environment
+1. Ubuntu
+2. free Vivado version from https://www.xilinx.com/support/download.html (needs free registering;
+after installing needs installing drivers for cables and adding board definition;
+update tool can be started with binary xic/xic)
+3. board, for example Artix-7 (the most advanced will be probably Nexys Video)
+
+Note: don't be suprised, when Vivado hang up your PC and you will full disk activity in this time
+- it seems, it tries to allocate for example 200 or 300GB of RAM and kernel is trying to handle it,
+although it's nonsence.
