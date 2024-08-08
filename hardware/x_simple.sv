@@ -1,13 +1,13 @@
 `timescale 1ns / 1ps
 
 //options below are less important than options higher //DEBUG info
-parameter HARDWARE_DEBUG = 0;
+parameter HARDWARE_DEBUG = 1;
 
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_CHANGES_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -56,6 +56,14 @@ parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 /* DEBUG info */       end \
 /* DEBUG info */       $display(""); \
 /* DEBUG info */     end
+
+/* DEBUG info */  `define SHOW_MMU2 \
+/* DEBUG info */       $write($time, " mmu "); \
+/* DEBUG info */       for (i = 0; i <= 10; i = i + 1) begin \
+/* DEBUG info */         $write($sformatf("%02x ", ram[i])); \
+/* DEBUG info */       end \
+/* DEBUG info */       $display("");
+
 
 /* DEBUG info */  `define SHOW_TASK_INFO(ARG) \
 /* DEBUG info */     if (TASK_SWITCHER_DEBUG == 1 && !HARDWARE_DEBUG) begin \
@@ -150,48 +158,57 @@ endmodule
   end
 endmodule
 
-module mmu_lutram(
-input rst,
-input clk,
-input clk2,
-  input [15:0] read_addr,
-  output logic [8:0] read_value,
-  input [15:0] read_addr2,
-  output logic [8:0] read_value2,
-  input write_enable,
-  input [15:0] write_addr,
-  input [8:0] write_value,  
-  input write_enable2,
-  input [15:0] write_addr2,
-  input [8:0] write_value2  
+module mmu_lutram (
+    input rst,
+    input clk,
+    input clk2,
+    input [15:0] read_addr,
+    output bit [8:0] read_value,
+    input [15:0] read_addr2,
+    output bit [8:0] read_value2,
+    input write_enable,
+    input [15:0] write_addr,
+    input [8:0] write_value,
+    input write_enable2,
+    input [15:0] write_addr2,
+    input [8:0] write_value2
 );
 
-bit [8:0] ram[0:MMU_MAX_INDEX];
+  bit [8:0] ram[0:MMU_MAX_INDEX];
 
-assign read_value = ram[read_addr];
-assign read_value2 = ram[read_addr2];
+  assign read_value  = ram[read_addr];
+  assign read_value2 = ram[read_addr2];
 
-always @(negedge clk) begin
-  if (rst) begin
-      ram = '{default: 0};           
-  end else
-  if (write_enable) ram[write_addr]<=write_value;
-end
+integer i;
 
-always @(negedge clk2) begin
-  if (write_enable2) ram[write_addr2]<=write_value2;
-end
+  always @(negedge clk) begin
+    if (rst) begin
+      ram = '{default: 0};
+      //$display($time, " rst memory mmu");
+    end else if (write_enable) begin
+      ram[write_addr] = write_value;
+       $display($time, " mmu write ", write_addr,"=",write_value);
+      `SHOW_MMU2
+    end
+  end
 
+  always @(negedge clk2) begin
+    if (write_enable2) begin
+       ram[write_addr2] = write_value2;
+       $display($time, " mmu writ2 ", write_addr2,"=",write_value2);
+      `SHOW_MMU2
+    end
+  end
 endmodule
 
 module mmu (
     input clk,
     input reset,
-    input bit search_mmu_address,       
-    input  bit set_mmu_start_process_physical_segment,
-    input  bit reset_mmu_start_process_physical_segment,
-    input  bit mmu_delete_process,
-    input  bit mmu_split_process,
+    input bit search_mmu_address,
+    input bit set_mmu_start_process_physical_segment,
+    input bit reset_mmu_start_process_physical_segment,
+    input bit mmu_delete_process,
+    input bit mmu_split_process,
     input bit [15:0] mmu_address_a,
     mmu_address_b,
     output bit [15:0] mmu_address_c,
@@ -217,41 +234,40 @@ module mmu (
 
   integer i;
 
-
   bit [15:0] mmu_chain_read_addr;
-  wire logic [8:0] mmu_chain_read_value;
+  wire [8:0] mmu_chain_read_value;
   bit [15:0] mmu_chain_read_addr2;
-  wire logic [8:0] mmu_chain_read_value2;
+  wire [8:0] mmu_chain_read_value2;
   bit mmu_chain_write_enable;
   bit [15:0] mmu_chain_write_addr;
-  bit [8:0] mmu_chain_write_value;  
+  bit [8:0] mmu_chain_write_value;
   bit mmu_chain_write_enable2;
   bit [15:0] mmu_chain_write_addr2;
-  bit [8:0] mmu_chain_write_value2;  
+  bit [8:0] mmu_chain_write_value2;
 
-
-mmu_lutram mmu_chain_memory (
-.clk (clk), .clk2 (clk), .rst (reset),
-  .read_addr(mmu_chain_read_addr),
-  .read_value(mmu_chain_read_value),
-  .read_addr2(mmu_chain_read_addr2),
-  .read_value2(mmu_chain_read_value2),
-  .write_enable(mmu_chain_write_enable),
-  .write_addr(mmu_chain_write_addr),
-  .write_value(mmu_chain_write_value),  
-  .write_enable2(mmu_chain_write_enable2),
-  .write_addr2(mmu_chain_write_addr2),
-  .write_value2(mmu_chain_write_value2)  
-);
-
+  mmu_lutram mmu_chain_memory (
+      .clk(clk),
+      .clk2(clk),
+      .rst(reset),
+      .read_addr(mmu_chain_read_addr),
+      .read_value(mmu_chain_read_value),
+      .read_addr2(mmu_chain_read_addr2),
+      .read_value2(mmu_chain_read_value2),
+      .write_enable(mmu_chain_write_enable),
+      .write_addr(mmu_chain_write_addr),
+      .write_value(mmu_chain_write_value),
+      .write_enable2(mmu_chain_write_enable2),
+      .write_addr2(mmu_chain_write_addr2),
+      .write_value2(mmu_chain_write_value2)
+  );
 
   parameter MMU_IDLE = 0;
   parameter MMU_SEARCH = 1;
   parameter MMU_INIT = 2;
-   parameter MMU_DELETE = 3;
+  parameter MMU_DELETE = 3;
   parameter MMU_SPLIT = 4;
-  parameter MMU_SPLIT2 = 5;  
-   parameter MMU_DELETE2 = 6;
+  parameter MMU_SPLIT2 = 5;
+  parameter MMU_DELETE2 = 6;
   parameter MMU_INIT2 = 7;
   parameter MMU_INIT3 = 8;
   parameter MMU_INIT4 = 9;
@@ -266,11 +282,12 @@ mmu_lutram mmu_chain_memory (
 
       stage = MMU_INIT;
     end else if (stage == MMU_IDLE) begin
-          mmu_chain_write_enable = 0;
-          mmu_chain_write_enable2 = 0; 
-           
-        mmu_action_ready = 0;
-        rst_can_be_done = 1;
+   // $display($time, " idle");
+      mmu_chain_write_enable = 0;
+      mmu_chain_write_enable2 = 0;
+
+      mmu_action_ready = 0;
+      rst_can_be_done = 1;
       if (search_mmu_address) begin
         mmu_address_to_search_segment = mmu_address_a / MMU_PAGE_SIZE;
         if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
@@ -278,27 +295,28 @@ mmu_lutram mmu_chain_memory (
               $time, " mmu, address ", mmu_address_a, " segment ", mmu_address_to_search_segment
           );
         mmu_search_position = mmu_start_process_physical_segment;
+        mmu_chain_read_addr = mmu_search_position;
         stage = MMU_SEARCH;
       end else if (set_mmu_start_process_physical_segment && reset_mmu_start_process_physical_segment) begin
-          /* prepare mmu before task switching - start point should point to segment 0 */
-          mmu_chain_read_addr = mmu_start_process_physical_segment_zero;          
-          mmu_chain_read_addr2 = mmu_start_process_physical_segment;          
+        /* prepare mmu before task switching - start point should point to segment 0 */
+        mmu_chain_read_addr = mmu_start_process_physical_segment_zero;
+        mmu_chain_read_addr2 = mmu_start_process_physical_segment;
 
-          mmu_chain_write_addr =  mmu_start_process_physical_segment_zero;
-          mmu_chain_write_value = mmu_chain_read_value2;
-          mmu_chain_write_enable = 1; 
+        mmu_chain_write_addr = mmu_start_process_physical_segment_zero;
+        mmu_chain_write_value = mmu_chain_read_value2;
+        mmu_chain_write_enable = 1;
 
-          mmu_chain_write_addr2 =  mmu_start_process_physical_segment;
-          mmu_chain_write_value2 = mmu_chain_read_value;
-          mmu_chain_write_enable2 = 1; 
+        mmu_chain_write_addr2 = mmu_start_process_physical_segment;
+        mmu_chain_write_value2 = mmu_chain_read_value;
+        mmu_chain_write_enable2 = 1;
 
-//          `SHOW_MMU_DEBUG
+        //          `SHOW_MMU_DEBUG
 
         mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
         mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
 
         mmu_action_ready = 1;
-  //      `SHOW_MMU_DEBUG
+        //      `SHOW_MMU_DEBUG
       end else if (set_mmu_start_process_physical_segment) begin
         mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
         mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
@@ -310,7 +328,7 @@ mmu_lutram mmu_chain_memory (
         mmu_search_position = mmu_start_process_physical_segment;
         stage = MMU_DELETE;
       end else if (mmu_split_process) begin
-         //$display($time, " start point ",mmu_start_process_physical_segment);
+        //$display($time, " start point ",mmu_start_process_physical_segment);
         mmu_action_ready = 0;
         mmu_search_position = mmu_start_process_physical_segment;
         mmu_prev_search_position = mmu_start_process_physical_segment;
@@ -320,22 +338,24 @@ mmu_lutram mmu_chain_memory (
     end else if (stage == MMU_SEARCH) begin
       if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
         //`HARD_DEBUG("%");
-        if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+       // if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
           $display($time, " physical segment in position ", mmu_search_position);
         //move found address to the beginning to speed up search in the future       
         if (mmu_start_process_physical_segment != mmu_search_position) begin
-          mmu_chain_read_addr = mmu_search_position;
           
+          
+ $display($time, " mmu read ", mmu_chain_read_addr,"=",mmu_chain_read_value);
           mmu_chain_write_addr = mmu_prev_search_position;
           mmu_chain_write_value = mmu_chain_read_value == mmu_search_position? mmu_prev_search_position:mmu_chain_read_value;
-          mmu_chain_write_enable = 1; 
+          mmu_chain_write_enable = 1;
 
           mmu_chain_write_addr2 = mmu_search_position;
-          mmu_chain_write_value2 = mmu_start_process_physical_segment; 
-          mmu_chain_write_enable2 = 1; 
+          mmu_chain_write_value2 = mmu_start_process_physical_segment;
+          mmu_chain_write_enable2 = 1;
 
+ $display($time, " mmu start point ", mmu_search_position);
           mmu_start_process_physical_segment = mmu_search_position;
-        //  `SHOW_MMU_DEBUG
+          //  `SHOW_MMU_DEBUG
         end
         mmu_address_c = mmu_address_a % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
         mmu_action_ready = 1;
@@ -345,16 +365,17 @@ mmu_lutram mmu_chain_memory (
         //needs to allocate new segment
       end else begin
         mmu_prev_search_position = mmu_search_position;
-          mmu_chain_read_addr = mmu_search_position;        
-        mmu_search_position = mmu_chain_read_value;
+       
+        mmu_search_position = mmu_chain_read_value; 
+          mmu_chain_read_addr = mmu_search_position;      
       end
     end else if (stage == MMU_DELETE) begin
       mmu_first_possible_free_physical_segment = mmu_first_possible_free_physical_segment > mmu_search_position ? 
            mmu_search_position: mmu_first_possible_free_physical_segment;
       mmu_logical_pages_memory[mmu_search_position] = 0;
       stage = MMU_DELETE2;
-    end else if (stage == MMU_DELETE2) begin 
-    /*  if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
+    end else if (stage == MMU_DELETE2) begin
+      /*  if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
         //   $display($time, " delete end ",mmu_search_position);
         mmu_chain_memory[mmu_search_position] = 0;
         mmu_action_ready = 1;
@@ -376,15 +397,15 @@ mmu_lutram mmu_chain_memory (
         mmu_logical_pages_memory[mmu_search_position] = mmu_logical_pages_memory[mmu_search_position] - mmu_address_a;
         if (mmu_logical_pages_memory[mmu_search_position] == 0) begin
           mmu_address_c = mmu_search_position;
-        //end else begin
+          //end else begin
           //mmu_chain_memory[mmu_new_search_position] = mmu_search_position;
-        end        
-        mmu_new_search_position = mmu_search_position;  
-      end else begin     
+        end
+        mmu_new_search_position = mmu_search_position;
+      end else begin
         mmu_prev_search_position = mmu_search_position;
       end
       stage = MMU_SPLIT2;
-    end else if (stage == MMU_SPLIT2) begin      
+    end else if (stage == MMU_SPLIT2) begin
       /*if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
         //close both chains
         mmu_chain_memory[mmu_new_search_position] = mmu_new_search_position;
@@ -398,18 +419,20 @@ mmu_lutram mmu_chain_memory (
         stage = MMU_SPLIT;
       end*/
     end else if (stage == MMU_INIT) begin
+    //$display($time, " init");
       mmu_start_process_physical_segment = 0;
       mmu_start_process_physical_segment_zero = 0;
+
+      mmu_chain_write_enable = 1;
+      mmu_chain_write_enable2 = 1;
 
       //some more complicated config used for testing //DEBUG info
       //first process
       mmu_chain_write_addr = 0;
       mmu_chain_write_value = 1;
-      mmu_chain_write_enable = 1;      
       mmu_chain_write_addr2 = 1;
       mmu_chain_write_value2 = 2;
-      mmu_chain_write_enable2 = 1;
-      
+     
       //mmu_chain_memory[0] = 1;  //DEBUG info
       //mmu_chain_memory[1] = 2;  //DEBUG info
       //mmu_chain_memory[2] = 3;  //DEBUG info
@@ -428,10 +451,10 @@ mmu_lutram mmu_chain_memory (
       mmu_logical_pages_memory[6] = 2;  //DEBUG info
       mmu_logical_pages_memory[7] = 3;  //DEBUG info
       mmu_first_possible_free_physical_segment = 8;
-      
-            stage = MMU_INIT2;
 
+      stage = MMU_INIT2;
     end else if (stage == MMU_INIT2) begin
+    //$display($time, " init2");
       //some more complicated config used for testing //DEBUG info
       //first process
       mmu_chain_write_addr = 2;
@@ -440,9 +463,10 @@ mmu_lutram mmu_chain_memory (
       mmu_chain_write_value2 = 3;
 
       stage = MMU_INIT3;
+    end else if (stage == MMU_INIT3) begin
+      //  $display($time, " init3");
 
-end else if (stage == MMU_INIT3) begin
-//some more complicated config used for testing //DEBUG info
+      //some more complicated config used for testing //DEBUG info
       //second process
       mmu_chain_write_addr = 4;
       mmu_chain_write_value = 5;
@@ -450,9 +474,10 @@ end else if (stage == MMU_INIT3) begin
       mmu_chain_write_value2 = 6;
 
       stage = MMU_INIT4;
+    end else if (stage == MMU_INIT4) begin
+      //  $display($time, " init4");
 
-end else if (stage == MMU_INIT4) begin
-//some more complicated config used for testing //DEBUG info
+      //some more complicated config used for testing //DEBUG info
       //second process
       mmu_chain_write_addr = 6;
       mmu_chain_write_value = 7;
@@ -461,7 +486,6 @@ end else if (stage == MMU_INIT4) begin
 
       //`SHOW_MMU_DEBUG
       stage = MMU_IDLE;
-      
     end
   end
 endmodule
@@ -645,7 +669,7 @@ module x_simple (
   );
 
   bit search_mmu_address = 0;
-  bit set_mmu_start_process_physical_segment;  
+  bit set_mmu_start_process_physical_segment;
   bit reset_mmu_start_process_physical_segment;
   bit mmu_delete_process;
   bit mmu_split_process;
@@ -664,7 +688,7 @@ module x_simple (
       .mmu_address_a(mmu_address_a),
       .mmu_address_b(mmu_address_b),
       .mmu_address_c(mmu_address_c),
-      .mmu_action_ready(mmu_action_ready)     
+      .mmu_action_ready(mmu_action_ready)
   );
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
@@ -1034,7 +1058,7 @@ module x_simple (
             OPCODE_PROC: begin
               if (OP_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = proc");
               mmu_address_a = read_value;
-              mmu_address_b = read_value+instruction1_2;
+              mmu_address_b = read_value + instruction1_2;
               mmu_split_process = 1;
               stage = STAGE_SPLIT_PROCESS;
             end
@@ -1079,8 +1103,9 @@ module x_simple (
           end
         end
         STAGE_CHECK_MMU_ADDRESS: begin
-          search_mmu_address = 0;
+         
           if (stage_after_mmu == STAGE_GET_1_BYTE && how_many==2 && process_address != next_process_address) begin
+           search_mmu_address = 0;
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " task switcher");
             write_address = process_address + ADDRESS_PC;
             write_value   = pc[process_num];
@@ -1088,14 +1113,15 @@ module x_simple (
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display($time, " save pc ", (process_address + ADDRESS_PC), "=", pc[process_num]);
             stage = STAGE_SAVE_PC;
-          end else if (mmu_action_ready) begin
+          end else if (mmu_action_ready) begin 
+          search_mmu_address = 0;
             if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
               write_enabled = 1;
               write_address = mmu_address_c;
             end else begin
               read_address = mmu_address_c;
             end
-            stage = stage_after_mmu;            
+            stage = stage_after_mmu;
           end
         end
         STAGE_ALU: begin
@@ -1237,7 +1263,7 @@ module x_simple (
           if (mmu_action_ready) begin
             //$display($time, " new  process chain starts in ", mmu_address_c);
             //for now         
-            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE); 
+            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
           end
         end
       endcase
