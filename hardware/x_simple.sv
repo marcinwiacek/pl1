@@ -161,7 +161,7 @@ endmodule
 module mmu_lutram (
     input rst,
     input clk,
-    input clk2,
+    //input clk2,
     input [15:0] read_addr,
     output bit [8:0] read_value,
     input [15:0] read_addr2,
@@ -174,7 +174,7 @@ module mmu_lutram (
     input [8:0] write_value2
 );
 
-  bit [8:0] ram[0:MMU_MAX_INDEX];
+           (* ram_style = "registers" *) bit [8:0] ram[0:MMU_MAX_INDEX];
 
   assign read_value  = ram[read_addr];
   assign read_value2 = ram[read_addr2];
@@ -185,20 +185,21 @@ integer i;
     if (rst) begin
       ram = '{default: 0};
       //$display($time, " rst memory mmu");
-    end else if (write_enable) begin
-      ram[write_addr] = write_value;
-       $display($time, " mmu write ", write_addr,"=",write_value);
-      `SHOW_MMU2
-    end
+    end else begin
+      if (write_enable) ram[write_addr] <= write_value;
+      if (write_enable2) ram[write_addr2] <= write_value2;
+    end 
+       //   $display($time, " mmu write ", write_addr,"=",write_value);
+    //  `SHOW_MMU2
+    
   end
 
-  always @(negedge clk2) begin
-    if (write_enable2) begin
-       ram[write_addr2] = write_value2;
-       $display($time, " mmu writ2 ", write_addr2,"=",write_value2);
-      `SHOW_MMU2
-    end
-  end
+  //always @(negedge clk2) begin
+    //if (write_enable2) ram[write_addr2] <= write_value2;
+     //  $display($time, " mmu writ2 ", write_addr2,"=",write_value2);
+    //  `SHOW_MMU2
+    
+  //end
 endmodule
 
 module mmu (
@@ -247,7 +248,7 @@ module mmu (
 
   mmu_lutram mmu_chain_memory (
       .clk(clk),
-      .clk2(clk),
+     
       .rst(reset),
       .read_addr(mmu_chain_read_addr),
       .read_value(mmu_chain_read_value),
@@ -1294,7 +1295,7 @@ module single_blockram (
 */
 
   // verilog_format:off
-   (* ram_style = "mixed" *)  bit [15:0] ram  [0:559]= {  // in Vivado (required by board)
+   (* ram_style = "block" *)  bit [15:0] ram  [0:559]= {  // in Vivado (required by board)
   //  reg [0:559] [15:0] ram = {  // in iVerilog
   
       //first process - 4 pages (280 elements)
