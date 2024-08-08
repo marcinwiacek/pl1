@@ -220,10 +220,9 @@ module mmu (
 
       stage = MMU_INIT;
     end else if (stage == MMU_IDLE) begin
-      if (search_mmu_address) begin                
         mmu_action_ready = 0;
-        rst_can_be_done = 0;
-
+        rst_can_be_done = 1;
+      if (search_mmu_address) begin
         mmu_address_to_search_segment = mmu_address_a / MMU_PAGE_SIZE;
         if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
           $display(
@@ -231,16 +230,19 @@ module mmu (
           );
         mmu_search_position = mmu_start_process_physical_segment;
         stage = MMU_SEARCH;
-      end else if (set_mmu_start_process_physical_segment) begin
-        if (reset_mmu_start_process_physical_segment) begin
+      end else if (set_mmu_start_process_physical_segment && reset_mmu_start_process_physical_segment) begin
           /* prepare mmu before task switching - start point should point to segment 0 */
           temp = mmu_chain_memory[mmu_start_process_physical_segment_zero];
-          temp2 = mmu_chain_memory[mmu_start_process_physical_segment];
-          mmu_chain_memory[mmu_start_process_physical_segment_zero] = temp2;
+          mmu_chain_memory[mmu_start_process_physical_segment_zero] = mmu_chain_memory[mmu_start_process_physical_segment];
           mmu_chain_memory[mmu_start_process_physical_segment] = temp;
           `SHOW_MMU_DEBUG
-        end
 
+        mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
+        mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
+
+        mmu_action_ready = 1;
+        `SHOW_MMU_DEBUG
+      end else if (set_mmu_start_process_physical_segment) begin
         mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
         mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
 
@@ -282,9 +284,8 @@ module mmu (
         mmu_search_position = mmu_chain_memory[mmu_search_position];
       end
     end else if (stage == MMU_DELETE) begin
-      if (mmu_first_possible_free_physical_segment > mmu_search_position) begin
-        mmu_first_possible_free_physical_segment = mmu_search_position;
-      end
+      mmu_first_possible_free_physical_segment = mmu_first_possible_free_physical_segment > mmu_search_position ? 
+           mmu_search_position: mmu_first_possible_free_physical_segment;
       mmu_logical_pages_memory[mmu_search_position] = 0;
       stage = MMU_DELETE2;
     end else if (stage == MMU_DELETE2) begin 
@@ -332,8 +333,6 @@ module mmu (
         stage = MMU_SPLIT;
       end
     end else if (stage == MMU_INIT) begin
-      rst_can_be_done = 0;
-    
       mmu_start_process_physical_segment = 0;
       mmu_start_process_physical_segment_zero = 0;
 
