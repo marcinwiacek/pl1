@@ -159,7 +159,7 @@ endmodule
 endmodule
 
 module mmu_lutram (
-    input rst,
+    //input rst,
     input clk,
     //input clk2,
     input [15:0] read_addr,
@@ -168,27 +168,63 @@ module mmu_lutram (
     output bit [8:0] read_value2,
     input write_enable,
     input [15:0] write_addr,
-    input [8:0] write_value,
-    input write_enable2,
-    input [15:0] write_addr2,
-    input [8:0] write_value2
+    input [8:0] write_value
+   // input write_enable2,
+   // input [15:0] write_addr2,
+   // input [8:0] write_value2
 );
 
-           (* ram_style = "registers" *) bit [8:0] ram[0:MMU_MAX_INDEX];
+       (* ram_style = "distributed" *)   bit [8:0] ram[0:MMU_MAX_INDEX];
 
   assign read_value  = ram[read_addr];
   assign read_value2 = ram[read_addr2];
 
 integer i;
 
-  always @(negedge clk) begin
-    if (rst) begin
-      ram = '{default: 0};
+initial begin
+
+ ram = '{default: 0};
+      
+      ram[0] = 0;  //DEBUG info
+      ram[1] = 1;  //DEBUG info
+      ram[2] = 2;  //DEBUG info
+      ram[3] = 3;  //DEBUG info
+      //second process
+      ram[4] = 5;  //DEBUG info
+      ram[5] = 6;  //DEBUG info
+      ram[6] = 7;  //DEBUG info
+      ram[7] = 7;  //DEBUG info
+      //mmu_chain_memory[4] = 5;  //DEBUG info
+      //mmu_chain_memory[5] = 6;  //DEBUG info
+      //mmu_chain_memory[6] = 7;  //DEBUG info
+      //mmu_chain_memory[7] = 7;  //DEBUG info
+      
       //$display($time, " rst memory mmu");
-    end else begin
+end
+
+  always @(negedge clk) begin
+/*    if (rst) begin
+      ram = '{default: 0};
+      
+      ram[0] = 0;  //DEBUG info
+      ram[1] = 1;  //DEBUG info
+      ram[2] = 2;  //DEBUG info
+      ram[3] = 3;  //DEBUG info
+      //second process
+      ram[4] = 5;  //DEBUG info
+      ram[5] = 6;  //DEBUG info
+      ram[6] = 7;  //DEBUG info
+      ram[7] = 7;  //DEBUG info
+      //mmu_chain_memory[4] = 5;  //DEBUG info
+      //mmu_chain_memory[5] = 6;  //DEBUG info
+      //mmu_chain_memory[6] = 7;  //DEBUG info
+      //mmu_chain_memory[7] = 7;  //DEBUG info
+      
+      //$display($time, " rst memory mmu");
+    end else begin*/
       if (write_enable) ram[write_addr] <= write_value;
-      if (write_enable2) ram[write_addr2] <= write_value2;
-    end 
+    //  if (write_enable2) ram[write_addr2] <= write_value2;
+    //end 
        //   $display($time, " mmu write ", write_addr,"=",write_value);
     //  `SHOW_MMU2
     
@@ -242,24 +278,24 @@ module mmu (
   bit mmu_chain_write_enable;
   bit [15:0] mmu_chain_write_addr;
   bit [8:0] mmu_chain_write_value;
-  bit mmu_chain_write_enable2;
-  bit [15:0] mmu_chain_write_addr2;
-  bit [8:0] mmu_chain_write_value2;
+ // bit mmu_chain_write_enable2;
+ // bit [15:0] mmu_chain_write_addr2;
+ // bit [8:0] mmu_chain_write_value2;
 
   mmu_lutram mmu_chain_memory (
       .clk(clk),
      
-      .rst(reset),
+      //.rst(reset),
       .read_addr(mmu_chain_read_addr),
       .read_value(mmu_chain_read_value),
       .read_addr2(mmu_chain_read_addr2),
       .read_value2(mmu_chain_read_value2),
       .write_enable(mmu_chain_write_enable),
       .write_addr(mmu_chain_write_addr),
-      .write_value(mmu_chain_write_value),
-      .write_enable2(mmu_chain_write_enable2),
-      .write_addr2(mmu_chain_write_addr2),
-      .write_value2(mmu_chain_write_value2)
+      .write_value(mmu_chain_write_value)
+     // .write_enable2(mmu_chain_write_enable2),
+     // .write_addr2(mmu_chain_write_addr2),
+     // .write_value2(mmu_chain_write_value2)
   );
 
   parameter MMU_IDLE = 0;
@@ -272,6 +308,7 @@ module mmu (
   parameter MMU_INIT2 = 7;
   parameter MMU_INIT3 = 8;
   parameter MMU_INIT4 = 9;
+   parameter MMU_SEARCH2 = 10;
 
   always @(posedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
@@ -285,7 +322,7 @@ module mmu (
     end else if (stage == MMU_IDLE) begin
    // $display($time, " idle");
       mmu_chain_write_enable = 0;
-      mmu_chain_write_enable2 = 0;
+    //  mmu_chain_write_enable2 = 0;
 
       mmu_action_ready = 0;
       rst_can_be_done = 1;
@@ -307,9 +344,9 @@ module mmu (
         mmu_chain_write_value = mmu_chain_read_value2;
         mmu_chain_write_enable = 1;
 
-        mmu_chain_write_addr2 = mmu_start_process_physical_segment;
-        mmu_chain_write_value2 = mmu_chain_read_value;
-        mmu_chain_write_enable2 = 1;
+      //  mmu_chain_write_addr2 = mmu_start_process_physical_segment;
+//        mmu_chain_write_value2 = mmu_chain_read_value;
+//        mmu_chain_write_enable2 = 1;
 
         //          `SHOW_MMU_DEBUG
 
@@ -350,9 +387,9 @@ module mmu (
           mmu_chain_write_value = mmu_chain_read_value == mmu_search_position? mmu_prev_search_position:mmu_chain_read_value;
           mmu_chain_write_enable = 1;
 
-          mmu_chain_write_addr2 = mmu_search_position;
-          mmu_chain_write_value2 = mmu_start_process_physical_segment;
-          mmu_chain_write_enable2 = 1;
+  //        mmu_chain_write_addr2 = mmu_search_position;
+//          mmu_chain_write_value2 = mmu_start_process_physical_segment;
+//          mmu_chain_write_enable2 = 1;
 
  $display($time, " mmu start point ", mmu_search_position);
           mmu_start_process_physical_segment = mmu_search_position;
@@ -425,14 +462,14 @@ module mmu (
       mmu_start_process_physical_segment_zero = 0;
 
       mmu_chain_write_enable = 1;
-      mmu_chain_write_enable2 = 1;
+  //    mmu_chain_write_enable2 = 1;
 
       //some more complicated config used for testing //DEBUG info
       //first process
-      mmu_chain_write_addr = 0;
-      mmu_chain_write_value = 1;
-      mmu_chain_write_addr2 = 1;
-      mmu_chain_write_value2 = 2;
+      //mmu_chain_write_addr = 0;
+      //mmu_chain_write_value = 1;
+      //mmu_chain_write_addr2 = 1;
+      //mmu_chain_write_value2 = 2;
      
       //mmu_chain_memory[0] = 1;  //DEBUG info
       //mmu_chain_memory[1] = 2;  //DEBUG info
@@ -453,7 +490,9 @@ module mmu (
       mmu_logical_pages_memory[7] = 3;  //DEBUG info
       mmu_first_possible_free_physical_segment = 8;
 
-      stage = MMU_INIT2;
+      stage = MMU_IDLE;
+/*
+//      stage = MMU_INIT2;
     end else if (stage == MMU_INIT2) begin
     //$display($time, " init2");
       //some more complicated config used for testing //DEBUG info
@@ -487,6 +526,7 @@ module mmu (
 
       //`SHOW_MMU_DEBUG
       stage = MMU_IDLE;
+      */
     end
   end
 endmodule
