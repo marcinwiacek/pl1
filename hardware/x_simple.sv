@@ -159,7 +159,7 @@ endmodule
 endmodule
 
 //chain memory
-module mmu_lutram (
+module mmulutram (
     input clk,
     input [15:0] read_addr,
     output bit [8:0] read_value,
@@ -203,7 +203,7 @@ module mmu_lutram (
 endmodule
 
 //logical pages
-module mmu_lutram2 (
+module mmulutram2 (
     input clk,
     input [15:0] read_addr,
     output bit [8:0] read_value,
@@ -288,7 +288,7 @@ module mmu (
   bit [15:0] mmu_chain_write_addr;
   bit [8:0] mmu_chain_write_value;
 
-  mmu_lutram mmu_chain_memory (
+  mmulutram mmu_chain_memory (
       .clk(clk),
       .read_addr(mmu_chain_read_addr),
       .read_value(mmu_chain_read_value),
@@ -307,7 +307,7 @@ module mmu (
   bit [15:0] mmu_logical_write_addr;
   bit [8:0] mmu_logical_write_value;
 
-  mmu_lutram2 mmu_logical_pages_memory (
+  mmulutram2 mmu_logical_pages_memory (
       .clk(clk),
       .read_addr(mmu_logical_read_addr),
       .read_value(mmu_logical_read_value),
@@ -341,7 +341,10 @@ module mmu (
     //  mmu_logical_pages_memory = '{default: 0};
       //mmu_chain_memory = '{default: 0};
       mmu_chain_write_enable = 0;
-      mmu_logical_write_enable = 0;
+      mmu_logical_write_enable = 1;
+      mmu_logical_write_addr = 0;
+      mmu_logical_write_value = 0;
+      mmu_logical_read_addr2 = 0;
       stage = MMU_INIT;
     end else if (stage == MMU_IDLE) begin
       // $display($time, " idle");
