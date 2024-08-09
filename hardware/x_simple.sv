@@ -342,15 +342,7 @@ module mmu (
         /* prepare mmu before task switching - start point should point to segment 0 */
         mmu_chain_read_addr = mmu_start_process_physical_segment_zero;
         mmu_chain_read_addr2 = mmu_start_process_physical_segment;
-
-        //  mmu_chain_write_addr = mmu_start_process_physical_segment_zero;
-        //        mmu_chain_write_value = mmu_chain_read_value2;
-        //        mmu_chain_write_enable = 1;
-
-        //          `SHOW_MMU_DEBUG
-
         stage = MMU_SET_PROCESS_DATA;
-        //      `SHOW_MMU_DEBUG
       end else if (set_mmu_start_process_physical_segment) begin
         mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
         mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
@@ -372,13 +364,11 @@ module mmu (
     end else if (stage == MMU_SEARCH) begin
       $display(mmu_search_position);
       if (mmu_logical_pages_memory[mmu_search_position] == mmu_address_to_search_segment) begin
-        //`HARD_DEBUG("%");
         // if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
         $display($time, " physical segment in position ", mmu_search_position);
+        mmu_address_c = mmu_address_a % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
         //move found address to the beginning to speed up search in the future       
         if (mmu_start_process_physical_segment != mmu_search_position) begin
-
-
           $display($time, " mmu read ", mmu_chain_read_addr, "=", mmu_chain_read_value);
           mmu_chain_write_addr = mmu_prev_search_position;
           mmu_chain_write_value = mmu_chain_read_value == mmu_search_position? mmu_prev_search_position:mmu_chain_read_value;
@@ -386,20 +376,16 @@ module mmu (
 
           $display($time, " mmu start point ", mmu_search_position);
           mmu_start_process_physical_segment = mmu_search_position;
-
           stage = MMU_SEARCH2;
-          //  `SHOW_MMU_DEBUG
         end else begin
           stage = MMU_IDLE;
           mmu_action_ready = 1;
         end
-        mmu_address_c = mmu_address_a % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
         //end else if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
         //element pointing to itself
         //needs to allocate new segment
       end else begin
         mmu_prev_search_position = mmu_search_position;
-
         mmu_search_position = mmu_chain_read_value;
         mmu_chain_read_addr = mmu_search_position;
       end
@@ -407,17 +393,14 @@ module mmu (
       mmu_chain_write_addr = mmu_search_position;
       mmu_chain_write_value = mmu_start_process_physical_segment;
       mmu_chain_write_enable = 1;
-
       stage = MMU_IDLE;
       mmu_action_ready = 1;
-
     end else if (stage == MMU_SET_PROCESS_DATA) begin
       mmu_chain_write_addr = mmu_start_process_physical_segment_zero;
       mmu_chain_write_value = mmu_chain_read_value2;
       mmu_chain_write_enable = 1;
       stage = MMU_SET_PROCESS_DATA2;
     end else if (stage == MMU_SET_PROCESS_DATA2) begin
-
       mmu_chain_write_addr = mmu_start_process_physical_segment;
       mmu_chain_write_value = mmu_chain_read_value;
       mmu_chain_write_enable = 1;
@@ -427,7 +410,6 @@ module mmu (
 
       mmu_action_ready = 1;
       stage = MMU_IDLE;
-
       /*end else if (stage == MMU_DELETE) begin
       mmu_first_possible_free_physical_segment = mmu_first_possible_free_physical_segment > mmu_search_position ? 
            mmu_search_position: mmu_first_possible_free_physical_segment;
