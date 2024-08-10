@@ -214,25 +214,22 @@ module mmulutram2 (
     input [8:0] write_value
 );
 
-  (* ram_style = "distributed" *) bit [8:0] ram[0:MMU_MAX_INDEX];
-
-  assign read_value  = ram[read_addr];
-  assign read_value2 = ram[read_addr2];
+  bit [8:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
 
   initial begin
     ram = '{default: 0};
 
-     ram[0] = 0;  //DEBUG info
-      ram[1] = 1;  //DEBUG info
-      ram[2] = 2;  //DEBUG info
-      ram[3] = 3;  //DEBUG info
+    ram[0] = 0;  //DEBUG info
+    ram[1] = 1;  //DEBUG info
+    ram[2] = 2;  //DEBUG info
+    ram[3] = 3;  //DEBUG info
 
-      ram[4] = 0;  //DEBUG info
-      ram[5] = 1;  //DEBUG info
-      ram[6] = 2;  //DEBUG info
-      ram[7] = 3;  //DEBUG info
+    ram[4] = 0;  //DEBUG info
+    ram[5] = 1;  //DEBUG info
+    ram[6] = 2;  //DEBUG info
+    ram[7] = 3;  //DEBUG info
     //`SHOW_MMU2
     //$display($time, " rst memory mmu");
   end
@@ -243,6 +240,8 @@ module mmulutram2 (
       //   $display($time, " mmu write ", write_addr,"=",write_value);
       // `SHOW_MMU2
     end
+    read_value  = ram[read_addr];
+    read_value2 = ram[read_addr2];
   end
 endmodule
 
@@ -266,7 +265,7 @@ module mmu (
   // 0,0 can be assigned to process starting from physical segment 0 -> we handle it with mmu_first_possible_free_physical_segment 
   //bit [8:0] mmu_chain_memory[0:MMU_MAX_INDEX];  //next physical segment index for process
   //bit [8:0] mmu_logical_pages_memory[0:MMU_MAX_INDEX];  //logical process page assigned to physical segment
-  
+
   bit [8:0] mmu_first_possible_free_physical_segment;  //updated on create / delete (when == 0, we assume it must be free; in other cases it's just start index for loop)
   bit [8:0] mmu_start_process_physical_segment;  //updated on process switch and MMU sorting
   bit [8:0] mmu_start_process_physical_segment_zero;  //updated on process switch
@@ -298,8 +297,8 @@ module mmu (
       .write_addr(mmu_chain_write_addr),
       .write_value(mmu_chain_write_value)
   );
-  
-    bit [15:0] mmu_logical_read_addr;
+
+  bit [15:0] mmu_logical_read_addr;
   wire [8:0] mmu_logical_read_value;
   bit [15:0] mmu_logical_read_addr2;
   wire [8:0] mmu_logical_read_value2;
@@ -338,7 +337,7 @@ module mmu (
       rst_can_be_done = 0;
       if (OTHER_DEBUG && !HARDWARE_DEBUG) $display($time, " reset");
 
-    //  mmu_logical_pages_memory = '{default: 0};
+      //  mmu_logical_pages_memory = '{default: 0};
       //mmu_chain_memory = '{default: 0};
       mmu_chain_write_enable = 0;
       mmu_logical_write_enable = 1;
@@ -360,7 +359,7 @@ module mmu (
           );
         mmu_search_position = mmu_start_process_physical_segment;
         mmu_chain_read_addr = mmu_search_position;
-  mmu_logical_read_addr = mmu_search_position;
+        mmu_logical_read_addr = mmu_search_position;
 
         stage = MMU_SEARCH;
       end else if (set_mmu_start_process_physical_segment && reset_mmu_start_process_physical_segment) begin
