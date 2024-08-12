@@ -12,7 +12,7 @@ parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 0;
+parameter STAGE_DEBUG = 1;
 parameter OP_DEBUG = 1;
 parameter ALU_DEBUG = 0;
 
@@ -441,17 +441,17 @@ module mmu (
       $display($time, " ", mmu_search_position, " ", mmu_logical_read_value, " ", mmu_address_a,
                " ", mmu_address_b);
       if (mmu_logical_read_value >= mmu_address_a && mmu_logical_read_value <= mmu_address_b) begin
-        //update new process chain
+        //update old process chain
         mmu_chain_write_addr = mmu_prev_search_position;
         mmu_chain_write_value = mmu_chain_read_value;
         mmu_chain_write_enable = 1;
-        //update old process chain
+        //update new process chain
         mmu_logical_write_addr = mmu_search_position;
         mmu_logical_write_value = mmu_logical_read_value - mmu_address_a;
-        mmu_logical_write_enable = 1;
+        mmu_logical_write_enable = 1; 
+        mmu_new_search_position = mmu_search_position;
         if (mmu_logical_read_value == mmu_address_a) begin
-          mmu_address_c = mmu_search_position;
-          mmu_new_search_position = mmu_search_position;
+          mmu_address_c = mmu_search_position;        
         end else begin
           stage = MMU_SPLIT2;
         end
@@ -461,7 +461,7 @@ module mmu (
         mmu_prev_search_position = mmu_search_position;
       end
       if (mmu_chain_read_value == mmu_search_position) begin
-        //End. Close both chains     
+        //close both chains     
         stage = MMU_SPLIT3;
       end else begin
         mmu_search_position   = mmu_chain_read_value;
@@ -470,10 +470,19 @@ module mmu (
       end
     end else if (stage == MMU_SPLIT2) begin
       mmu_logical_write_enable = 0;
+      //update new process chain
       mmu_chain_write_addr = mmu_new_search_position;
       mmu_chain_write_value = mmu_search_position;
       mmu_new_search_position = mmu_search_position;
-      stage = MMU_SPLIT;
+       if (mmu_chain_read_value == mmu_search_position) begin
+        //close both chains     
+        stage = MMU_SPLIT3;
+      end else begin
+        mmu_search_position   = mmu_chain_read_value;
+        mmu_chain_read_addr   = mmu_chain_read_value;
+        mmu_logical_read_addr = mmu_chain_read_value;
+        stage = MMU_SPLIT;
+      end
     end else if (stage == MMU_SPLIT3) begin
       mmu_chain_write_addr = mmu_new_search_position;
       mmu_chain_write_value = mmu_new_search_position;
@@ -580,14 +589,15 @@ module x_simple (
   parameter STAGE_SET_RAM_BYTE = 9;
   parameter STAGE_HLT = 10;
   parameter STAGE_ALU = 11;
-  parameter STAGE_DELETE_PROCESS = 18;
-  parameter STAGE_SPLIT_PROCESS = 19;
+  parameter STAGE_DELETE_PROCESS = 12;
+  parameter STAGE_SPLIT_PROCESS = 14;
   /*task switching*/
-  parameter STAGE_SAVE_PC = 12;
-  parameter STAGE_SAVE_REG = 14;
-  parameter STAGE_READ_NEXT_PROCESS = 15;
-  parameter STAGE_READ_REG = 16;
-  parameter STAGE_READ_PC = 17;
+  parameter STAGE_SAVE_PC = 15;
+  parameter STAGE_SAVE_REG = 16;
+  parameter STAGE_READ_NEXT_PROCESS = 17;
+  parameter STAGE_READ_REG = 18;
+  parameter STAGE_READ_PC = 19;
+  parameter STAGE_SAVE_NEXT_PROCESS = 20;
 
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
@@ -1270,9 +1280,18 @@ module x_simple (
           mmu_split_process = 0;
           if (mmu_action_ready) begin
             $display($time, " new  process chain starts in ", mmu_address_c, " x");
-            //for now         
-            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+            write_address = process_address + ADDRESS_NEXT_PROCESS;
+            write_value = mmu_address_c*MMU_PAGE_SIZE;
+            write_enabled = 1;
+            stage = STAGE_SAVE_NEXT_PROCESS;
           end
+        end
+        STAGE_SAVE_NEXT_PROCESS: begin
+          $display($time, " save next ");
+            write_address = mmu_address_c*MMU_PAGE_SIZE + ADDRESS_NEXT_PROCESS;
+            write_value = next_process_address;
+            write_enabled = 1;
+            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);            
         end
       endcase
     end else if (error_code[process_num] != ERROR_NONE) begin
@@ -1351,7 +1370,7 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       
-      //second process - 4 pages (280 elements)
+      //second process - 2 pages (140 elements) + 2 pages (140 elements) new process nr 3
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
       16'h002E, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
 
@@ -1389,15 +1408,47 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      
+      //third process - 2 pages (140 elements)
+      16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
+      16'h002E, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
+
+      16'h0000, 16'h0000,  //registers used (currently ignored)
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+
+      16'h0000, 16'h0000, 16'h0000, 16'h0000, //registers taken "as is"
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+
+      16'h1210, 16'h0a35, //value to reg
+      //16'h1800, 16'h0000, //process end
+      16'h0e10, 16'h0064, //save to ram
+      //16'h1902, 16'h0002, //split process segments 2-4
+      16'h0911, 16'h0064, //ram to reg
+      16'h0e10, 16'h00D4, //save to ram      
+      16'h0c01, 16'h0001,  //proc
+      16'h0c01, 16'h0002,  //proc
+      16'h1202, 16'h0003,  //num2reg
+      16'hff02, 16'h0002,  //loop,8'hwith,8'hcache:,8'hloopeqvalue
+      16'h1402, 16'h0001,  //regminusnum
+      16'h1402, 16'h0000,  //regminusnum
+      16'h0201, 16'h0001,  //after,8'hloop:,8'hram2reg
+      16'h1201, 16'h0005,  //num2reg
+      16'h0E01, 16'h0046,  //reg2ram
+      16'h0F00, 16'h0002,  //int,8'h2
+      16'h010E, 16'h0030,  //jmp,8'h0x30
+
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000      
     };
 
   // verilog_format:on
