@@ -599,7 +599,11 @@ module x_simple (
   parameter STAGE_READ_REG = 18;
   parameter STAGE_READ_PC = 19;
   parameter STAGE_SAVE_NEXT_PROCESS = 20;
-
+  parameter STAGE_SPLIT_PROCESS2 = 21;
+  parameter STAGE_SPLIT_PROCESS3 = 22;
+  parameter STAGE_SPLIT_PROCESS4 = 23;
+  parameter STAGE_SPLIT_PROCESS5 = 24;
+      
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
   parameter ALU_DIV = 3;
@@ -1280,19 +1284,34 @@ module x_simple (
         STAGE_SPLIT_PROCESS: begin
           mmu_split_process = 0;
           if (mmu_action_ready) begin
-            //  $display($time, " new  process chain starts in ", mmu_address_c, " x");
-            write_address = process_address + ADDRESS_NEXT_PROCESS;
-            write_value = mmu_address_c * MMU_PAGE_SIZE;
-            write_enabled = 1;
-            stage = STAGE_SAVE_NEXT_PROCESS;
-          end
+            //  $display($time, " new  process chain starts in ", mmu_address_c, " x");            
+            mul_a = mmu_address_c;
+            mul_b = MMU_PAGE_SIZE;
+            stage = STAGE_SPLIT_PROCESS2;
+          end                
         end
-        STAGE_SAVE_NEXT_PROCESS: begin
+        STAGE_SPLIT_PROCESS2: begin
+            stage = STAGE_SPLIT_PROCESS3;
+        end
+        STAGE_SPLIT_PROCESS3: begin
+            stage = STAGE_SPLIT_PROCESS4;
+        end
+        STAGE_SPLIT_PROCESS4: begin
+              write_address = process_address + ADDRESS_NEXT_PROCESS;
+            write_value = mul_c;
+            write_enabled = 1; 
+            stage = STAGE_SPLIT_PROCESS5;
+        end        
+        STAGE_SPLIT_PROCESS5: begin                
           //  $display($time, " save next ");
-          write_address = mmu_address_c * MMU_PAGE_SIZE + ADDRESS_NEXT_PROCESS;
+          write_address = mul_c + ADDRESS_NEXT_PROCESS;
           write_value = next_process_address;
           write_enabled = 1;
-          next_process_address = mmu_address_c * MMU_PAGE_SIZE;
+          next_process_address = mul_c;
+            stage = STAGE_SAVE_NEXT_PROCESS;
+          end
+        STAGE_SAVE_NEXT_PROCESS: begin
+         
           `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
         end
       endcase
