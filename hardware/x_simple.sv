@@ -198,8 +198,8 @@ module mmulutram (
       // $display($time, " chain write ", write_addr, "=", write_value);
       `SHOW_MMU2("chain")
     end
- read_value  <= ram[read_addr];
- read_value2 <= ram[read_addr2];    
+    read_value  <= ram[read_addr];
+    read_value2 <= ram[read_addr2];
   end
 endmodule
 
@@ -603,7 +603,8 @@ module x_simple (
   parameter STAGE_SPLIT_PROCESS3 = 22;
   parameter STAGE_SPLIT_PROCESS4 = 23;
   parameter STAGE_SPLIT_PROCESS5 = 24;
-      
+  parameter STAGE_SAVE_NEXT_PROCESS2 = 25;
+
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
   parameter ALU_DIV = 3;
@@ -1288,30 +1289,32 @@ module x_simple (
             mul_a = mmu_address_c;
             mul_b = MMU_PAGE_SIZE;
             stage = STAGE_SPLIT_PROCESS2;
-          end                
+          end
         end
         STAGE_SPLIT_PROCESS2: begin
-            stage = STAGE_SPLIT_PROCESS3;
+          stage = STAGE_SPLIT_PROCESS3;
         end
         STAGE_SPLIT_PROCESS3: begin
-            stage = STAGE_SPLIT_PROCESS4;
+          stage = STAGE_SPLIT_PROCESS4;
         end
         STAGE_SPLIT_PROCESS4: begin
-              write_address = process_address + ADDRESS_NEXT_PROCESS;
-            write_value = mul_c;
-            write_enabled = 1; 
-            stage = STAGE_SPLIT_PROCESS5;
-        end        
-        STAGE_SPLIT_PROCESS5: begin                
+          stage = STAGE_SPLIT_PROCESS5;
+        end
+        STAGE_SPLIT_PROCESS5: begin
+          write_address = process_address + ADDRESS_NEXT_PROCESS;
+          write_value = mul_c;
+          write_enabled = 1;
+          stage = STAGE_SAVE_NEXT_PROCESS;
+        end
+        STAGE_SAVE_NEXT_PROCESS: begin
           //  $display($time, " save next ");
           write_address = mul_c + ADDRESS_NEXT_PROCESS;
           write_value = next_process_address;
-          write_enabled = 1;
+          stage = STAGE_SAVE_NEXT_PROCESS2;
+        end
+        STAGE_SAVE_NEXT_PROCESS2: begin
+          write_enabled = 0;
           next_process_address = mul_c;
-            stage = STAGE_SAVE_NEXT_PROCESS;
-          end
-        STAGE_SAVE_NEXT_PROCESS: begin
-         
           `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
         end
       endcase
