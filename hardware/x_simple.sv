@@ -569,13 +569,13 @@ module x_simple (
   parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
   parameter OPCODE_EXIT = 'h18;  //exit process
   parameter OPCODE_PROC = 'h19;  //new process //how many segments, start segment number (16 bit)
-
+  parameter OPCODE_REG_INT = 'h1a;  //x, int number (8 bit)
+  parameter OPCODE_INT = 'h1b;  //x, int number (8 bit)
+  parameter OPCODE_INT_RET = 'h1c;  //x, int number
+  
   parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions (8 bit value) // do..while
   parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions (8 bit value) //do..while
   parameter OPCODE_LOOP = 25;  //x, x, how many instructions (8 bit value) //for...
-  parameter OPCODE_REG_INT = 28;  //x, int number (8 bit)
-  parameter OPCODE_INT = 29;  //x, int number (8 bit)
-  parameter OPCODE_INT_RET = 30;  //x, int number
   parameter OPCODE_FREE = 31;  //free ram pages x-y 
   parameter OPCODE_FREE_LEVEL =32; //free ram pages allocated after page x (or pages with concrete level)
 
@@ -708,6 +708,9 @@ module x_simple (
       .mmu_address_c(mmu_address_c),
       .mmu_action_ready(mmu_action_ready)
   );
+
+  bit [15:0] int_pc[0:255];
+  bit [15:0] int_process_address[0:255];
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
    mmu_address_a = ARG; \
@@ -1086,6 +1089,38 @@ module x_simple (
               mmu_address_b = read_value + instruction1_2;
               mmu_split_process = 1;
               stage = STAGE_SPLIT_PROCESS;
+            end
+            //x, int number (8 bit)
+            OPCODE_REG_INT: begin
+              if (OP_DEBUG && !HARDWARE_DEBUG)
+                $display(
+                    $time,
+                    " opcode = reg_int ",instruction2_2);
+              int_pc[instruction2_2] = pc[process_num];
+              int_process_address[instruction2_2] = process_address;
+                          
+              process_address = prev_process_address;
+              //in parallel update MMU
+              reset_mmu_start_process_physical_segment = 0;
+              set_mmu_start_process_physical_segment = 1;
+              mmu_address_a = next_process_address;
+              //read next pc
+              read_address = process_address + ADDRESS_PC;
+              stage = STAGE_READ_PC;              
+            end
+            //x, int number (8 bit)
+            OPCODE_INT: begin
+               if (OP_DEBUG && !HARDWARE_DEBUG)
+                $display(
+                    $time,
+                    " opcode = int ",instruction2_2);
+            end
+            //x, int number
+            OPCODE_INT_RET: begin
+               if (OP_DEBUG && !HARDWARE_DEBUG)
+                $display(
+                    $time,
+                    " opcode = int_ret");
             end
             // default: begin
             //    error_code = ERROR_WRONG_OPCODE;
