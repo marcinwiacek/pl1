@@ -172,7 +172,7 @@ module mmulutram (
     input [8:0] write_value
 );
 
-  bit [8:0] ram[0:MMU_MAX_INDEX];
+  (* ram_style = "distributed" *) bit [8:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
 
@@ -215,7 +215,7 @@ module mmulutram2 (
     input [8:0] write_value
 );
 
-  bit [8:0] ram[0:MMU_MAX_INDEX];
+  (* ram_style = "distributed" *) bit [8:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
 
