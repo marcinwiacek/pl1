@@ -595,7 +595,7 @@ module x_simple (
   /*task switching*/
   parameter STAGE_SAVE_PC = 15;
   parameter STAGE_SAVE_REG = 16;
-  parameter STAGE_READ_NEXT_PROCESS = 17;
+  parameter STAGE_READ_NEXT_NEXT_PROCESS = 17;
   parameter STAGE_READ_REG = 18;
   parameter STAGE_READ_PC = 19;
   parameter STAGE_SAVE_NEXT_PROCESS = 20;
@@ -1097,8 +1097,8 @@ module x_simple (
                     $time,
                     " opcode = reg_int ",instruction2_2);
               int_pc[instruction2_2] = pc[process_num];
-              int_process_address[instruction2_2] = process_address;
-                          
+              int_process_address[instruction2_2] = process_address;                    
+              //switch to next process                    
               process_address = prev_process_address;
               //in parallel update MMU
               reset_mmu_start_process_physical_segment = 0;
@@ -1114,6 +1114,7 @@ module x_simple (
                 $display(
                     $time,
                     " opcode = int ",instruction2_2);
+               //replace current process with int process in the chain     
             end
             //x, int number
             OPCODE_INT_RET: begin
@@ -1166,12 +1167,11 @@ module x_simple (
           if (stage_after_mmu == STAGE_GET_1_BYTE && how_many==2 && process_address != next_process_address) begin
             search_mmu_address = 0;
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " task switcher");
-            write_address = process_address + ADDRESS_PC;
-            write_value   = pc[process_num];
+            //save current pc
             write_enabled = 1;
-            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
-              $display($time, " save pc ", (process_address + ADDRESS_PC), "=", pc[process_num]);
-            stage = STAGE_SAVE_PC;
+            write_address = process_address + ADDRESS_PC;
+            write_value = pc[process_num];
+            stage = STAGE_SAVE_REG;
           end else if (mmu_action_ready) begin
             search_mmu_address = 0;
             if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
@@ -1244,10 +1244,9 @@ module x_simple (
               endcase
             end
           end
-        end
+        end        
         STAGE_SAVE_PC: begin
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " TASK SWITCHER");
-          ram_read_save_reg_start = 0;
           write_address = process_address + ADDRESS_REG;
           write_value = registers[process_num][0];
           stage = STAGE_SAVE_REG;
@@ -1258,33 +1257,18 @@ module x_simple (
             reset_mmu_start_process_physical_segment = 1;
             set_mmu_start_process_physical_segment = 1;
             mmu_address_a = next_process_address;
-            //read next process address
+            //change process
+            prev_process_address = process_address;
+            process_address = next_process_address;
             write_enabled = 0;
-            read_address = next_process_address + ADDRESS_NEXT_PROCESS;
-            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
-              $display(
-                  $time, " next process RAM address= ", next_process_address + ADDRESS_NEXT_PROCESS
-              );
-            stage = STAGE_READ_NEXT_PROCESS;
-          end else begin
+            //read next process address
+            read_address = next_process_address + ADDRESS_PC;
+            stage = STAGE_READ_PC;
+          end else begin            
             ram_read_save_reg_start = ram_read_save_reg_start + 1;
             write_address = write_address + 1;
             write_value = registers[process_num][ram_read_save_reg_start];
           end
-        end
-        STAGE_READ_NEXT_PROCESS: begin
-          set_mmu_start_process_physical_segment = 0;
-          prev_process_address = process_address;
-          process_address = next_process_address;
-          next_process_address = read_value;
-          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
-            $display($time, " new next process address= ", read_value);
-          read_address = process_address + ADDRESS_PC;
-          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
-            $display(
-                $time, " new process address after read= ", process_address, " ", mmu_address_a
-            );
-          stage = STAGE_READ_PC;
         end
         STAGE_READ_PC: begin
           set_mmu_start_process_physical_segment = 0;
@@ -1297,13 +1281,22 @@ module x_simple (
         STAGE_READ_REG: begin
           if (ram_read_save_reg_start == 32) begin
             how_many = 0;
+            next_process_address = read_value;
             `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+//            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
+//              $display($time, " new next process address= ", read_value);
+//            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
+//              $display(
+//                  $time, " new process address after read= ", process_address, " ", mmu_address_a
+//              );
           end else begin
             registers[process_num][ram_read_save_reg_start] = read_value;
             ram_read_save_reg_start = ram_read_save_reg_start + 1;
             read_address = read_address + 1;
           end
         end
+//        STAGE_READ_NEXT_NEXT_PROCESS: begin
+//        end
         STAGE_DELETE_PROCESS: begin
           mmu_delete_process = 0;
           if (mmu_action_ready) begin
