@@ -3,12 +3,12 @@
 //options below are less important than options higher //DEBUG info
 parameter HARDWARE_DEBUG = 0;
 
-parameter RAM_WRITE_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
-parameter RAM_READ_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -172,8 +172,7 @@ module mmulutram (
     input [8:0] write_value
 );
 
-  //(* ram_style2 = "distributed2" *) 
-  bit [8:0] ram[0:MMU_MAX_INDEX];
+  (* ram_style = "distributed" *) bit [8:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
 
@@ -216,8 +215,7 @@ module mmulutram2 (
     input [8:0] write_value
 );
 
-  //(* ram_style2 = "distributed2" *) 
-  bit [8:0] ram[0:MMU_MAX_INDEX];
+  (* ram_style = "distributed" *) bit [8:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
 
@@ -630,7 +628,6 @@ module x_simple (
   bit [15:0] pc[0:9];
   bit [5:0] error_code[0:9];
   bit [15:0] registers[0:9][0:31];  //512 bits = 32 x 16-bit registers
-  bit [15:0] registers_updated[0:31]= '{default: 0};
 
   bit rst_can_be_done = 1, working = 1;
   bit [7:0] stage, stage_after_mmu;
@@ -1222,7 +1219,6 @@ module x_simple (
                   registers[process_num][alu_num] = div_c;
                 end
               endcase
-              registers_updated[alu_num]=1;
               alu_num = alu_num + 1;
             end
             if (alu_num > instruction1_2_1 + instruction1_2_2) begin
@@ -1250,27 +1246,18 @@ module x_simple (
           end
         end        
         STAGE_READ_SAVE_PC: begin                                       
-          //registers
-          ram_read_save_reg_start = 0; //counter for save
-          while (ram_read_save_reg_start != 32 && registers_updated[ram_read_save_reg_start]==0) begin
-            ram_read_save_reg_start = ram_read_save_reg_start + 1;
-          end
-          ram_read_save_reg_end = 0; //counter for read
           //old process
-          if (ram_read_save_reg_start != 32) begin
-            write_address = process_address + ADDRESS_REG+ram_read_save_reg_start;
-            write_value = registers[process_num][ram_read_save_reg_start];
-          end else begin
-            write_enabled = 0;
-          end
+          write_address = process_address + ADDRESS_REG;
+          write_value = registers[process_num][0];
           //new process
           pc[process_num] = read_value;
-          read_address = next_process_address + ADDRESS_REG;          
+          read_address = next_process_address + ADDRESS_REG;
+          //registers
+          ram_read_save_reg_start = 0; //counter
           stage = STAGE_READ_SAVE_REG;
         end
         STAGE_READ_SAVE_REG: begin
-          if (ram_read_save_reg_start == 32 && ram_read_save_reg_end == 32) begin
-            write_enabled = 0;
+          if (ram_read_save_reg_start == 32) begin
             //in parallel update MMU
             reset_mmu_start_process_physical_segment = 1;
             set_mmu_start_process_physical_segment = 1;
@@ -1278,31 +1265,20 @@ module x_simple (
             //change process
             prev_process_address = process_address;
             process_address = next_process_address;
+            write_enabled = 0;
             //read next process address
             read_address = next_process_address + ADDRESS_NEXT_PROCESS;
             stage = STAGE_READ_NEXT_NEXT_PROCESS;
           end else begin
             //new process  
-            registers[process_num][ram_read_save_reg_end] = read_value;
-            read_address = read_address+1;    
-            ram_read_save_reg_end = ram_read_save_reg_end + 1;
-            //old process
-            if (  ram_read_save_reg_start != 32) begin
-              ram_read_save_reg_start = ram_read_save_reg_start+1;
-              while (ram_read_save_reg_start != 32 && registers_updated[ram_read_save_reg_start]==0) begin
-                ram_read_save_reg_start = ram_read_save_reg_start + 1;
-              end
-            end        
-            if (ram_read_save_reg_start != 32) begin
-              write_address = process_address + ADDRESS_REG+ram_read_save_reg_start;
-              write_value = registers[process_num][ram_read_save_reg_start];
-            end else begin
-              write_enabled = 0;
-            end
+            registers[process_num][ram_read_save_reg_start] = read_value;
+            //old process          
+            ram_read_save_reg_start = ram_read_save_reg_start + 1;
+            write_address = write_address + 1;
+            write_value = registers[process_num][ram_read_save_reg_start];
           end
         end
         STAGE_READ_NEXT_NEXT_PROCESS: begin
-            registers_updated = '{default: 0};
             reset_mmu_start_process_physical_segment = 0;            
             how_many = 0;
             next_process_address = read_value;
