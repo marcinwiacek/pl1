@@ -1164,7 +1164,7 @@ module x_simple (
         STAGE_CHECK_MMU_ADDRESS: begin
           if (stage_after_mmu == STAGE_GET_1_BYTE && how_many==2 && process_address != next_process_address) begin
             search_mmu_address = 0;
-            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " TASK SWITCHER");
+            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " TASK SWITCHER from ",process_address," to ",next_process_address);
             //old process
             write_enabled = 1;
             write_address = process_address + ADDRESS_PC;
@@ -1267,7 +1267,7 @@ module x_simple (
             process_address = next_process_address;
             write_enabled = 0;
             //read next process address
-            read_address = next_process_address + ADDRESS_PC;
+            read_address = next_process_address + ADDRESS_NEXT_PROCESS;
             stage = STAGE_READ_NEXT_NEXT_PROCESS;
           end else begin
             //new process  
