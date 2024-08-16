@@ -593,11 +593,9 @@ module x_simple (
   parameter STAGE_DELETE_PROCESS = 12;
   parameter STAGE_SPLIT_PROCESS = 14;
   /*task switching*/
-  parameter STAGE_SAVE_PC = 15;
-  parameter STAGE_SAVE_REG = 16;
+  parameter STAGE_READ_SAVE_PC = 15;
+  parameter STAGE_READ_SAVE_REG = 16;
   parameter STAGE_READ_NEXT_NEXT_PROCESS = 17;
-  parameter STAGE_READ_REG = 18;
-  parameter STAGE_READ_PC = 19;
   parameter STAGE_SAVE_NEXT_PROCESS = 20;
   parameter STAGE_SPLIT_PROCESS2 = 21;
   parameter STAGE_SPLIT_PROCESS3 = 22;
@@ -1106,7 +1104,7 @@ module x_simple (
               mmu_address_a = next_process_address;
               //read next pc
               read_address = process_address + ADDRESS_PC;
-              stage = STAGE_READ_PC;              
+              //stage = STAGE_READ_PC;              
             end
             //x, int number (8 bit)
             OPCODE_INT: begin
@@ -1166,12 +1164,14 @@ module x_simple (
         STAGE_CHECK_MMU_ADDRESS: begin
           if (stage_after_mmu == STAGE_GET_1_BYTE && how_many==2 && process_address != next_process_address) begin
             search_mmu_address = 0;
-            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " task switcher");
-            //save current pc
+            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " TASK SWITCHER");
+            //old process
             write_enabled = 1;
             write_address = process_address + ADDRESS_PC;
             write_value = pc[process_num];
-            stage = STAGE_SAVE_REG;
+            //new process
+            read_address = next_process_address + ADDRESS_PC;
+            stage = STAGE_READ_SAVE_PC;
           end else if (mmu_action_ready) begin
             search_mmu_address = 0;
             if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
@@ -1245,13 +1245,18 @@ module x_simple (
             end
           end
         end        
-        STAGE_SAVE_PC: begin
-          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " TASK SWITCHER");
+        STAGE_READ_SAVE_PC: begin                                       
+          //old process
           write_address = process_address + ADDRESS_REG;
           write_value = registers[process_num][0];
-          stage = STAGE_SAVE_REG;
+          //new process
+          pc[process_num] = read_value;
+          read_address = next_process_address + ADDRESS_REG;
+          //registers
+          ram_read_save_reg_start = 0; //counter
+          stage = STAGE_READ_SAVE_REG;
         end
-        STAGE_SAVE_REG: begin
+        STAGE_READ_SAVE_REG: begin
           if (ram_read_save_reg_start == 32) begin
             //in parallel update MMU
             reset_mmu_start_process_physical_segment = 1;
@@ -1263,40 +1268,22 @@ module x_simple (
             write_enabled = 0;
             //read next process address
             read_address = next_process_address + ADDRESS_PC;
-            stage = STAGE_READ_PC;
-          end else begin            
+            stage = STAGE_READ_NEXT_NEXT_PROCESS;
+          end else begin
+            //new process  
+            registers[process_num][ram_read_save_reg_start] = read_value;
+            //old process          
             ram_read_save_reg_start = ram_read_save_reg_start + 1;
             write_address = write_address + 1;
             write_value = registers[process_num][ram_read_save_reg_start];
           end
         end
-        STAGE_READ_PC: begin
-          set_mmu_start_process_physical_segment = 0;
-          pc[process_num] = read_value;
-          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new  pc= ", read_value);
-          ram_read_save_reg_start = 0;
-          read_address = process_address + ADDRESS_REG;
-          stage = STAGE_READ_REG;
-        end
-        STAGE_READ_REG: begin
-          if (ram_read_save_reg_start == 32) begin
+        STAGE_READ_NEXT_NEXT_PROCESS: begin
+            reset_mmu_start_process_physical_segment = 0;            
             how_many = 0;
             next_process_address = read_value;
             `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
-//            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
-//              $display($time, " new next process address= ", read_value);
-//            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
-//              $display(
-//                  $time, " new process address after read= ", process_address, " ", mmu_address_a
-//              );
-          end else begin
-            registers[process_num][ram_read_save_reg_start] = read_value;
-            ram_read_save_reg_start = ram_read_save_reg_start + 1;
-            read_address = read_address + 1;
-          end
         end
-//        STAGE_READ_NEXT_NEXT_PROCESS: begin
-//        end
         STAGE_DELETE_PROCESS: begin
           mmu_delete_process = 0;
           if (mmu_action_ready) begin
@@ -1307,7 +1294,7 @@ module x_simple (
             mmu_address_a = next_process_address;
             //read next pc
             read_address = process_address + ADDRESS_PC;
-            stage = STAGE_READ_PC;
+            //stage = STAGE_READ_PC;
           end
         end
         STAGE_SPLIT_PROCESS: begin
@@ -1441,8 +1428,8 @@ module single_blockram (
 
       16'h1210, 16'h0a35, //value to reg
       //16'h1800, 16'h0000, //process end
-     // 16'h0e10, 16'h0064, //save to ram
-      16'h1902, 16'h0002, //split process segments 2-4
+      16'h0e10, 16'h0064, //save to ram
+      //16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'h0064, //ram to reg
       16'h0e10, 16'h00D4, //save to ram      
       16'h0c01, 16'h0001,  //proc
