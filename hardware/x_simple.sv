@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 //options below are less important than options higher //DEBUG info
-parameter HARDWARE_DEBUG = 1;
+parameter HARDWARE_DEBUG = 0;
 
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -12,7 +12,7 @@ parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 0;
+parameter STAGE_DEBUG =0;
 parameter OP_DEBUG = 1;
 parameter ALU_DEBUG = 0;
 
@@ -361,11 +361,18 @@ module mmu (
         mmu_logical_read_addr = mmu_start_process_physical_segment;
         stage = MMU_SEARCH;
       end else if (set_mmu_start_process_physical_segment && reset_mmu_start_process_physical_segment) begin
+    //  $display(
+     //         $time, " switching mmu with reset"
+      //    );
+          
         /* first prepare mmu before task switching - start point should point to segment 0 */
         mmu_chain_read_addr = mmu_start_process_physical_segment_zero;
         mmu_chain_read_addr2 = mmu_start_process_physical_segment;
         stage = MMU_SET_PROCESS_DATA;
       end else if (set_mmu_start_process_physical_segment) begin
+   //   $display(
+    //          $time, " switching mmu without reset"
+    //      );
         mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
         mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
         mmu_action_ready = 1;
@@ -423,6 +430,7 @@ module mmu (
       mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
       mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
       mmu_action_ready = 1;
+      $display($time, " mmu end ");
       stage = MMU_IDLE;
     end else if (stage == MMU_DELETE) begin
       mmu_first_possible_free_physical_segment = mmu_first_possible_free_physical_segment > mmu_search_position ? 
@@ -1073,6 +1081,9 @@ module x_simple (
             OPCODE_EXIT: begin
               if (OP_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = exit");
               mmu_delete_process = 1;
+            write_address = prev_process_address + ADDRESS_NEXT_PROCESS;
+          write_value = next_process_address;
+          write_enabled = 1;            
               stage = STAGE_DELETE_PROCESS;
             end
             //new process //how many segments, start segment number (16 bit
@@ -1128,10 +1139,11 @@ module x_simple (
             // end
           endcase
           if (stage != STAGE_SET_PC) begin
+            // $display("update pc");
             pc[process_num] = pc[process_num] + 1;
           end
-          if (stage == STAGE_GET_2_BYTE) begin
-            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+          if (stage == STAGE_GET_2_BYTE) begin           
+            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);            
           end
         end
         STAGE_GET_RAM_BYTE: begin
@@ -1164,17 +1176,7 @@ module x_simple (
           end
         end
         STAGE_CHECK_MMU_ADDRESS: begin
-          if (stage_after_mmu == STAGE_GET_1_BYTE && how_many==2 && process_address != next_process_address) begin
-            search_mmu_address = 0;
-            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " TASK SWITCHER from ",process_address," to ",next_process_address);
-            //old process
-            write_enabled = 1;
-            write_address = process_address + ADDRESS_PC;
-            write_value = pc[process_num];
-            //new process
-            read_address = next_process_address + ADDRESS_PC;
-            stage = STAGE_READ_SAVE_PC;
-          end else if (mmu_action_ready) begin
+          if (mmu_action_ready) begin
             search_mmu_address = 0;
             if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
               write_enabled = 1;
@@ -1248,22 +1250,20 @@ module x_simple (
           end
         end        
         STAGE_READ_SAVE_PC: begin                                       
+          set_mmu_start_process_physical_segment = 0;    
           //old process
           write_address = process_address + ADDRESS_REG;
           write_value = registers[process_num][0];
           //new process
           pc[process_num] = read_value;
+          $display($time, " new pc ", read_value);
           read_address = next_process_address + ADDRESS_REG;
           //registers
           ram_read_save_reg_start = 0; //counter
           stage = STAGE_READ_SAVE_REG;
         end
         STAGE_READ_SAVE_REG: begin
-          if (ram_read_save_reg_start == 32) begin
-            //in parallel update MMU
-            reset_mmu_start_process_physical_segment = 1;
-            set_mmu_start_process_physical_segment = 1;
-            mmu_address_a = next_process_address;
+          if (ram_read_save_reg_start == 32) begin           
             //change process
             prev_process_address = process_address;
             process_address = next_process_address;
@@ -1276,27 +1276,31 @@ module x_simple (
             registers[process_num][ram_read_save_reg_start] = read_value;
             //old process          
             ram_read_save_reg_start = ram_read_save_reg_start + 1;
+            read_address = read_address+1;
             write_address = write_address + 1;
             write_value = registers[process_num][ram_read_save_reg_start];
           end
         end
         STAGE_READ_NEXT_NEXT_PROCESS: begin
-            reset_mmu_start_process_physical_segment = 0;            
-            how_many = 0;
+        //  if (mmu_action_ready) begin
+          
             next_process_address = read_value;
             `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+         // end
         end
         STAGE_DELETE_PROCESS: begin
           mmu_delete_process = 0;
           if (mmu_action_ready) begin
             process_address = prev_process_address;
+            write_enabled = 0;            
             //in parallel update MMU
             reset_mmu_start_process_physical_segment = 0;
             set_mmu_start_process_physical_segment = 1;
             mmu_address_a = next_process_address;
-            //read next pc
-            read_address = process_address + ADDRESS_PC;
-            //stage = STAGE_READ_PC;
+            //initiate task switcher with disabled memory write
+            //new process
+            read_address = next_process_address + ADDRESS_PC;
+            stage = STAGE_READ_SAVE_PC;
           end
         end
         STAGE_SPLIT_PROCESS: begin
@@ -1335,6 +1339,23 @@ module x_simple (
           `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
         end
       endcase
+                 if (stage == STAGE_CHECK_MMU_ADDRESS && how_many==2 && process_address != next_process_address) begin
+                how_many=0;
+                 search_mmu_address = 0;         
+            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " TASK SWITCHER from ",process_address," to ",next_process_address);
+            //old process
+            write_enabled = 1;
+            write_address = process_address + ADDRESS_PC;
+            write_value = pc[process_num];
+            //new process
+            read_address = next_process_address + ADDRESS_PC;
+            $display($time, "update mmu");
+             //in parallel update MMU
+            set_mmu_start_process_physical_segment = 1;
+            reset_mmu_start_process_physical_segment = 1; //parameter            
+            mmu_address_a = next_process_address;
+            stage = STAGE_READ_SAVE_PC;
+ end
     end else if (error_code[process_num] != ERROR_NONE) begin
       `HARD_DEBUG("B");
       `HARD_DEBUG("S");
@@ -1426,13 +1447,13 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
-      16'h0000, 16'h0000, 16'h0000, 16'h0000,
+      16'h0000, 16'h0000, 16'h0000, 16'h0000, 
 
-      16'h1210, 16'h0a35, //value to reg
-      //16'h1800, 16'h0000, //process end
-      16'h0e10, 16'h0064, //save to ram
+      16'h1210, 16'h0a34, //value to reg
+      16'h1800, 16'h0000, //process end
+      //16'h0e10, 16'h0064, //save to ram
       //16'h1902, 16'h0002, //split process segments 2-4
-      16'h0911, 16'h0064, //ram to reg
+      16'h0911, 16'h0065, //ram to reg
       16'h0e10, 16'h00D4, //save to ram      
       16'h0c01, 16'h0001,  //proc
       16'h0c01, 16'h0002,  //proc
@@ -1469,8 +1490,8 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
 
       16'h1210, 16'h0a35, //value to reg
-      //16'h1800, 16'h0000, //process end
-      16'h0e10, 16'h0064, //save to ram
+      16'h1800, 16'h0000, //process end
+      //16'h0e10, 16'h0064, //save to ram
       //16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'h0064, //ram to reg
       16'h0e10, 16'h00D4, //save to ram      
