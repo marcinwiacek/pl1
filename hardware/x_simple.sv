@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 //options below are less important than options higher //DEBUG info
-parameter HARDWARE_DEBUG = 0;
+parameter HARDWARE_DEBUG = 1;
 
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -172,7 +172,8 @@ module mmulutram (
     input [8:0] write_value
 );
 
-  (* ram_style = "distributed" *) bit [8:0] ram[0:MMU_MAX_INDEX];
+  //(* ram_style = "distributed" *) 
+  bit [8:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
 
@@ -215,7 +216,8 @@ module mmulutram2 (
     input [8:0] write_value
 );
 
-  (* ram_style = "distributed" *) bit [8:0] ram[0:MMU_MAX_INDEX];
+  //(* ram_style = "distributed" *) 
+  bit [8:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
 
