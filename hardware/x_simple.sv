@@ -353,19 +353,16 @@ module mmu (
       rst_can_be_done = 1;
       if (search_mmu_address) begin
         mmu_address_to_search_segment = mmu_address_a / MMU_PAGE_SIZE;
-      //  if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
-          $display(
-              $time, " mmu, address ", mmu_address_a, " segment ", mmu_address_to_search_segment
-          );
+        //  if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+        $display($time, " mmu, address ", mmu_address_a, " segment ",
+                 mmu_address_to_search_segment);
         mmu_search_position = mmu_start_process_physical_segment;
         mmu_chain_read_addr = mmu_start_process_physical_segment;
         mmu_logical_read_addr = mmu_start_process_physical_segment;
         mmu_action_ready = 0;
         stage = MMU_SEARCH;
       end else if (set_mmu_start_process_physical_segment && reset_mmu_start_process_physical_segment) begin
-          $display(
-                 $time, " switching mmu with reset"
-            );
+        $display($time, " switching mmu with reset");
 
         /* first prepare mmu before task switching - start point should point to segment 0 */
         mmu_chain_read_addr = mmu_start_process_physical_segment_zero;
@@ -373,9 +370,7 @@ module mmu (
         mmu_action_ready = 0;
         stage = MMU_SET_PROCESS_DATA;
       end else if (set_mmu_start_process_physical_segment) begin
-           $display(
-                  $time, " switching mmu without reset"
-              );
+        $display($time, " switching mmu without reset");
         mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
         mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
         mmu_action_ready = 1;
@@ -396,7 +391,7 @@ module mmu (
     end else if (stage == MMU_SEARCH) begin
       if (mmu_logical_read_value == mmu_address_to_search_segment) begin
         //if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
-          $display($time, " physical segment in position ", mmu_search_position);
+        $display($time, " physical segment in position ", mmu_search_position);
         mmu_address_c = mmu_address_a % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
         //move found address to the beginning to speed up search in the future       
         if (mmu_start_process_physical_segment != mmu_search_position) begin
@@ -447,7 +442,7 @@ module mmu (
       mmu_chain_write_enable = 1;
       if (mmu_chain_read_value == mmu_search_position) begin
         mmu_action_ready = 1;
-         $display($time, " mmu delete end ");
+        $display($time, " mmu delete end ");
         stage = MMU_IDLE;
       end else begin
         mmu_search_position = mmu_chain_read_value;
@@ -539,7 +534,7 @@ module x_simple (
   wire [15:0] read_value;
   bit [15:0] read_address2;
   wire [15:0] read_value2;
-  
+
   single_blockram single_blockram (
       .clk(clk),
       .write_enabled(write_enabled),
@@ -653,12 +648,12 @@ module x_simple (
   bit [5:0] ram_read_save_reg_start, ram_read_save_reg_end;
   bit [7:0] alu_op, alu_num;
   //bit [15:0] instruction1;
-  bit [ 7:0] instruction1_1;
-  bit [ 7:0] instruction1_2;
-  bit [ 4:0] instruction1_2_1;
-  bit [ 2:0] instruction1_2_2;
-  bit [ 7:0] instruction2_1;
-  bit [ 7:0] instruction2_2;
+  bit [7:0] instruction1_1;
+  bit [7:0] instruction1_2;
+  bit [4:0] instruction1_2_1;
+  bit [2:0] instruction1_2_2;
+  bit [7:0] instruction2_1;
+  bit [7:0] instruction2_2;
 
   assign instruction1_1   = read_value[15:8];
   assign instruction1_2   = read_value[7:0];
@@ -753,7 +748,7 @@ module x_simple (
 
       pc[process_num] = ADDRESS_PROGRAM;
       read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation
-          read_address2 = ADDRESS_PROGRAM+1;
+      read_address2 = ADDRESS_PROGRAM + 1;
 
       process_address = 0;
       next_process_address = 4 * MMU_PAGE_SIZE;
@@ -776,368 +771,378 @@ module x_simple (
           end else begin
             rst_can_be_done = 1;
             if (READ_DEBUG && !HARDWARE_DEBUG)
-              $display($time, " read ready ", read_address, "=", read_value, " ",read_address2, "=", read_value2);
-            `HARD_DEBUG("a");           
-          instructions = instructions + 1;
-          how_many = how_many + 1;
-          if (OP_DEBUG && !HARDWARE_DEBUG)
-            $display(
-                $time,
-                process_address,
-                " pc ",
-                (pc[process_num]),
-                " b1 %c",
-                instruction1_1 / 16 > 10 ? instruction1_1 / 16 + 65 - 10 : instruction1_1 / 16 + 48,
-                "%c",
-                instruction1_1 % 16 > 10 ? instruction1_1 % 16 + 65 - 10 : instruction1_1 % 16 + 48,
-                "%c",
-                instruction1_2 / 16 > 10 ? instruction1_2 / 16 + 65 - 10 : instruction1_2 / 16 + 48,
-                "%c",
-                instruction1_2 % 16 > 10 ? instruction1_2 % 16 + 65 - 10 : instruction1_2 % 16 + 48,
-                "h (",
-                instruction1_2_1,
-                "-",
-                instruction1_2_2,
-                ") b2 ",
-                read_value2
-            );
-          `HARD_DEBUG2(instruction1_1);
-          `HARD_DEBUG2(instruction1_2);
-          //(*parallel_case *) (*full_case *) 
-          case (instruction1_1)
-            //24 bit target address
-            OPCODE_JMP: begin
-              if ((read_value2 + (256 * 256) * instruction1_2) % 2 == 1) begin
-                error_code[process_num] = ERROR_WRONG_ADDRESS;
-              end else begin
-                if (OP_DEBUG && !HARDWARE_DEBUG)
-                  $display(
-                      $time, " opcode = jmp to ", (read_value2 + (256 * 256) * instruction1_2)
-                  );  //DEBUG info
-                pc[process_num] = (read_value2 + (256 * 256) * instruction1_2);
-                stage = STAGE_SET_PC;
+              $display(
+                  $time,
+                  " read ready ",
+                  read_address,
+                  "=",
+                  read_value,
+                  " ",
+                  read_address2,
+                  "=",
+                  read_value2
+              );
+            `HARD_DEBUG("a");
+            instructions = instructions + 1;
+            how_many = how_many + 1;
+            if (OP_DEBUG && !HARDWARE_DEBUG)
+              $display(
+                  $time,
+                  process_address,
+                  " pc ",
+                  (pc[process_num]),
+                  " b1 %c",
+                  instruction1_1 / 16 > 10 ? instruction1_1 / 16 + 65 - 10 : instruction1_1 / 16 + 48,
+                  "%c",
+                  instruction1_1 % 16 > 10 ? instruction1_1 % 16 + 65 - 10 : instruction1_1 % 16 + 48,
+                  "%c",
+                  instruction1_2 / 16 > 10 ? instruction1_2 / 16 + 65 - 10 : instruction1_2 / 16 + 48,
+                  "%c",
+                  instruction1_2 % 16 > 10 ? instruction1_2 % 16 + 65 - 10 : instruction1_2 % 16 + 48,
+                  "h (",
+                  instruction1_2_1,
+                  "-",
+                  instruction1_2_2,
+                  ") b2 ",
+                  read_value2
+              );
+            `HARD_DEBUG2(instruction1_1);
+            `HARD_DEBUG2(instruction1_2);
+            //(*parallel_case *) (*full_case *) 
+            case (instruction1_1)
+              //24 bit target address
+              OPCODE_JMP: begin
+                if ((read_value2 + (256 * 256) * instruction1_2) % 2 == 1) begin
+                  error_code[process_num] = ERROR_WRONG_ADDRESS;
+                end else begin
+                  if (OP_DEBUG && !HARDWARE_DEBUG)
+                    $display(
+                        $time, " opcode = jmp to ", (read_value2 + (256 * 256) * instruction1_2)
+                    );  //DEBUG info
+                  pc[process_num] = (read_value2 + (256 * 256) * instruction1_2);
+                  stage = STAGE_SET_PC;
+                end
               end
-            end
-            //x, register num with target addr (we read one reg)
-            OPCODE_JMP16: begin
-              if (read_value2 >= 32) begin
-                error_code[process_num] = ERROR_WRONG_REG_NUM;
-              end else if ((registers[process_num][read_value2] - 1) % 2 == 1) begin
-                error_code[process_num] = ERROR_WRONG_ADDRESS;
-              end else begin
-                if (OP_DEBUG && !HARDWARE_DEBUG)
-                  $display(
-                      $time, " opcode = jmp to ", (registers[process_num][read_value2] - 1)
-                  );  //DEBUG info
-                pc[process_num] = registers[process_num][read_value2];
-                stage = STAGE_SET_PC;
+              //x, register num with target addr (we read one reg)
+              OPCODE_JMP16: begin
+                if (read_value2 >= 32) begin
+                  error_code[process_num] = ERROR_WRONG_REG_NUM;
+                end else if ((registers[process_num][read_value2] - 1) % 2 == 1) begin
+                  error_code[process_num] = ERROR_WRONG_ADDRESS;
+                end else begin
+                  if (OP_DEBUG && !HARDWARE_DEBUG)
+                    $display(
+                        $time, " opcode = jmp to ", (registers[process_num][read_value2] - 1)
+                    );  //DEBUG info
+                  pc[process_num] = registers[process_num][read_value2];
+                  stage = STAGE_SET_PC;
+                end
               end
-            end
-            //x, register num with target addr (we read one reg)
-            OPCODE_JMP_PLUS: begin
-              if (OP_DEBUG && !HARDWARE_DEBUG)
-                $display(
-                    $time,
-                    " opcode = jmp plus to ",
-                    pc[process_num] + read_value2 * 2 - 1,
-                    " (",
-                    read_value2,
-                    " instructions)"
-                );  //DEBUG info      
-              pc[process_num] += read_value2 * 2 - 1;
-              stage = STAGE_SET_PC;
-            end
-            //x, register num with info (we read one reg)
-            OPCODE_JMP_PLUS16: begin
-              if (read_value2 >= 32) begin
-                error_code[process_num] = ERROR_WRONG_REG_NUM;
-              end else begin
+              //x, register num with target addr (we read one reg)
+              OPCODE_JMP_PLUS: begin
                 if (OP_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time,
-                      " opcode = jmp plus16 to ",
-                      pc[process_num] + registers[process_num][read_value2] * 2 - 1,
-                      " (",
-                      registers[read_value2],
-                      " instructions)"
-                  );  //DEBUG info
-                pc[process_num] += registers[process_num][read_value2] * 2 - 1;
-                stage = STAGE_SET_PC;
-              end
-            end
-            //x, 16 bit how many instructions
-            OPCODE_JMP_MINUS: begin
-              if (pc[process_num] - read_value2 * 2 < ADDRESS_PROGRAM) begin
-                error_code[process_num] = ERROR_WRONG_ADDRESS;
-              end else begin
-                if (OP_DEBUG && !HARDWARE_DEBUG)
-                  $display(
-                      $time,
-                      " opcode = jmp minus to ",
-                      pc[process_num] - read_value2 * 2 - 1,
+                      " opcode = jmp plus to ",
+                      pc[process_num] + read_value2 * 2 - 1,
                       " (",
                       read_value2,
-                      " instructions)"
-                  );  //DEBUG info
-                pc[process_num] -= read_value2 * 2 - 1;
-                stage = STAGE_SET_PC;
-              end
-            end
-            //x, register num with info (we read one reg)
-            OPCODE_JMP_MINUS16: begin
-              if (read_value2 >= 32) begin
-                error_code[process_num] = ERROR_WRONG_REG_NUM;
-              end else if (pc[process_num] - registers[process_num][read_value2] * 2 < ADDRESS_PROGRAM) begin
-                error_code[process_num] = ERROR_WRONG_ADDRESS;
-              end else begin
-                if (OP_DEBUG && !HARDWARE_DEBUG)
-                  $display(
-                      $time,
-                      " opcode = jmp minus16 to ",
-                      pc[process_num] - registers[process_num][read_value2] * 2 - 1,
-                      " (",
-                      registers[read_value2],
                       " instructions)"
                   );  //DEBUG info      
-                pc[process_num] -= registers[process_num][read_value2] * 2 - 1;
+                pc[process_num] += read_value2 * 2 - 1;
                 stage = STAGE_SET_PC;
               end
-            end
-            //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
-            OPCODE_RAM2REG: begin
-              if (instruction1_2_1 + instruction1_2_2 >= 32) begin
-                error_code[process_num] = ERROR_WRONG_REG_NUM;
-              end else if (read_value2 < ADDRESS_PROGRAM) begin
-                error_code[process_num] = ERROR_WRONG_ADDRESS;
-              end else begin
-                if (OP_DEBUG && !HARDWARE_DEBUG)
-                  $display(
-                      $time,
-                      " opcode = ram2reg read value from address ",
-                      read_value2,
-                      "+ to reg ",  //DEBUG info
-                      instruction1_2_1,
-                      "-",
-                      (instruction1_2_1 + instruction1_2_2)
-                  );  //DEBUG info
-                ram_read_save_reg_start = instruction1_2_1;
-                ram_read_save_reg_end   = instruction1_2_1 + instruction1_2_2;
-                `MAKE_MMU_SEARCH(read_value2, STAGE_GET_RAM_BYTE);
+              //x, register num with info (we read one reg)
+              OPCODE_JMP_PLUS16: begin
+                if (read_value2 >= 32) begin
+                  error_code[process_num] = ERROR_WRONG_REG_NUM;
+                end else begin
+                  if (OP_DEBUG && !HARDWARE_DEBUG)
+                    $display(
+                        $time,
+                        " opcode = jmp plus16 to ",
+                        pc[process_num] + registers[process_num][read_value2] * 2 - 1,
+                        " (",
+                        registers[read_value2],
+                        " instructions)"
+                    );  //DEBUG info
+                  pc[process_num] += registers[process_num][read_value2] * 2 - 1;
+                  stage = STAGE_SET_PC;
+                end
               end
-            end
-            //start register num, how many registers, register num with source addr (we read one reg), //ram -> reg
-            OPCODE_RAM2REG16: begin
-              if (instruction1_2 + instruction2_1 >= 32 || instruction2_2 >= 32) begin
-                error_code[process_num] = ERROR_WRONG_REG_NUM;
-              end else if (read_value2 < ADDRESS_PROGRAM) begin
-                error_code[process_num] = ERROR_WRONG_ADDRESS;
-              end else begin
-                if (OP_DEBUG && !HARDWARE_DEBUG)
-                  $display(
-                      $time,
-                      " opcode = ram2reg16 read from ram (address ",
-                      registers[instruction2_2],
-                      "+) to reg ",
-                      instruction1_2,
-                      "-",
-                      (instruction1_2 + instruction2_1)
-                  );  //DEBUG info             
-                ram_read_save_reg_start = instruction1_2;
-                ram_read_save_reg_end   = instruction1_2 + instruction2_1;
-                `MAKE_MMU_SEARCH(registers[process_num][instruction2_2], STAGE_GET_RAM_BYTE);
+              //x, 16 bit how many instructions
+              OPCODE_JMP_MINUS: begin
+                if (pc[process_num] - read_value2 * 2 < ADDRESS_PROGRAM) begin
+                  error_code[process_num] = ERROR_WRONG_ADDRESS;
+                end else begin
+                  if (OP_DEBUG && !HARDWARE_DEBUG)
+                    $display(
+                        $time,
+                        " opcode = jmp minus to ",
+                        pc[process_num] - read_value2 * 2 - 1,
+                        " (",
+                        read_value2,
+                        " instructions)"
+                    );  //DEBUG info
+                  pc[process_num] -= read_value2 * 2 - 1;
+                  stage = STAGE_SET_PC;
+                end
               end
-            end
-            //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
-            OPCODE_REG2RAM: begin
-              if (instruction1_2_1 + instruction1_2_2 >= 32) begin
-                error_code[process_num] = ERROR_WRONG_REG_NUM;
-              end else if (read_value2 < ADDRESS_PROGRAM) begin
-                error_code[process_num] = ERROR_WRONG_ADDRESS;
-              end else begin
-                if (OP_DEBUG && !HARDWARE_DEBUG)
-                  $display(
-                      $time,
-                      " opcode = reg2ram save reg ",
-                      instruction1_2_1,
-                      "-",
-                      (instruction1_2_1 + instruction1_2_2),
-                      " to ram address ",
-                      read_value2,
-                      "+"
-                  );  //DEBUG info                
-                ram_read_save_reg_start = instruction1_2_1;
-                ram_read_save_reg_end = instruction1_2_1 + instruction1_2_2;
-                write_value = registers[process_num][instruction1_2_1];
-                `MAKE_MMU_SEARCH(read_value2, STAGE_SET_RAM_BYTE);
+              //x, register num with info (we read one reg)
+              OPCODE_JMP_MINUS16: begin
+                if (read_value2 >= 32) begin
+                  error_code[process_num] = ERROR_WRONG_REG_NUM;
+                end else if (pc[process_num] - registers[process_num][read_value2] * 2 < ADDRESS_PROGRAM) begin
+                  error_code[process_num] = ERROR_WRONG_ADDRESS;
+                end else begin
+                  if (OP_DEBUG && !HARDWARE_DEBUG)
+                    $display(
+                        $time,
+                        " opcode = jmp minus16 to ",
+                        pc[process_num] - registers[process_num][read_value2] * 2 - 1,
+                        " (",
+                        registers[read_value2],
+                        " instructions)"
+                    );  //DEBUG info      
+                  pc[process_num] -= registers[process_num][read_value2] * 2 - 1;
+                  stage = STAGE_SET_PC;
+                end
               end
-            end
-            //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
-            OPCODE_REG2RAM16: begin
-              if (instruction1_2 + instruction2_1 >= 32 || instruction2_2 >= 32) begin
-                error_code[process_num] = ERROR_WRONG_REG_NUM;
-              end else if (read_value2 < ADDRESS_PROGRAM) begin
-                error_code[process_num] = ERROR_WRONG_ADDRESS;
-              end else begin
-                if (OP_DEBUG && !HARDWARE_DEBUG)
-                  $display(
-                      $time,
-                      " opcode = reg2ram16 save to ram (address ",
-                      registers[instruction2_2],
-                      "+) from reg ",
-                      instruction1_2,
-                      "-",
-                      (instruction1_2 + instruction2_1)
-                  );  //DEBUG info                             
-                ram_read_save_reg_start = instruction1_2;
-                ram_read_save_reg_end = instruction1_2 + instruction2_1;
-                write_value = registers[process_num][instruction1_2];
-                `MAKE_MMU_SEARCH(registers[process_num][instruction2_2], STAGE_SET_RAM_BYTE);
+              //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
+              OPCODE_RAM2REG: begin
+                if (instruction1_2_1 + instruction1_2_2 >= 32) begin
+                  error_code[process_num] = ERROR_WRONG_REG_NUM;
+                end else if (read_value2 < ADDRESS_PROGRAM) begin
+                  error_code[process_num] = ERROR_WRONG_ADDRESS;
+                end else begin
+                  if (OP_DEBUG && !HARDWARE_DEBUG)
+                    $display(
+                        $time,
+                        " opcode = ram2reg read value from address ",
+                        read_value2,
+                        "+ to reg ",  //DEBUG info
+                        instruction1_2_1,
+                        "-",
+                        (instruction1_2_1 + instruction1_2_2)
+                    );  //DEBUG info
+                  ram_read_save_reg_start = instruction1_2_1;
+                  ram_read_save_reg_end   = instruction1_2_1 + instruction1_2_2;
+                  `MAKE_MMU_SEARCH(read_value2, STAGE_GET_RAM_BYTE);
+                end
               end
-            end
-            //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
-            OPCODE_NUM2REG: begin
-              if (OP_DEBUG && !HARDWARE_DEBUG)
-                $display(
-                    $time,
-                    " opcode = num2reg save value ",
-                    read_value2,
-                    " to reg ",  //DEBUG info
-                    instruction1_2_1,
-                    "-",
-                    (instruction1_2_1 + instruction1_2_2)
-                );  //DEBUG info
-              alu_op  = ALU_SET;
-              alu_num = instruction1_2_1;
-              stage   = STAGE_ALU;
-            end
-            //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
-            OPCODE_REG_PLUS: begin
-              if (OP_DEBUG && !HARDWARE_DEBUG)
-                $display(
-                    $time,
-                    " opcode = regplus add value ",
-                    read_value2,
-                    " to reg ",  //DEBUG info
-                    instruction1_2_1,
-                    "-",
-                    (instruction1_2_1 + instruction1_2_2)
-                );  //DEBUG info
-              alu_op  = ALU_ADD;
-              alu_num = 255;
-              stage   = STAGE_ALU;
-            end
-            //register num (5 bits), how many-1 (3 bits), 16 bit value // reg -= value
-            OPCODE_REG_MINUS: begin
-              if (OP_DEBUG && !HARDWARE_DEBUG)
-                $display(
-                    $time,
-                    " opcode = regminus dec value ",
-                    read_value2,
-                    " to reg ",  //DEBUG info
-                    instruction1_2_1,
-                    "-",
-                    (instruction1_2_1 + instruction1_2_2)
-                );  //DEBUG info
-              alu_op  = ALU_DEC;
-              alu_num = 255;
-              stage   = STAGE_ALU;
-            end
-            //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
-            OPCODE_REG_MUL: begin
-              if (OP_DEBUG && !HARDWARE_DEBUG)
-                $display(
-                    $time,
-                    " opcode = regmul mul value ",
-                    read_value2,
-                    " to reg ",  //DEBUG info
-                    instruction1_2_1,
-                    "-",
-                    (instruction1_2_1 + instruction1_2_2)
-                );  //DEBUG info     
-              alu_op  = ALU_MUL;
-              alu_num = 255;
-              stage   = STAGE_ALU;
-            end
-            //register num (5 bits), how many-1 (3 bits), 16 bit value // reg /= value
-            OPCODE_REG_DIV: begin
-              if (read_value2 == 0) begin
-                error_code[process_num] = ERROR_DIVIDE_BY_ZERO;
-              end else begin
+              //start register num, how many registers, register num with source addr (we read one reg), //ram -> reg
+              OPCODE_RAM2REG16: begin
+                if (instruction1_2 + instruction2_1 >= 32 || instruction2_2 >= 32) begin
+                  error_code[process_num] = ERROR_WRONG_REG_NUM;
+                end else if (read_value2 < ADDRESS_PROGRAM) begin
+                  error_code[process_num] = ERROR_WRONG_ADDRESS;
+                end else begin
+                  if (OP_DEBUG && !HARDWARE_DEBUG)
+                    $display(
+                        $time,
+                        " opcode = ram2reg16 read from ram (address ",
+                        registers[instruction2_2],
+                        "+) to reg ",
+                        instruction1_2,
+                        "-",
+                        (instruction1_2 + instruction2_1)
+                    );  //DEBUG info             
+                  ram_read_save_reg_start = instruction1_2;
+                  ram_read_save_reg_end   = instruction1_2 + instruction2_1;
+                  `MAKE_MMU_SEARCH(registers[process_num][instruction2_2], STAGE_GET_RAM_BYTE);
+                end
+              end
+              //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
+              OPCODE_REG2RAM: begin
+                if (instruction1_2_1 + instruction1_2_2 >= 32) begin
+                  error_code[process_num] = ERROR_WRONG_REG_NUM;
+                end else if (read_value2 < ADDRESS_PROGRAM) begin
+                  error_code[process_num] = ERROR_WRONG_ADDRESS;
+                end else begin
+                  if (OP_DEBUG && !HARDWARE_DEBUG)
+                    $display(
+                        $time,
+                        " opcode = reg2ram save reg ",
+                        instruction1_2_1,
+                        "-",
+                        (instruction1_2_1 + instruction1_2_2),
+                        " to ram address ",
+                        read_value2,
+                        "+"
+                    );  //DEBUG info                
+                  ram_read_save_reg_start = instruction1_2_1;
+                  ram_read_save_reg_end = instruction1_2_1 + instruction1_2_2;
+                  write_value = registers[process_num][instruction1_2_1];
+                  `MAKE_MMU_SEARCH(read_value2, STAGE_SET_RAM_BYTE);
+                end
+              end
+              //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
+              OPCODE_REG2RAM16: begin
+                if (instruction1_2 + instruction2_1 >= 32 || instruction2_2 >= 32) begin
+                  error_code[process_num] = ERROR_WRONG_REG_NUM;
+                end else if (read_value2 < ADDRESS_PROGRAM) begin
+                  error_code[process_num] = ERROR_WRONG_ADDRESS;
+                end else begin
+                  if (OP_DEBUG && !HARDWARE_DEBUG)
+                    $display(
+                        $time,
+                        " opcode = reg2ram16 save to ram (address ",
+                        registers[instruction2_2],
+                        "+) from reg ",
+                        instruction1_2,
+                        "-",
+                        (instruction1_2 + instruction2_1)
+                    );  //DEBUG info                             
+                  ram_read_save_reg_start = instruction1_2;
+                  ram_read_save_reg_end = instruction1_2 + instruction2_1;
+                  write_value = registers[process_num][instruction1_2];
+                  `MAKE_MMU_SEARCH(registers[process_num][instruction2_2], STAGE_SET_RAM_BYTE);
+                end
+              end
+              //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
+              OPCODE_NUM2REG: begin
                 if (OP_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time,
-                      " opcode = regdiv div value ",
+                      " opcode = num2reg save value ",
                       read_value2,
                       " to reg ",  //DEBUG info
                       instruction1_2_1,
                       "-",
                       (instruction1_2_1 + instruction1_2_2)
                   );  //DEBUG info
-                alu_op = ALU_DIV;
-                stage  = STAGE_ALU;
+                alu_op  = ALU_SET;
+                alu_num = instruction1_2_1;
+                stage   = STAGE_ALU;
               end
+              //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
+              OPCODE_REG_PLUS: begin
+                if (OP_DEBUG && !HARDWARE_DEBUG)
+                  $display(
+                      $time,
+                      " opcode = regplus add value ",
+                      read_value2,
+                      " to reg ",  //DEBUG info
+                      instruction1_2_1,
+                      "-",
+                      (instruction1_2_1 + instruction1_2_2)
+                  );  //DEBUG info
+                alu_op  = ALU_ADD;
+                alu_num = 255;
+                stage   = STAGE_ALU;
+              end
+              //register num (5 bits), how many-1 (3 bits), 16 bit value // reg -= value
+              OPCODE_REG_MINUS: begin
+                if (OP_DEBUG && !HARDWARE_DEBUG)
+                  $display(
+                      $time,
+                      " opcode = regminus dec value ",
+                      read_value2,
+                      " to reg ",  //DEBUG info
+                      instruction1_2_1,
+                      "-",
+                      (instruction1_2_1 + instruction1_2_2)
+                  );  //DEBUG info
+                alu_op  = ALU_DEC;
+                alu_num = 255;
+                stage   = STAGE_ALU;
+              end
+              //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
+              OPCODE_REG_MUL: begin
+                if (OP_DEBUG && !HARDWARE_DEBUG)
+                  $display(
+                      $time,
+                      " opcode = regmul mul value ",
+                      read_value2,
+                      " to reg ",  //DEBUG info
+                      instruction1_2_1,
+                      "-",
+                      (instruction1_2_1 + instruction1_2_2)
+                  );  //DEBUG info     
+                alu_op  = ALU_MUL;
+                alu_num = 255;
+                stage   = STAGE_ALU;
+              end
+              //register num (5 bits), how many-1 (3 bits), 16 bit value // reg /= value
+              OPCODE_REG_DIV: begin
+                if (read_value2 == 0) begin
+                  error_code[process_num] = ERROR_DIVIDE_BY_ZERO;
+                end else begin
+                  if (OP_DEBUG && !HARDWARE_DEBUG)
+                    $display(
+                        $time,
+                        " opcode = regdiv div value ",
+                        read_value2,
+                        " to reg ",  //DEBUG info
+                        instruction1_2_1,
+                        "-",
+                        (instruction1_2_1 + instruction1_2_2)
+                    );  //DEBUG info
+                  alu_op = ALU_DIV;
+                  stage  = STAGE_ALU;
+                end
+              end
+              //exit process
+              OPCODE_EXIT: begin
+                if (OP_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = exit");
+                mmu_delete_process = 1;
+                write_address = prev_process_address + ADDRESS_NEXT_PROCESS;
+                write_value = next_process_address;
+                write_enabled = 1;
+                stage = STAGE_DELETE_PROCESS;
+              end
+              //new process //how many segments, start segment number (16 bit
+              OPCODE_PROC: begin
+                if (OP_DEBUG && !HARDWARE_DEBUG)
+                  $display(
+                      $time,
+                      " opcode = proc, segments ",
+                      read_value2,
+                      "-",
+                      (read_value + instruction1_2)
+                  );
+                mmu_address_a = read_value2;
+                mmu_address_b = read_value2 + instruction1_2;
+                mmu_split_process = 1;
+                stage = STAGE_SPLIT_PROCESS;
+              end
+              //x, int number (8 bit)
+              OPCODE_REG_INT: begin
+                if (OP_DEBUG && !HARDWARE_DEBUG)
+                  $display($time, " opcode = reg_int ", instruction2_2);
+                int_pc[instruction2_2] = pc[process_num];
+                int_process_address[instruction2_2] = process_address;
+                //switch to next process                    
+                process_address = prev_process_address;
+                //in parallel update MMU
+                reset_mmu_start_process_physical_segment = 0;
+                set_mmu_start_process_physical_segment = 1;
+                mmu_address_a = next_process_address;
+                //read next pc
+                read_address = process_address + ADDRESS_PC;
+                //stage = STAGE_READ_PC;              
+              end
+              //x, int number (8 bit)
+              OPCODE_INT: begin
+                if (OP_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int ", instruction2_2);
+                //replace current process with int process in the chain     
+              end
+              //x, int number
+              OPCODE_INT_RET: begin
+                if (OP_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int_ret");
+              end
+              // default: begin
+              //    error_code = ERROR_WRONG_OPCODE;
+              // end
+            endcase
+            if (stage != STAGE_SET_PC) begin
+              // $display("update pc");
+              pc[process_num] = pc[process_num] + 2;
             end
-            //exit process
-            OPCODE_EXIT: begin
-              if (OP_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = exit");
-              mmu_delete_process = 1;
-              write_address = prev_process_address + ADDRESS_NEXT_PROCESS;
-              write_value = next_process_address;
-              write_enabled = 1;
-              stage = STAGE_DELETE_PROCESS;
+            if (stage == STAGE_GET_1_BYTE) begin
+              `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
             end
-            //new process //how many segments, start segment number (16 bit
-            OPCODE_PROC: begin
-              if (OP_DEBUG && !HARDWARE_DEBUG)
-                $display(
-                    $time,
-                    " opcode = proc, segments ",
-                    read_value2,
-                    "-",
-                    (read_value + instruction1_2)
-                );
-              mmu_address_a = read_value2;
-              mmu_address_b = read_value2 + instruction1_2;
-              mmu_split_process = 1;
-              stage = STAGE_SPLIT_PROCESS;
-            end
-            //x, int number (8 bit)
-            OPCODE_REG_INT: begin
-              if (OP_DEBUG && !HARDWARE_DEBUG)
-                $display($time, " opcode = reg_int ", instruction2_2);
-              int_pc[instruction2_2] = pc[process_num];
-              int_process_address[instruction2_2] = process_address;
-              //switch to next process                    
-              process_address = prev_process_address;
-              //in parallel update MMU
-              reset_mmu_start_process_physical_segment = 0;
-              set_mmu_start_process_physical_segment = 1;
-              mmu_address_a = next_process_address;
-              //read next pc
-              read_address = process_address + ADDRESS_PC;
-              //stage = STAGE_READ_PC;              
-            end
-            //x, int number (8 bit)
-            OPCODE_INT: begin
-              if (OP_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int ", instruction2_2);
-              //replace current process with int process in the chain     
-            end
-            //x, int number
-            OPCODE_INT_RET: begin
-              if (OP_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int_ret");
-            end
-            // default: begin
-            //    error_code = ERROR_WRONG_OPCODE;
-            // end
-          endcase
-          if (stage != STAGE_SET_PC) begin
-            // $display("update pc");
-            pc[process_num] = pc[process_num] + 2;
           end
-          if (stage == STAGE_GET_1_BYTE) begin
-            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
-          end
-        end
         end
         STAGE_GET_RAM_BYTE: begin
           registers[process_num][ram_read_save_reg_start] = read_value2;
@@ -1195,8 +1200,8 @@ module x_simple (
                 write_enabled = 1;
                 write_address = mmu_address_c;
               end else begin
-                read_address = mmu_address_c;
-                read_address2 = mmu_address_c+1;
+                read_address  = mmu_address_c;
+                read_address2 = mmu_address_c + 1;
               end
               stage = stage_after_mmu;
             end
@@ -1522,7 +1527,7 @@ module single_blockram (
       $display($time, " ram read ", read_address, " = ", ram[read_address]);
 
     if (write_enabled) ram[write_address] <= write_value;
-    read_value <= ram[read_address];
+    read_value  <= ram[read_address];
     read_value2 <= ram[read_address2];
   end
 endmodule
