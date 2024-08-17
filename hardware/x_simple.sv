@@ -1573,7 +1573,10 @@ module single_blockram (
 
   // verilog_format:on
 
-  
+    assign read_value  = ram[read_address];
+  assign read_value2 = ram[read_address2];
+
+   
 
   always @(posedge clk) begin
     if (write_enabled && RAM_WRITE_DEBUG && !HARDWARE_DEBUG)
@@ -1583,10 +1586,7 @@ module single_blockram (
 
     if (write_enabled) ram[write_address] <= write_value;
     
-   read_value  <= ram[read_address];
-  read_value2 <= ram[read_address2];
 
-  
   end
 endmodule
 
