@@ -194,13 +194,14 @@ module mmulutram (
     //$display($time, " rst memory mmu");
   end
 
+assign  read_value  = ram[read_addr];
   always @(negedge clk) begin
    if (write_enable) begin
-      ram[write_addr] = write_value;
+      ram[write_addr] <= write_value;
        //$display($time, " chain write ", write_addr, "=", write_value);
       //`SHOW_MMU2("chain")
     end    
-    read_value  = ram[read_addr];
+   
   //  read_value2 = ram[read_addr2];
    
   end
@@ -239,13 +240,15 @@ module mmulutram2 (
     //$display($time, " rst memory mmu");
   end
 
+assign   read_value  = ram[read_addr];
+
   always @(negedge clk) begin
   if (write_enable) begin
       ram[write_addr] <= write_value;
       // $display($time, " logical write ", write_addr, "=", write_value);
       //`SHOW_MMU2("logical")
     end   
-    read_value  <= ram[read_addr];
+  
    // read_value2 <= ram[read_addr2];
      
   end
@@ -1543,6 +1546,9 @@ module single_blockram (
 
   // verilog_format:on
 
+assign read_value  = ram[read_address];
+assign read_value2 = ram[read_address2];
+
   always @(posedge clk) begin
     if (write_enabled && RAM_WRITE_DEBUG && !HARDWARE_DEBUG)
       $display($time, " ram write ", write_address, " = ", write_value);
@@ -1550,9 +1556,6 @@ module single_blockram (
       $display($time, " ram read ", read_address, " = ", ram[read_address]);
 
 if (write_enabled) ram[write_address] <= write_value;
-  
-    read_value  <= ram[read_address];
-      read_value2 <= ram[read_address2];
     
   end
 endmodule
