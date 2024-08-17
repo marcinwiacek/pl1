@@ -642,7 +642,8 @@ module x_simple (
   bit [15:0] pc[0:9];
   bit [5:0] error_code[0:9];
   bit [15:0] registers[0:9][0:31];  //512 bits = 32 x 16-bit registers
-
+  bit [15:0] registers_updated[0:31];
+  
   bit rst_can_be_done = 1, working = 1;
   bit [7:0] stage, stage_after_mmu;
   bit [5:0] ram_read_save_reg_start, ram_read_save_reg_end;
@@ -739,6 +740,7 @@ module x_simple (
 
       error_code = '{default: 0};
       registers = '{default: 0};
+      registers_updated = '{default: 0};
 
       instructions = 0;
 
@@ -1243,6 +1245,7 @@ module x_simple (
                   registers[process_num][alu_num] = div_c;
                 end
               endcase
+              registers_updated[process_num] = 1;
               alu_num = alu_num + 1;
             end
             if (alu_num > instruction1_2_1 + instruction1_2_2) begin
@@ -1271,15 +1274,22 @@ module x_simple (
         end
         STAGE_READ_SAVE_PC: begin
           set_mmu_start_process_physical_segment = 0;
+          //registers
+          ram_read_save_reg_start = 0;  //counter
+          ram_read_save_reg_end = 0;  //counter
           //old process
           write_address = process_address + ADDRESS_REG;
-          write_value = registers[process_num][0];
+          if (!registers_updated[ram_read_save_reg_end]) begin
+            ram_read_save_reg_end = 1;
+            write_address = write_address + 1;
+          end
+          write_value = registers[process_num][ram_read_save_reg_end];
           //new process
           pc[process_num] = read_value;
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)  $display($time, " new pc ", read_value);
           read_address = next_process_address + ADDRESS_REG;
+          read_address2 = next_process_address + ADDRESS_REG+1;
           //registers
-          ram_read_save_reg_start = 0;  //counter
           stage = STAGE_READ_SAVE_REG;
         end
         STAGE_READ_SAVE_REG: begin
@@ -1294,19 +1304,36 @@ module x_simple (
           end else begin
             //new process  
             registers[process_num][ram_read_save_reg_start] = read_value;
-            //old process          
-            ram_read_save_reg_start = ram_read_save_reg_start + 1;
+            registers[process_num][ram_read_save_reg_start+1] = read_value2;
+            ram_read_save_reg_start = ram_read_save_reg_start + 2;
             read_address = read_address + 1;
+            read_address2 = read_address2 + 1;
+            //old process                      
             write_address = write_address + 1;
-            write_value = registers[process_num][ram_read_save_reg_start];
+            ram_read_save_reg_end =ram_read_save_reg_end+1; 
+            if (!registers_updated[ram_read_save_reg_end]) begin
+              write_address = write_address + 1;
+              ram_read_save_reg_end =ram_read_save_reg_end+1; 
+            end
+            write_value = registers[process_num][ram_read_save_reg_end];
           end
         end
         STAGE_READ_NEXT_NEXT_PROCESS: begin
-            if (mmu_action_ready) begin
-reset_mmu_start_process_physical_segment = 0;
-          next_process_address = read_value;
-          `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+          if (ram_read_save_reg_end< 32) begin
+            //old process                      
+            write_address = write_address + 1;
+            ram_read_save_reg_end =ram_read_save_reg_end+1; 
+            if (!registers_updated[ram_read_save_reg_end]) begin
+              write_address = write_address + 1;
+              ram_read_save_reg_end =ram_read_save_reg_end+1; 
             end
+            write_value = registers[process_num][ram_read_save_reg_end];        
+          end else if (mmu_action_ready) begin
+            registers_updated = '{default: 0};
+            reset_mmu_start_process_physical_segment = 0;
+            next_process_address = read_value;
+            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+          end
         end
         STAGE_DELETE_PROCESS: begin
           mmu_delete_process = 0;
