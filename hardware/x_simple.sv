@@ -6,8 +6,8 @@ parameter HARDWARE_DEBUG = 0;
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_CHANGES_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -353,7 +353,7 @@ module mmu (
       rst_can_be_done = 1;
       if (search_mmu_address) begin
         mmu_address_to_search_segment = mmu_address_a / MMU_PAGE_SIZE;
-        if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+      //  if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
           $display(
               $time, " mmu, address ", mmu_address_a, " segment ", mmu_address_to_search_segment
           );
@@ -363,9 +363,9 @@ module mmu (
         mmu_action_ready = 0;
         stage = MMU_SEARCH;
       end else if (set_mmu_start_process_physical_segment && reset_mmu_start_process_physical_segment) begin
-        //  $display(
-        //         $time, " switching mmu with reset"
-        //    );
+          $display(
+                 $time, " switching mmu with reset"
+            );
 
         /* first prepare mmu before task switching - start point should point to segment 0 */
         mmu_chain_read_addr = mmu_start_process_physical_segment_zero;
@@ -373,9 +373,9 @@ module mmu (
         mmu_action_ready = 0;
         stage = MMU_SET_PROCESS_DATA;
       end else if (set_mmu_start_process_physical_segment) begin
-        //   $display(
-        //          $time, " switching mmu without reset"
-        //      );
+           $display(
+                  $time, " switching mmu without reset"
+              );
         mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
         mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
         mmu_action_ready = 1;
@@ -395,7 +395,7 @@ module mmu (
       end
     end else if (stage == MMU_SEARCH) begin
       if (mmu_logical_read_value == mmu_address_to_search_segment) begin
-        if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+        //if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
           $display($time, " physical segment in position ", mmu_search_position);
         mmu_address_c = mmu_address_a % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
         //move found address to the beginning to speed up search in the future       
@@ -434,7 +434,7 @@ module mmu (
       mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
       mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
       mmu_action_ready = 1;
-      $display($time, " mmu end ");
+      $display($time, " mmu set end ");
       stage = MMU_IDLE;
     end else if (stage == MMU_DELETE) begin
       mmu_first_possible_free_physical_segment = mmu_first_possible_free_physical_segment > mmu_search_position ? 
@@ -447,6 +447,7 @@ module mmu (
       mmu_chain_write_enable = 1;
       if (mmu_chain_read_value == mmu_search_position) begin
         mmu_action_ready = 1;
+         $display($time, " mmu delete end ");
         stage = MMU_IDLE;
       end else begin
         mmu_search_position = mmu_chain_read_value;
@@ -536,14 +537,18 @@ module x_simple (
   bit [15:0] write_value;
   bit [15:0] read_address;
   wire [15:0] read_value;
-
+  bit [15:0] read_address2;
+  wire [15:0] read_value2;
+  
   single_blockram single_blockram (
       .clk(clk),
       .write_enabled(write_enabled),
       .write_address(write_address),
       .write_value(write_value),
       .read_address(read_address),
-      .read_value(read_value)
+      .read_value(read_value),
+      .read_address2(read_address2),
+      .read_value2(read_value2)
   );
 
   bit [7:0] uart_buffer[0:128];
@@ -747,7 +752,8 @@ module x_simple (
       process_num = 0;
 
       pc[process_num] = ADDRESS_PROGRAM;
-      read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation    
+      read_address = ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation
+          read_address2 = ADDRESS_PROGRAM;
 
       process_address = 0;
       next_process_address = 4 * MMU_PAGE_SIZE;
@@ -1373,7 +1379,9 @@ module single_blockram (
     input [15:0] write_address,
     input [15:0] write_value,
     input [15:0] read_address,
-    output bit [15:0] read_value
+    output bit [15:0] read_value,
+    input [15:0] read_address2,
+    output bit [15:0] read_value2
 );
 
   /*  reg [15:0] ram[0:67];
@@ -1523,6 +1531,7 @@ module single_blockram (
 
     if (write_enabled) ram[write_address] <= write_value;
     read_value <= ram[read_address];
+    read_value2 <= ram[read_address2];
   end
 endmodule
 
