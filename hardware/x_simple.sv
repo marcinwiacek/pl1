@@ -166,8 +166,8 @@ module mmulutram (
     input clk,
     input [15:0] read_addr,
     output bit [8:0] read_value,
-    input [15:0] read_addr2,
-    output bit [8:0] read_value2,
+   // input [15:0] read_addr2,
+   // output bit [8:0] read_value2,
     input write_enable,
     input [15:0] write_addr,
     input [8:0] write_value
@@ -196,12 +196,12 @@ module mmulutram (
 
   always @(negedge clk) begin
    if (write_enable) begin
-      ram[write_addr] <= write_value;
+      ram[write_addr] = write_value;
        //$display($time, " chain write ", write_addr, "=", write_value);
       //`SHOW_MMU2("chain")
     end    
-    read_value  <= ram[read_addr];
-    read_value2 <= ram[read_addr2];
+    read_value  = ram[read_addr];
+  //  read_value2 = ram[read_addr2];
    
   end
 endmodule
@@ -211,8 +211,8 @@ module mmulutram2 (
     input clk,
     input [15:0] read_addr,
     output bit [8:0] read_value,
-    input [15:0] read_addr2,
-    output bit [8:0] read_value2,
+    //input [15:0] read_addr2,
+   // output bit [8:0] read_value2,
     input write_enable,
     input [15:0] write_addr,
     input [8:0] write_value
@@ -246,7 +246,7 @@ module mmulutram2 (
       //`SHOW_MMU2("logical")
     end   
     read_value  <= ram[read_addr];
-    read_value2 <= ram[read_addr2];
+   // read_value2 <= ram[read_addr2];
      
   end
 endmodule
@@ -287,8 +287,8 @@ module mmu (
 
   bit [15:0] mmu_chain_read_addr;
   wire [8:0] mmu_chain_read_value;
-  bit [15:0] mmu_chain_read_addr2;
-  wire [8:0] mmu_chain_read_value2;
+//  bit [15:0] mmu_chain_read_addr2;
+//  wire [8:0] mmu_chain_read_value2;
   bit mmu_chain_write_enable = 0;
   bit [15:0] mmu_chain_write_addr;
   bit [8:0] mmu_chain_write_value;
@@ -297,8 +297,8 @@ module mmu (
       .clk(clk),
       .read_addr(mmu_chain_read_addr),
       .read_value(mmu_chain_read_value),
-      .read_addr2(mmu_chain_read_addr2),
-      .read_value2(mmu_chain_read_value2),
+    //  .read_addr2(mmu_chain_read_addr2),
+     // .read_value2(mmu_chain_read_value2),
       .write_enable(mmu_chain_write_enable),
       .write_addr(mmu_chain_write_addr),
       .write_value(mmu_chain_write_value)
@@ -306,8 +306,8 @@ module mmu (
 
   bit [15:0] mmu_logical_read_addr;
   wire [8:0] mmu_logical_read_value;
-  bit [15:0] mmu_logical_read_addr2;
-  wire [8:0] mmu_logical_read_value2;
+ // bit [15:0] mmu_logical_read_addr2;
+ // wire [8:0] mmu_logical_read_value2;
   bit mmu_logical_write_enable = 0;
   bit [15:0] mmu_logical_write_addr;
   bit [8:0] mmu_logical_write_value;
@@ -316,8 +316,8 @@ module mmu (
       .clk(clk),
       .read_addr(mmu_logical_read_addr),
       .read_value(mmu_logical_read_value),
-      .read_addr2(mmu_logical_read_addr2),
-      .read_value2(mmu_logical_read_value2),
+     // .read_addr2(mmu_logical_read_addr2),
+     // .read_value2(mmu_logical_read_value2),
       .write_enable(mmu_logical_write_enable),
       .write_addr(mmu_logical_write_addr),
       .write_value(mmu_logical_write_value)
@@ -1549,9 +1549,10 @@ module single_blockram (
     if (RAM_READ_DEBUG && !HARDWARE_DEBUG)
       $display($time, " ram read ", read_address, " = ", ram[read_address]);
 
-  if (write_enabled) ram[write_address] <= write_value;
+if (write_enabled) ram[write_address] <= write_value;
+  
     read_value  <= ram[read_address];
-    read_value2 <= ram[read_address2];
+      read_value2 <= ram[read_address2];
     
   end
 endmodule
