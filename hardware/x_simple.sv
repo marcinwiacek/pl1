@@ -353,7 +353,6 @@ module mmu (
       mmu_chain_write_enable = 0;
       mmu_logical_write_enable = 0;
 
-      rst_can_be_done = 1;
       if (search_mmu_address) begin
         mmu_address_to_search_segment = mmu_address_a / MMU_PAGE_SIZE;
           if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
@@ -383,6 +382,7 @@ module mmu (
       end else if (mmu_delete_process) begin
         mmu_search_position = mmu_start_process_physical_segment;
         mmu_chain_read_addr = mmu_start_process_physical_segment;
+         mmu_action_ready = 0;
         stage = MMU_DELETE;
       end else if (mmu_split_process) begin
         //  $display($time, " split start point ", mmu_start_process_physical_segment);
@@ -507,6 +507,8 @@ module mmu (
       mmu_start_process_physical_segment = 0;
       mmu_start_process_physical_segment_zero = 0;
       mmu_first_possible_free_physical_segment = 8;
+  rst_can_be_done = 1;
+        
       stage = MMU_IDLE;
     end
   end
