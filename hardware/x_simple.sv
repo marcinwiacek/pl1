@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 //options below are less important than options higher //DEBUG info
-parameter HARDWARE_DEBUG = 1;
+parameter HARDWARE_DEBUG = 0;
 
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -441,15 +441,16 @@ module mmu (
      // mmu_first_possible_free_physical_segment = mmu_first_possible_free_physical_segment > mmu_search_position ? 
      //      mmu_search_position: mmu_first_possible_free_physical_segment;
       if (mmu_chain_read_value == mmu_search_position) begin
-           mmu_logical_write_addr = mmu_search_position;
+           mmu_logical_write_addr = mmu_search_position;  
+           mmu_chain_write_addr = mmu_search_position;
       mmu_action_ready = 1;
-      mmu_chain_write_addr = mmu_search_position;
-      mmu_chain_write_addr = mmu_search_position;
+    
+      
         // $display($time, " mmu delete end ");
         stage = MMU_IDLE;
       end else begin
-      mmu_chain_write_addr = mmu_search_position;
-      mmu_chain_write_addr = mmu_search_position;
+        mmu_logical_write_addr = mmu_search_position;  
+           mmu_chain_write_addr = mmu_search_position;
         mmu_search_position = mmu_chain_read_value;
         mmu_chain_read_addr = mmu_chain_read_value;
       end
@@ -1508,8 +1509,8 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000, 
 
       16'h1210, 16'd2612, //value to reg
-      //16'h1800, 16'h0007, //process end
-      16'h0e10, 16'd0101, //save to ram
+      16'h1800, 16'h0007, //process end
+      //16'h0e10, 16'd0101, //save to ram
       //16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'd0101, //ram to reg
       16'h0e10, 16'h00D4, //save to ram      
