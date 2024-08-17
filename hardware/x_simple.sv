@@ -171,8 +171,9 @@ module mmulutram (
     input [8:0] write_value
 );
 
-  //(* ram_style = "distributed" *) 
-  bit [8:0] ram[0:MMU_MAX_INDEX];
+  //(* ram_style = "distributed" *)   
+   //(* ram_style = "block" *) 
+   bit [8:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
 
@@ -192,13 +193,15 @@ module mmulutram (
     //$display($time, " rst memory mmu");
   end
 
-  assign read_value = ram[read_addr];
+assign  read_value = ram[read_addr];
+
   always @(negedge clk) begin
     if (write_enable) begin
       ram[write_addr] <= write_value;
       //$display($time, " chain write ", write_addr, "=", write_value);
       //`SHOW_MMU2("chain")
     end
+   
   end
 endmodule
 
@@ -212,7 +215,8 @@ module mmulutram2 (
     input [8:0] write_value
 );
 
-  //(* ram_style = "distributed" *) 
+  //(* ram_style = "distributed" *)   
+  // (* ram_style = "block" *) 
   bit [8:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
@@ -233,7 +237,8 @@ module mmulutram2 (
     //$display($time, " rst memory mmu");
   end
 
-  assign read_value = ram[read_addr];
+assign  read_value = ram[read_addr];
+ 
 
   always @(negedge clk) begin
     if (write_enable) begin
@@ -241,6 +246,8 @@ module mmulutram2 (
       // $display($time, " logical write ", write_addr, "=", write_value);
       //`SHOW_MMU2("logical")
     end
+//    read_value <= ram[read_addr];
+    
   end
 endmodule
 
@@ -620,7 +627,8 @@ module x_simple (
   parameter STAGE_SPLIT_PROCESS5 = 24;
   parameter STAGE_SAVE_NEXT_PROCESS2 = 25;
   parameter STAGE_TASK_SWITCHER = 26;
-
+  parameter STAGE_CHECK_MMU_ADDRESS2 = 27;
+  
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
   parameter ALU_DIV = 3;
@@ -643,11 +651,12 @@ module x_simple (
   bit [4:0] how_many = 0;
   bit [4:0] process_num = 0;
   bit [15:0] prev_process_address = 0, process_address = 0, next_process_address = 0;
-  bit [15:0] pc[0:9];
-  bit [5:0] error_code[0:9];
-  bit [15:0] registers[0:9][0:31];  //512 bits = 32 x 16-bit registers
-  bit [15:0] registers_updated[0:31];
+  bit [0:31] registers_updated;
 
+  bit [15:0] pc[0:2];
+  bit [5:0] error_code[0:2];
+  bit [15:0] registers[0:2][0:31];  //512 bits = 32 x 16-bit registers
+  
   bit rst_can_be_done = 1, working = 1;
   bit [7:0] stage, stage_after_mmu;
   bit [5:0] ram_read_save_reg_start, ram_read_save_reg_end;
@@ -730,12 +739,18 @@ module x_simple (
   bit [15:0] int_process_address[0:255];
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
-       if (stage_after_mmu==STAGE_GET_1_BYTE && how_many==2 && process_address != next_process_address) begin \
+      mmu_address_a = ARG; \
+      search_mmu_address = 1; \
+      stage_after_mmu = ARG2; \
+      stage = STAGE_CHECK_MMU_ADDRESS; 
+
+  `define MAKE_MMU_SEARCH2(ARG) \
+       if (how_many==2 && process_address != next_process_address) begin \
          stage = STAGE_TASK_SWITCHER; \
           end else begin \
       mmu_address_a = ARG; \
       search_mmu_address = 1; \
-      stage_after_mmu = ARG2; \
+      stage_after_mmu = STAGE_GET_1_BYTE; \
       stage = STAGE_CHECK_MMU_ADDRESS; \
       end
 
@@ -771,7 +786,7 @@ module x_simple (
       working = 0;
       rst_can_be_done = 1;
       stage = STAGE_GET_1_BYTE;
-    end else if (instructions <14 && error_code[process_num] == ERROR_NONE) begin
+    end else if (instructions <12 && error_code[process_num] == ERROR_NONE) begin
       if (STAGE_DEBUG && !HARDWARE_DEBUG)
         $display($time, " stage ", stage, " pc ", pc[process_num]);
       // (*parallel_case *)(*full_case *) 
@@ -1146,7 +1161,7 @@ module x_simple (
             pc[process_num] = pc[process_num] + 2;
           end
           if (stage == STAGE_GET_1_BYTE) begin
-            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+            `MAKE_MMU_SEARCH2(pc[process_num]);
           end
         end
         STAGE_GET_RAM_BYTE: begin
@@ -1162,7 +1177,7 @@ module x_simple (
                 read_value2
             );
           if (ram_read_save_reg_start == ram_read_save_reg_end) begin
-            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+            `MAKE_MMU_SEARCH2(pc[process_num]);
           end else begin
             ram_read_save_reg_start = ram_read_save_reg_start + 1;
             `MAKE_MMU_SEARCH(mmu_address_a + 1, STAGE_GET_RAM_BYTE);
@@ -1171,27 +1186,30 @@ module x_simple (
         STAGE_SET_RAM_BYTE: begin
           if (ram_read_save_reg_start == ram_read_save_reg_end) begin
             write_enabled = 0;
-            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+            `MAKE_MMU_SEARCH2(pc[process_num]);
           end else begin
             ram_read_save_reg_start = ram_read_save_reg_start + 1;
             write_value = registers[process_num][ram_read_save_reg_start];
             `MAKE_MMU_SEARCH(mmu_address_a + 1, STAGE_SET_RAM_BYTE);
           end
         end
+        
+
         STAGE_CHECK_MMU_ADDRESS: begin
-          search_mmu_address = 0;
+      
            //    `HARD_DEBUG("M");
           if (mmu_action_ready) begin
         //       `HARD_DEBUG("m");
-             stage = stage_after_mmu;
-     if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
-                write_enabled = 1;
-                write_address = mmu_address_c;
-              end else begin
+     if (stage_after_mmu != STAGE_SET_RAM_BYTE) begin
                 read_address  = mmu_address_c;
                 read_address2 = mmu_address_c + 1;
+              end else begin
+                write_address = mmu_address_c;
+                write_enabled = 1;
               end
+             stage = stage_after_mmu;
           end
+              search_mmu_address = 0;
           end
         STAGE_ALU: begin
           if (ALU_DEBUG && !HARDWARE_DEBUG)
@@ -1233,7 +1251,7 @@ module x_simple (
               alu_num = alu_num + 1;
             end
             if (alu_num > instruction1_2_1 + instruction1_2_2) begin
-              `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+              `MAKE_MMU_SEARCH2(pc[process_num]);
             end else begin
               case (alu_op)
                 ALU_ADD: begin
@@ -1257,24 +1275,27 @@ module x_simple (
           end
         end
         STAGE_READ_SAVE_PC: begin
-          set_mmu_start_process_physical_segment = 0;
-          if (mmu_action_ready) set_reset_mmu_start_process_physical_segment = 0;
+  //new process
+          ram_read_save_reg_start = 0;  //counter
+          pc[process_num] = read_value;
+          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new pc ", read_value);
+          read_address = next_process_address + ADDRESS_REG;
+          read_address2 = next_process_address + ADDRESS_REG + 1;
+            //old process
           if (write_enabled) begin
             ram_read_save_reg_end = 0;  //counter
-            //old process
             write_address = process_address + ADDRESS_REG;
             if (!registers_updated[0]) begin
               ram_read_save_reg_end = 1;
               write_address = write_address + 1;
             end
             write_value = registers[process_num][ram_read_save_reg_end];
-          end
-          //new process
-          ram_read_save_reg_start = 0;  //counter
-          pc[process_num] = read_value;
-          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new pc ", read_value);
-          read_address = next_process_address + ADDRESS_REG;
-          read_address2 = next_process_address + ADDRESS_REG + 1;
+          end else begin 
+            ram_read_save_reg_end = 32;
+          end        
+                  
+          set_mmu_start_process_physical_segment = 0;
+          if (mmu_action_ready) set_reset_mmu_start_process_physical_segment = 0;
           //registers
           stage = STAGE_READ_SAVE_REG;
         end
@@ -1284,10 +1305,10 @@ module x_simple (
             //change process
             prev_process_address = process_address;
             process_address = next_process_address;
-            write_enabled = 0;
             //read next process address
             read_address = next_process_address + ADDRESS_NEXT_PROCESS;
             stage = STAGE_READ_NEXT_NEXT_PROCESS;
+            write_enabled = 0;
           end else begin
             // $display(ram_read_save_reg_start, " " ,ram_read_save_reg_end);
             if (ram_read_save_reg_end > ram_read_save_reg_start + 1) begin
@@ -1317,7 +1338,7 @@ module x_simple (
             set_reset_mmu_start_process_physical_segment = 0;
             registers_updated = '{default: 0};
             next_process_address = read_value;
-            `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+            `MAKE_MMU_SEARCH2(pc[process_num]);
           end
         end
         STAGE_DELETE_PROCESS: begin
@@ -1367,7 +1388,7 @@ module x_simple (
         STAGE_SAVE_NEXT_PROCESS2: begin
           write_enabled = 0;
           next_process_address = mul_c;
-          `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+          `MAKE_MMU_SEARCH2(pc[process_num]);
         end
         STAGE_TASK_SWITCHER: begin
           `HARD_DEBUG("W");
@@ -1419,7 +1440,8 @@ module single_blockram (
 */
 
   // verilog_format:off
-   (* ram_style = "block" *)  bit [15:0] ram  [0:559]= {  // in Vivado (required by board)
+   //(* ram_style = "block" *)  
+   bit [15:0] ram  [0:559]= {  // in Vivado (required by board)
   //  reg [0:559] [15:0] ram = {  // in iVerilog
   
       //first process - 4 pages (280 elements)
@@ -1486,8 +1508,8 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000, 
 
       16'h1210, 16'd2612, //value to reg
-      16'h1800, 16'h0007, //process end
-      //16'h0e10, 16'd0101, //save to ram
+      //16'h1800, 16'h0007, //process end
+      16'h0e10, 16'd0101, //save to ram
       //16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'd0101, //ram to reg
       16'h0e10, 16'h00D4, //save to ram      
@@ -1551,8 +1573,7 @@ module single_blockram (
 
   // verilog_format:on
 
-  assign read_value  = ram[read_address];
-  assign read_value2 = ram[read_address2];
+  
 
   always @(posedge clk) begin
     if (write_enabled && RAM_WRITE_DEBUG && !HARDWARE_DEBUG)
@@ -1561,6 +1582,11 @@ module single_blockram (
       $display($time, " ram read ", read_address, " = ", ram[read_address]);
 
     if (write_enabled) ram[write_address] <= write_value;
+    
+   read_value  <= ram[read_address];
+  read_value2 <= ram[read_address2];
+
+  
   end
 endmodule
 
