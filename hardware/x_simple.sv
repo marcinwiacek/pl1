@@ -761,17 +761,14 @@ module x_simple (
 
       error_code[process_num] = ERROR_NONE;
       working = 0;
+       rst_can_be_done = 1;
       stage = STAGE_GET_1_BYTE;
-    end else if (error_code[process_num] == ERROR_NONE) begin
+    end else if (instructions<14 && error_code[process_num] == ERROR_NONE) begin
       if (STAGE_DEBUG && !HARDWARE_DEBUG)
         $display($time, " stage ", stage, " pc ", pc[process_num]);
       // (*parallel_case *)(*full_case *) 
       case (stage)
         STAGE_GET_1_BYTE: begin
-          if (instructions >= 14) begin
-            stage = STAGE_HLT;
-          end else begin
-            rst_can_be_done = 1;
             if (READ_DEBUG && !HARDWARE_DEBUG)
               $display(
                   $time,
@@ -1142,9 +1139,10 @@ module x_simple (
               pc[process_num] = pc[process_num] + 2;
             end
             if (stage == STAGE_GET_1_BYTE) begin
-              `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+              
+                 `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
+             
             end
-          end
         end
         STAGE_GET_RAM_BYTE: begin
           registers[process_num][ram_read_save_reg_start] = read_value2;
