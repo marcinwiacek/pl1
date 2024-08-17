@@ -249,7 +249,7 @@ module mmu (
     input reset,
     input bit search_mmu_address,
     input bit set_mmu_start_process_physical_segment,
-    input bit reset_mmu_start_process_physical_segment,
+    input bit set_reset_mmu_start_process_physical_segment,
     input bit mmu_delete_process,
     input bit mmu_split_process,
     input bit [15:0] mmu_address_a,
@@ -357,7 +357,7 @@ module mmu (
         mmu_logical_read_addr = mmu_start_process_physical_segment;
         mmu_action_ready = 0;
         stage = MMU_SEARCH;
-      end else if (set_mmu_start_process_physical_segment && reset_mmu_start_process_physical_segment) begin
+      end else if (set_reset_mmu_start_process_physical_segment) begin
         if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " switching mmu with reset");
         /* start point in old process should point to segment 0 */
         mmu_address_to_search_segment = 0;
@@ -414,7 +414,7 @@ module mmu (
     end else if (stage == MMU_SEARCH2) begin
       mmu_chain_write_addr  = mmu_search_position;
       mmu_chain_write_value = mmu_start_process_physical_segment;
-      if (reset_mmu_start_process_physical_segment) begin
+      if (set_reset_mmu_start_process_physical_segment) begin
         mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
         mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
       end else begin
@@ -694,7 +694,7 @@ module x_simple (
 
   bit search_mmu_address = 0;
   bit set_mmu_start_process_physical_segment;
-  bit reset_mmu_start_process_physical_segment;
+  bit set_reset_mmu_start_process_physical_segment;
   bit mmu_delete_process;
   bit mmu_split_process;
   bit [15:0] mmu_address_a, mmu_address_b;
@@ -706,7 +706,7 @@ module x_simple (
       .reset(reset),
       .search_mmu_address(search_mmu_address),
       .set_mmu_start_process_physical_segment(set_mmu_start_process_physical_segment),
-      .reset_mmu_start_process_physical_segment(reset_mmu_start_process_physical_segment),
+      .set_reset_mmu_start_process_physical_segment(set_reset_mmu_start_process_physical_segment),
       .mmu_delete_process(mmu_delete_process),
       .mmu_split_process(mmu_split_process),
       .mmu_address_a(mmu_address_a),
@@ -1107,7 +1107,6 @@ module x_simple (
               //switch to next process                    
               process_address = prev_process_address;
               //in parallel update MMU
-              reset_mmu_start_process_physical_segment = 0;
               set_mmu_start_process_physical_segment = 1;
               mmu_address_a = next_process_address;
               //read next pc
@@ -1183,8 +1182,7 @@ module x_simple (
               read_address  = next_process_address + ADDRESS_PC;
               if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, "update mmu");
               //in parallel update MMU
-              set_mmu_start_process_physical_segment = 1;
-              reset_mmu_start_process_physical_segment = 1;  //parameter            
+              set_reset_mmu_start_process_physical_segment = 1;            
               mmu_address_a = next_process_address;
               stage = STAGE_READ_SAVE_PC;
             end else begin
@@ -1315,7 +1313,7 @@ module x_simple (
         STAGE_READ_NEXT_NEXT_PROCESS: begin
           if (mmu_action_ready) begin
             registers_updated = '{default: 0};
-            reset_mmu_start_process_physical_segment = 0;
+            set_reset_mmu_start_process_physical_segment = 0;
             next_process_address = read_value;
             `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
           end
@@ -1325,8 +1323,7 @@ module x_simple (
           if (mmu_action_ready) begin
             process_address = prev_process_address;
             write_enabled = 0;
-            //in parallel update MMU
-            reset_mmu_start_process_physical_segment = 0;
+            //in parallel update MMU            
             set_mmu_start_process_physical_segment = 1;
             mmu_address_a = next_process_address;
             //initiate task switcher with disabled memory write
