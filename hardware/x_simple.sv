@@ -1303,7 +1303,7 @@ module x_simple (
             stage = STAGE_READ_NEXT_NEXT_PROCESS;
           end else begin
            // $display(ram_read_save_reg_start, " " ,ram_read_save_reg_end);
-            if (ram_read_save_reg_end > ram_read_save_reg_start+2) begin
+            if (ram_read_save_reg_end > ram_read_save_reg_start+1) begin
               //new process  
               registers[process_num][ram_read_save_reg_start] = read_value;
               registers[process_num][ram_read_save_reg_start+1] = read_value2;
