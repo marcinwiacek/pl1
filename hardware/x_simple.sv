@@ -1274,19 +1274,19 @@ module x_simple (
         end
         STAGE_READ_SAVE_PC: begin
           set_mmu_start_process_physical_segment = 0;
-          //registers
           ram_read_save_reg_start = 0;  //counter
           ram_read_save_reg_end = 0;  //counter
           //old process
           write_address = process_address + ADDRESS_REG;
-          if (!registers_updated[ram_read_save_reg_end]) begin
+          if (!registers_updated[0]) begin
             ram_read_save_reg_end = 1;
             write_address = write_address + 1;
           end
           write_value = registers[process_num][ram_read_save_reg_end];
           //new process
           pc[process_num] = read_value;
-            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)  $display($time, " new pc ", read_value);
+            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)  
+            $display($time, " new pc ", read_value);
           read_address = next_process_address + ADDRESS_REG;
           read_address2 = next_process_address + ADDRESS_REG+1;
           //registers
@@ -1302,33 +1302,29 @@ module x_simple (
             read_address = next_process_address + ADDRESS_NEXT_PROCESS;
             stage = STAGE_READ_NEXT_NEXT_PROCESS;
           end else begin
-            //new process  
-            registers[process_num][ram_read_save_reg_start] = read_value;
-            registers[process_num][ram_read_save_reg_start+1] = read_value2;
-            ram_read_save_reg_start = ram_read_save_reg_start + 2;
-            read_address = read_address + 1;
-            read_address2 = read_address2 + 1;
+           // $display(ram_read_save_reg_start, " " ,ram_read_save_reg_end);
+            if (ram_read_save_reg_end > ram_read_save_reg_start+2) begin
+              //new process  
+              registers[process_num][ram_read_save_reg_start] = read_value;
+              registers[process_num][ram_read_save_reg_start+1] = read_value2;
+              ram_read_save_reg_start = ram_read_save_reg_start + 2;
+              read_address = read_address + 2;
+              read_address2 = read_address2 + 2;
+            end
             //old process                      
             write_address = write_address + 1;
             ram_read_save_reg_end =ram_read_save_reg_end+1; 
+            if (ram_read_save_reg_end<32) begin
             if (!registers_updated[ram_read_save_reg_end]) begin
               write_address = write_address + 1;
               ram_read_save_reg_end =ram_read_save_reg_end+1; 
             end
             write_value = registers[process_num][ram_read_save_reg_end];
+            end
           end
         end
         STAGE_READ_NEXT_NEXT_PROCESS: begin
-          if (ram_read_save_reg_end< 32) begin
-            //old process                      
-            write_address = write_address + 1;
-            ram_read_save_reg_end =ram_read_save_reg_end+1; 
-            if (!registers_updated[ram_read_save_reg_end]) begin
-              write_address = write_address + 1;
-              ram_read_save_reg_end =ram_read_save_reg_end+1; 
-            end
-            write_value = registers[process_num][ram_read_save_reg_end];        
-          end else if (mmu_action_ready) begin
+          if (mmu_action_ready) begin
             registers_updated = '{default: 0};
             reset_mmu_start_process_physical_segment = 0;
             next_process_address = read_value;
