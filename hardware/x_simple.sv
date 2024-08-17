@@ -1076,7 +1076,7 @@ module x_simple (
             end
             //exit process
             OPCODE_EXIT: begin
-              if (OP_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = exit");
+              if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = exit");
               mmu_delete_process = 1;
               write_address = prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value = next_process_address;
@@ -1260,9 +1260,9 @@ module x_simple (
             end
           end
         end
-        STAGE_READ_SAVE_PC: begin
-          set_mmu_start_process_physical_segment = 0;
-          ram_read_save_reg_start = 0;  //counter
+        STAGE_READ_SAVE_PC: begin         
+          set_mmu_start_process_physical_segment = 0;           
+          if (write_enabled) begin
           ram_read_save_reg_end = 0;  //counter
           //old process
           write_address = process_address + ADDRESS_REG;
@@ -1271,7 +1271,9 @@ module x_simple (
             write_address = write_address + 1;
           end
           write_value = registers[process_num][ram_read_save_reg_end];
+          end
           //new process
+          ram_read_save_reg_start = 0;  //counter
           pc[process_num] = read_value;
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new pc ", read_value);
           read_address = next_process_address + ADDRESS_REG;
@@ -1298,7 +1300,8 @@ module x_simple (
               read_address = read_address + 2;
               read_address2 = read_address2 + 2;
             end
-            //old process                      
+            if (write_enabled) begin
+            //old process
             write_address = write_address + 1;
             ram_read_save_reg_end = ram_read_save_reg_end + 1;
             if (ram_read_save_reg_end < 32) begin
@@ -1308,12 +1311,13 @@ module x_simple (
               end
               write_value = registers[process_num][ram_read_save_reg_end];
             end
+            end
           end
         end
         STAGE_READ_NEXT_NEXT_PROCESS: begin
           if (mmu_action_ready) begin
-            registers_updated = '{default: 0};
             set_reset_mmu_start_process_physical_segment = 0;
+            registers_updated = '{default: 0};
             next_process_address = read_value;
             `MAKE_MMU_SEARCH(pc[process_num], STAGE_GET_1_BYTE);
           end
