@@ -771,7 +771,7 @@ module x_simple (
       working = 0;
       rst_can_be_done = 1;
       stage = STAGE_GET_1_BYTE;
-    end else if (error_code[process_num] == ERROR_NONE) begin
+    end else if (instructions <14 && error_code[process_num] == ERROR_NONE) begin
       if (STAGE_DEBUG && !HARDWARE_DEBUG)
         $display($time, " stage ", stage, " pc ", pc[process_num]);
       // (*parallel_case *)(*full_case *) 
@@ -791,7 +791,6 @@ module x_simple (
             );
           `HARD_DEBUG("a");
           instructions = instructions + 1;
-          if (instructions == 14) stage= STAGE_HLT; 
           how_many = how_many + 1;
           if (OP_DEBUG && !HARDWARE_DEBUG)
             $display(
@@ -1181,9 +1180,9 @@ module x_simple (
         end
         STAGE_CHECK_MMU_ADDRESS: begin
           search_mmu_address = 0;
-               `HARD_DEBUG("M");
+           //    `HARD_DEBUG("M");
           if (mmu_action_ready) begin
-               `HARD_DEBUG("m");
+        //       `HARD_DEBUG("m");
              stage = stage_after_mmu;
      if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
                 write_enabled = 1;
@@ -1487,8 +1486,8 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000, 
 
       16'h1210, 16'd2612, //value to reg
-      //16'h1800, 16'h0007, //process end
-      16'h0e10, 16'd0101, //save to ram
+      16'h1800, 16'h0007, //process end
+      //16'h0e10, 16'd0101, //save to ram
       //16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'd0101, //ram to reg
       16'h0e10, 16'h00D4, //save to ram      
