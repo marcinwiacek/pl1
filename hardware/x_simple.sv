@@ -1462,7 +1462,6 @@ module x_simple (
           write_address = prev_process_address + ADDRESS_NEXT_PROCESS;
           write_value = int_process_address[instruction2_2];
           write_enabled = 1;
-          next_process_address = int_process_address[instruction2_2];
           int_process_address[instruction2_2] = process_address;
           stage = STAGE_TASK_SWITCHER;
         end
