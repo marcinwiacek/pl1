@@ -32,9 +32,9 @@ parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 // verilog_format:off
 /* DEBUG info */ `define HARD_DEBUG2(ARG) \
 /* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
-/* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG/16>10? ARG/16 + 65 - 10:ARG/16+ 48; \
-/* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG%16>10? ARG%16 + 65 - 10:ARG%16+ 48; \
-/* DEBUG info */     if (HARDWARE_DEBUG == 1) $write("%c",ARG/16>10? ARG/16 + 65 - 10:ARG/16+ 48,"%c",ARG%16>10? ARG%16 + 65 - 10:ARG%16+ 48);
+/* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
+/* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48; \
+/* DEBUG info */     if (HARDWARE_DEBUG == 1) $write("%c",ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48,"%c",ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48);
 // verilog_format:on
 
 /* DEBUG info */ `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
@@ -316,19 +316,19 @@ module mmu (
 
   parameter MMU_IDLE = 0;
   parameter MMU_SEARCH = 1;
-  parameter MMU_INIT = 2;
-  parameter MMU_DELETE = 3;
-  parameter MMU_SPLIT = 4;
-  parameter MMU_SPLIT2 = 5;
-  parameter MMU_DELETE2 = 6;
-  parameter MMU_INIT2 = 7;
-  parameter MMU_INIT3 = 8;
-  parameter MMU_INIT4 = 9;
-  parameter MMU_SEARCH2 = 10;
-  parameter MMU_SET_PROCESS_DATA = 11;
-  parameter MMU_SET_PROCESS_DATA2 = 12;
-  parameter MMU_SPLIT3 = 14;
-  parameter MMU_SPLIT4 = 15;
+  parameter MMU_SEARCH2 = 2;
+  parameter MMU_INIT = 3;
+  parameter MMU_INIT2 = 4;
+  parameter MMU_INIT3 = 5;
+  parameter MMU_INIT4 = 6;
+  parameter MMU_DELETE = 7;
+  parameter MMU_DELETE2 = 8;
+  parameter MMU_SPLIT = 9;
+  parameter MMU_SPLIT2 = 10;
+  parameter MMU_SPLIT3 = 11;
+  parameter MMU_SPLIT4 = 12;
+  parameter MMU_SET_PROCESS_DATA = 14;
+  parameter MMU_SET_PROCESS_DATA2 = 15;
   parameter MMU_ALLOCATE_NEW = 16;
   parameter MMU_ALLOCATE_NEW2 = 17;
 
@@ -865,13 +865,13 @@ module x_simple (
                 " pc ",
                 (pc[process_num]),
                 " b1 %c",
-                instruction1_1 / 16 > 10 ? instruction1_1 / 16 + 65 - 10 : instruction1_1 / 16 + 48,
+                instruction1_1 / 16 >= 10 ? instruction1_1 / 16 + 65 - 10 : instruction1_1 / 16 + 48,
                 "%c",
-                instruction1_1 % 16 > 10 ? instruction1_1 % 16 + 65 - 10 : instruction1_1 % 16 + 48,
+                instruction1_1 % 16 >= 10 ? instruction1_1 % 16 + 65 - 10 : instruction1_1 % 16 + 48,
                 "%c",
-                instruction1_2 / 16 > 10 ? instruction1_2 / 16 + 65 - 10 : instruction1_2 / 16 + 48,
+                instruction1_2 / 16 >= 10 ? instruction1_2 / 16 + 65 - 10 : instruction1_2 / 16 + 48,
                 "%c",
-                instruction1_2 % 16 > 10 ? instruction1_2 % 16 + 65 - 10 : instruction1_2 % 16 + 48,
+                instruction1_2 % 16 >= 10 ? instruction1_2 % 16 + 65 - 10 : instruction1_2 % 16 + 48,
                 "h (",
                 instruction1_2_1,
                 "-",
