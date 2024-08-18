@@ -197,9 +197,9 @@ module mmulutram (
 
   always @(negedge clk) begin
     if (write_enable) begin
-      ram[write_addr] <= write_value;
+      ram[write_addr] = write_value;
       //$display($time, " chain write ", write_addr, "=", write_value);
-      //`SHOW_MMU2("chain")
+      `SHOW_MMU2("chain")
     end
   end
 endmodule
@@ -240,9 +240,9 @@ module mmulutram2 (
 
   always @(negedge clk) begin
     if (write_enable) begin
-      ram[write_addr] <= write_value;
+      ram[write_addr] = write_value;
       // $display($time, " logical write ", write_addr, "=", write_value);
-      //`SHOW_MMU2("logical")
+      `SHOW_MMU2("logical")
     end
   end
 endmodule
@@ -345,7 +345,7 @@ module mmu (
         mmu_address_to_search_segment = mmu_address_a / MMU_PAGE_SIZE;
         if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
           $display(
-              $time, " mmu, address ", mmu_address_a, " segment ", mmu_address_to_search_segment
+              $time, " mmu, address ", mmu_address_a, " segment ", mmu_address_to_search_segment, " entry point ",mmu_start_process_physical_segment
           );
         mmu_search_position = mmu_start_process_physical_segment;
         mmu_chain_read_addr = mmu_start_process_physical_segment;
@@ -419,6 +419,8 @@ module mmu (
         mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
         // $display($time, " new physical segment after switch in position ", mmu_start_process_physical_segment);
       end else begin
+         if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+       $display($time, " new start entry point ", mmu_search_position);
         mmu_start_process_physical_segment = mmu_search_position;
       end
       //$display($time, " mmu search end2 ");
@@ -771,7 +773,7 @@ module x_simple (
       working = 0;
       rst_can_be_done = 1;
       stage = STAGE_GET_1_BYTE;
-    end else if (instructions < 12 && error_code[process_num] == ERROR_NONE) begin
+    end else if (instructions < 16 && error_code[process_num] == ERROR_NONE) begin
       if (STAGE_DEBUG && !HARDWARE_DEBUG)
         $display($time, " stage ", stage, " pc ", pc[process_num]);
       // (*parallel_case *)(*full_case *) 
@@ -1106,7 +1108,7 @@ module x_simple (
                     " opcode = proc, segments ",
                     read_value2,
                     "-",
-                    (read_value + instruction1_2)
+                    (read_value2 + instruction1_2)
                 );
               mmu_address_a = read_value2;
               mmu_address_b = read_value2 + instruction1_2;
@@ -1147,6 +1149,7 @@ module x_simple (
           end
           if (stage == STAGE_GET_1_BYTE) begin
             `MAKE_MMU_SEARCH2(pc[process_num]);
+            if (instructions == 16) search_mmu_address=0;
           end
         end
         STAGE_GET_RAM_BYTE: begin
@@ -1447,7 +1450,8 @@ module single_blockram (
       16'hff02, 16'h0002,  //loop,8'hwith,8'hcache:,8'hloopeqvalue
       16'h1402, 16'h0001,  //regminusnum
       16'h1402, 16'h0000,  //regminusnum
-      16'h0201, 16'h0001,  //after,8'hloop:,8'hram2reg
+      //16'h0201, 16'h0001,  //after,8'hloop:,8'hram2reg
+      16'h1201, 16'h0005,  //num2reg
       16'h1201, 16'h0005,  //num2reg
       16'h0E01, 16'h0046,  //reg2ram
       16'h0F00, 16'h0002,  //int,8'h2
@@ -1485,7 +1489,7 @@ module single_blockram (
 
       16'h1210, 16'd2612, //value to reg
       16'h1800, 16'h0007, //process end
-      //16'h0e10, 16'd0101, //save to ram
+    //  16'h0e10, 16'd0101, //save to ram
       //16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'd0101, //ram to reg
       16'h0e10, 16'h00D4, //save to ram      
@@ -1524,8 +1528,8 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
 
       16'h1210, 16'h0a35, //value to reg
-      16'h1800, 16'h0000, //process end
-      //16'h0e10, 16'h0064, //save to ram
+     // 16'h1800, 16'h0000, //process end
+      16'h0e10, 16'h0064, //save to ram
       //16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'h0064, //ram to reg
       16'h0e10, 16'h00D4, //save to ram      
