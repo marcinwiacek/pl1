@@ -329,7 +329,9 @@ module mmu (
   parameter MMU_SET_PROCESS_DATA2 = 12;
   parameter MMU_SPLIT3 = 14;
   parameter MMU_SPLIT4 = 15;
-
+  parameter MMU_ALLOCATE_NEW = 16;
+  parameter MMU_ALLOCATE_NEW2 = 17;
+    
   always @(posedge clk) begin
     //$display($time, " mmu stage ", stage);
     if (reset == 1 && rst_can_be_done == 1) begin
@@ -343,7 +345,6 @@ module mmu (
       // $display($time, " idle");
       mmu_chain_write_enable   = 0;
       mmu_logical_write_enable = 0;
-
       if (search_mmu_address) begin
         mmu_address_to_search_segment = mmu_address_a / MMU_PAGE_SIZE;
         if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
@@ -407,11 +408,7 @@ module mmu (
         end
       end else if (mmu_chain_read_value == mmu_search_position) begin
         $display($time, " needs to allocate new memory segment");
-        //just allocate
-        if (mmu_search_position==0) begin
-        end else if (mmu_chain_read_value==0 && mmu_logical_read_value==0) begin
-        end else begin
-        end      
+        stage = MMU_ALLOCATE_NEW;
       end else begin
         mmu_prev_search_position = mmu_search_position;
         mmu_search_position = mmu_chain_read_value;
@@ -433,6 +430,29 @@ module mmu (
       //$display($time, " mmu search end2 ");
       stage = MMU_IDLE;
       mmu_action_ready = 1;
+    end else if (stage == MMU_ALLOCATE_NEW) begin
+        if (mmu_chain_read_value==0 && mmu_logical_read_value==0) begin
+           mmu_chain_write_addr  = mmu_search_position;
+           mmu_chain_write_value = mmu_first_possible_free_physical_segment; 
+           mmu_chain_write_enable = 1;
+            stage = MMU_ALLOCATE_NEW2;    
+        end else begin
+          mmu_first_possible_free_physical_segment = mmu_first_possible_free_physical_segment+1;
+          mmu_chain_read_addr = mmu_first_possible_free_physical_segment;
+          mmu_logical_read_addr = mmu_first_possible_free_physical_segment; 
+        end       
+  end else if (stage == MMU_ALLOCATE_NEW2) begin             
+           mmu_chain_write_addr  = mmu_first_possible_free_physical_segment;
+           mmu_chain_write_value = mmu_first_possible_free_physical_segment; 
+           mmu_chain_write_enable = 1;
+           mmu_logical_write_addr = mmu_first_possible_free_physical_segment;
+           mmu_logical_write_value = mmu_address_to_search_segment;
+           mmu_logical_write_enable = 1;
+               if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+          $display($time, " physical segment in position ", mmu_first_possible_free_physical_segment);
+        mmu_address_c = mmu_address_a % MMU_PAGE_SIZE + mmu_first_possible_free_physical_segment * MMU_PAGE_SIZE;
+         mmu_action_ready = 1;
+            stage = MMU_IDLE;    
     end else if (stage == MMU_DELETE) begin
        mmu_first_possible_free_physical_segment = mmu_first_possible_free_physical_segment > mmu_search_position ? 
             mmu_search_position: mmu_first_possible_free_physical_segment;
