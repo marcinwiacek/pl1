@@ -6,15 +6,15 @@ parameter HARDWARE_DEBUG = 0;
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_CHANGES_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 0;
+parameter STAGE_DEBUG = 1;
 parameter OP_DEBUG = 1;
-parameter OP2_DEBUG = 0;
+parameter OP2_DEBUG = 1;
 parameter ALU_DEBUG = 0;
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
@@ -402,9 +402,13 @@ module mmu (
           //$display($time, " mmu search end ");
           mmu_action_ready = 1;
         end
-        //end else if (mmu_chain_memory[mmu_search_position] == mmu_search_position) begin
-        //element pointing to itself
-        //needs to allocate new segment
+      end else if (mmu_chain_read_value == mmu_search_position) begin
+        $display($time, " needs to allocate new memory segment");
+        //just allocate
+        if (mmu_search_position==0) begin
+        end else if (mmu_chain_read_value==0 && mmu_logical_read_value==0) begin
+        end else begin
+        end      
       end else begin
         mmu_prev_search_position = mmu_search_position;
         mmu_search_position = mmu_chain_read_value;
@@ -427,8 +431,8 @@ module mmu (
       stage = MMU_IDLE;
       mmu_action_ready = 1;
     end else if (stage == MMU_DELETE) begin
-      // mmu_first_possible_free_physical_segment = mmu_first_possible_free_physical_segment > mmu_search_position ? 
-      //      mmu_search_position: mmu_first_possible_free_physical_segment;
+       mmu_first_possible_free_physical_segment = mmu_first_possible_free_physical_segment > mmu_search_position ? 
+            mmu_search_position: mmu_first_possible_free_physical_segment;
       if (mmu_chain_read_value == mmu_search_position) begin
         mmu_logical_write_addr = mmu_search_position;
         mmu_chain_write_addr = mmu_search_position;
@@ -1488,9 +1492,9 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000, 
 
       16'h1210, 16'd2612, //value to reg
-      16'h1800, 16'h0007, //process end
+     // 16'h1800, 16'h0007, //process end
     //  16'h0e10, 16'd0101, //save to ram
-      //16'h1902, 16'h0002, //split process segments 2-4
+      16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'd0101, //ram to reg
       16'h0e10, 16'h00D4, //save to ram      
       16'h0c01, 16'h0001,  //proc
