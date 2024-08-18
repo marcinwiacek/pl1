@@ -200,7 +200,7 @@ module mmulutram (
 
   always @(negedge clk) begin
     if (write_enable) begin
-      ram[write_addr] = write_value;
+      ram[write_addr] <= write_value;
       //$display($time, " chain write ", write_addr, "=", write_value);
       `SHOW_MMU2("chain")
     end
@@ -243,7 +243,7 @@ module mmulutram2 (
 
   always @(negedge clk) begin
     if (write_enable) begin
-      ram[write_addr] = write_value;
+      ram[write_addr] <= write_value;
       // $display($time, " logical write ", write_addr, "=", write_value);
       `SHOW_MMU2("logical")
     end
