@@ -656,6 +656,8 @@ module x_simple (
   parameter STAGE_ALU = 11;
   parameter STAGE_DELETE_PROCESS = 12;
   parameter STAGE_SPLIT_PROCESS = 14;
+  parameter STAGE_REG_INT = 27;
+  parameter STAGE_INT = 28;
   /*task switching*/
   parameter STAGE_READ_SAVE_PC = 15;
   parameter STAGE_READ_SAVE_REG = 16;
@@ -1182,23 +1184,29 @@ module x_simple (
                 $display($time, " opcode = reg_int ", instruction2_2);
               int_pc[instruction2_2] = pc[process_num];
               int_process_address[instruction2_2] = process_address;
-              //switch to next process                    
-              process_address = prev_process_address;
-              //in parallel update MMU
-              set_mmu_start_process_physical_segment = 1;
-              mmu_address_a = next_process_address;
-              //read next pc
-              read_address = process_address + ADDRESS_PC;
-              //stage = STAGE_READ_PC;              
+              //delete process from chain
+              write_address = prev_process_address + ADDRESS_NEXT_PROCESS;
+              write_value = next_process_address;
+              write_enabled = 1;
+stage = STAGE_REG_INT;
             end
             //x, int number (8 bit)
             OPCODE_INT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int ", instruction2_2);
-              //replace current process with int process in the chain     
+              //replace current process with int process in the chain 
+                 write_address = int_process_address[instruction2_2] + ADDRESS_NEXT_PROCESS;
+              write_value = next_process_address;
+              write_enabled = 1;    
+              stage = STAGE_INT;
             end
             //x, int number
             OPCODE_INT_RET: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int_ret");
+ //replace current process with int process in the chain 
+                 write_address = int_process_address[instruction2_2] + ADDRESS_NEXT_PROCESS;
+              write_value = next_process_address;
+              write_enabled = 1;    
+              stage = STAGE_INT;              
             end
             // default: begin
             //    error_code = ERROR_WRONG_OPCODE;
@@ -1436,6 +1444,20 @@ module x_simple (
           write_enabled = 0;
           next_process_address = mul_c;
           `MAKE_MMU_SEARCH2(pc[process_num]);
+        end
+        STAGE_REG_INT: begin
+            process_address = prev_process_address;
+            //in parallel update MMU
+            set_mmu_start_process_physical_segment = 1;
+            `MAKE_SWITCH_TASK(0)            
+        end
+        STAGE_INT: begin
+          write_address = prev_process_address + ADDRESS_NEXT_PROCESS;
+          write_value = int_process_address[instruction2_2];
+          write_enabled = 1;
+          next_process_address = int_process_address[instruction2_2]; 
+          int_process_address[instruction2_2] = process_address;
+          stage = STAGE_TASK_SWITCHER;
         end
       endcase
     end else if (error_code[process_num] != ERROR_NONE) begin
