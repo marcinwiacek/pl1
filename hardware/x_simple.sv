@@ -646,22 +646,23 @@ module x_simple (
 
   parameter STAGE_AFTER_RESET = 1;
   parameter STAGE_GET_1_BYTE = 2;
-  parameter STAGE_CHECK_MMU_ADDRESS = 4;
-  parameter STAGE_SET_PC = 5;  //jump instructions
-  parameter STAGE_GET_PARAM_BYTE = 6;
-  parameter STAGE_SET_PARAM_BYTE = 7;
-  parameter STAGE_GET_RAM_BYTE = 8;
-  parameter STAGE_SET_RAM_BYTE = 9;
-  parameter STAGE_HLT = 10;
-  parameter STAGE_ALU = 11;
-  parameter STAGE_DELETE_PROCESS = 12;
-  parameter STAGE_SPLIT_PROCESS = 14;
-  parameter STAGE_REG_INT = 27;
-  parameter STAGE_INT = 28;
+  parameter STAGE_CHECK_MMU_ADDRESS = 3;
+  parameter STAGE_SET_PC = 4;  //jump instructions
+  parameter STAGE_GET_PARAM_BYTE = 5;
+  parameter STAGE_SET_PARAM_BYTE = 6;
+  parameter STAGE_GET_RAM_BYTE = 7;
+  parameter STAGE_SET_RAM_BYTE = 8;
+  parameter STAGE_HLT = 9;
+  parameter STAGE_ALU = 10;
+  parameter STAGE_DELETE_PROCESS = 11;
+  parameter STAGE_SPLIT_PROCESS = 12;
+  parameter STAGE_REG_INT = 14;
+  parameter STAGE_REG_INT2 = 15;  
+  parameter STAGE_INT = 16;
   /*task switching*/
-  parameter STAGE_READ_SAVE_PC = 15;
-  parameter STAGE_READ_SAVE_REG = 16;
-  parameter STAGE_READ_NEXT_NEXT_PROCESS = 17;
+  parameter STAGE_READ_SAVE_PC = 17;
+  parameter STAGE_READ_SAVE_REG = 18;
+  parameter STAGE_READ_NEXT_NEXT_PROCESS = 19;
   parameter STAGE_SAVE_NEXT_PROCESS = 20;
   parameter STAGE_SPLIT_PROCESS2 = 21;
   parameter STAGE_SPLIT_PROCESS3 = 22;
@@ -1446,9 +1447,15 @@ module x_simple (
           `MAKE_MMU_SEARCH2(pc[process_num]);
         end
         STAGE_REG_INT: begin
+          //old process
+          write_address = process_address + ADDRESS_PC;
+          write_value = pc[process_num];
           process_address = prev_process_address;
+          stage = STAGE_REG_INT2;
+        end
+        STAGE_REG_INT2: begin
           //in parallel update MMU
-          set_mmu_start_process_physical_segment = 1;
+          set_mmu_start_process_physical_segment = 1;          
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_INT: begin
@@ -1562,7 +1569,8 @@ module single_blockram (
     //  16'h0e10, 16'd0101, //save to ram
       16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'd0101, //ram to reg
-      16'h0e10, 16'h00D4, //save to ram      
+      16'h1b00, 16'd0037, //int
+      //16'h0e10, 16'h00D4, //save to ram      
       16'h0c01, 16'h0001,  //proc
       16'h0c01, 16'h0002,  //proc
       16'h1202, 16'h0003,  //num2reg
@@ -1597,13 +1605,15 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
 
+      16'h1a00, 16'd0037, //reg int 
       16'h1210, 16'h0a35, //value to reg
+      16'h1c00, 16'd0037, //int ret
      // 16'h1800, 16'h0000, //process end
-      16'h0e10, 16'h0064, //save to ram
+      //16'h0e10, 16'h0064, //save to ram
       //16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'h0064, //ram to reg
       16'h0e10, 16'h00D4, //save to ram      
-      16'h0c01, 16'h0001,  //proc
+      //16'h0c01, 16'h0001,  //proc
       16'h0c01, 16'h0002,  //proc
       16'h1202, 16'h0003,  //num2reg
       16'hff02, 16'h0002,  //loop,8'hwith,8'hcache:,8'hloopeqvalue
