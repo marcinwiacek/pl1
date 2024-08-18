@@ -418,8 +418,8 @@ module mmu (
               mmu_action_ready = 1;
             end
           end else if (mmu_chain_read_value == mmu_search_position) begin
-          if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
-            $display($time, " needs to allocate new memory segment");
+            if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+              $display($time, " needs to allocate new memory segment");
             stage = MMU_ALLOCATE_NEW;
           end else begin
             mmu_prev_search_position = mmu_search_position;
@@ -794,7 +794,7 @@ module x_simple (
         stage_after_mmu = STAGE_GET_1_BYTE; \
         stage = STAGE_CHECK_MMU_ADDRESS; \
       end
-      
+
   `define MAKE_SWITCH_TASK(ARG) \
      how_many = 0; \
      if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
@@ -803,7 +803,7 @@ module x_simple (
      mmu_address_a = next_process_address; \
      read_address = next_process_address + ADDRESS_PC; \
      stage = STAGE_READ_SAVE_PC;
-                  
+
   integer i;  //DEBUG info
 
   always @(negedge clk) begin
@@ -1188,25 +1188,25 @@ module x_simple (
               write_address = prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value = next_process_address;
               write_enabled = 1;
-stage = STAGE_REG_INT;
+              stage = STAGE_REG_INT;
             end
             //x, int number (8 bit)
             OPCODE_INT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int ", instruction2_2);
               //replace current process with int process in the chain 
-                 write_address = int_process_address[instruction2_2] + ADDRESS_NEXT_PROCESS;
+              write_address = int_process_address[instruction2_2] + ADDRESS_NEXT_PROCESS;
               write_value = next_process_address;
-              write_enabled = 1;    
+              write_enabled = 1;
               stage = STAGE_INT;
             end
             //x, int number
             OPCODE_INT_RET: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int_ret");
- //replace current process with int process in the chain 
-                 write_address = int_process_address[instruction2_2] + ADDRESS_NEXT_PROCESS;
+              //replace current process with int process in the chain 
+              write_address = int_process_address[instruction2_2] + ADDRESS_NEXT_PROCESS;
               write_value = next_process_address;
-              write_enabled = 1;    
-              stage = STAGE_INT;              
+              write_enabled = 1;
+              stage = STAGE_INT;
             end
             // default: begin
             //    error_code = ERROR_WRONG_OPCODE;
@@ -1327,13 +1327,13 @@ stage = STAGE_REG_INT;
           end
         end
         STAGE_TASK_SWITCHER: begin
-          `HARD_DEBUG("W");        
+          `HARD_DEBUG("W");
           //old process
           write_address = process_address + ADDRESS_PC;
-          write_value   = pc[process_num];
+          write_value = pc[process_num];
           //in parallel update MMU
-          set_reset_mmu_start_process_physical_segment = 1;          
-          `MAKE_SWITCH_TASK(1);          
+          set_reset_mmu_start_process_physical_segment = 1;
+          `MAKE_SWITCH_TASK(1);
         end
         STAGE_READ_SAVE_PC: begin
           //new process
@@ -1407,7 +1407,7 @@ stage = STAGE_REG_INT;
             process_address = prev_process_address;
             //in parallel update MMU
             set_mmu_start_process_physical_segment = 1;
-            `MAKE_SWITCH_TASK(0)            
+            `MAKE_SWITCH_TASK(0)
           end
         end
         STAGE_SPLIT_PROCESS: begin
@@ -1446,16 +1446,16 @@ stage = STAGE_REG_INT;
           `MAKE_MMU_SEARCH2(pc[process_num]);
         end
         STAGE_REG_INT: begin
-            process_address = prev_process_address;
-            //in parallel update MMU
-            set_mmu_start_process_physical_segment = 1;
-            `MAKE_SWITCH_TASK(0)            
+          process_address = prev_process_address;
+          //in parallel update MMU
+          set_mmu_start_process_physical_segment = 1;
+          `MAKE_SWITCH_TASK(0)
         end
         STAGE_INT: begin
           write_address = prev_process_address + ADDRESS_NEXT_PROCESS;
           write_value = int_process_address[instruction2_2];
           write_enabled = 1;
-          next_process_address = int_process_address[instruction2_2]; 
+          next_process_address = int_process_address[instruction2_2];
           int_process_address[instruction2_2] = process_address;
           stage = STAGE_TASK_SWITCHER;
         end
