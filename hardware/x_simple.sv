@@ -1,5 +1,8 @@
 `timescale 1ns / 1ps
 
+parameter HOW_MANY_OP_SIMULATE = 16;
+parameter HOW_MANY_OP_PER_TASK_SIMULATE = 2;
+
 //options below are less important than options higher //DEBUG info
 parameter HARDWARE_DEBUG = 0;
 
@@ -18,7 +21,7 @@ parameter OP2_DEBUG = 1;
 parameter ALU_DEBUG = 0;
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
-parameter RAM_SIZE = 32767;
+//parameter RAM_SIZE = 32767;
 parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
@@ -736,13 +739,13 @@ module x_simple (
       stage = STAGE_CHECK_MMU_ADDRESS; 
 
   `define MAKE_MMU_SEARCH2(ARG) \
-       if (how_many==2 && process_address != next_process_address) begin \
-         stage = STAGE_TASK_SWITCHER; \
-          end else begin \
-      mmu_address_a = ARG; \
-      search_mmu_address = 1; \
-      stage_after_mmu = STAGE_GET_1_BYTE; \
-      stage = STAGE_CHECK_MMU_ADDRESS; \
+      if (how_many==HOW_MANY_OP_PER_TASK_SIMULATE && process_address != next_process_address) begin \
+        stage = STAGE_TASK_SWITCHER; \
+      end else begin \
+        mmu_address_a = ARG; \
+        search_mmu_address = 1; \
+        stage_after_mmu = STAGE_GET_1_BYTE; \
+        stage = STAGE_CHECK_MMU_ADDRESS; \
       end
 
   integer i;  //DEBUG info
@@ -777,7 +780,7 @@ module x_simple (
       working = 0;
       rst_can_be_done = 1;
       stage = STAGE_GET_1_BYTE;
-    end else if (instructions < 16 && error_code[process_num] == ERROR_NONE) begin
+    end else if (instructions < HOW_MANY_OP_SIMULATE && error_code[process_num] == ERROR_NONE) begin
       if (STAGE_DEBUG && !HARDWARE_DEBUG)
         $display($time, " stage ", stage, " pc ", pc[process_num]);
       // (*parallel_case *)(*full_case *) 
@@ -1153,7 +1156,7 @@ module x_simple (
           end
           if (stage == STAGE_GET_1_BYTE) begin
             `MAKE_MMU_SEARCH2(pc[process_num]);
-            if (instructions == 16) search_mmu_address=0;
+            if (instructions == HOW_MANY_OP_SIMULATE) search_mmu_address=0;
           end
         end
         STAGE_GET_RAM_BYTE: begin
