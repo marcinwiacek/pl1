@@ -512,7 +512,6 @@ module mmu (
       mmu_start_process_physical_segment_zero = 0;
       mmu_first_possible_free_physical_segment = 8;
       rst_can_be_done = 1;
-
       stage = MMU_IDLE;
     end
   end
@@ -1264,6 +1263,23 @@ module x_simple (
             end
           end
         end
+        STAGE_TASK_SWITCHER: begin
+          `HARD_DEBUG("W");
+          how_many = 0;
+          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
+            $display($time, " TASK SWITCHER from ", process_address, " to ", next_process_address);
+          //old process
+          write_enabled = 1;
+          write_address = process_address + ADDRESS_PC;
+          write_value   = pc[process_num];
+          //new process
+          read_address  = next_process_address + ADDRESS_PC;
+          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, "update mmu");
+          //in parallel update MMU
+          set_reset_mmu_start_process_physical_segment = 1;
+          mmu_address_a = next_process_address;
+          stage = STAGE_READ_SAVE_PC;
+        end        
         STAGE_READ_SAVE_PC: begin
           //new process
           ram_read_save_reg_start = 0;  //counter
@@ -1378,24 +1394,7 @@ module x_simple (
           write_enabled = 0;
           next_process_address = mul_c;
           `MAKE_MMU_SEARCH2(pc[process_num]);
-        end
-        STAGE_TASK_SWITCHER: begin
-          `HARD_DEBUG("W");
-          how_many = 0;
-          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
-            $display($time, " TASK SWITCHER from ", process_address, " to ", next_process_address);
-          //old process
-          write_enabled = 1;
-          write_address = process_address + ADDRESS_PC;
-          write_value   = pc[process_num];
-          //new process
-          read_address  = next_process_address + ADDRESS_PC;
-          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, "update mmu");
-          //in parallel update MMU
-          set_reset_mmu_start_process_physical_segment = 1;
-          mmu_address_a = next_process_address;
-          stage = STAGE_READ_SAVE_PC;
-        end
+        end  
       endcase
     end else if (error_code[process_num] != ERROR_NONE) begin
       `HARD_DEBUG("B");
