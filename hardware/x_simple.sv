@@ -792,7 +792,16 @@ module x_simple (
         stage_after_mmu = STAGE_GET_1_BYTE; \
         stage = STAGE_CHECK_MMU_ADDRESS; \
       end
-
+      
+  `define MAKE_SWITCH_TASK(ARG) \
+     how_many = 0; \
+     if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
+            $display($time, " TASK SWITCHER from ", process_address, " to ", next_process_address); \
+     write_enabled = ARG; \
+     mmu_address_a = next_process_address; \
+     read_address = next_process_address + ADDRESS_PC; \
+     stage = STAGE_READ_SAVE_PC;
+                  
   integer i;  //DEBUG info
 
   always @(negedge clk) begin
@@ -1310,21 +1319,13 @@ module x_simple (
           end
         end
         STAGE_TASK_SWITCHER: begin
-          `HARD_DEBUG("W");
-          how_many = 0;
-          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
-            $display($time, " TASK SWITCHER from ", process_address, " to ", next_process_address);
+          `HARD_DEBUG("W");        
           //old process
-          write_enabled = 1;
           write_address = process_address + ADDRESS_PC;
           write_value   = pc[process_num];
-          //new process
-          read_address  = next_process_address + ADDRESS_PC;
-          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, "update mmu");
           //in parallel update MMU
-          set_reset_mmu_start_process_physical_segment = 1;
-          mmu_address_a = next_process_address;
-          stage = STAGE_READ_SAVE_PC;
+          set_reset_mmu_start_process_physical_segment = 1;          
+          `MAKE_SWITCH_TASK(1);          
         end
         STAGE_READ_SAVE_PC: begin
           //new process
@@ -1396,14 +1397,9 @@ module x_simple (
           mmu_delete_process = 0;
           if (mmu_action_ready) begin
             process_address = prev_process_address;
-            write_enabled = 0;
-            //in parallel update MMU            
+            //in parallel update MMU
             set_mmu_start_process_physical_segment = 1;
-            mmu_address_a = next_process_address;
-            //initiate task switcher with disabled memory write
-            //new process
-            read_address = next_process_address + ADDRESS_PC;
-            stage = STAGE_READ_SAVE_PC;
+            `MAKE_SWITCH_TASK(0)            
           end
         end
         STAGE_SPLIT_PROCESS: begin
