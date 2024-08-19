@@ -836,7 +836,7 @@ module x_simple (
       process_address <= 0;
       next_process_address <= 4 * MMU_PAGE_SIZE;
 
-      uart_buffer_available <= 0;
+      uart_buffer_available = 0;
       `HARD_DEBUG("\n");
       `HARD_DEBUG("S");
 
@@ -884,6 +884,7 @@ module x_simple (
                 ") b2 ",
                 read_value2
             );
+            pc[process_num] <= pc[process_num] + 2;
           `HARD_DEBUG2(instruction1_1);
           `HARD_DEBUG2(instruction1_2);
           //(*parallel_case *) (*full_case *) 
@@ -1214,18 +1215,11 @@ module x_simple (
               write_enabled <= 1;
               stage <= STAGE_INT;
             end
-            // default: begin
-            //    error_code = ERROR_WRONG_OPCODE;
-            // end
-          endcase
-          if (stage != STAGE_SET_PC) begin
-            // $display("update pc");
-            pc[process_num] <= pc[process_num] + 2;
-          end
-          if (stage == STAGE_GET_1_BYTE) begin
+            default: begin
             `MAKE_MMU_SEARCH2(pc[process_num]);
             if (instructions == HOW_MANY_OP_SIMULATE) search_mmu_address = 0;
-          end
+            end
+          endcase        
         end
         STAGE_GET_RAM_BYTE: begin
           registers[process_num][ram_read_save_reg_start] <= read_value2;
