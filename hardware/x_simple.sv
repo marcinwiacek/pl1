@@ -884,7 +884,7 @@ module x_simple (
                 ") b2 ",
                 read_value2
             );
-            pc[process_num] <= pc[process_num] + 2;
+          pc[process_num] <= pc[process_num] + 2;
           `HARD_DEBUG2(instruction1_1);
           `HARD_DEBUG2(instruction1_2);
           //(*parallel_case *) (*full_case *) 
@@ -928,7 +928,7 @@ module x_simple (
                     read_value2,
                     " instructions)"
                 );  //DEBUG info      
-              pc[process_num] <= pc[process_num]+read_value2 * 2 - 1;
+              pc[process_num] <= pc[process_num] + read_value2 * 2 - 1;
               stage <= STAGE_SET_PC;
             end
             //x, register num with info (we read one reg)
@@ -1216,10 +1216,10 @@ module x_simple (
               stage <= STAGE_INT;
             end
             default: begin
-            `MAKE_MMU_SEARCH2(pc[process_num]);
-            if (instructions == HOW_MANY_OP_SIMULATE) search_mmu_address = 0;
+              `MAKE_MMU_SEARCH2(pc[process_num]);
+              if (instructions == HOW_MANY_OP_SIMULATE) search_mmu_address = 0;
             end
-          endcase        
+          endcase
         end
         STAGE_GET_RAM_BYTE: begin
           registers[process_num][ram_read_save_reg_start] <= read_value2;
