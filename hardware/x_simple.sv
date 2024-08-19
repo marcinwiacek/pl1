@@ -1454,11 +1454,11 @@ module x_simple (
         STAGE_REG_INT: begin
           //old process
           write_address = process_address + ADDRESS_PC;
-          write_value = pc[process_num];
-          process_address = prev_process_address;
+          write_value = pc[process_num];          
           stage = STAGE_REG_INT2;
         end
         STAGE_REG_INT2: begin
+          process_address = prev_process_address;
           //in parallel update MMU
           set_mmu_start_process_physical_segment = 1;          
           `MAKE_SWITCH_TASK(0)
