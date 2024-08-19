@@ -4,7 +4,7 @@ parameter HOW_MANY_OP_SIMULATE = 16;
 parameter HOW_MANY_OP_PER_TASK_SIMULATE = 2;
 
 //options below are less important than options higher //DEBUG info
-parameter HARDWARE_DEBUG = 0;
+parameter HARDWARE_DEBUG = 1;
 
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -331,6 +331,7 @@ module mmu (
   parameter MMU_SET_PROCESS_DATA2 = 15;
   parameter MMU_ALLOCATE_NEW = 16;
   parameter MMU_ALLOCATE_NEW2 = 17;
+  parameter MMU_SEARCH3 = 18;  
 
   always @(posedge clk) begin
     //$display($time, " mmu stage ", stage);
@@ -407,14 +408,10 @@ module mmu (
               mmu_chain_write_value = mmu_chain_read_value == mmu_search_position? mmu_prev_search_position:mmu_chain_read_value;
               mmu_chain_write_enable = 1;
               stage = MMU_SEARCH2;
+            end else if (set_reset_mmu_start_process_physical_segment) begin
+              stage = MMU_SEARCH3;            
             end else begin
-              if (set_reset_mmu_start_process_physical_segment) begin
-                mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
-                mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
-                //  $display($time, " new physical segment after switch in position ", mmu_start_process_physical_segment);
-              end
               stage = MMU_IDLE;
-              //$display($time, " mmu search end ");
               mmu_action_ready = 1;
             end
           end else if (mmu_chain_read_value == mmu_search_position) begin
@@ -432,15 +429,22 @@ module mmu (
           mmu_chain_write_addr  = mmu_search_position;
           mmu_chain_write_value = mmu_start_process_physical_segment;
           if (set_reset_mmu_start_process_physical_segment) begin
-            mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
-            mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
-            // $display($time, " new physical segment after switch in position ", mmu_start_process_physical_segment);
+          stage = MMU_SEARCH3;
           end else begin
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display($time, " new start entry point ", mmu_search_position);
             mmu_start_process_physical_segment = mmu_search_position;
+             //$display($time, " mmu search end2 ");
+                stage = MMU_IDLE;
+          mmu_action_ready = 1;
           end
           //$display($time, " mmu search end2 ");
+        end
+        MMU_SEARCH3: begin
+           mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
+            mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
+            // $display($time, " new physical segment after switch in position ", mmu_start_process_physical_segment);
+             //$display($time, " mmu search end2 ");
           stage = MMU_IDLE;
           mmu_action_ready = 1;
         end
@@ -788,6 +792,7 @@ module x_simple (
 
   `define MAKE_MMU_SEARCH2(ARG) \
       if (how_many==HOW_MANY_OP_PER_TASK_SIMULATE && process_address != next_process_address) begin \
+        how_many = 0; \
         stage = STAGE_TASK_SWITCHER; \
       end else begin \
         mmu_address_a = ARG; \
@@ -797,7 +802,7 @@ module x_simple (
       end
 
   `define MAKE_SWITCH_TASK(ARG) \
-     how_many = 0; \
+     if (ARG==0) how_many = 0; \
      if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
             $display($time, " TASK SWITCHER from ", process_address, " to ", next_process_address); \
      write_enabled = ARG; \
@@ -1460,13 +1465,18 @@ module x_simple (
         end
         STAGE_INT: begin
           write_address = prev_process_address + ADDRESS_NEXT_PROCESS;
-          write_value = int_process_address[instruction2_2];
-          write_enabled = 1;
+          write_value = int_process_address[instruction2_2];                     
+          if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
+            next_process_address = write_value;
+          end else begin
+            how_many = 0;
+          end
           int_process_address[instruction2_2] = process_address;
           stage = STAGE_TASK_SWITCHER;
         end
       endcase
     end else if (error_code[process_num] != ERROR_NONE) begin
+      $display($time,"BSOD ",error_code[process_num]);
       `HARD_DEBUG("B");
       `HARD_DEBUG("S");
       `HARD_DEBUG("O");
