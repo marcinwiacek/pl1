@@ -382,7 +382,7 @@ module mmu (
           end else if (set_mmu_start_process_physical_segment) begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display($time, " switching mmu without reset");
-            mmu_start_process_physical_segment <= mmu_address_a / MMU_PAGE_SIZE;
+            mmu_start_process_physical_segment <= mmu_address_a;
             mmu_start_process_physical_segment_zero <= mmu_start_process_physical_segment;
             mmu_action_ready <= 1;
           end else if (mmu_delete_process) begin
@@ -443,7 +443,7 @@ module mmu (
           end
         end
         MMU_SEARCH3: begin
-          mmu_start_process_physical_segment <= mmu_address_a / MMU_PAGE_SIZE;
+          mmu_start_process_physical_segment <= mmu_address_a;
           mmu_start_process_physical_segment_zero <= mmu_start_process_physical_segment;
           // $display($time, " new physical segment after switch in position ", mmu_start_process_physical_segment);
           //$display($time, " mmu search end2 ");
@@ -785,30 +785,30 @@ module x_simple (
   bit [15:0] int_process_address[0:255];
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
-      mmu_address_a = ARG; \
-      search_mmu_address = 1; \
-      stage_after_mmu = ARG2; \
-      stage = STAGE_CHECK_MMU_ADDRESS; 
+      mmu_address_a <= ARG; \
+      search_mmu_address <= 1; \
+      stage_after_mmu <= ARG2; \
+      stage <= STAGE_CHECK_MMU_ADDRESS; 
 
   `define MAKE_MMU_SEARCH2(ARG) \
       if (how_many==HOW_MANY_OP_PER_TASK_SIMULATE && process_address != next_process_address) begin \
-        how_many = 0; \
-        stage = STAGE_TASK_SWITCHER; \
+        how_many <= 0; \
+        stage <= STAGE_TASK_SWITCHER; \
       end else begin \
-        mmu_address_a = ARG; \
-        search_mmu_address = 1; \
-        stage_after_mmu = STAGE_GET_1_BYTE; \
-        stage = STAGE_CHECK_MMU_ADDRESS; \
+        mmu_address_a <= ARG; \
+        search_mmu_address <= 1; \
+        stage_after_mmu <= STAGE_GET_1_BYTE; \
+        stage <= STAGE_CHECK_MMU_ADDRESS; \
       end
 
   `define MAKE_SWITCH_TASK(ARG) \
-     if (ARG==0) how_many = 0; \
+     if (ARG==0) how_many <= 0; \
      if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
             $display($time, " TASK SWITCHER from ", process_address, " to ", next_process_address); \
-     write_enabled = ARG; \
-     mmu_address_a = next_process_address; \
-     read_address = next_process_address + ADDRESS_PC; \
-     stage = STAGE_READ_SAVE_PC;
+     write_enabled <= ARG; \
+     mmu_address_a <= next_process_address / MMU_PAGE_SIZE; \
+     read_address <= next_process_address + ADDRESS_PC; \
+     stage <= STAGE_READ_SAVE_PC;
 
   integer i;  //DEBUG info
 
