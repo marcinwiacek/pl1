@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-parameter HOW_MANY_OP_SIMULATE = 16;
+parameter HOW_MANY_OP_SIMULATE = 22;
 parameter HOW_MANY_OP_PER_TASK_SIMULATE = 2;
 
 //options below are less important than options higher //DEBUG info
@@ -331,7 +331,7 @@ module mmu (
   parameter MMU_SET_PROCESS_DATA2 = 15;
   parameter MMU_ALLOCATE_NEW = 16;
   parameter MMU_ALLOCATE_NEW2 = 17;
-  parameter MMU_SEARCH3 = 18;  
+  parameter MMU_SEARCH3 = 18;
 
   always @(posedge clk) begin
     //$display($time, " mmu stage ", stage);
@@ -409,7 +409,7 @@ module mmu (
               mmu_chain_write_enable = 1;
               stage = MMU_SEARCH2;
             end else if (set_reset_mmu_start_process_physical_segment) begin
-              stage = MMU_SEARCH3;            
+              stage = MMU_SEARCH3;
             end else begin
               stage = MMU_IDLE;
               mmu_action_ready = 1;
@@ -429,22 +429,22 @@ module mmu (
           mmu_chain_write_addr  = mmu_search_position;
           mmu_chain_write_value = mmu_start_process_physical_segment;
           if (set_reset_mmu_start_process_physical_segment) begin
-          stage = MMU_SEARCH3;
+            stage = MMU_SEARCH3;
           end else begin
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display($time, " new start entry point ", mmu_search_position);
             mmu_start_process_physical_segment = mmu_search_position;
-             //$display($time, " mmu search end2 ");
-                stage = MMU_IDLE;
-          mmu_action_ready = 1;
+            //$display($time, " mmu search end2 ");
+            stage = MMU_IDLE;
+            mmu_action_ready = 1;
           end
           //$display($time, " mmu search end2 ");
         end
         MMU_SEARCH3: begin
-           mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
-            mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
-            // $display($time, " new physical segment after switch in position ", mmu_start_process_physical_segment);
-             //$display($time, " mmu search end2 ");
+          mmu_start_process_physical_segment = mmu_address_a / MMU_PAGE_SIZE;
+          mmu_start_process_physical_segment_zero = mmu_start_process_physical_segment;
+          // $display($time, " new physical segment after switch in position ", mmu_start_process_physical_segment);
+          //$display($time, " mmu search end2 ");
           stage = MMU_IDLE;
           mmu_action_ready = 1;
         end
@@ -601,7 +601,7 @@ module x_simple (
       .read_value2(read_value2)
   );
 
-  bit [7:0] uart_buffer[0:128];
+  bit [7:0] uart_buffer[0:200];
   bit [6:0] uart_buffer_available = 0;
   wire reset_uart_buffer_available;
   wire uart_buffer_full;
@@ -661,7 +661,7 @@ module x_simple (
   parameter STAGE_DELETE_PROCESS = 11;
   parameter STAGE_SPLIT_PROCESS = 12;
   parameter STAGE_REG_INT = 14;
-  parameter STAGE_REG_INT2 = 15;  
+  parameter STAGE_REG_INT2 = 15;
   parameter STAGE_INT = 16;
   /*task switching*/
   parameter STAGE_READ_SAVE_PC = 17;
@@ -1454,18 +1454,18 @@ module x_simple (
         STAGE_REG_INT: begin
           //old process
           write_address = process_address + ADDRESS_PC;
-          write_value = pc[process_num];          
+          write_value = pc[process_num];
           stage = STAGE_REG_INT2;
         end
         STAGE_REG_INT2: begin
           process_address = prev_process_address;
           //in parallel update MMU
-          set_mmu_start_process_physical_segment = 1;          
+          set_mmu_start_process_physical_segment = 1;
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_INT: begin
           write_address = prev_process_address + ADDRESS_NEXT_PROCESS;
-          write_value = int_process_address[instruction2_2];                     
+          write_value   = int_process_address[instruction2_2];
           if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
             next_process_address = write_value;
           end else begin
@@ -1476,13 +1476,14 @@ module x_simple (
         end
       endcase
     end else if (error_code[process_num] != ERROR_NONE) begin
-      $display($time,"BSOD ",error_code[process_num]);
+      $display($time, " BSOD ", error_code[process_num]);
       `HARD_DEBUG("B");
       `HARD_DEBUG("S");
       `HARD_DEBUG("O");
       `HARD_DEBUG("D");
       `HARD_DEBUG2(error_code[process_num]);
       stage = STAGE_HLT;
+      error_code[process_num] = ERROR_NONE;
     end
   end
 endmodule
@@ -1573,14 +1574,14 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       16'h0000, 16'h0000, 16'h0000, 16'h0000, 
 
-      16'h1210, 16'd2612, //value to reg
-     // 16'h1800, 16'h0007, //process end
+      16'h1210, 16'd2612, //value to reg     
     //  16'h0e10, 16'd0101, //save to ram
       16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'd0101, //ram to reg
       16'h1b00, 16'd0037, //int
-      //16'h0e10, 16'h00D4, //save to ram      
-      16'h0c01, 16'h0001,  //proc
+      //16'h0e10, 16'h00D4, //save to ram
+      16'h1800, 16'h0007, //process end      
+      //16'h0c01, 16'h0001,  //proc
       16'h0c01, 16'h0002,  //proc
       16'h1202, 16'h0003,  //num2reg
       16'hff02, 16'h0002,  //loop,8'hwith,8'hcache:,8'hloopeqvalue
@@ -1657,7 +1658,7 @@ endmodule
 
 module uartx_tx_with_buffer (
     input clk,
-    input [7:0] uart_buffer[0:128],
+    input [7:0] uart_buffer[0:200],
     input [6:0] uart_buffer_available,
     output bit reset_uart_buffer_available,
     output bit uart_buffer_full,
@@ -1671,7 +1672,7 @@ module uartx_tx_with_buffer (
   wire complete;
 
   assign reset_uart_buffer_available = uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
-  assign uart_buffer_full = uart_buffer_available == 127 ? 1 : 0;
+  assign uart_buffer_full = uart_buffer_available == 199 ? 1 : 0;
   assign start = uart_buffer_state == 1;
 
   uart_tx uart_tx (
