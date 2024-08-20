@@ -639,9 +639,9 @@ module x_simple (
   parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
   parameter OPCODE_EXIT = 'h18;  //exit process
   parameter OPCODE_PROC = 'h19;  //new process //how many segments, start segment number (16 bit)
-  parameter OPCODE_REG_INT = 'h1a;  //x, int number (8 bit)
-  parameter OPCODE_INT = 'h1b;  //x, int number (8 bit)
-  parameter OPCODE_INT_RET = 'h1c;  //x, int number
+  parameter OPCODE_REG_INT = 'h1a;  //int number (8 bit), start memory page, end memory page 
+  parameter OPCODE_INT = 'h1b;  //int number (8 bit), start memory page, end memory page
+  parameter OPCODE_INT_RET = 'h1c;  //int number
 
   parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions (8 bit value) // do..while
   parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions (8 bit value) //do..while
@@ -795,6 +795,7 @@ module x_simple (
         how_many <= 0; \
         stage <= STAGE_TASK_SWITCHER; \
       end else begin \
+        how_many <= how_many + 1; \
         mmu_address_a <= ARG; \
         search_mmu_address <= 1; \
         stage_after_mmu <= STAGE_GET_1_BYTE; \
@@ -860,9 +861,7 @@ module x_simple (
                 "=",
                 read_value2
             );
-          `HARD_DEBUG("a");
-          instructions <= instructions + 1;
-          how_many <= how_many + 1;
+          `HARD_DEBUG("a");         
           if (OP_DEBUG && !HARDWARE_DEBUG)
             $display(
                 $time,
@@ -1220,6 +1219,7 @@ module x_simple (
               if (instructions == HOW_MANY_OP_SIMULATE) search_mmu_address = 0;
             end
           endcase
+            instructions <= instructions + 1;                        
         end
         STAGE_GET_RAM_BYTE: begin
           registers[process_num][ram_read_save_reg_start] <= read_value2;
