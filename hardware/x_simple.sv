@@ -1187,9 +1187,9 @@ module x_simple (
             //x, int number (8 bit)
             OPCODE_REG_INT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)
-                $display($time, " opcode = reg_int ", instruction2_2);
-              int_pc[instruction2_2] <= pc[process_num];
-              int_process_address[instruction2_2] <= process_address;
+                $display($time, " opcode = reg_int ", instruction1_2);
+              int_pc[instruction1_2] <= pc[process_num];
+              int_process_address[instruction1_2] <= process_address;
               //delete process from chain
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -1198,9 +1198,9 @@ module x_simple (
             end
             //x, int number (8 bit)
             OPCODE_INT: begin
-              if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int ", instruction2_2);
+              if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int ", instruction1_2);
               //replace current process with int process in the chain 
-              write_address <= int_process_address[instruction2_2] + ADDRESS_NEXT_PROCESS;
+              write_address <= int_process_address[instruction1_2] + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
               write_enabled <= 1;
               stage <= STAGE_INT;
@@ -1209,7 +1209,7 @@ module x_simple (
             OPCODE_INT_RET: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int_ret");
               //replace current process with int process in the chain 
-              write_address <= int_process_address[instruction2_2] + ADDRESS_NEXT_PROCESS;
+              write_address <= int_process_address[instruction1_2] + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
               write_enabled <= 1;
               stage <= STAGE_INT;
