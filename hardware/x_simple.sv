@@ -354,7 +354,7 @@ module mmu (
           mmu_chain_write_enable   <= 0;
           mmu_logical_write_enable <= 0;
           if (search_mmu_address) begin
-            mmu_address_to_search_segment <= mmu_address_a / MMU_PAGE_SIZE;
+            mmu_address_to_search_segment <= mmu_address_a / MMU_PAGE_SIZE; //fixme: mmu_size / 2^x allows for using assign ... = 
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display(
                   $time,
