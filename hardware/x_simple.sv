@@ -23,6 +23,7 @@ parameter ALU_DEBUG = 0;
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
 //parameter RAM_SIZE = 32767;
 parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
+parameter MMU_MAX_INDEX_BIT_SIZE = 8; //256 values can be saved in 8 bits
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
 /* DEBUG info */     if (reset_uart_buffer_available) uart_buffer_available = 0; \
@@ -254,6 +255,35 @@ module mmulutram2 (
   end
 endmodule
 
+//big cache memory
+module mmulutram3 (
+    input clk,
+    input [15:0] read_addr,
+    output bit [MMU_MAX_INDEX_BIT_SIZE+MMU_MAX_INDEX_BIT_SIZE:0] read_value,
+    input write_enable,
+    input [15:0] write_addr,
+    input [MMU_MAX_INDEX_BIT_SIZE+MMU_MAX_INDEX_BIT_SIZE:0] write_value
+);
+
+  //(* ram_style = "distributed" *)   
+  //(* ram_style = "block" *) 
+  bit [MMU_MAX_INDEX_BIT_SIZE+MMU_MAX_INDEX_BIT_SIZE:0] ram[0:MMU_MAX_INDEX];
+
+  integer i;
+
+  initial begin
+    ram = '{default: 0};
+  end
+
+  assign read_value = ram[read_addr];
+
+  always @(negedge clk) begin
+    if (write_enable) begin
+      ram[write_addr] <= write_value;
+    end
+  end
+endmodule
+
 module mmu (
     input clk,
     input reset,
@@ -267,14 +297,6 @@ module mmu (
     output bit mmu_action_ready
 );
 
-  // special cases:
-  // mmu_chain_memory == own physical segment (element is pointing to itself) -> end segment
-  // mmu_logical_pages_memory == start point in segment 0
-  // mmu_logical_pages_memory == 0 && mmu_chain_memory == 0 -> free segment for all physical segments != 0 (see note in next line)
-  // 0,0 can be assigned to process starting from physical segment 0 -> we handle it with mmu_first_possible_free_physical_segment 
-  //bit [8:0] mmu_chain_memory[0:MMU_MAX_INDEX];  //next physical segment index for process
-  //bit [8:0] mmu_logical_pages_memory[0:MMU_MAX_INDEX];  //logical process page assigned to physical segment
-
   bit [8:0] mmu_first_possible_free_physical_segment;  //updated on create / delete (when == 0, we assume it must be free; in other cases it's just start index for loop)
   bit [8:0] mmu_start_process_physical_segment;  //updated on process switch and MMU sorting
   bit [8:0] mmu_start_process_physical_segment_zero;  //updated on process switch
@@ -287,6 +309,15 @@ module mmu (
   bit [8:0] temp, temp2;
 
   integer i;
+
+  // values:
+  // mmu_chain_memory - next physical segment index for process
+  // mmu_logical_pages_memory - logical process page assigned to physical segment
+  // special cases:
+  // mmu_chain_memory == own physical segment (element is pointing to itself) -> end segment
+  // mmu_logical_pages_memory == start point in segment 0 when process is not executed
+  // mmu_logical_pages_memory == 0 && mmu_chain_memory == 0 -> free segment for all physical segments != 0 (see note in next line)
+  // 0,0 can be assigned to process starting from physical segment 0 -> we handle it with mmu_first_possible_free_physical_segment 
 
   bit [15:0] mmu_chain_read_addr;
   wire [8:0] mmu_chain_read_value;
@@ -318,6 +349,31 @@ module mmu (
       .write_value(mmu_logical_write_value)
   );
 
+  //values: process start segment + process physical segment
+  //example: entry 5 contains 6 and 7 values -> process starting with segment 6 has got logical page 5 assigned to physical 7
+  //updated during searching over mmu_chain_memory and mmu_logical_pages_memory and during process deleting
+  
+  bit [15:0] mmu_cache_read_addr;
+  wire [MMU_MAX_INDEX_BIT_SIZE+MMU_MAX_INDEX_BIT_SIZE:0] mmu_cache_read_value;
+  bit mmu_cache_write_enable = 0;
+  bit [15:0] mmu_cache_write_addr;
+  bit [MMU_MAX_INDEX_BIT_SIZE+MMU_MAX_INDEX_BIT_SIZE:0] mmu_cache_write_value;
+
+  bit [MMU_MAX_INDEX_BIT_SIZE:0] mmu_cache_read_value_1;
+  bit [MMU_MAX_INDEX_BIT_SIZE:0] mmu_cache_read_value_2;
+  
+  assign mmu_cache_read_value_1 = mmu_cache_read_value[7:0];
+  assign mmu_cache_read_value_2 = mmu_cache_read_value[15:8];
+
+  mmulutram3 mmu_cache_memory (
+      .clk(clk),
+      .read_addr(mmu_cache_read_addr),
+      .read_value(mmu_cache_read_value),
+      .write_enable(mmu_cache_write_enable),
+      .write_addr(mmu_cache_write_addr),
+      .write_value(mmu_cache_write_value)
+  );
+
   parameter MMU_IDLE = 0;
   parameter MMU_SEARCH = 1;
   parameter MMU_SEARCH2 = 2;
@@ -338,6 +394,10 @@ module mmu (
   parameter MMU_SWITCH = 19;
   parameter MMU_SEARCH3 = 20;
 
+  bit [15:0] mmu_address_to_search_segment_cache;
+  
+  assign mmu_address_to_search_segment_cache = mmu_address_a / MMU_PAGE_SIZE; //fixme: mmu_size / 2^x allows for using assign ... =  
+
   always @(posedge clk) begin
     //$display($time, " mmu stage ", stage);
     if (reset == 1 && rst_can_be_done == 1) begin
@@ -354,7 +414,8 @@ module mmu (
           mmu_chain_write_enable   <= 0;
           mmu_logical_write_enable <= 0;
           if (search_mmu_address) begin
-            mmu_address_to_search_segment <= mmu_address_a / MMU_PAGE_SIZE; //fixme: mmu_size / 2^x allows for using assign ... = 
+            mmu_address_to_search_segment <=  mmu_address_to_search_segment_cache;   
+            mmu_cache_read_addr <= mmu_address_to_search_segment_cache;          
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display(
                   $time,
@@ -423,7 +484,11 @@ module mmu (
           stage <= MMU_IDLE;
         end
         MMU_SEARCH: begin
-          if (mmu_logical_read_value == mmu_address_to_search_segment) begin
+          if (mmu_cache_read_value_1==mmu_start_process_physical_segment_zero && mmu_cache_read_value_2!=0) begin
+            mmu_address_c <= mmu_address_a % MMU_PAGE_SIZE + mmu_cache_read_value_2 * MMU_PAGE_SIZE;
+            stage <= MMU_IDLE;
+            mmu_action_ready <= 1;
+          end else if (mmu_logical_read_value == mmu_address_to_search_segment) begin
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display($time, " physical segment in position ", mmu_search_position);
             mmu_address_c <= mmu_address_a % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
@@ -705,7 +770,7 @@ module x_simple (
   parameter ADDRESS_REG = 14;
   parameter ADDRESS_PROGRAM = ADDRESS_REG + 32;
 
-  bit [4:0] how_many = 0;
+  bit [4:0] how_many = 1;
   bit [4:0] process_num = 0;
   bit [15:0] prev_process_address = 0, process_address = 0, next_process_address = 0;
   bit [0:31] registers_updated;
@@ -1491,7 +1556,13 @@ module x_simple (
       `HARD_DEBUG("O");
       `HARD_DEBUG("D");
       `HARD_DEBUG2(error_code[process_num]);
-      stage <= STAGE_HLT;
+      
+       mmu_delete_process <= 1;
+              write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
+              write_value <= next_process_address;
+              write_enabled <= 1;
+              stage <= STAGE_DELETE_PROCESS;
+              
       error_code[process_num] <= ERROR_NONE;
     end
   end
