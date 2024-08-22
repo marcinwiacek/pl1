@@ -23,7 +23,7 @@ parameter ALU_DEBUG = 0;
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
 //parameter RAM_SIZE = 32767;
 parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
-parameter MMU_MAX_INDEX_BIT_SIZE = 8; //256 values can be saved in 8 bits
+parameter MMU_MAX_INDEX_BIT_SIZE = 8;  //256 values can be saved in 8 bits
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
 /* DEBUG info */     if (reset_uart_buffer_available) uart_buffer_available = 0; \
@@ -352,7 +352,7 @@ module mmu (
   //values: process start segment + process physical segment
   //example: entry 5 contains 6 and 7 values -> process starting with segment 6 has got logical page 5 assigned to physical 7
   //updated during searching over mmu_chain_memory and mmu_logical_pages_memory and during process deleting
-  
+
   bit [15:0] mmu_cache_read_addr;
   wire [MMU_MAX_INDEX_BIT_SIZE+MMU_MAX_INDEX_BIT_SIZE:0] mmu_cache_read_value;
   bit mmu_cache_write_enable = 0;
@@ -361,7 +361,7 @@ module mmu (
 
   bit [MMU_MAX_INDEX_BIT_SIZE:0] mmu_cache_read_value_1;
   bit [MMU_MAX_INDEX_BIT_SIZE:0] mmu_cache_read_value_2;
-  
+
   assign mmu_cache_read_value_1 = mmu_cache_read_value[7:0];
   assign mmu_cache_read_value_2 = mmu_cache_read_value[15:8];
 
@@ -395,7 +395,7 @@ module mmu (
   parameter MMU_SEARCH3 = 20;
 
   bit [15:0] mmu_address_to_search_segment_cache;
-  
+
   assign mmu_address_to_search_segment_cache = mmu_address_a / MMU_PAGE_SIZE; //fixme: mmu_size / 2^x allows for using assign ... =  
 
   always @(posedge clk) begin
@@ -414,8 +414,8 @@ module mmu (
           mmu_chain_write_enable   <= 0;
           mmu_logical_write_enable <= 0;
           if (search_mmu_address) begin
-            mmu_address_to_search_segment <=  mmu_address_to_search_segment_cache;   
-            mmu_cache_read_addr <= mmu_address_to_search_segment_cache;          
+            mmu_address_to_search_segment <= mmu_address_to_search_segment_cache;
+            mmu_cache_read_addr <= mmu_address_to_search_segment_cache;
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display(
                   $time,
@@ -1556,13 +1556,13 @@ module x_simple (
       `HARD_DEBUG("O");
       `HARD_DEBUG("D");
       `HARD_DEBUG2(error_code[process_num]);
-      
-       mmu_delete_process <= 1;
-              write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
-              write_value <= next_process_address;
-              write_enabled <= 1;
-              stage <= STAGE_DELETE_PROCESS;
-              
+
+      mmu_delete_process <= 1;
+      write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
+      write_value <= next_process_address;
+      write_enabled <= 1;
+      stage <= STAGE_DELETE_PROCESS;
+
       error_code[process_num] <= ERROR_NONE;
     end
   end
