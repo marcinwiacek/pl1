@@ -484,11 +484,14 @@ module mmu (
           stage <= MMU_IDLE;
         end
         MMU_SEARCH: begin
+           mmu_cache_write_addr <= mmu_search_position;
+           mmu_cache_write_value <= 256*mmu_start_process_physical_segment_zero+mmu_address_to_search_segment;
+            mmu_cache_write_value<=1;        
           if (mmu_cache_read_value_1==mmu_start_process_physical_segment_zero && mmu_cache_read_value_2!=0) begin
             mmu_address_c <= mmu_address_a % MMU_PAGE_SIZE + mmu_cache_read_value_2 * MMU_PAGE_SIZE;
             stage <= MMU_IDLE;
             mmu_action_ready <= 1;
-          end else if (mmu_logical_read_value == mmu_address_to_search_segment) begin
+          end else if (mmu_logical_read_value == mmu_address_to_search_segment) begin           
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display($time, " physical segment in position ", mmu_search_position);
             mmu_address_c <= mmu_address_a % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
@@ -513,7 +516,7 @@ module mmu (
             mmu_logical_read_addr <= mmu_chain_read_value;
           end
         end
-        MMU_SEARCH2: begin
+        MMU_SEARCH2: begin        
           mmu_chain_write_addr <= mmu_search_position;
           mmu_chain_write_value <= mmu_start_process_physical_segment;
           stage <= MMU_SEARCH3;
@@ -526,12 +529,17 @@ module mmu (
           mmu_action_ready <= 1;
         end
         MMU_ALLOCATE_NEW: begin
-          if (mmu_chain_read_value == 0 && mmu_logical_read_value == 0) begin
+          if (mmu_chain_read_value == 0 && mmu_logical_read_value == 0) begin      
+            mmu_cache_write_addr <= mmu_first_possible_free_physical_segment;
+            mmu_cache_write_value <= 256*mmu_start_process_physical_segment_zero+mmu_logical_read_value;
+            mmu_cache_write_value<=1;
+                    
             mmu_chain_write_addr <= mmu_search_position;
             mmu_chain_write_value <= mmu_first_possible_free_physical_segment;
             mmu_chain_write_enable <= 1;
             stage <= MMU_ALLOCATE_NEW2;
-          end else begin
+          end else begin  
+               mmu_cache_write_value<=0;
             mmu_first_possible_free_physical_segment <= mmu_first_possible_free_physical_segment + 1;
             mmu_chain_read_addr <= mmu_first_possible_free_physical_segment;
             mmu_logical_read_addr <= mmu_first_possible_free_physical_segment;
@@ -571,11 +579,16 @@ module mmu (
           mmu_chain_write_value <= 0;
           mmu_logical_write_enable <= 1;
           mmu_chain_write_enable <= 1;
+          
+             mmu_cache_write_addr <= mmu_search_position;
+            mmu_cache_write_value <= 0;
+            mmu_cache_write_value<=1;
         end
         MMU_SPLIT: begin
           //  $display($time, " ", mmu_search_position, " ", mmu_logical_read_value, " ", mmu_address_a,
           //          " ", mmu_address_b);
           if (mmu_logical_read_value >= mmu_address_a && mmu_logical_read_value <= mmu_address_b) begin
+           
             //update old process chain
             mmu_chain_write_addr <= mmu_prev_search_position;
             mmu_chain_write_value <= mmu_chain_read_value;
@@ -587,9 +600,18 @@ module mmu (
             mmu_new_search_position <= mmu_search_position;
             if (mmu_logical_read_value == mmu_address_a) begin
               mmu_address_c <= mmu_search_position;
+             //update cache
+             mmu_cache_write_addr <= mmu_search_position;
+            mmu_cache_write_value <= mmu_logical_read_value == mmu_address_a ? mmu_search_position:mmu_logical_read_value - mmu_address_a;
+            mmu_cache_write_value<=1;
             end else begin
               stage <= MMU_SPLIT2;
+                 //update cache
+             mmu_cache_write_addr <= mmu_address_c;
+            mmu_cache_write_value <= mmu_logical_read_value == mmu_address_a ? mmu_search_position:mmu_logical_read_value - mmu_address_a;
+            mmu_cache_write_value<=1;
             end
+            
           end else begin
             mmu_chain_write_enable   <= 0;
             mmu_logical_write_enable <= 0;
@@ -1550,7 +1572,7 @@ module x_simple (
         end
       endcase
     end else if (error_code[process_num] != ERROR_NONE) begin
-      $display($time, " BSOD ", error_code[process_num]);
+      $display($time," BSOD ", error_code[process_num]);
       `HARD_DEBUG("B");
       `HARD_DEBUG("S");
       `HARD_DEBUG("O");
