@@ -10,7 +10,7 @@ parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -488,6 +488,12 @@ module mmu (
            mmu_cache_write_value <= 256*mmu_start_process_physical_segment_zero+mmu_address_to_search_segment;
             mmu_cache_write_value<=1;        
           if (mmu_cache_read_value_1==mmu_start_process_physical_segment_zero && mmu_cache_read_value_2!=0) begin
+          
+          if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+            $display(
+                $time, " physical segment in position (from cache) ", mmu_cache_read_value_2
+            );
+            
             mmu_address_c <= mmu_address_a % MMU_PAGE_SIZE + mmu_cache_read_value_2 * MMU_PAGE_SIZE;
             stage <= MMU_IDLE;
             mmu_action_ready <= 1;
