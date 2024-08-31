@@ -537,11 +537,11 @@ module mmu (
             mmu_cache_write_addr <= mmu_first_possible_free_physical_segment;
             mmu_cache_write_value <= 256*mmu_start_process_physical_segment_zero+mmu_logical_read_value;
             mmu_cache_write_value <= 1;
-            
+
             mmu_chain_write_addr <= mmu_search_position;
             mmu_chain_write_value <= mmu_first_possible_free_physical_segment;
             mmu_chain_write_enable <= 1;
-            
+
             stage <= MMU_ALLOCATE_NEW2;
           end else begin
             mmu_cache_write_value <= 0;
@@ -554,14 +554,16 @@ module mmu (
           mmu_chain_write_addr <= mmu_first_possible_free_physical_segment;
           mmu_chain_write_value <= mmu_first_possible_free_physical_segment;
           mmu_chain_write_enable <= 1;
-          
+
           mmu_logical_write_addr <= mmu_first_possible_free_physical_segment;
           mmu_logical_write_value <= mmu_address_to_search_segment;
           mmu_logical_write_enable <= 1;
-          
+
           if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
             $display(
-                $time, " physical segment in position (new allocated) ", mmu_first_possible_free_physical_segment
+                $time,
+                " physical segment in position (new allocated) ",
+                mmu_first_possible_free_physical_segment
             );
           mmu_address_c <= mmu_address_a % MMU_PAGE_SIZE + mmu_first_possible_free_physical_segment * MMU_PAGE_SIZE;
           mmu_first_possible_free_physical_segment <= mmu_first_possible_free_physical_segment + 1;
@@ -603,7 +605,7 @@ module mmu (
             mmu_logical_write_addr <= mmu_search_position;
             mmu_logical_write_value <= mmu_logical_read_value == mmu_address_a ? mmu_search_position:mmu_logical_read_value - mmu_address_a;
             mmu_logical_write_enable <= 1;
-            
+
             mmu_new_search_position <= mmu_search_position;
             if (mmu_logical_read_value == mmu_address_a) begin
               mmu_address_c <= mmu_search_position;
@@ -1451,12 +1453,12 @@ module x_simple (
           read_address  <= next_process_address + ADDRESS_REG;
           read_address2 <= next_process_address + ADDRESS_REG + 1;
           //old process
-          if (write_enabled) begin               
-            write_address<=process_address + ADDRESS_REG;
+          if (write_enabled) begin
+            write_address <= process_address + ADDRESS_REG;
             write_value <= registers[process_num][0];
-            write_address2<=process_address + ADDRESS_REG+1;
+            write_address2 <= process_address + ADDRESS_REG + 1;
             write_value2 <= registers[process_num][1];
-            write_enabled2<=1;
+            write_enabled2 <= 1;
           end
           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
           //registers
@@ -1464,8 +1466,8 @@ module x_simple (
         end
         STAGE_READ_SAVE_REG: begin
           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
-        //  $display($time, " reading ", read_address - next_process_address-ADDRESS_REG," writing ",write_address-process_address-ADDRESS_REG);
-          if (read_address == next_process_address + ADDRESS_REG+34) begin
+          //  $display($time, " reading ", read_address - next_process_address-ADDRESS_REG," writing ",write_address-process_address-ADDRESS_REG);
+          if (read_address == next_process_address + ADDRESS_REG + 34) begin
             //change process
             prev_process_address <= process_address;
             process_address <= next_process_address;
@@ -1474,17 +1476,17 @@ module x_simple (
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
             write_enabled <= 0;
             write_enabled2 <= 0;
-          end else begin           
-              //new process  
-              registers[process_num][read_address-next_process_address] <= read_value;
-              registers[process_num][read_address-next_process_address+1] <= read_value2;             
-              read_address <= read_address + 2;
-              read_address2 <= read_address2 + 2;
-              //old process
-              write_value <= registers[process_num][write_address-process_address+2];
-              write_address<=write_address+2;
-              write_value <= registers[process_num][write_address-process_address+3];
-              write_address<=write_address+2;
+          end else begin
+            //new process  
+            registers[process_num][read_address-next_process_address] <= read_value;
+            registers[process_num][read_address-next_process_address+1] <= read_value2;
+            read_address <= read_address + 2;
+            read_address2 <= read_address2 + 2;
+            //old process
+            write_value <= registers[process_num][write_address-process_address+2];
+            write_address <= write_address + 2;
+            write_value2 <= registers[process_num][write_address-process_address+3];
+            write_address2 <= write_address + 2;
           end
         end
         STAGE_READ_NEXT_NEXT_PROCESS: begin
@@ -1571,18 +1573,18 @@ module x_simple (
       `HARD_DEBUG("O");
       `HARD_DEBUG("D");
       `HARD_DEBUG2(error_code[process_num]);
-     search_mmu_address<=0;
-     set_mmu_start_process_physical_segment<=0;  
-          mmu_split_process<=0;          
-          if (next_process_address==process_address) begin
-            mmu_delete_process <= 0;
-      stage <= STAGE_HLT;
-          end else begin
-            mmu_delete_process <= 1;
-      write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
-      write_value <= next_process_address;
-      write_enabled <= 1;
-      stage <= STAGE_DELETE_PROCESS;
+      search_mmu_address <= 0;
+      set_mmu_start_process_physical_segment <= 0;
+      mmu_split_process <= 0;
+      if (next_process_address == process_address) begin
+        mmu_delete_process <= 0;
+        stage <= STAGE_HLT;
+      end else begin
+        mmu_delete_process <= 1;
+        write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
+        write_value <= next_process_address;
+        write_enabled <= 1;
+        stage <= STAGE_DELETE_PROCESS;
       end
 
       error_code[process_num] <= ERROR_NONE;
@@ -1591,9 +1593,14 @@ module x_simple (
 endmodule
 
 module single_blockram (
-    input clk, write_enabled,
-    input [15:0] write_address, write_value, read_address, read_address2,
-    output bit [15:0] read_value,    read_value2
+    input clk,
+    write_enabled,
+    input [15:0] write_address,
+    write_value,
+    read_address,
+    read_address2,
+    output bit [15:0] read_value,
+    read_value2
 );
 
   /*  reg [15:0] ram[0:67];
