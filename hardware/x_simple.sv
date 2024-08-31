@@ -9,13 +9,13 @@ parameter HARDWARE_DEBUG = 0;
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_CHANGES_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 0;
+parameter STAGE_DEBUG = 1;
 parameter OP_DEBUG = 1;
 parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
@@ -1451,16 +1451,11 @@ module x_simple (
           read_address  <= next_process_address + ADDRESS_REG;
           read_address2 <= next_process_address + ADDRESS_REG + 1;
           //old process
-          if (write_enabled) begin
-            ram_read_save_reg_end <= 0;  //counter
-            write_address <= process_address + ADDRESS_REG;
-            if (!registers_updated[0]) begin
-              ram_read_save_reg_end <= 1;
-              write_address <= write_address + 1;
-            end
-            write_value <= registers[process_num][ram_read_save_reg_end];
+          if (write_enabled) begin          
+            write_address <= registers_updated[0]?process_address + ADDRESS_REG:process_address + ADDRESS_REG+1;
+            write_value <= registers_updated[0]?registers[process_num][0]:registers[process_num][1];
           end else begin
-            ram_read_save_reg_end <= 32;
+            write_address <= process_address + ADDRESS_REG+32;
           end
           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
           //registers
@@ -1468,7 +1463,8 @@ module x_simple (
         end
         STAGE_READ_SAVE_REG: begin
           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
-          if (ram_read_save_reg_start == 32) begin
+          $display($time, " reading ", read_address - next_process_address," writing ",write_address-process_address);
+          if (read_address == next_process_address + ADDRESS_REG+32) begin
             //change process
             prev_process_address <= process_address;
             process_address <= next_process_address;
@@ -1476,27 +1472,27 @@ module x_simple (
             read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
             write_enabled <= 0;
-          end else begin
-            // $display(ram_read_save_reg_start, " " ,ram_read_save_reg_end);
-            if (ram_read_save_reg_end > ram_read_save_reg_start + 1) begin
+          end else begin         
+            if (write_address-process_address>read_address-next_process_address+1) begin
               //new process  
-              registers[process_num][ram_read_save_reg_start] <= read_value;
-              registers[process_num][ram_read_save_reg_start+1] <= read_value2;
-              ram_read_save_reg_start <= ram_read_save_reg_start + 2;
+              registers[process_num][read_address] <= read_value;
+              registers[process_num][read_address+1] <= read_value2;             
               read_address <= read_address + 2;
               read_address2 <= read_address2 + 2;
             end
-            if (write_enabled) begin
-              //old process
-              write_address <= write_address + 1;
-              ram_read_save_reg_end <= ram_read_save_reg_end + 1;
-              if (ram_read_save_reg_end < 32) begin
-                if (!registers_updated[ram_read_save_reg_end]) begin
+            //old process
+            if (write_address < write_address + ADDRESS_REG+32) begin              
+                if (registers_updated[write_address-process_address + 1]) begin                  
                   write_address <= write_address + 1;
-                  ram_read_save_reg_end <= ram_read_save_reg_end + 1;
+                  write_value <= registers[process_num][write_address-process_address + 1];
+                  write_enabled <= 1;
+                end else if (registers_updated[write_address-process_address + 2]) begin
+                  write_address <= write_address + 2;
+                  write_value <= registers[process_num][write_address-process_address + 2];
+                  write_enabled <= 1;
+                end else begin
+                  write_enabled <= 0;
                 end
-                write_value <= registers[process_num][ram_read_save_reg_end];
-              end
             end
           end
         end
