@@ -9,13 +9,13 @@ parameter HARDWARE_DEBUG = 0;
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_CHANGES_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 1;
+parameter STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
 parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
@@ -689,22 +689,16 @@ module x_simple (
   bit write_enabled;
   bit [15:0] write_address;
   bit [15:0] write_value;
-  bit write_enabled2;
-  bit [15:0] write_address2;
-  bit [15:0] write_value2;
   bit [15:0] read_address;
   wire [15:0] read_value;
   bit [15:0] read_address2;
   wire [15:0] read_value2;
 
   single_blockram single_blockram (
-      .clk(clk),.clk2(clk),
+      .clk(clk),
       .write_enabled(write_enabled),
       .write_address(write_address),
       .write_value(write_value),
-      .write_enabled2(write_enabled2),
-      .write_address2(write_address2),
-      .write_value2(write_value2),
       .read_address(read_address),
       .read_value(read_value),
       .read_address2(read_address2),
@@ -1597,10 +1591,8 @@ module x_simple (
 endmodule
 
 module single_blockram (
-    input clk, clk2,write_enabled,write_enabled2,
-    input [15:0] write_address,write_address2,
-    input [15:0] write_value,write_value2,
-    input [15:0] read_address, read_address2,
+    input clk, write_enabled,
+    input [15:0] write_address, write_value, read_address, read_address2,
     output bit [15:0] read_value,    read_value2
 );
 
@@ -1759,13 +1751,6 @@ module single_blockram (
 
     if (write_enabled) ram[write_address] <= write_value;
   end
-  
-  always @(posedge clk2) begin
-    if (write_enabled2 && RAM_WRITE_DEBUG && !HARDWARE_DEBUG)
-      $display($time, " ram write2 ", write_address2, " = ", write_value2);
-
-    if (write_enabled2) ram[write_address2] <= write_value2;
-  end  
 endmodule
 
 module uartx_tx_with_buffer (
