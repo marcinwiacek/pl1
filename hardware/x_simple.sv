@@ -689,16 +689,22 @@ module x_simple (
   bit write_enabled;
   bit [15:0] write_address;
   bit [15:0] write_value;
+  bit write_enabled2;
+  bit [15:0] write_address2;
+  bit [15:0] write_value2;
   bit [15:0] read_address;
   wire [15:0] read_value;
   bit [15:0] read_address2;
   wire [15:0] read_value2;
 
   single_blockram single_blockram (
-      .clk(clk),
+      .clk(clk),.clk2(clk),
       .write_enabled(write_enabled),
       .write_address(write_address),
       .write_value(write_value),
+      .write_enabled2(write_enabled2),
+      .write_address2(write_address2),
+      .write_value2(write_value2),
       .read_address(read_address),
       .read_value(read_value),
       .read_address2(read_address2),
@@ -1445,17 +1451,18 @@ module x_simple (
         end
         STAGE_READ_SAVE_PC: begin
           //new process
-          ram_read_save_reg_start <= 0;  //counter
+          ram_read_save_reg_start <= 2;  //counter for next value to read
           pc[process_num] <= read_value;
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new pc ", read_value);
           read_address  <= next_process_address + ADDRESS_REG;
           read_address2 <= next_process_address + ADDRESS_REG + 1;
           //old process
-          if (write_enabled) begin          
-            write_address <= registers_updated[0]?process_address + ADDRESS_REG:process_address + ADDRESS_REG+1;
-            write_value <= registers_updated[0]?registers[process_num][0]:registers[process_num][1];
-          end else begin
-            write_address <= process_address + ADDRESS_REG+32;
+          if (write_enabled) begin               
+            write_address<=process_address + ADDRESS_REG;
+            write_value <= registers[process_num][0];
+            write_address2<=process_address + ADDRESS_REG+1;
+            write_value2 <= registers[process_num][1];
+            write_enabled2<=1;
           end
           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
           //registers
@@ -1463,8 +1470,8 @@ module x_simple (
         end
         STAGE_READ_SAVE_REG: begin
           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
-          $display($time, " reading ", read_address - next_process_address," writing ",write_address-process_address);
-          if (read_address == next_process_address + ADDRESS_REG+32) begin
+        //  $display($time, " reading ", read_address - next_process_address-ADDRESS_REG," writing ",write_address-process_address-ADDRESS_REG);
+          if (read_address == next_process_address + ADDRESS_REG+34) begin
             //change process
             prev_process_address <= process_address;
             process_address <= next_process_address;
@@ -1472,28 +1479,18 @@ module x_simple (
             read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
             write_enabled <= 0;
-          end else begin         
-            if (write_address-process_address>read_address-next_process_address+1) begin
+            write_enabled2 <= 0;
+          end else begin           
               //new process  
-              registers[process_num][read_address] <= read_value;
-              registers[process_num][read_address+1] <= read_value2;             
+              registers[process_num][read_address-next_process_address] <= read_value;
+              registers[process_num][read_address-next_process_address+1] <= read_value2;             
               read_address <= read_address + 2;
               read_address2 <= read_address2 + 2;
-            end
-            //old process
-            if (write_address < write_address + ADDRESS_REG+32) begin              
-                if (registers_updated[write_address-process_address + 1]) begin                  
-                  write_address <= write_address + 1;
-                  write_value <= registers[process_num][write_address-process_address + 1];
-                  write_enabled <= 1;
-                end else if (registers_updated[write_address-process_address + 2]) begin
-                  write_address <= write_address + 2;
-                  write_value <= registers[process_num][write_address-process_address + 2];
-                  write_enabled <= 1;
-                end else begin
-                  write_enabled <= 0;
-                end
-            end
+              //old process
+              write_value <= registers[process_num][write_address-process_address+2];
+              write_address<=write_address+2;
+              write_value <= registers[process_num][write_address-process_address+3];
+              write_address<=write_address+2;
           end
         end
         STAGE_READ_NEXT_NEXT_PROCESS: begin
@@ -1580,12 +1577,19 @@ module x_simple (
       `HARD_DEBUG("O");
       `HARD_DEBUG("D");
       `HARD_DEBUG2(error_code[process_num]);
-
-      mmu_delete_process <= 1;
+     search_mmu_address<=0;
+     set_mmu_start_process_physical_segment<=0;  
+          mmu_split_process<=0;          
+          if (next_process_address==process_address) begin
+            mmu_delete_process <= 0;
+      stage <= STAGE_HLT;
+          end else begin
+            mmu_delete_process <= 1;
       write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
       write_value <= next_process_address;
       write_enabled <= 1;
       stage <= STAGE_DELETE_PROCESS;
+      end
 
       error_code[process_num] <= ERROR_NONE;
     end
@@ -1593,14 +1597,11 @@ module x_simple (
 endmodule
 
 module single_blockram (
-    input clk,
-    input write_enabled,
-    input [15:0] write_address,
-    input [15:0] write_value,
-    input [15:0] read_address,
-    output bit [15:0] read_value,
-    input [15:0] read_address2,
-    output bit [15:0] read_value2
+    input clk, clk2,write_enabled,write_enabled2,
+    input [15:0] write_address,write_address2,
+    input [15:0] write_value,write_value2,
+    input [15:0] read_address, read_address2,
+    output bit [15:0] read_value,    read_value2
 );
 
   /*  reg [15:0] ram[0:67];
@@ -1758,6 +1759,13 @@ module single_blockram (
 
     if (write_enabled) ram[write_address] <= write_value;
   end
+  
+  always @(posedge clk2) begin
+    if (write_enabled2 && RAM_WRITE_DEBUG && !HARDWARE_DEBUG)
+      $display($time, " ram write2 ", write_address2, " = ", write_value2);
+
+    if (write_enabled2) ram[write_address2] <= write_value2;
+  end  
 endmodule
 
 module uartx_tx_with_buffer (
