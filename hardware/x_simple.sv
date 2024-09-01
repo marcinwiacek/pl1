@@ -1448,7 +1448,7 @@ module x_simple (
         end
         STAGE_READ_SAVE_PC: begin
           //counters
-          ram_read_save_reg_start <= 33;
+          ram_read_save_reg_start <= 0;//33;
           ram_read_save_reg_end <= write_enabled ? 33 : 0;
           //new process
           pc[process_num] <= read_value;
@@ -1508,12 +1508,12 @@ module x_simple (
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
             write_enabled <= 0;
           end else begin
-            for (i = 32; i >= 0; i--) begin
-              if (ram_read_save_reg_start > i && registers_updated[i]) begin
-                read_address <= next_process_address + ADDRESS_REG + i;
-                ram_read_save_reg_start = i;
-              end
-            end
+           // for (i = 32; i >= 0; i--) begin
+//              if (ram_read_save_reg_start > i && registers_updated[i]) begin
+//                read_address <= next_process_address + ADDRESS_REG + i;
+//                ram_read_save_reg_start = i;
+//              end
+//            end
             for (i = 32; i >= 0; i--) begin
               if (ram_read_save_reg_start > i && registers_updated[i]) begin
                 read_address2 <= next_process_address + ADDRESS_REG + i;
