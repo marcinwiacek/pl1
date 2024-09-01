@@ -780,6 +780,7 @@ module x_simple (
   parameter STAGE_SPLIT_PROCESS5 = 24;
   parameter STAGE_SAVE_NEXT_PROCESS2 = 25;
   parameter STAGE_TASK_SWITCHER = 26;
+  parameter STAGE_READ_SAVE_REG_USED = 27;
 
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
@@ -803,7 +804,7 @@ module x_simple (
   bit [4:0] how_many = 1;
   bit [4:0] process_num = 0;
   bit [15:0] prev_process_address = 0, process_address = 0, next_process_address = 0;
-  bit [0:31] registers_updated;
+  bit [0:31] registers_updated, next_registers_updated;
 
   bit [15:0] pc[0:2];
   bit [5:0] error_code[0:2];
@@ -1446,23 +1447,66 @@ module x_simple (
           `MAKE_SWITCH_TASK(1);
         end
         STAGE_READ_SAVE_PC: begin
+          //counters
+          ram_read_save_reg_start <= 33;
+          ram_read_save_reg_end <= write_enabled ? 33 : 34;
           //new process
-          ram_read_save_reg_start <= 2;  //counter for next value to read
           pc[process_num] <= read_value;
+          read_address <= next_process_address + ADDRESS_REG_USED;
+          read_address2 <= next_process_address + ADDRESS_REG_USED + 1;
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new pc ", read_value);
-          read_address  <= next_process_address + ADDRESS_REG;
-          read_address2 <= next_process_address + ADDRESS_REG + 1;
+          //old process          
+          write_address <= process_address + ADDRESS_REG_USED;
+          write_value <= registers_updated[0:15];
+          write_enabled <= 1;         
+          stage <= STAGE_READ_SAVE_REG_USED;
+        end
+        STAGE_READ_SAVE_REG_USED: begin
+          //new process
+          next_registers_updated[0:15] <= read_value;
+          next_registers_updated[16:31] <= read_value2;
           //old process
-          if (write_enabled) begin
-            write_address <= process_address + ADDRESS_REG;
-            write_value <= registers[process_num][0];
-            write_address2 <= process_address + ADDRESS_REG + 1;
-            write_value2 <= registers[process_num][1];
-            write_enabled2 <= 1;
+          write_address <= process_address + ADDRESS_REG_USED + 1;
+          write_value <= registers_updated[16:31];
+          stage <= STAGE_READ_SAVE_REG;
+        end
+        STAGE_READ_SAVE_REG: begin
+          //old process
+          if (ram_read_save_reg_end < 33) begin
+            do begin
+              ram_read_save_reg_end = ram_read_save_reg_end + 1;
+              if (ram_read_save_reg_end < 33 && next_registers_updated[ram_read_save_reg_end]) begin
+                write_address <= process_address + ADDRESS_REG + ram_read_save_reg_end;
+                write_value   <= registers[process_num][ram_read_save_reg_end];
+                write_enabled <= 1;
+              end              
+            end while (ram_read_save_reg_end == 33 || next_registers_updated[ram_read_save_reg_end]);
+          end
+          //new process
+          if (ram_read_save_reg_start==33) begin
+          end else begin
+            do begin
+              if (registers_updated[ram_read_save_reg_start]) begin
+                write_address <= process_address + ADDRESS_REG + ram_read_save_reg_end;
+                write_value   <= registers[process_num][ram_read_save_reg_end];
+                write_enabled <= 1;
+              end              
+              ram_read_save_reg_end = ram_read_save_reg_end - 1;
+            end while (ram_read_save_reg_start<ram_read_save_reg_end);
+          
+          end
+          
+          for (i = 32; i > 0; i--) begin
+            if (i < ram_read_save_reg_start && registers_updated[i]) begin
+              read_address <= next_process_address + ADDRESS_REG + i;
+            end
+          end
+          for (i = 32; i > 0; i--) begin
+            if (i < ram_read_save_reg_start && registers_updated[i]) begin
+              read_address <= next_process_address + ADDRESS_REG + i;
+            end
           end
           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
-          //registers
-          stage <= STAGE_READ_SAVE_REG;
         end
         STAGE_READ_SAVE_REG: begin
           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
@@ -1595,7 +1639,7 @@ endmodule
 module single_blockram (
     input clk,
     write_enabled,
-    input [15:0] write_address,
+    input bit [15:0] write_address,
     write_value,
     read_address,
     read_address2,
