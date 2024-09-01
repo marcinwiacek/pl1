@@ -1475,18 +1475,20 @@ module x_simple (
         STAGE_READ_SAVE_REG: begin
           //old process
           if (ram_read_save_reg_end > 0) begin
-            write_enabled = 0;
-            for (i = 32; i >= 0; i--) begin
-              if (write_enabled == 0 && ram_read_save_reg_end>i && next_registers_updated[i]) begin
-                write_address <= process_address + ADDRESS_REG + i;
-                write_value   <= registers[process_num][i];
-                write_enabled = 1;
-                ram_read_save_reg_end = i;
-                //  $display($time, " writing reg ",i);
-              end else if (i == 0) begin
-                ram_read_save_reg_end = 0;
-              end
-            end
+           if (next_registers_updated[ram_read_save_reg_end-1]) begin
+                write_address <= process_address + ADDRESS_REG + ram_read_save_reg_end-1;
+                write_value   <= registers[process_num][ram_read_save_reg_end-1];
+                write_enabled <= 1;
+                ram_read_save_reg_end <= ram_read_save_reg_end-1;
+           end else if (ram_read_save_reg_end>=2 && next_registers_updated[ram_read_save_reg_end-2]) begin
+                write_address <= process_address + ADDRESS_REG + ram_read_save_reg_end-2;
+                write_value   <= registers[process_num][ram_read_save_reg_end-2];
+                write_enabled <= 1;
+                ram_read_save_reg_end <= ram_read_save_reg_end-2;
+          
+           end else begin
+             ram_read_save_reg_end <=ram_read_save_reg_end >2?ram_read_save_reg_end -2:0;
+           end
           end
           //new process
           if (registers_updated[read_address-next_process_address-ADDRESS_REG]) begin
@@ -1514,14 +1516,14 @@ module x_simple (
 //                ram_read_save_reg_start = i;
 //              end
 //            end
-            for (i = 32; i >= 0; i--) begin
-              if (ram_read_save_reg_start > i && registers_updated[i]) begin
-                read_address2 <= next_process_address + ADDRESS_REG + i;
-                ram_read_save_reg_start = i;
-              end else if (i == 0) begin
-                ram_read_save_reg_start = 0;
-              end
-            end
+            //for (i = 32; i >= 0; i--) begin
+//              if (ram_read_save_reg_start > i && registers_updated[i]) begin
+//                read_address2 <= next_process_address + ADDRESS_REG + i;
+//                ram_read_save_reg_start = i;
+//              end else if (i == 0) begin
+                ram_read_save_reg_start <= 0;
+//              end
+//            end
           end
           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
         end
