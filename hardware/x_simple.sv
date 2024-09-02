@@ -1498,9 +1498,19 @@ module x_simple (
                 write_value   <= registers[process_num][ram_read_save_reg_end-2];
                 write_enabled <= 1;
                 ram_read_save_reg_end <= ram_read_save_reg_end-2;
+ end else    if (ram_read_save_reg_end>=3 && registers_updated[ram_read_save_reg_end-3]) begin
+                write_address <= process_address + ADDRESS_REG + ram_read_save_reg_end-3;
+                write_value   <= registers[process_num][ram_read_save_reg_end-3];
+                write_enabled <= 1;
+                ram_read_save_reg_end <= ram_read_save_reg_end-3;    
+end else    if (ram_read_save_reg_end>=4 && registers_updated[ram_read_save_reg_end-4]) begin
+                write_address <= process_address + ADDRESS_REG + ram_read_save_reg_end-4;
+                write_value   <= registers[process_num][ram_read_save_reg_end-4];
+                write_enabled <= 1;
+                ram_read_save_reg_end <= ram_read_save_reg_end-4;                            
              end else begin
                write_enabled <= 0;
-                ram_read_save_reg_end <= ram_read_save_reg_end>=2?ram_read_save_reg_end-2:0;
+                ram_read_save_reg_end <= ram_read_save_reg_end>=4?ram_read_save_reg_end-4:0;
               end
           end
           //new process
