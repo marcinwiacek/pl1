@@ -1448,7 +1448,7 @@ module x_simple (
         end
         STAGE_READ_SAVE_PC: begin
           //counters
-          ram_read_save_reg_start <= 0;//33;
+          ram_read_save_reg_start <= 33;
           ram_read_save_reg_end <= write_enabled ? 33 : 0;
           //new process
           pc[process_num] <= read_value;
@@ -1460,6 +1460,7 @@ module x_simple (
           write_value <= registers_updated[0:15];
           write_enabled <= 1;
           stage <= STAGE_READ_SAVE_REG_USED;
+           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
         end
         STAGE_READ_SAVE_REG_USED: begin
           //new process
@@ -1471,34 +1472,9 @@ module x_simple (
           write_address <= process_address + ADDRESS_REG_USED + 1;
           write_value <= registers_updated[16:31];
           stage <= STAGE_READ_SAVE_REG;
+           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
         end
         STAGE_READ_SAVE_REG: begin
-          //old process
-          if (ram_read_save_reg_end > 0) begin
-           if (next_registers_updated[ram_read_save_reg_end-1]) begin
-                write_address <= process_address + ADDRESS_REG + ram_read_save_reg_end-1;
-                write_value   <= registers[process_num][ram_read_save_reg_end-1];
-                write_enabled <= 1;
-                ram_read_save_reg_end <= ram_read_save_reg_end-1;
-           end else if (ram_read_save_reg_end>=2 && next_registers_updated[ram_read_save_reg_end-2]) begin
-                write_address <= process_address + ADDRESS_REG + ram_read_save_reg_end-2;
-                write_value   <= registers[process_num][ram_read_save_reg_end-2];
-                write_enabled <= 1;
-                ram_read_save_reg_end <= ram_read_save_reg_end-2;
-          
-           end else begin
-             ram_read_save_reg_end <=ram_read_save_reg_end >2?ram_read_save_reg_end -2:0;
-           end
-          end
-          //new process
-          if (registers_updated[read_address-next_process_address-ADDRESS_REG]) begin
-            registers[process_num][read_address-next_process_address-ADDRESS_REG] <= read_value;
-            //  $display($time, " reading reg ",read_address - next_process_address - ADDRESS_REG, "=",read_value);
-          end
-          if (registers_updated[read_address2-next_process_address-ADDRESS_REG]) begin
-            registers[process_num][read_address2-next_process_address-ADDRESS_REG] <= read_value2;
-            //  $display($time, " reading reg ",read_address2 - next_process_address - ADDRESS_REG, "=",read_value2);
-          end
           // $display($time, ram_read_save_reg_start," ", ram_read_save_reg_end);
           if (ram_read_save_reg_start == 0 && ram_read_save_reg_end == 0) begin
             //change process
@@ -1510,6 +1486,32 @@ module x_simple (
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
             write_enabled <= 0;
           end else begin
+          //old process
+          if (ram_read_save_reg_end > 0) begin
+              if (registers_updated[ram_read_save_reg_end-1]) begin
+                write_address <= process_address + ADDRESS_REG + ram_read_save_reg_end-1;
+                write_value   <= registers[process_num][ram_read_save_reg_end-1];
+                write_enabled <= 1;
+                ram_read_save_reg_end <= ram_read_save_reg_end-1;
+             end else    if (ram_read_save_reg_end>=2 && registers_updated[ram_read_save_reg_end-2]) begin
+                write_address <= process_address + ADDRESS_REG + ram_read_save_reg_end-2;
+                write_value   <= registers[process_num][ram_read_save_reg_end-2];
+                write_enabled <= 1;
+                ram_read_save_reg_end <= ram_read_save_reg_end-2;
+             end else begin
+               write_enabled <= 0;
+                ram_read_save_reg_end <= ram_read_save_reg_end>=2?ram_read_save_reg_end-2:0;
+              end
+          end
+          //new process
+    //      if (registers_updated[read_address-next_process_address-ADDRESS_REG]) begin
+//            registers[process_num][read_address-next_process_address-ADDRESS_REG] <= read_value;
+            //  $display($time, " reading reg ",read_address - next_process_address - ADDRESS_REG, "=",read_value);
+  //        end
+//          if (registers_updated[read_address2-next_process_address-ADDRESS_REG]) begin
+//            registers[process_num][read_address2-next_process_address-ADDRESS_REG] <= read_value2;
+            //  $display($time, " reading reg ",read_address2 - next_process_address - ADDRESS_REG, "=",read_value2);
+  //        end          
            // for (i = 32; i >= 0; i--) begin
 //              if (ram_read_save_reg_start > i && registers_updated[i]) begin
 //                read_address <= next_process_address + ADDRESS_REG + i;
