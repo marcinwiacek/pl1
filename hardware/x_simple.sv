@@ -1396,26 +1396,30 @@ module x_simple (
                   if (OP2_DEBUG && !HARDWARE_DEBUG)
                     $display($time, " set reg ", alu_num, " with ", read_value2);
                   registers[process_num][alu_num] <= read_value2;
+                  registers_updated[alu_num] <= read_value2!=0;
                   write_value <= read_value2;
                 end
                 ALU_ADD: begin
                   registers[process_num][alu_num] <= plus_c;
+                  registers_updated[alu_num] <= plus_c!=0;
                   write_value <= plus_c;
                 end
                 ALU_DEC: begin
                   registers[process_num][alu_num] <= minus_c;
+                  registers_updated[alu_num] <= minus_c!=0;
                   write_value <= minus_c;
                 end
                 ALU_MUL: begin
                   registers[process_num][alu_num] <= mul_c;
+                  registers_updated[alu_num] <= mul_c!=0;
                   write_value <= mul_c;
                 end
                 ALU_DIV: begin
                   registers[process_num][alu_num] <= div_c;
+                  registers_updated[alu_num] <= div_c!=0;
                   write_value <= div_c;
                 end
-              endcase
-              registers_updated[alu_num] <= 1;
+              endcase              
               write_address <= process_address + ADDRESS_REG + alu_num;
               write_enabled <= 1;
               alu_num <= alu_num + 1;
@@ -1519,7 +1523,7 @@ module x_simple (
           if (mmu_action_ready) begin
             //    $display($time, " read next next ", process_address,"=",read_value);
             set_mmu_start_process_physical_segment <= 0;
-            registers_updated <= '{default: 0};
+            registers_updated <= next_registers_updated;
             next_process_address <= read_value;
             `MAKE_MMU_SEARCH2(pc[process_num]);
           end
@@ -1612,7 +1616,6 @@ module x_simple (
         write_enabled <= 1;
         stage <= STAGE_DELETE_PROCESS;
       end
-
       error_code[process_num] <= ERROR_NONE;
     end
   end
