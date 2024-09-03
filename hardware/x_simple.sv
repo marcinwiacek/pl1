@@ -804,7 +804,7 @@ module x_simple (
   bit [4:0] how_many = 1;
   bit [4:0] process_num = 0;
   bit [15:0] prev_process_address = 0, process_address = 0, next_process_address = 0;
-  bit [0:31] registers_updated, next_registers_updated;
+  bit [0:31] registers_updated;
 
   bit [15:0] pc[0:2];
   bit [5:0] error_code[0:2];
@@ -1474,12 +1474,12 @@ module x_simple (
         end
         STAGE_READ_SAVE_REG_USED: begin
           //new process
-          next_registers_updated[0:15] <= read_value;
-          next_registers_updated[16:31] <= read_value2;
-          ram_read_save_reg_start <= next_registers_updated[0] ? 0 : 1;
-          read_address <= next_process_address + ADDRESS_REG + next_registers_updated[0] ? 0 : 1;
-          ram_read_save_reg_end <= next_registers_updated[31] ? 31 : 30;
-          read_address2 <= next_process_address + ADDRESS_REG+next_registers_updated[31]?31:30;
+          registers_updated[0:15] <= read_value;
+          registers_updated[16:31] <= read_value2;
+          ram_read_save_reg_start <= read_value[0] ? 0 : 1;
+          read_address <= next_process_address + ADDRESS_REG + read_value[0] ? 0 : 1;
+          ram_read_save_reg_end <= read_value2[15] ? 31 : 30;
+          read_address2 <= next_process_address + ADDRESS_REG+read_value2[15]?31:30;
           //old process
           write_address <= process_address + ADDRESS_REG_USED + 1;
           write_value <= registers_updated[16:31];
@@ -1491,25 +1491,24 @@ module x_simple (
           if (ram_read_save_reg_end < ram_read_save_reg_start) begin
             //change process
             prev_process_address <= process_address;
-            process_address <= next_process_address;
-            registers_updated <= next_registers_updated;
+            process_address <= next_process_address;          
             //read next process address
             read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
           end else begin
             registers[process_num][ram_read_save_reg_start] <= read_value;
             registers[process_num][ram_read_save_reg_end]   <= read_value2;
-            if (next_registers_updated[ram_read_save_reg_start+1]) begin
+            if (registers_updated[ram_read_save_reg_start+1]) begin
               ram_read_save_reg_start <= ram_read_save_reg_start + 1;
               read_address <= read_address + 1;
-            end else if (next_registers_updated[ram_read_save_reg_start+2]) begin
+            end else if (registers_updated[ram_read_save_reg_start+2]) begin
               ram_read_save_reg_start <= ram_read_save_reg_start + 2;
               read_address <= read_address + 2;            
             end else begin
               ram_read_save_reg_start <= ram_read_save_reg_start + 3;
               read_address <= read_address + 3;
             end
-            if (next_registers_updated[ram_read_save_reg_end-1]) begin
+            if (registers_updated[ram_read_save_reg_end-1]) begin
               ram_read_save_reg_end <= ram_read_save_reg_end - 1;
               read_address2 <= read_address2 - 1;
             end else begin
@@ -1522,8 +1521,7 @@ module x_simple (
         STAGE_READ_NEXT_NEXT_PROCESS: begin
           if (mmu_action_ready) begin
             //    $display($time, " read next next ", process_address,"=",read_value);
-            set_mmu_start_process_physical_segment <= 0;
-            registers_updated <= next_registers_updated;
+            set_mmu_start_process_physical_segment <= 0;           
             next_process_address <= read_value;
             `MAKE_MMU_SEARCH2(pc[process_num]);
           end
