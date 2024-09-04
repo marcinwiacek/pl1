@@ -179,8 +179,8 @@ module mmulutram (
     input [8:0] write_value
 );
 
-  //(* ram_style = "distributed" *)   
-  //(* ram_style = "block" *) 
+  //(* ram_style = "distributed" *)
+  //(* ram_style = "block" *)
   bit [8:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
@@ -222,8 +222,8 @@ module mmulutram2 (
     input [8:0] write_value
 );
 
-  //(* ram_style = "distributed" *)   
-  // (* ram_style = "block" *) 
+  //(* ram_style = "distributed" *)
+  // (* ram_style = "block" *)
   bit [8:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
@@ -265,8 +265,8 @@ module mmulutram3 (
     input [MMU_MAX_INDEX_BIT_SIZE+MMU_MAX_INDEX_BIT_SIZE:0] write_value
 );
 
-  //(* ram_style = "distributed" *)   
-  //(* ram_style = "block" *) 
+  //(* ram_style = "distributed" *)
+  //(* ram_style = "block" *)
   bit [MMU_MAX_INDEX_BIT_SIZE+MMU_MAX_INDEX_BIT_SIZE:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
@@ -626,7 +626,7 @@ module mmu (
             mmu_prev_search_position <= mmu_search_position;
           end
           if (mmu_chain_read_value == mmu_search_position) begin
-            //close both chains     
+            //close both chains
             stage <= MMU_SPLIT3;
           end else begin
             mmu_search_position   <= mmu_chain_read_value;
@@ -641,7 +641,7 @@ module mmu (
           mmu_chain_write_value <= mmu_search_position;
           mmu_new_search_position <= mmu_search_position;
           if (mmu_chain_read_value == mmu_search_position) begin
-            //close both chains     
+            //close both chains
             stage <= MMU_SPLIT3;
           end else begin
             mmu_search_position <= mmu_chain_read_value;
@@ -894,7 +894,7 @@ module x_simple (
       mmu_address_a <= ARG; \
       search_mmu_address <= 1; \
       stage_after_mmu <= ARG2; \
-      stage <= STAGE_CHECK_MMU_ADDRESS; 
+      stage <= STAGE_CHECK_MMU_ADDRESS;
 
   `define MAKE_MMU_SEARCH2 \
         if (how_many==HOW_MANY_OP_PER_TASK_SIMULATE && process_address != next_process_address) begin \
@@ -1097,7 +1097,7 @@ module x_simple (
                       " (",
                       registers[read_value2],
                       " instructions)"
-                  );  //DEBUG info      
+                  );  //DEBUG info
                 pc[process_num] <= pc[process_num] - registers[process_num][read_value2] * 2 - 1;
                 stage = STAGE_SET_PC;
               end
@@ -1140,7 +1140,7 @@ module x_simple (
                       instruction1_2,
                       "-",
                       (instruction1_2 + instruction2_1)
-                  );  //DEBUG info             
+                  );  //DEBUG info
                 ram_read_save_reg_start <= instruction1_2;
                 ram_read_save_reg_end   <= instruction1_2 + instruction2_1;
                 `MAKE_MMU_SEARCH(registers[process_num][instruction2_2], STAGE_GET_RAM_BYTE);
@@ -1163,7 +1163,7 @@ module x_simple (
                       " to ram address ",
                       read_value2,
                       "+"
-                  );  //DEBUG info                
+                  );  //DEBUG info
                 ram_read_save_reg_start <= instruction1_2_1;
                 ram_read_save_reg_end <= instruction1_2_1 + instruction1_2_2;
                 write_value <= registers[process_num][instruction1_2_1];
@@ -1186,7 +1186,7 @@ module x_simple (
                       instruction1_2,
                       "-",
                       (instruction1_2 + instruction2_1)
-                  );  //DEBUG info                             
+                  );  //DEBUG info
                 ram_read_save_reg_start <= instruction1_2;
                 ram_read_save_reg_end <= instruction1_2 + instruction2_1;
                 write_value <= registers[process_num][instruction1_2];
@@ -1252,7 +1252,7 @@ module x_simple (
                     instruction1_2_1,
                     "-",
                     (instruction1_2_1 + instruction1_2_2)
-                );  //DEBUG info     
+                );  //DEBUG info
               alu_op  <= ALU_MUL;
               alu_num <= 255;
               stage   <= STAGE_ALU;
@@ -1478,7 +1478,7 @@ module x_simple (
           read_address <= next_process_address + ADDRESS_REG_USED;
           read_address2 <= next_process_address + ADDRESS_REG_USED + 1;
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new pc ", read_value);
-          //old process          
+          //old process
           write_address <= process_address + ADDRESS_REG_USED;
           write_value <= registers_updated[0:15];
           write_enabled <= 1;
@@ -1655,10 +1655,10 @@ module single_blockram (
 */
 
   // verilog_format:off
-   //(* ram_style = "block" *)  
+   //(* ram_style = "block" *)
    bit [15:0] ram  [0:559]= {  // in Vivado (required by board)
   //  reg [0:559] [15:0] ram = {  // in iVerilog
-  
+
       //first process - 4 pages (280 elements)
       16'h0118, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
       16'h002E, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
@@ -1679,7 +1679,7 @@ module single_blockram (
       16'h1210, 16'd2613, //value to reg
       16'h0e10, 16'd0100, //save to ram
       16'h0911, 16'd0100, //ram to reg
-      16'h0e10, 16'd0212, //save to ram      
+      16'h0e10, 16'd0212, //save to ram
       16'h0c01, 16'h0001,  //proc
       16'h0c01, 16'h0002,  //proc
       16'h1202, 16'h0003,  //num2reg
@@ -1705,10 +1705,10 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      
+
       //second process - 2 pages (140 elements) + 2 pages (140 elements) new process nr 3
-      16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
-      16'h002E, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
+      16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only
+      16'h002E, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
 
       16'h0000, 16'h0000,  //registers used (currently ignored)
       16'h0000, 16'h0000,
@@ -1723,13 +1723,13 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       16'h0000, 16'h0000, 16'h0000, 16'h0000, 
 
-      16'h1210, 16'd2612, //value to reg     
+      16'h1210, 16'd2612, //value to reg
     //  16'h0e10, 16'd0101, //save to ram
       16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'd0101, //ram to reg
       16'h1b37, 16'd0000, //int
       //16'h0e10, 16'h00D4, //save to ram
-      16'h1800, 16'h0007, //process end      
+      16'h1800, 16'h0007, //process end
       //16'h0c01, 16'h0001,  //proc
       16'h0c01, 16'h0002,  //proc
       16'h1202, 16'h0003,  //num2reg
@@ -1746,10 +1746,9 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      
       //third process - 2 pages (140 elements)
-      16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
-      16'h002E, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
+      16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only
+      16'h002E, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
 
       16'h0000, 16'h0000,  //registers used (currently ignored)
       16'h0000, 16'h0000,
@@ -1771,7 +1770,7 @@ module single_blockram (
       //16'h0e10, 16'h0064, //save to ram
       //16'h1902, 16'h0002, //split process segments 2-4
       16'h0911, 16'h0064, //ram to reg
-      16'h0e10, 16'h00D4, //save to ram      
+      16'h0e10, 16'h00D4, //save to ram
       //16'h0c01, 16'h0001,  //proc
       16'h0c01, 16'h0002,  //proc
       16'h1202, 16'h0003,  //num2reg
@@ -1787,7 +1786,7 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000      
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000
     };
 
   // verilog_format:on
