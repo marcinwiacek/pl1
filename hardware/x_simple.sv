@@ -15,7 +15,7 @@ parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 1;
+parameter STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
 parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
@@ -897,8 +897,7 @@ module x_simple (
       stage <= STAGE_CHECK_MMU_ADDRESS; 
 
   `define MAKE_MMU_SEARCH2 \
-      pc[process_num] <= pc[process_num] + 2; \
-      if (how_many==HOW_MANY_OP_PER_TASK_SIMULATE && process_address != next_process_address) begin \
+        if (how_many==HOW_MANY_OP_PER_TASK_SIMULATE && process_address != next_process_address) begin \
         how_many <= 0; \
         stage <= STAGE_TASK_SWITCHER; \
       end else begin \
@@ -912,7 +911,7 @@ module x_simple (
           mmu_page_offset <= mmu_page_offset - 2; \
           read_address  <= physical_pc[process_num] + 2; \
           read_address2 <= physical_pc[process_num] + 3; \
-          stage_after_mmu <= STAGE_GET_1_BYTE; \
+          stage <= STAGE_GET_1_BYTE; \
           physical_pc[process_num] <= physical_pc[process_num] + 2; \
         end \
       end
@@ -1000,7 +999,7 @@ module x_simple (
                 ") b2 ",
                 read_value2
             );
-         // pc[process_num] <= pc[process_num] + 2;
+          pc[process_num] <= pc[process_num] + 2;
           `HARD_DEBUG2(instruction1_1);
           `HARD_DEBUG2(instruction1_2);
           //(*parallel_case *) (*full_case *) 
@@ -1475,6 +1474,7 @@ module x_simple (
           registers <= '{default: 0};
           //new process
           pc[process_num] <= read_value;
+          mmu_page_offset <= 2; //signal, that we have to recalculate things with mmu
           read_address <= next_process_address + ADDRESS_REG_USED;
           read_address2 <= next_process_address + ADDRESS_REG_USED + 1;
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new pc ", read_value);
