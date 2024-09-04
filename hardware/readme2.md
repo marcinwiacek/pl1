@@ -1,10 +1,10 @@
-Welcome in the future or at least some alternative to the mainstream.
+Welcome to the future or at least alternative to the mainstream in some scenarios.
 
-Modern hardware architectures (like X86 or ARM) are impressive, but have
+Modern hardware architectures (like X86 or ARM) are very impressive, but have
 problems with security, complexity, intellectual property and/or government
 control. Risc-V wants to avoid this, but when you look into specs, you will
-see, that various elements and/or extensions are potentially doing the same
-mistakes (see even words from Linus Torvalds "They’ll have all
+see, that various elements and/or extensions have potentially doing the same
+problems (see words from Linus Torvalds "They’ll have all
 the same issues we have on the Arm side and that x86 had before them").
 
 This project contains 1st working generation of the PL SoC (System On Chip).
@@ -31,5 +31,3 @@ Current implementation:
 5. works in the Artix-7 Nexys Video board
 
 Statistics:
-
-
