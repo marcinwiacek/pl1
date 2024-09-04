@@ -15,7 +15,7 @@ parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 1;
+parameter STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
 parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
@@ -806,7 +806,7 @@ module x_simple (
   bit [15:0] prev_process_address = 0, process_address = 0, next_process_address = 0;
   bit [0:31] registers_updated;
 
-  bit [15:0] pc[0:2], physical_pc[0:2], mmu_page_offset;
+  bit [15:0] pc[0:2];
   bit [5:0] error_code[0:2];
   bit [15:0] registers[0:2][0:31];  //512 bits = 32 x 16-bit registers
 
@@ -896,25 +896,18 @@ module x_simple (
       stage_after_mmu <= ARG2; \
       stage <= STAGE_CHECK_MMU_ADDRESS; 
 
-  `define MAKE_MMU_SEARCH2 \
-      pc[process_num] <= pc[process_num] + 2; \
+  `define MAKE_MMU_SEARCH2(ARG) \
       if (how_many==HOW_MANY_OP_PER_TASK_SIMULATE && process_address != next_process_address) begin \
+   //   $display($time, " task switcher yeah");\
         how_many <= 0; \
         stage <= STAGE_TASK_SWITCHER; \
       end else begin \
+    //   $display($time, " no task switcher ",how_many, " ",process_address," ",next_process_address);\
         how_many <= how_many + 1; \
-        if (mmu_page_offset == 2) begin \
-          mmu_address_a <= pc[process_num]; \
-          search_mmu_address <= 1; \
-          stage_after_mmu <= STAGE_GET_1_BYTE; \
-          stage <= STAGE_CHECK_MMU_ADDRESS; \
-        end else begin \
-          mmu_page_offset <= mmu_page_offset - 2; \
-          read_address  <= physical_pc[process_num] + 2; \
-          read_address2 <= physical_pc[process_num] + 3; \
-          stage_after_mmu <= STAGE_GET_1_BYTE; \
-          physical_pc[process_num] <= physical_pc[process_num] + 2; \
-        end \
+        mmu_address_a <= ARG; \
+        search_mmu_address <= 1; \
+        stage_after_mmu <= STAGE_GET_1_BYTE; \
+        stage <= STAGE_CHECK_MMU_ADDRESS; \
       end
 
   `define MAKE_SWITCH_TASK(ARG) \
@@ -946,8 +939,6 @@ module x_simple (
       error_code[0] <= ERROR_NONE;
 
       pc[0] <= ADDRESS_PROGRAM;
-      physical_pc[0] <= ADDRESS_PROGRAM;
-      mmu_page_offset <= MMU_PAGE_SIZE - ADDRESS_PROGRAM;
       read_address <= ADDRESS_PROGRAM; //we start from segment number 0 in first process, don't need MMU translation
       read_address2 <= ADDRESS_PROGRAM + 1;
 
@@ -1000,7 +991,7 @@ module x_simple (
                 ") b2 ",
                 read_value2
             );
-         // pc[process_num] <= pc[process_num] + 2;
+          pc[process_num] <= pc[process_num] + 2;
           `HARD_DEBUG2(instruction1_1);
           `HARD_DEBUG2(instruction1_2);
           //(*parallel_case *) (*full_case *) 
@@ -1335,7 +1326,7 @@ module x_simple (
             end
             default: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = unknown");
-              `MAKE_MMU_SEARCH2;
+              `MAKE_MMU_SEARCH2(pc[process_num]);
               //if (instructions == HOW_MANY_OP_SIMULATE) search_mmu_address = 0;
             end
           endcase
@@ -1354,7 +1345,7 @@ module x_simple (
                 read_value2
             );
           if (ram_read_save_reg_start == ram_read_save_reg_end) begin
-            `MAKE_MMU_SEARCH2
+            `MAKE_MMU_SEARCH2(pc[process_num]);
           end else begin
             ram_read_save_reg_start <= ram_read_save_reg_start + 1;
             `MAKE_MMU_SEARCH(mmu_address_a + 1, STAGE_GET_RAM_BYTE);
@@ -1363,7 +1354,7 @@ module x_simple (
         STAGE_SET_RAM_BYTE: begin
           if (ram_read_save_reg_start == ram_read_save_reg_end) begin
             write_enabled <= 0;
-            `MAKE_MMU_SEARCH2
+            `MAKE_MMU_SEARCH2(pc[process_num]);
           end else begin
             ram_read_save_reg_start <= ram_read_save_reg_start + 1;
             write_value <= registers[process_num][ram_read_save_reg_start];
@@ -1372,11 +1363,7 @@ module x_simple (
         end
         STAGE_CHECK_MMU_ADDRESS: begin
           if (mmu_action_ready) begin
-            if (stage_after_mmu != STAGE_SET_RAM_BYTE) begin                        
-              if (stage_after_mmu == STAGE_GET_1_BYTE) begin
-                mmu_page_offset <= mmu_address_c % MMU_PAGE_SIZE;
-                physical_pc[process_num] <= mmu_address_c;
-              end
+            if (stage_after_mmu != STAGE_SET_RAM_BYTE) begin
               read_address  <= mmu_address_c;
               read_address2 <= mmu_address_c + 1;
             end else begin
@@ -1439,7 +1426,7 @@ module x_simple (
             end
             if (alu_num > instruction1_2_1 + instruction1_2_2) begin
               write_enabled <= 0;
-              `MAKE_MMU_SEARCH2
+              `MAKE_MMU_SEARCH2(pc[process_num]);
             end else begin
               case (alu_op)
                 ALU_ADD: begin
@@ -1536,7 +1523,7 @@ module x_simple (
             //    $display($time, " read next next ", process_address,"=",read_value);
             set_mmu_start_process_physical_segment <= 0;           
             next_process_address <= read_value;
-            `MAKE_MMU_SEARCH2
+            `MAKE_MMU_SEARCH2(pc[process_num]);
           end
         end
         STAGE_DELETE_PROCESS: begin
@@ -1581,7 +1568,7 @@ module x_simple (
         STAGE_SAVE_NEXT_PROCESS2: begin
           write_enabled <= 0;
           next_process_address <= mul_c;
-          `MAKE_MMU_SEARCH2
+          `MAKE_MMU_SEARCH2(pc[process_num]);
         end
         STAGE_REG_INT: begin
           //old process
@@ -1605,8 +1592,6 @@ module x_simple (
           end
           int_process_address[instruction1_2] <= process_address;
           stage <= STAGE_TASK_SWITCHER;
-        end
-        STAGE_SET_PC: begin
         end
       endcase
     end else if (error_code[process_num] != ERROR_NONE) begin
