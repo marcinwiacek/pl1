@@ -1371,7 +1371,7 @@ module x_simple (
         end
         STAGE_CHECK_MMU_ADDRESS: begin
           if (mmu_action_ready) begin
-            if (stage_after_mmu != STAGE_SET_RAM_BYTE) begin                        
+            if (stage_after_mmu != STAGE_SET_RAM_BYTE) begin
               if (stage_after_mmu == STAGE_GET_1_BYTE) begin
                 mmu_page_offset <= mmu_address_c % MMU_PAGE_SIZE;
                 physical_pc[process_num] <= mmu_address_c;
@@ -1408,30 +1408,30 @@ module x_simple (
                   if (OP2_DEBUG && !HARDWARE_DEBUG)
                     $display($time, " set reg ", alu_num, " with ", read_value2);
                   registers[process_num][alu_num] <= read_value2;
-                  registers_updated[alu_num] <= read_value2!=0;
+                  registers_updated[alu_num] <= read_value2 != 0;
                   write_value <= read_value2;
                 end
                 ALU_ADD: begin
                   registers[process_num][alu_num] <= plus_c;
-                  registers_updated[alu_num] <= plus_c!=0;
+                  registers_updated[alu_num] <= plus_c != 0;
                   write_value <= plus_c;
                 end
                 ALU_DEC: begin
                   registers[process_num][alu_num] <= minus_c;
-                  registers_updated[alu_num] <= minus_c!=0;
+                  registers_updated[alu_num] <= minus_c != 0;
                   write_value <= minus_c;
                 end
                 ALU_MUL: begin
                   registers[process_num][alu_num] <= mul_c;
-                  registers_updated[alu_num] <= mul_c!=0;
+                  registers_updated[alu_num] <= mul_c != 0;
                   write_value <= mul_c;
                 end
                 ALU_DIV: begin
                   registers[process_num][alu_num] <= div_c;
-                  registers_updated[alu_num] <= div_c!=0;
+                  registers_updated[alu_num] <= div_c != 0;
                   write_value <= div_c;
                 end
-              endcase              
+              endcase
               write_address <= process_address + ADDRESS_REG + alu_num;
               write_enabled <= 1;
               alu_num <= alu_num + 1;
@@ -1474,7 +1474,7 @@ module x_simple (
           registers <= '{default: 0};
           //new process
           pc[process_num] <= read_value;
-          mmu_page_offset <= 2; //signal, that we have to recalculate things with mmu
+          mmu_page_offset <= 2;  //signal, that we have to recalculate things with mmu
           read_address <= next_process_address + ADDRESS_REG_USED;
           read_address2 <= next_process_address + ADDRESS_REG_USED + 1;
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new pc ", read_value);
@@ -1492,7 +1492,7 @@ module x_simple (
           ram_read_save_reg_start <= read_value[0] ? 0 : 1;
           read_address <= next_process_address + ADDRESS_REG + read_value[0] ? 0 : 1;
           ram_read_save_reg_end <= read_value2[15] ? 31 : 30;
-          read_address2 <= next_process_address + ADDRESS_REG+read_value2[15]?31:30;
+          read_address2 <= next_process_address + ADDRESS_REG + read_value2[15] ? 31 : 30;
           //old process
           write_address <= process_address + ADDRESS_REG_USED + 1;
           write_value <= registers_updated[16:31];
@@ -1504,7 +1504,7 @@ module x_simple (
           if (ram_read_save_reg_end < ram_read_save_reg_start) begin
             //change process
             prev_process_address <= process_address;
-            process_address <= next_process_address;          
+            process_address <= next_process_address;
             //read next process address
             read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
@@ -1516,7 +1516,7 @@ module x_simple (
               read_address <= read_address + 1;
             end else if (registers_updated[ram_read_save_reg_start+2]) begin
               ram_read_save_reg_start <= ram_read_save_reg_start + 2;
-              read_address <= read_address + 2;            
+              read_address <= read_address + 2;
             end else begin
               ram_read_save_reg_start <= ram_read_save_reg_start + 3;
               read_address <= read_address + 3;
@@ -1526,7 +1526,7 @@ module x_simple (
               read_address2 <= read_address2 - 1;
             end else if (registers_updated[ram_read_save_reg_end-2]) begin
               ram_read_save_reg_end <= ram_read_save_reg_end - 2;
-              read_address2 <= read_address2 - 2;  
+              read_address2 <= read_address2 - 2;
             end else begin
               ram_read_save_reg_end <= ram_read_save_reg_end - 3;
               read_address2 <= read_address2 - 3;
@@ -1537,7 +1537,7 @@ module x_simple (
         STAGE_READ_NEXT_NEXT_PROCESS: begin
           if (mmu_action_ready) begin
             //    $display($time, " read next next ", process_address,"=",read_value);
-            set_mmu_start_process_physical_segment <= 0;           
+            set_mmu_start_process_physical_segment <= 0;
             next_process_address <= read_value;
             `MAKE_MMU_SEARCH2
           end
