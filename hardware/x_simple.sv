@@ -1524,9 +1524,12 @@ module x_simple (
             if (registers_updated[ram_read_save_reg_end-1]) begin
               ram_read_save_reg_end <= ram_read_save_reg_end - 1;
               read_address2 <= read_address2 - 1;
-            end else begin
+            end else if (registers_updated[ram_read_save_reg_end-2]) begin
               ram_read_save_reg_end <= ram_read_save_reg_end - 2;
-              read_address2 <= read_address2 - 2;
+              read_address2 <= read_address2 - 2;  
+            end else begin
+              ram_read_save_reg_end <= ram_read_save_reg_end - 3;
+              read_address2 <= read_address2 - 3;
             end
           end
           //if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
