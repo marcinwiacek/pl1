@@ -1517,7 +1517,7 @@ module x_simple (
               ram_read_save_reg_start <= ram_read_save_reg_start + 1;
               read_address <= read_address + 1;
               temp_registers_updated[ram_read_save_reg_start+1] <= 0;
-            end else if (registers_updated[ram_read_save_reg_start+2]) begin
+            end else if (temp_registers_updated[ram_read_save_reg_start+2]) begin
               ram_read_save_reg_start <= ram_read_save_reg_start + 2;
               read_address <= read_address + 2;
               temp_registers_updated[ram_read_save_reg_start+2] <=0;
@@ -1530,7 +1530,7 @@ module x_simple (
               ram_read_save_reg_end <= ram_read_save_reg_end - 1;
               read_address2 <= read_address2 - 1;
               temp_registers_updated[ram_read_save_reg_end-1]<=0;
-            end else if (registers_updated[ram_read_save_reg_end-2]) begin
+            end else if (temp_registers_updated[ram_read_save_reg_end-2]) begin
               ram_read_save_reg_end <= ram_read_save_reg_end - 2;
               read_address2 <= read_address2 - 2;
               temp_registers_updated[ram_read_save_reg_end-2]<=0;
