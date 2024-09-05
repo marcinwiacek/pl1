@@ -44,7 +44,7 @@ propose related PoC (again: Antikernel)
 
 # License
 
-GPLv3. For other please contact author of this repo. Please have in mind, that hr will be more than happy, 
+GPLv3. For other please contact author of this repo. Please have in mind, that he will be more than happy, 
 if you could share with him project(s) or device(s) using this ISA.
 
 # Contact
@@ -98,7 +98,6 @@ design CPU (note: it gives me much bigger fun that creating
 # This project is repeating design history from 16-bit to 32-bit and from console to graphical GUI design
 
 Rome was not built in one day.
-
 
 # First targets and timeline
 
