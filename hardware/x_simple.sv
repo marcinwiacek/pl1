@@ -798,7 +798,7 @@ module x_simple (
   parameter ADDRESS_NEXT_PROCESS = 0;
   parameter ADDRESS_PC = 4;
   parameter ADDRESS_REG_USED = 8;
-  parameter ADDRESS_REG = 14;
+  parameter ADDRESS_REG = 10;
   parameter ADDRESS_PROGRAM = ADDRESS_REG + 32;
 
   bit [4:0] how_many = 1;
@@ -1669,11 +1669,9 @@ module single_blockram (
 
       //first process - 4 pages (280 elements)
       16'h0118, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
-      16'h002E, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
+      16'h002A, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
 
-      16'h0000, 16'h0000,  //registers used (currently ignored)
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,  //registers used
 
       16'h0000, 16'h0000, 16'h0000, 16'h0000, //registers taken "as is"
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
@@ -1700,7 +1698,9 @@ module single_blockram (
       16'h0E01, 16'h0046,  //reg2ram
       16'h0F00, 16'h0002,  //int,8'h2
       16'h010E, 16'h0030,  //jmp,8'h0x30
-
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
@@ -1716,11 +1716,9 @@ module single_blockram (
 
       //second process - 2 pages (140 elements) + 2 pages (140 elements) new process nr 3
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only
-      16'h002E, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
+      16'h002A, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
 
-      16'h0000, 16'h0000,  //registers used (currently ignored)
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,  //registers used
 
       16'h0000, 16'h0000, 16'h0000, 16'h0000, //registers taken "as is"
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
@@ -1749,6 +1747,8 @@ module single_blockram (
       16'h0E01, 16'h0046,  //reg2ram
       16'h0F00, 16'h0002,  //int,8'h2
       16'h010E, 16'h0030,  //jmp,8'h0x30
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
 
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
@@ -1756,11 +1756,9 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       //third process - 2 pages (140 elements)
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only
-      16'h002E, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
+      16'h002A, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
 
-      16'h0000, 16'h0000,  //registers used (currently ignored)
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,  //registers used
 
       16'h0000, 16'h0000, 16'h0000, 16'h0000, //registers taken "as is"
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
@@ -1790,6 +1788,8 @@ module single_blockram (
       16'h0E01, 16'h0046,  //reg2ram
       16'h0F00, 16'h0002,  //int,8'h2
       16'h010E, 16'h0030,  //jmp,8'h0x30
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
 
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
