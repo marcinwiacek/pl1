@@ -1551,28 +1551,19 @@ module x_simple (
           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
         end
         STAGE_READ_SAVE_REG_USED: begin
-     //     if (read_value==0 && read_value2==0) begin
-            //change process
-       //     prev_process_address <= process_address;
-         //   process_address <= next_process_address;
-            //read next process address
-           // read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
-            //stage <= STAGE_READ_NEXT_NEXT_PROCESS;
-          //end else begin
-            //new process
-            temp_registers_updated[0:15] <= read_value;
-            temp_registers_updated[16:31] <= read_value2;
-            registers_updated[0:15] <= read_value;
-            registers_updated[16:31] <= read_value2;
-            ram_read_save_reg_start <= read_value[0] ? 0 : 2;
-            read_address <= next_process_address + ADDRESS_REG + (read_value[0] ? 0 : 2);
-            ram_read_save_reg_end <= read_value[1] ? 1 : 3;
-            read_address2 <= next_process_address + ADDRESS_REG + (read_value[1] ? 1 : 3);
-            stage <= STAGE_READ_REG;
-          //end
+          //new process
+          temp_registers_updated[0:15] <= read_value;
+          temp_registers_updated[16:31] <= read_value2;
+          registers_updated[0:15] <= read_value;
+          registers_updated[16:31] <= read_value2;
+          ram_read_save_reg_start <= read_value[0] ? 0 : 1;
+          read_address <= next_process_address + ADDRESS_REG + (read_value[0] ? 0 : 1);
+          ram_read_save_reg_end <= read_value2[15] ? 31 : 30;
+          read_address2 <= next_process_address + ADDRESS_REG + (read_value2[15] ? 31 : 30);
           //old process
           write_address <= process_address + ADDRESS_REG_USED + 1;
           write_value <= registers_updated[16:31];
+          stage <= STAGE_READ_REG;
           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
         end
         STAGE_READ_REG: begin
@@ -1596,31 +1587,31 @@ module x_simple (
             read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
           end else begin
-            if (temp_registers_updated[ram_read_save_reg_start+2]) begin
+            if (temp_registers_updated[ram_read_save_reg_start+1]) begin
+              ram_read_save_reg_start <= ram_read_save_reg_start + 1;
+              read_address <= read_address + 1;
+              temp_registers_updated[ram_read_save_reg_start+1] <= 0;
+            end else if (temp_registers_updated[ram_read_save_reg_start+2]) begin
               ram_read_save_reg_start <= ram_read_save_reg_start + 2;
               read_address <= read_address + 2;
               temp_registers_updated[ram_read_save_reg_start+2] <= 0;
-            end else if (temp_registers_updated[ram_read_save_reg_start+4]) begin
-              ram_read_save_reg_start <= ram_read_save_reg_start + 4;
-              read_address <= read_address + 4;
-              temp_registers_updated[ram_read_save_reg_start+4] <= 0;
             end else begin
-              ram_read_save_reg_start <= ram_read_save_reg_start + 6;
-              read_address <= read_address + 6;
-              temp_registers_updated[ram_read_save_reg_start+6] <= 0;
+              ram_read_save_reg_start <= ram_read_save_reg_start + 3;
+              read_address <= read_address + 3;
+              temp_registers_updated[ram_read_save_reg_start+3] <= 0;
             end
-            if (temp_registers_updated[ram_read_save_reg_end+2]) begin
-              ram_read_save_reg_end <= ram_read_save_reg_end +2;
-              read_address2 <= read_address2 +2;
-              temp_registers_updated[ram_read_save_reg_end+2] <= 0;
-            end else if (temp_registers_updated[ram_read_save_reg_end+4]) begin
-              ram_read_save_reg_end <= ram_read_save_reg_end +4;
-              read_address2 <= read_address2 +4;
-              temp_registers_updated[ram_read_save_reg_end+4] <= 0;
+            if (temp_registers_updated[ram_read_save_reg_end-1]) begin
+              ram_read_save_reg_end <= ram_read_save_reg_end - 1;
+              read_address2 <= read_address2 - 1;
+              temp_registers_updated[ram_read_save_reg_end-1] <= 0;
+            end else if (temp_registers_updated[ram_read_save_reg_end-2]) begin
+              ram_read_save_reg_end <= ram_read_save_reg_end - 2;
+              read_address2 <= read_address2 - 2;
+              temp_registers_updated[ram_read_save_reg_end-2] <= 0;
             end else begin
-              ram_read_save_reg_end <= ram_read_save_reg_end +6;
-              read_address2 <= read_address2 +6;
-              temp_registers_updated[ram_read_save_reg_end+6] <= 0;
+              ram_read_save_reg_end <= ram_read_save_reg_end - 3;
+              read_address2 <= read_address2 - 3;
+              temp_registers_updated[ram_read_save_reg_end-3] <= 0;
             end
           end
         end
