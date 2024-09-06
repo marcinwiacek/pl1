@@ -409,30 +409,30 @@ module mmu (
       mmu_action_ready <= 0;
       stage <= MMU_INIT;
     end else begin
-    if (MMU_STAGE_DEBUG && !HARDWARE_DEBUG && stage!=MMU_IDLE) begin
-    $write($time, " mmu stage ",stage," ");
-       case (stage) 
-MMU_SEARCH : $write("MMU_SEARCH");
-  MMU_SEARCH2 : $write("MMU_SEARCH2");
-  MMU_INIT : $write("MMU_INIT");
-  MMU_INIT2 : $write("MMU_INIT2");
-  MMU_INIT3 : $write("MMU_INIT3");
-  MMU_INIT4 :$write("MMU_INIT4");
-  MMU_DELETE :$write("MMU_DELETE");
-  MMU_DELETE2 :$write("MMU_DELETE2");
-  MMU_SPLIT :$write("MMU_SPLIT");
-  MMU_SPLIT2 :$write("MMU_SPLIT2");
-  MMU_SPLIT3 :$write("MMU_SPLIT3");
-  MMU_SPLIT4 :$write("MMU_SPLIT4"); 
-  MMU_SET_PROCESS_DATA :$write("MMU_SET_PROCESS_DATA");
-  MMU_SET_PROCESS_DATA2 :$write("MMU_SET_PROCESS_DATA2");
-  MMU_ALLOCATE_NEW :$write("MMU_ALLOCATE_NEW");
-  MMU_ALLOCATE_NEW2 :$write("MMU_ALLOCATE_NEW2");
-  MMU_SWITCH :$write("MMU_SWITCH");
-  MMU_SEARCH3 :$write("MMU_SEARCH3");
-endcase
-$display("");
-    end
+      if (MMU_STAGE_DEBUG && !HARDWARE_DEBUG && stage != MMU_IDLE) begin
+        $write($time, " mmu stage ", stage, " ");
+        case (stage)
+          MMU_SEARCH: $write("MMU_SEARCH");
+          MMU_SEARCH2: $write("MMU_SEARCH2");
+          MMU_INIT: $write("MMU_INIT");
+          MMU_INIT2: $write("MMU_INIT2");
+          MMU_INIT3: $write("MMU_INIT3");
+          MMU_INIT4: $write("MMU_INIT4");
+          MMU_DELETE: $write("MMU_DELETE");
+          MMU_DELETE2: $write("MMU_DELETE2");
+          MMU_SPLIT: $write("MMU_SPLIT");
+          MMU_SPLIT2: $write("MMU_SPLIT2");
+          MMU_SPLIT3: $write("MMU_SPLIT3");
+          MMU_SPLIT4: $write("MMU_SPLIT4");
+          MMU_SET_PROCESS_DATA: $write("MMU_SET_PROCESS_DATA");
+          MMU_SET_PROCESS_DATA2: $write("MMU_SET_PROCESS_DATA2");
+          MMU_ALLOCATE_NEW: $write("MMU_ALLOCATE_NEW");
+          MMU_ALLOCATE_NEW2: $write("MMU_ALLOCATE_NEW2");
+          MMU_SWITCH: $write("MMU_SWITCH");
+          MMU_SEARCH3: $write("MMU_SEARCH3");
+        endcase
+        $display("");
+      end
       case (stage)
         MMU_IDLE: begin
           // $display($time, " idle");
@@ -986,37 +986,37 @@ module x_simple (
       stage <= STAGE_GET_1_BYTE;
     end else if (instructions < HOW_MANY_OP_SIMULATE && error_code[process_num] == ERROR_NONE) begin
       if (STAGE_DEBUG && !HARDWARE_DEBUG) begin
-        $write($time, " stage ", stage, " ");                    
-          case (stage) 
-          STAGE_AFTER_RESET : $write("STAGE_AFTER_RESET");
-  STAGE_GET_1_BYTE : $write("STAGE_GET_1_BYTE");
-   STAGE_CHECK_MMU_ADDRESS : $write("STAGE_CHECK_MMU_ADDRESS");
-   STAGE_SET_PC : $write("STAGE_SET_PC");
-   STAGE_GET_PARAM_BYTE : $write("STAGE_GET_PARAM_BYTE");
-   STAGE_SET_PARAM_BYTE : $write("STAGE_SET_PARAM_BYTE");
-   STAGE_GET_RAM_BYTE : $write("STAGE_GET_RAM_BYTE");
-   STAGE_SET_RAM_BYTE : $write("STAGE_SET_RAM_BYTE");
-   STAGE_HLT :$write("STAGE_HLT"); 
-   STAGE_ALU:$write("STAGE_ALU");
-   STAGE_DELETE_PROCESS :$write("STAGE_DELETE_PROCESS");
-   STAGE_SPLIT_PROCESS :$write("STAGE_SPLIT_PROCESS");
-   STAGE_REG_INT :$write("STAGE_REG_INT");
-   STAGE_REG_INT2:$write("STAGE_REG_INT2");
-   STAGE_INT :$write("STAGE_INT");
-   STAGE_READ_SAVE_PC :$write("STAGE_READ_SAVE_PC");
-   STAGE_READ_REG :$write("STAGE_READ_REG");
-   STAGE_READ_NEXT_NEXT_PROCESS :$write("STAGE_READ_NEXT_NEXT_PROCESS");
-   STAGE_SAVE_NEXT_PROCESS :$write("STAGE_SAVE_NEXT_PROCESS");
-   STAGE_SPLIT_PROCESS2 :$write("STAGE_SPLIT_PROCESS2");
-  STAGE_SPLIT_PROCESS3 :$write("STAGE_SPLIT_PROCESS3");
-   STAGE_SPLIT_PROCESS4 :$write("STAGE_SPLIT_PROCESS4");
-   STAGE_SPLIT_PROCESS5 :$write("STAGE_SPLIT_PROCESS5");
-   STAGE_SAVE_NEXT_PROCESS2 :$write("STAGE_SAVE_NEXT_PROCESS2");
-   STAGE_TASK_SWITCHER :$write("STAGE_TASK_SWITCHER");
-   STAGE_READ_SAVE_REG_USED :$write("STAGE_READ_SAVE_REG_USED");
+        $write($time, " stage ", stage, " ");
+        case (stage)
+          STAGE_AFTER_RESET: $write("STAGE_AFTER_RESET");
+          STAGE_GET_1_BYTE: $write("STAGE_GET_1_BYTE");
+          STAGE_CHECK_MMU_ADDRESS: $write("STAGE_CHECK_MMU_ADDRESS");
+          STAGE_SET_PC: $write("STAGE_SET_PC");
+          STAGE_GET_PARAM_BYTE: $write("STAGE_GET_PARAM_BYTE");
+          STAGE_SET_PARAM_BYTE: $write("STAGE_SET_PARAM_BYTE");
+          STAGE_GET_RAM_BYTE: $write("STAGE_GET_RAM_BYTE");
+          STAGE_SET_RAM_BYTE: $write("STAGE_SET_RAM_BYTE");
+          STAGE_HLT: $write("STAGE_HLT");
+          STAGE_ALU: $write("STAGE_ALU");
+          STAGE_DELETE_PROCESS: $write("STAGE_DELETE_PROCESS");
+          STAGE_SPLIT_PROCESS: $write("STAGE_SPLIT_PROCESS");
+          STAGE_REG_INT: $write("STAGE_REG_INT");
+          STAGE_REG_INT2: $write("STAGE_REG_INT2");
+          STAGE_INT: $write("STAGE_INT");
+          STAGE_READ_SAVE_PC: $write("STAGE_READ_SAVE_PC");
+          STAGE_READ_REG: $write("STAGE_READ_REG");
+          STAGE_READ_NEXT_NEXT_PROCESS: $write("STAGE_READ_NEXT_NEXT_PROCESS");
+          STAGE_SAVE_NEXT_PROCESS: $write("STAGE_SAVE_NEXT_PROCESS");
+          STAGE_SPLIT_PROCESS2: $write("STAGE_SPLIT_PROCESS2");
+          STAGE_SPLIT_PROCESS3: $write("STAGE_SPLIT_PROCESS3");
+          STAGE_SPLIT_PROCESS4: $write("STAGE_SPLIT_PROCESS4");
+          STAGE_SPLIT_PROCESS5: $write("STAGE_SPLIT_PROCESS5");
+          STAGE_SAVE_NEXT_PROCESS2: $write("STAGE_SAVE_NEXT_PROCESS2");
+          STAGE_TASK_SWITCHER: $write("STAGE_TASK_SWITCHER");
+          STAGE_READ_SAVE_REG_USED: $write("STAGE_READ_SAVE_REG_USED");
         endcase
-  $display(" pc ", pc[process_num]);
-        end
+        $display(" pc ", pc[process_num]);
+      end
       // (*parallel_case *)(*full_case *) 
       case (stage)
         STAGE_GET_1_BYTE: begin
@@ -1543,11 +1543,11 @@ module x_simple (
         STAGE_READ_SAVE_REG_USED: begin
           //new process
           temp_registers_updated[0:15] <= read_value;
-          temp_registers_updated[16:31] <= read_value2;      
+          temp_registers_updated[16:31] <= read_value2;
           registers_updated[0:15] <= read_value;
-          registers_updated[16:31] <= read_value2;                     
+          registers_updated[16:31] <= read_value2;
           ram_read_save_reg_start <= read_value[0] ? 0 : 1;
-          read_address <= next_process_address + ADDRESS_REG + (read_value[0]  ? 0 : 1);
+          read_address <= next_process_address + ADDRESS_REG + (read_value[0] ? 0 : 1);
           ram_read_save_reg_end <= read_value2[15] ? 31 : 30;
           read_address2 <= next_process_address + ADDRESS_REG + (read_value2[15] ? 31 : 30);
           //old process
@@ -1556,43 +1556,58 @@ module x_simple (
           stage <= STAGE_READ_REG;
           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
         end
-        STAGE_READ_REG: begin         
-          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " reading reg ", read_address," ",ram_read_save_reg_start,"=",read_value," ",read_address2," ",ram_read_save_reg_end,"=",read_value2);
-            registers[process_num][ram_read_save_reg_start] <= read_value;
-            registers[process_num][ram_read_save_reg_end]   <= read_value2;
-         if (temp_registers_updated == 0) begin
+        STAGE_READ_REG: begin
+          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
+            $display(
+                $time,
+                " reading reg ",
+                read_address,
+                " ",
+                ram_read_save_reg_start,
+                "=",
+                read_value,
+                " ",
+                read_address2,
+                " ",
+                ram_read_save_reg_end,
+                "=",
+                read_value2
+            );
+          registers[process_num][ram_read_save_reg_start] <= read_value;
+          registers[process_num][ram_read_save_reg_end]   <= read_value2;
+          if (temp_registers_updated == 0) begin
             //change process
             prev_process_address <= process_address;
-            process_address <= next_process_address;          
+            process_address <= next_process_address;
             //read next process address
             read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
           end else begin
-             if (temp_registers_updated[ram_read_save_reg_start+1]) begin
+            if (temp_registers_updated[ram_read_save_reg_start+1]) begin
               ram_read_save_reg_start <= ram_read_save_reg_start + 1;
               read_address <= read_address + 1;
               temp_registers_updated[ram_read_save_reg_start+1] <= 0;
             end else if (temp_registers_updated[ram_read_save_reg_start+2]) begin
               ram_read_save_reg_start <= ram_read_save_reg_start + 2;
               read_address <= read_address + 2;
-              temp_registers_updated[ram_read_save_reg_start+2] <=0;
+              temp_registers_updated[ram_read_save_reg_start+2] <= 0;
             end else begin
               ram_read_save_reg_start <= ram_read_save_reg_start + 3;
               read_address <= read_address + 3;
-              temp_registers_updated[ram_read_save_reg_start+3] <=0;
+              temp_registers_updated[ram_read_save_reg_start+3] <= 0;
             end
             if (temp_registers_updated[ram_read_save_reg_end-1]) begin
               ram_read_save_reg_end <= ram_read_save_reg_end - 1;
               read_address2 <= read_address2 - 1;
-              temp_registers_updated[ram_read_save_reg_end-1]<=0;
+              temp_registers_updated[ram_read_save_reg_end-1] <= 0;
             end else if (temp_registers_updated[ram_read_save_reg_end-2]) begin
               ram_read_save_reg_end <= ram_read_save_reg_end - 2;
               read_address2 <= read_address2 - 2;
-              temp_registers_updated[ram_read_save_reg_end-2]<=0;
+              temp_registers_updated[ram_read_save_reg_end-2] <= 0;
             end else begin
               ram_read_save_reg_end <= ram_read_save_reg_end - 3;
               read_address2 <= read_address2 - 3;
-              temp_registers_updated[ram_read_save_reg_end-3]<=0;              
+              temp_registers_updated[ram_read_save_reg_end-3] <= 0;
             end
           end
           //if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
