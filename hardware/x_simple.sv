@@ -182,7 +182,7 @@ module mmulutram (
 
   //(* ram_style = "distributed" *)
   //(* ram_style = "block" *)
-  bit [8:0] ram[0:MMU_MAX_INDEX];
+  (* rw_addr_collision= "yes" *) bit [8:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
 
@@ -225,7 +225,7 @@ module mmulutram2 (
 
   //(* ram_style = "distributed" *)
   // (* ram_style = "block" *)
-  bit [8:0] ram[0:MMU_MAX_INDEX];
+  (* rw_addr_collision= "yes" *) bit [8:0] ram[0:MMU_MAX_INDEX];
 
   integer i;
 
@@ -1600,6 +1600,7 @@ module x_simple (
               read_address <= read_address + 3;
               temp_registers_updated[ram_read_save_reg_start+3] <= 0;
             end
+            //why going up doesnt work?
             if (temp_registers_updated[ram_read_save_reg_end-1]) begin
               ram_read_save_reg_end <= ram_read_save_reg_end - 1;
               read_address2 <= read_address2 - 1;
