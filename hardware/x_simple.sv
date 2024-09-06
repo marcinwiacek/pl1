@@ -11,14 +11,14 @@ parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 1;
 parameter MMU_STAGE_DEBUG = 1;
 parameter OP_DEBUG = 1;
-parameter OP2_DEBUG = 1;
+parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
@@ -1020,6 +1020,7 @@ module x_simple (
       // (*parallel_case *)(*full_case *) 
       case (stage)
         STAGE_GET_1_BYTE: begin
+          write_enabled <= 0;
           if (READ_DEBUG && !HARDWARE_DEBUG)
             $display(
                 $time,
@@ -1425,6 +1426,7 @@ module x_simple (
           end
         end
         STAGE_CHECK_MMU_ADDRESS: begin
+          write_enabled <= 0;
           if (mmu_action_ready) begin
             if (stage_after_mmu != STAGE_SET_RAM_BYTE) begin
               if (stage_after_mmu == STAGE_GET_1_BYTE) begin
@@ -1492,7 +1494,7 @@ module x_simple (
               alu_num <= alu_num + 1;
             end
             if (alu_num == instruction1_2_1 + instruction1_2_2) begin
-              write_enabled <= 0;
+              //write_enabled <= 0;
               `MAKE_MMU_SEARCH2
             end else begin
               case (alu_op)
@@ -1521,6 +1523,7 @@ module x_simple (
           //old process
           write_address <= process_address + ADDRESS_PC;
           write_value <= pc[process_num];
+          write_enabled <= 1;
           //in parallel update MMU
           set_mmu_start_process_physical_segment <= 1;
           `MAKE_SWITCH_TASK(1);
@@ -1534,6 +1537,13 @@ module x_simple (
           read_address2 <= next_process_address + ADDRESS_REG_USED + 1;
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display($time, " new pc ", read_value);
           //old process
+          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)  begin
+          $write($time, " old registers updated ");
+          for (i=0;i<32;i=i+1) begin
+          $write(registers_updated[i]);
+          end
+          $display("");
+          end
           write_address <= process_address + ADDRESS_REG_USED;
           write_value <= registers_updated[0:15];
           write_enabled <= 1;
@@ -1556,8 +1566,13 @@ module x_simple (
           stage <= STAGE_READ_REG;
           if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
         end
-        STAGE_READ_REG: begin
-          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
+        STAGE_READ_REG: begin       
+          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) begin
+           $write($time, " new registers updated ");
+          for (i=0;i<32;i=i+1) begin
+          $write(temp_registers_updated[i]);
+          end
+          $display("");
             $display(
                 $time,
                 " reading reg ",
@@ -1571,8 +1586,9 @@ module x_simple (
                 " ",
                 ram_read_save_reg_end,
                 "=",
-                read_value2
+                read_value2," "
             );
+          end
           registers[process_num][ram_read_save_reg_start] <= read_value;
           registers[process_num][ram_read_save_reg_end]   <= read_value2;
           if (temp_registers_updated == 0) begin
