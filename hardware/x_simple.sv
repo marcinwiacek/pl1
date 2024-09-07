@@ -1356,7 +1356,7 @@ module x_simple (
               mmu_split_process <= 1;
               stage <= STAGE_SPLIT_PROCESS;
             end
-            //x, int number (8 bit)
+            //int number (8 bit), start memory page, end memory page 
             OPCODE_REG_INT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) //DEBUG info
                 $display($time, " opcode = reg_int ", instruction1_2); //DEBUG info
@@ -1370,7 +1370,7 @@ module x_simple (
               write_enabled <= 1;
               stage <= STAGE_REG_INT;
             end
-            //x, int number (8 bit)
+            //int number (8 bit), start memory page, end memory page 
             OPCODE_INT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int ", instruction1_2); //DEBUG info
               //replace current process with int process in the chain 
@@ -1379,7 +1379,7 @@ module x_simple (
               write_enabled <= 1;
               stage <= STAGE_INT;
             end
-            //x, int number
+            //int number
             OPCODE_INT_RET: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int_ret"); //DEBUG info
               //replace current process with int process in the chain 
