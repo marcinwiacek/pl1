@@ -288,6 +288,8 @@ endmodule
 module mmu (
     input clk,
     input reset,
+    input bit add_shared_mem,
+    input bit remove_shared_mem,
     input bit search_mmu_address,
     input bit set_mmu_start_process_physical_segment,
     input bit mmu_delete_process,
@@ -394,6 +396,8 @@ module mmu (
   parameter MMU_ALLOCATE_NEW2 = 17;
   parameter MMU_SWITCH = 19;
   parameter MMU_SEARCH3 = 20;
+  parameter MMU_ADD_SHARED_MEM = 21;
+  parameter MMU_DELETE_SHARED_MEM = 22;
 
   bit [15:0] mmu_address_to_search_segment_cache;
 
@@ -1378,6 +1382,7 @@ module x_simple (
               write_value <= next_process_address;
               write_enabled <= 1;
               stage <= STAGE_INT;
+              //fixme: add shared memory from current process to int process
             end
             //int number
             OPCODE_INT_RET: begin
@@ -1387,6 +1392,7 @@ module x_simple (
               write_value <= next_process_address;
               write_enabled <= 1;
               stage <= STAGE_INT;
+              //fixme: remove shared memory from int process
             end
             default: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = unknown"); //DEBUG info
