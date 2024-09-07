@@ -289,7 +289,7 @@ module mmu (
     input clk,
     input reset,
     input bit add_shared_mem,
-    input bit remove_shared_mem,
+    input bit delete_shared_mem,
     input bit search_mmu_address,
     input bit set_mmu_start_process_physical_segment,
     input bit mmu_delete_process,
@@ -491,6 +491,10 @@ module mmu (
             mmu_new_search_position <= 0;
             mmu_action_ready <= 0;
             stage <= MMU_SPLIT;
+          end else if (add_shared_mem) begin
+            //add shared pages to be chain beginning of the int process
+          end else if (delete_shared_mem) begin
+            //delete shared mem pages from int process. they could be duplicated, do it for first copy only.
           end
         end
         MMU_SWITCH: begin
