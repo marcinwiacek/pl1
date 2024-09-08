@@ -1423,7 +1423,7 @@ module x_simple (
             //int number (8 bit), start memory page, end memory page 
             OPCODE_REG_INT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
-                $display($time, " opcode = reg_int ", instruction1_2);  //DEBUG info
+                $display($time, " opcode = reg_int ", instruction1_2, " logical segments", instruction2_1,"-",instruction2_2);  //DEBUG info
               int_pc[instruction1_2] <= pc[process_num];
               int_process_address[instruction1_2] <= process_address;
               mmu_reg_int <= 1;
@@ -1928,7 +1928,7 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
 
-      16'h1a37, 16'd0000, //reg int 
+      16'h1a37, 16'h0101, //reg int 
       16'h1210, 16'h0a35, //value to reg
       16'h1c37, 16'd0000, //int ret
      // 16'h1800, 16'h0000, //process end
