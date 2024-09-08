@@ -8,8 +8,9 @@ problems (see words from Linus Torvalds "They’ll have all
 the same issues we have on the Arm side and that x86 had before them").
 
 This project contains 1st working generation of the PL SoC (System On Chip).
-It was initially created to proove, that some hardware based solutions
-than be better than software based one.
+It was initially created to check, how to create some hardware solutions
+(+ to proove, that some hardware based solutions can be better
+than software based one).
 
 PL1 allows for creating and running OS and apps:
 

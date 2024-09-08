@@ -540,6 +540,8 @@ module mmu (
           stage <= MMU_IDLE;
         end
         MMU_ADD_SHARED_MEM: begin
+          if (mmu_chain_read_value>=mmu_address_b && mmu_chain_read_value<=mmu_address_d) begin
+          end 
           if (mmu_chain_read_value == mmu_search_position) begin
             stage <= MMU_IDLE;
             mmu_action_ready <= 1;
