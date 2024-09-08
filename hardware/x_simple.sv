@@ -11,12 +11,12 @@ parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 1;
-parameter MMU_STAGE_DEBUG = 1;
+parameter STAGE_DEBUG = 0;
+parameter MMU_STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
 parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
@@ -290,12 +290,15 @@ module mmu (
     input reset,
     input bit add_shared_mem,
     input bit delete_shared_mem,
+    input bit reg_int,
     input bit search_mmu_address,
     input bit set_mmu_start_process_physical_segment,
     input bit mmu_delete_process,
     input bit mmu_split_process,
     input bit [15:0] mmu_address_a,
     mmu_address_b,
+    mmu_address_d,
+    mmu_address_e,
     output bit [15:0] mmu_address_c,
     output bit mmu_action_ready
 );
@@ -310,6 +313,9 @@ module mmu (
   bit [7:0] stage;
   bit rst_can_be_done = 1;
   bit [8:0] temp, temp2;
+  
+  bit [7:0] int_memory_start[0:255];
+  bit [7:0] int_memory_end[0:255];
 
   integer i;
 
@@ -398,7 +404,8 @@ module mmu (
   parameter MMU_SEARCH3 = 20;
   parameter MMU_ADD_SHARED_MEM = 21;
   parameter MMU_DELETE_SHARED_MEM = 22;
-
+  parameter MMU_INT_REG = 23;
+  
   bit [15:0] mmu_address_to_search_segment_cache;
 
   assign mmu_address_to_search_segment_cache = mmu_address_a / MMU_PAGE_SIZE; //fixme: mmu_size / 2^x allows for using assign ... =  
@@ -433,7 +440,10 @@ module mmu (
           MMU_ALLOCATE_NEW: $write("MMU_ALLOCATE_NEW");
           MMU_ALLOCATE_NEW2: $write("MMU_ALLOCATE_NEW2");
           MMU_SWITCH: $write("MMU_SWITCH");
-          MMU_SEARCH3: $write("MMU_SEARCH3");
+          MMU_SEARCH3: $write("MMU_SEARCH3");          
+          MMU_ADD_SHARED_MEM : $write("MMU_ADD_SHARED_MEM");
+          MMU_DELETE_SHARED_MEM: $write("MMU_DELETE_SHARED_MEM");
+          MMU_INT_REG:$write("MMU_INT_REG");  
         endcase
         $display("");
       end
@@ -495,6 +505,7 @@ module mmu (
             //add shared pages to be chain beginning of the int process
           end else if (delete_shared_mem) begin
             //delete shared mem pages from int process. they could be duplicated, do it for first copy only.
+          end else if (reg_int) begin
           end
         end
         MMU_SWITCH: begin
@@ -897,35 +908,41 @@ module x_simple (
       .c  (minus_c)
   );
 
-  bit search_mmu_address = 0;
-  bit set_mmu_start_process_physical_segment;
+  bit mmu_search_address = 0;
+  bit mmu_set_start_process_physical_segment;
   bit mmu_delete_process;
   bit mmu_split_process;
-  bit [15:0] mmu_address_a, mmu_address_b;
+  bit mmu_add_shared_mem;
+  bit mmu_delete_shared_mem;
+  bit mmu_reg_int;  
+  bit [15:0] mmu_address_a, mmu_address_b, mmu_address_d, mmu_address_e;
   wire [15:0] mmu_address_c;
   wire mmu_action_ready;
 
   mmu mmu (
       .clk(clk),
       .reset(reset),
-      .search_mmu_address(search_mmu_address),
-      .set_mmu_start_process_physical_segment(set_mmu_start_process_physical_segment),
+      .search_mmu_address(mmu_search_address),
+      .set_mmu_start_process_physical_segment(mmu_set_start_process_physical_segment),
       .mmu_delete_process(mmu_delete_process),
       .mmu_split_process(mmu_split_process),
+      .add_shared_mem(mmu_add_shared_mem),
+      .delete_shared_mem(mmu_delete_shared_mem),
+      .reg_int(mmu_reg_int),
       .mmu_address_a(mmu_address_a),
       .mmu_address_b(mmu_address_b),
       .mmu_address_c(mmu_address_c),
+      .mmu_address_d(mmu_address_d),
+      .mmu_address_e(mmu_address_e),
       .mmu_action_ready(mmu_action_ready)
   );
 
   bit [15:0] int_pc[0:255];
   bit [15:0] int_process_address[0:255];
-  bit [7:0] int_memory_start[0:255];
-  bit [7:0] int_memory_end[0:255];
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
       mmu_address_a <= ARG; \
-      search_mmu_address <= 1; \
+      mmu_search_address <= 1; \
       stage_after_mmu <= ARG2; \
       stage <= STAGE_CHECK_MMU_ADDRESS;
 
@@ -937,7 +954,7 @@ module x_simple (
         how_many <= how_many + 1; \
         if (mmu_page_offset == 2) begin \
           mmu_address_a <= pc[process_num]; \
-          search_mmu_address <= 1; \
+          mmu_search_address <= 1; \
           stage_after_mmu <= STAGE_GET_1_BYTE; \
           stage <= STAGE_CHECK_MMU_ADDRESS; \
         end else begin \
@@ -1370,8 +1387,12 @@ module x_simple (
                 $display($time, " opcode = reg_int ", instruction1_2); //DEBUG info
               int_pc[instruction1_2] <= pc[process_num];
               int_process_address[instruction1_2] <= process_address;
-              int_memory_start[instruction1_2] <= instruction2_1;
-              int_memory_end[instruction1_2] <= instruction2_2;
+              mmu_reg_int <= 1;
+              mmu_address_a <= instruction1_2;
+              mmu_address_b <= instruction2_1;
+              mmu_address_d <= instruction2_2;              
+//              int_memory_start[instruction1_2] <= instruction2_1;
+//              int_memory_end[instruction1_2] <= instruction2_2;
               //delete process from chain
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -1387,6 +1408,9 @@ module x_simple (
               write_enabled <= 1;
               stage <= STAGE_INT;
               //fixme: add shared memory from current process to int process
+//                mmu_address_a<=we need mmu start from int_process_address[instruction1_2]
+//    mmu_address_b<=instruction2_1
+//    mmu_address_d<=instruction2_2
             end
             //int number
             OPCODE_INT_RET: begin
@@ -1451,7 +1475,7 @@ module x_simple (
             end
             stage <= stage_after_mmu;
           end
-          search_mmu_address <= 0;
+          mmu_search_address <= 0;
         end
         STAGE_ALU: begin
           if (ALU_DEBUG && !HARDWARE_DEBUG) //DEBUG info
@@ -1535,7 +1559,7 @@ module x_simple (
           write_value <= pc[process_num];
           write_enabled <= 1;
           //in parallel update MMU
-          set_mmu_start_process_physical_segment <= 1;
+          mmu_set_start_process_physical_segment <= 1;
           `MAKE_SWITCH_TASK(1);
         end
         STAGE_READ_SAVE_PC: begin
@@ -1558,7 +1582,7 @@ module x_simple (
           write_value <= registers_updated[0:15];
           write_enabled <= 1;
           stage <= STAGE_READ_SAVE_REG_USED;
-          if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
+          if (mmu_action_ready) mmu_set_start_process_physical_segment <= 0;
         end
         STAGE_READ_SAVE_REG_USED: begin
           //new process
@@ -1574,7 +1598,7 @@ module x_simple (
           write_address <= process_address + ADDRESS_REG_USED + 1;
           write_value <= registers_updated[16:31];
           stage <= STAGE_READ_REG;
-          if (mmu_action_ready) set_mmu_start_process_physical_segment <= 0;
+          if (mmu_action_ready) mmu_set_start_process_physical_segment <= 0;
         end
         STAGE_READ_REG: begin
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) begin //DEBUG info
@@ -1630,7 +1654,7 @@ module x_simple (
           if (mmu_action_ready) begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display("\n\n");       
             //    $display($time, " read next next ", process_address,"=",read_value); //DEBUG info
-            set_mmu_start_process_physical_segment <= 0;
+            mmu_set_start_process_physical_segment <= 0;
             next_process_address <= read_value;
             `MAKE_MMU_SEARCH2
           end
@@ -1640,7 +1664,7 @@ module x_simple (
           if (mmu_action_ready) begin
             process_address <= prev_process_address;
             //in parallel update MMU
-            set_mmu_start_process_physical_segment <= 1;
+            mmu_set_start_process_physical_segment <= 1;
             `MAKE_SWITCH_TASK(0)
           end
         end
@@ -1688,7 +1712,7 @@ module x_simple (
         STAGE_REG_INT2: begin
           process_address <= prev_process_address;
           //in parallel update MMU
-          set_mmu_start_process_physical_segment <= 1;
+          mmu_set_start_process_physical_segment <= 1;
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_INT: begin
@@ -1712,8 +1736,8 @@ module x_simple (
       `HARD_DEBUG("O"); //DEBUG info
       `HARD_DEBUG("D"); //DEBUG info
       `HARD_DEBUG2(error_code[process_num]); //DEBUG info
-      search_mmu_address <= 0;
-      set_mmu_start_process_physical_segment <= 0;
+      mmu_search_address <= 0;
+      mmu_set_start_process_physical_segment <= 0;
       mmu_split_process <= 0;
       if (next_process_address == process_address) begin
         mmu_delete_process <= 0;
