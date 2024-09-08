@@ -17,10 +17,10 @@ parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 0;
-parameter MMU_STAGE_DEBUG = 0;
+parameter STAGE_DEBUG = 1;
+parameter MMU_STAGE_DEBUG = 1;
 parameter OP_DEBUG = 1;
-parameter OP2_DEBUG = 0;
+parameter OP2_DEBUG = 1;
 parameter ALU_DEBUG = 0;
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
@@ -508,10 +508,12 @@ module mmu (
             //in address a we have int process address, in address b and d we have pages from current process
             mmu_chain_read_addr <= mmu_start_process_physical_segment;
             mmu_logical_read_addr <= mmu_start_process_physical_segment;
+            mmu_search_position <= mmu_start_process_physical_segment;
             mmu_action_ready <= 0;
             stage <= MMU_ADD_SHARED_MEM;
           end else if (delete_shared_mem) begin
             //delete shared mem pages from int process. they could be duplicated, do it for first copy only.
+            mmu_action_ready <= 1;
           end else if (reg_int) begin
             int_memory_start[mmu_address_a] <= mmu_address_b;
             int_memory_end[mmu_address_a] <= mmu_address_d;
@@ -542,6 +544,7 @@ module mmu (
             stage <= MMU_IDLE;
             mmu_action_ready <= 1;
           end else begin
+            mmu_search_position <= mmu_chain_read_value;
             mmu_chain_read_addr   <= mmu_chain_read_value;
             mmu_logical_read_addr <= mmu_chain_read_value;
           end
@@ -1748,6 +1751,8 @@ module x_simple (
         end
         STAGE_INT: begin
           if (mmu_action_ready) begin
+            mmu_add_shared_mem <=0;
+            mmu_delete_shared_mem <= 0;
             write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
             write_value   <= int_process_address[instruction1_2];
             if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
