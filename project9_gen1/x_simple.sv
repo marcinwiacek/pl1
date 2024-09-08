@@ -407,7 +407,8 @@ module mmu (
   parameter MMU_ADD_SHARED_MEM = 21;
   parameter MMU_DELETE_SHARED_MEM = 22;
   parameter MMU_INT_REG = 23;
-
+  parameter MMU_ADD_SHARED_MEM1 = 24;
+  
   bit [15:0] mmu_address_to_search_segment_cache;
 
   assign mmu_address_to_search_segment_cache = mmu_address_a / MMU_PAGE_SIZE; //fixme: mmu_size / 2^x allows for using assign ... =  
@@ -446,6 +447,7 @@ module mmu (
           MMU_ADD_SHARED_MEM: $write("MMU_ADD_SHARED_MEM");
           MMU_DELETE_SHARED_MEM: $write("MMU_DELETE_SHARED_MEM");
           MMU_INT_REG: $write("MMU_INT_REG");
+          MMU_ADD_SHARED_MEM1: $write("MMU_ADD_SHARED_MEM1");
         endcase
         $display("");
       end
@@ -504,13 +506,9 @@ module mmu (
             mmu_action_ready <= 0;
             stage <= MMU_SPLIT;
           end else if (add_shared_mem) begin
-            //add shared pages to be chain beginning of the int process.
-            //in address a we have int process address, in address b and d we have pages from current process
-            mmu_chain_read_addr <= mmu_start_process_physical_segment;
-            mmu_logical_read_addr <= mmu_start_process_physical_segment;
-            mmu_search_position <= mmu_start_process_physical_segment;
+            mmu_logical_read_addr <= mmu_address_a;
             mmu_action_ready <= 0;
-            stage <= MMU_ADD_SHARED_MEM;
+            stage <= MMU_ADD_SHARED_MEM1;
           end else if (delete_shared_mem) begin
             //delete shared mem pages from int process. they could be duplicated, do it for first copy only.
             mmu_action_ready <= 1;
@@ -538,6 +536,18 @@ module mmu (
             );
 
           stage <= MMU_IDLE;
+        end
+        MMU_ADD_SHARED_MEM1: begin
+            //for int process
+            //mmu_start_process_physical_segment <= mmu_logical_read_value;
+        
+        
+                    //add shared pages to be chain beginning of the int process.
+            //in address a we have int process address, in address b and d we have pages from current process
+            mmu_chain_read_addr <= mmu_start_process_physical_segment;
+            mmu_logical_read_addr <= mmu_start_process_physical_segment;
+            mmu_search_position <= mmu_start_process_physical_segment;
+            stage <= MMU_ADD_SHARED_MEM;           
         end
         MMU_ADD_SHARED_MEM: begin
           if (mmu_chain_read_value>=mmu_address_b && mmu_chain_read_value<=mmu_address_d) begin
