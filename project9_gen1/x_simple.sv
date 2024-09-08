@@ -539,9 +539,8 @@ module mmu (
         end
         MMU_ADD_SHARED_MEM: begin
           if (mmu_chain_read_value == mmu_search_position) begin
-            if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
-              $display($time, " needs to allocate new memory segment");
-            stage <= MMU_ALLOCATE_NEW;
+            stage <= MMU_IDLE;
+            mmu_action_ready <= 1;
           end else begin
             mmu_chain_read_addr <= mmu_chain_read_value;
             mmu_logical_read_addr <= mmu_chain_read_value;
