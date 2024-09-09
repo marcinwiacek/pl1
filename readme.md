@@ -1,5 +1,9 @@
 # News
 
+Sep 2024: first version going with big steps with project 9.
+
+June 2024: first work with real FPGA
+
 18 May 2024: there was prepared quite advanced System Verilog code with majority of things
 (unfortunately not compatible with Vidado) and there is prepared realistic System Verilog compatible
 with Vidado (this should be compilable for FPGA).
