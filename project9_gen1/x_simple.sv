@@ -408,15 +408,15 @@ module mmu (
   parameter MMU_DELETE_SHARED_MEM = 22;
   parameter MMU_INT_REG = 23;
   parameter MMU_ADD_SHARED_MEM1 = 24;
-  parameter MMU_SEARCH_FOR_SHARED_MEM = 25;  
-  
+  parameter MMU_SEARCH_FOR_SHARED_MEM = 25;
+
   bit [15:0] mmu_address_to_search_segment_cache;
 
   assign mmu_address_to_search_segment_cache = mmu_address_a / MMU_PAGE_SIZE; //fixme: mmu_size / 2^x allows for using assign ... =  
 
-bit int_inside=0, int_search=0;
+  bit int_inside = 0, int_search = 0;
   bit [15:0] int_number, int_source_process, int_source_process_zero, int_start_page, int_end_page;
-    
+
   always @(posedge clk) begin
     //$display($time, " mmu stage ", stage);
     if (reset == 1 && rst_can_be_done == 1) begin
@@ -460,45 +460,45 @@ bit int_inside=0, int_search=0;
           // $display($time, " idle");
           mmu_chain_write_enable   <= 0;
           mmu_logical_write_enable <= 0;
-          if (search_mmu_address) begin          
+          if (search_mmu_address) begin
             if (int_inside && mmu_address_to_search_segment_cache >=int_memory_start[int_number] && 
                  mmu_address_to_search_segment_cache <=int_memory_start[int_number]) begin
-              mmu_address_to_search_segment <= int_start_page+mmu_address_to_search_segment_cache-int_memory_start[int_number];    
-                        if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
-              $display(
-                  $time,
-                  " mmu, shared address ",
-                  mmu_address_a,
-                  " segment ",
-                  (mmu_address_a / MMU_PAGE_SIZE),
-                  " entry point ",
-                  int_source_process
-              );
-                          
+              mmu_address_to_search_segment <= int_start_page+mmu_address_to_search_segment_cache-int_memory_start[int_number];
+              if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+                $display(
+                    $time,
+                    " mmu, shared address ",
+                    mmu_address_a,
+                    " segment ",
+                    (mmu_address_a / MMU_PAGE_SIZE),
+                    " entry point ",
+                    int_source_process
+                );
+
               mmu_search_position <= int_source_process;
               mmu_chain_read_addr <= int_source_process;
               mmu_logical_read_addr <= int_source_process;
               mmu_action_ready <= 0;
-              int_search<=1;
-              stage <= MMU_SEARCH;             
-            end else begin                         
+              int_search <= 1;
+              stage <= MMU_SEARCH;
+            end else begin
               mmu_address_to_search_segment <= mmu_address_to_search_segment_cache;
-            //            mmu_cache_read_addr <= mmu_address_to_search_segment_cache;
+              //            mmu_cache_read_addr <= mmu_address_to_search_segment_cache;
               if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
-              $display(
-                  $time,
-                  " mmu, address ",
-                  mmu_address_a,
-                  " segment ",
-                  (mmu_address_a / MMU_PAGE_SIZE),
-                  " entry point ",
-                  mmu_start_process_physical_segment
-              );
+                $display(
+                    $time,
+                    " mmu, address ",
+                    mmu_address_a,
+                    " segment ",
+                    (mmu_address_a / MMU_PAGE_SIZE),
+                    " entry point ",
+                    mmu_start_process_physical_segment
+                );
               mmu_search_position <= mmu_start_process_physical_segment;
               mmu_chain_read_addr <= mmu_start_process_physical_segment;
               mmu_logical_read_addr <= mmu_start_process_physical_segment;
               mmu_action_ready <= 0;
-              int_search<=0;
+              int_search <= 0;
               stage <= MMU_SEARCH;
             end
           end else if (set_mmu_start_process_physical_segment) begin
@@ -534,30 +534,30 @@ bit int_inside=0, int_search=0;
             stage <= MMU_SPLIT;
           end else if (add_shared_mem) begin
 
-int_inside<=1;
-  int_source_process_zero<= mmu_address_a;
-  
-  int_start_page<=mmu_address_b;
-  int_end_page<=mmu_address_d;
-  int_number <=mmu_address_e;
-  
-    mmu_logical_read_addr <= mmu_address_a;
-  stage<=MMU_ADD_SHARED_MEM;
+            int_inside <= 1;
+            int_source_process_zero <= mmu_address_a;
+
+            int_start_page <= mmu_address_b;
+            int_end_page <= mmu_address_d;
+            int_number <= mmu_address_e;
+
+            mmu_logical_read_addr <= mmu_address_a;
+            stage <= MMU_ADD_SHARED_MEM;
             mmu_action_ready <= 0;
           end else if (delete_shared_mem) begin
-int_inside<=0;
+            int_inside <= 0;
             //delete shared mem pages from int process. they could be duplicated, do it for first copy only.
-            
-               //old process
+
+            //old process
             mmu_logical_write_addr <= int_source_process_zero;
             mmu_logical_write_value <= int_source_process;
             mmu_logical_write_enable <= 1;
-            
+
             mmu_action_ready <= 1;
           end else if (reg_int) begin
             int_memory_start[mmu_address_a] <= mmu_address_b;
-            int_memory_end[mmu_address_a] <= mmu_address_d;            
-  
+            int_memory_end[mmu_address_a] <= mmu_address_d;
+
             mmu_action_ready <= 1;
           end
         end
@@ -582,12 +582,12 @@ int_inside<=0;
         end
         MMU_ADD_SHARED_MEM: begin
           int_source_process <= mmu_logical_read_value;
-  stage<=MMU_IDLE;
-            mmu_action_ready <= 1;          
+          stage <= MMU_IDLE;
+          mmu_action_ready <= 1;
         end
-       
- 
-        MMU_SEARCH: begin        
+
+
+        MMU_SEARCH: begin
           //          mmu_cache_write_addr <= mmu_search_position;
           //          mmu_cache_write_value <= 256*mmu_start_process_physical_segment_zero+mmu_address_to_search_segment;
           //          mmu_cache_write_value <= 1;
@@ -1455,7 +1455,15 @@ module x_simple (
             //int number (8 bit), start memory page, end memory page 
             OPCODE_REG_INT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
-                $display($time, " opcode = reg_int ", instruction1_2, " logical segments", instruction2_1,"-",instruction2_2);  //DEBUG info
+                $display(
+                    $time,
+                    " opcode = reg_int ",
+                    instruction1_2,
+                    " logical segments",
+                    instruction2_1,
+                    "-",
+                    instruction2_2
+                );  //DEBUG info
               int_pc[instruction1_2] <= pc[process_num];
               int_process_address[instruction1_2] <= process_address;
               mmu_reg_int <= 1;
@@ -1796,10 +1804,10 @@ module x_simple (
         end
         STAGE_INT: begin
           if (mmu_action_ready) begin
-            mmu_add_shared_mem <=0;
+            mmu_add_shared_mem <= 0;
             mmu_delete_shared_mem <= 0;
             write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
-            write_value   <= int_process_address[instruction1_2];
+            write_value <= int_process_address[instruction1_2];
             if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
               next_process_address <= write_value;
             end else begin
