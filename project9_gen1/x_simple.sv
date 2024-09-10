@@ -17,8 +17,8 @@ parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 1;
-parameter MMU_STAGE_DEBUG = 1;
+parameter STAGE_DEBUG = 0;
+parameter MMU_STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
 parameter OP2_DEBUG = 1;
 parameter ALU_DEBUG = 0;
@@ -470,7 +470,7 @@ module mmu (
                     " mmu, shared address ",
                     mmu_address_a,
                     " segment ",
-                    (mmu_address_a / MMU_PAGE_SIZE),
+                    (int_start_page+mmu_address_to_search_segment_cache-int_memory_start[int_number]),
                     " entry point ",
                     int_source_process
                 );
@@ -490,7 +490,7 @@ module mmu (
                     " mmu, address ",
                     mmu_address_a,
                     " segment ",
-                    (mmu_address_a / MMU_PAGE_SIZE),
+                    (mmu_address_to_search_segment_cache),
                     " entry point ",
                     mmu_start_process_physical_segment
                 );
@@ -1478,7 +1478,7 @@ module x_simple (
             //int number (8 bit), start memory page, end memory page 
             OPCODE_INT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)
-                $display($time, " opcode = int ", instruction1_2);  //DEBUG info
+                $display($time, " opcode = int ", instruction1_2, " segments ",instruction2_1,"-",instruction2_2);  //DEBUG info
               //replace current process with int process in the chain 
               write_address <= int_process_address[instruction1_2] + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -1929,8 +1929,9 @@ module single_blockram (
       16'h1210, 16'd2612, //value to reg
     //  16'h0e10, 16'd0101, //save to ram
       16'h1902, 16'h0002, //split process segments 2-4
-      16'h0911, 16'd0101, //ram to reg
-      16'h1b37, 16'd0000, //int
+       16'h1210, 16'd2615, //value to reg
+      16'h0e10, 16'd0100, //save to ram
+      16'h1b37, 16'h0101, //int
       //16'h0e10, 16'h00D4, //save to ram
       16'h1800, 16'h0007, //process end
       //16'h0c01, 16'h0001,  //proc
@@ -1944,7 +1945,6 @@ module single_blockram (
       16'h0E01, 16'h0046,  //reg2ram
       16'h0F00, 16'h0002,  //int,8'h2
       16'h010E, 16'h0030,  //jmp,8'h0x30
-      16'h0000, 16'h0000,
       16'h0000, 16'h0000,
 
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
@@ -1967,6 +1967,7 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
 
       16'h1a37, 16'h0101, //reg int 
+      16'h0911, 16'd0100, //ram to reg
       16'h1210, 16'h0a35, //value to reg
       16'h1c37, 16'd0000, //int ret
      // 16'h1800, 16'h0000, //process end
@@ -1985,7 +1986,6 @@ module single_blockram (
       16'h0E01, 16'h0046,  //reg2ram
       16'h0F00, 16'h0002,  //int,8'h2
       16'h010E, 16'h0030,  //jmp,8'h0x30
-      16'h0000, 16'h0000,
       "Po","zd",
       //16'h0000, 16'h0000,
 
