@@ -12,8 +12,8 @@ parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -472,7 +472,8 @@ module mmu (
                     " segment ",
                     (int_start_page+mmu_address_to_search_segment_cache-int_memory_start[int_number]),
                     " entry point ",
-                    int_source_process
+                    int_source_process,      " entry point zero ",
+                    int_source_process_zero
                 );
 
               mmu_search_position <= int_source_process;
@@ -492,7 +493,7 @@ module mmu (
                     " segment ",
                     (mmu_address_to_search_segment_cache),
                     " entry point ",
-                    mmu_start_process_physical_segment
+                    mmu_start_process_physical_segment,   " entry point zero ",mmu_start_process_physical_segment_zero
                 );
               mmu_search_position <= mmu_start_process_physical_segment;
               mmu_chain_read_addr <= mmu_start_process_physical_segment;
@@ -533,15 +534,13 @@ module mmu (
             mmu_action_ready <= 0;
             stage <= MMU_SPLIT;
           end else if (add_shared_mem) begin
-
             int_inside <= 1;
-            int_source_process_zero <= mmu_address_a;
-
+            int_source_process_zero <= mmu_address_a/MMU_PAGE_SIZE;
             int_start_page <= mmu_address_b;
             int_end_page <= mmu_address_d;
             int_number <= mmu_address_e;
 
-            mmu_logical_read_addr <= mmu_address_a;
+            mmu_logical_read_addr <= mmu_address_a/MMU_PAGE_SIZE;
             stage <= MMU_ADD_SHARED_MEM;
             mmu_action_ready <= 0;
           end else if (delete_shared_mem) begin
@@ -582,6 +581,10 @@ module mmu (
         end
         MMU_ADD_SHARED_MEM: begin
           int_source_process <= mmu_logical_read_value;
+          
+              mmu_logical_write_addr <= int_source_process_zero;
+          mmu_logical_write_value <= 0;
+              mmu_logical_write_enable<=1;
           stage <= MMU_IDLE;
           mmu_action_ready <= 1;
         end
@@ -1486,7 +1489,7 @@ module x_simple (
               stage <= STAGE_INT;
               //fixme: add shared memory from current process to int process
               mmu_add_shared_mem <= 1;
-              mmu_address_a <= int_process_address[instruction1_2];
+              mmu_address_a <= process_address;
               mmu_address_b <= instruction2_1;
               mmu_address_d <= instruction2_2;
               mmu_address_e <= instruction1_2;
@@ -1531,11 +1534,26 @@ module x_simple (
         end
         STAGE_SET_RAM_BYTE: begin
           if (ram_read_save_reg_start == ram_read_save_reg_end) begin
+          
+              if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
+            $display(  //DEBUG info
+                $time,  //DEBUG info
+                " save value ",registers[process_num][ram_read_save_reg_start]," from reg ",ram_read_save_reg_start ,
+                " to ram address ",mmu_address_a 
+            );  //DEBUG info
             write_enabled <= 0;
             `MAKE_MMU_SEARCH2
           end else begin
             ram_read_save_reg_start <= ram_read_save_reg_start + 1;
             write_value <= registers[process_num][ram_read_save_reg_start];
+            
+               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
+            $display(  //DEBUG info
+                $time,  //DEBUG info
+                " save value ",registers[process_num][ram_read_save_reg_start+1]," from reg ",ram_read_save_reg_start + 1,
+                " to ram address ",mmu_address_a + 1
+            );  //DEBUG info
+            
             `MAKE_MMU_SEARCH(mmu_address_a + 1, STAGE_SET_RAM_BYTE);
           end
         end
