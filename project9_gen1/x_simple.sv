@@ -12,7 +12,7 @@ parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -409,6 +409,7 @@ module mmu (
   parameter MMU_INT_REG = 23;
   parameter MMU_ADD_SHARED_MEM1 = 24;
   parameter MMU_SEARCH_FOR_SHARED_MEM = 25;
+  parameter MMU_ADD_SHARED_MEM2 = 26;  
 
   bit [15:0] mmu_address_to_search_segment_cache;
 
@@ -580,14 +581,17 @@ module mmu (
           stage <= MMU_IDLE;
         end
         MMU_ADD_SHARED_MEM: begin
-          int_source_process <= mmu_logical_read_value;
-          
+          int_source_process <= mmu_start_process_physical_segment_zero; //mmu_logical_read_value; //fixme process before switch = we dont have value yet
+           $display($time, " physical start segment for int process ", mmu_logical_read_value, " addr ",mmu_logical_read_addr);
               mmu_logical_write_addr <= int_source_process_zero;
+          stage <= MMU_ADD_SHARED_MEM2;
+        end
+        MMU_ADD_SHARED_MEM2: begin
           mmu_logical_write_value <= 0;
               mmu_logical_write_enable<=1;
           stage <= MMU_IDLE;
           mmu_action_ready <= 1;
-        end
+        end      
         MMU_SEARCH: begin
           //          mmu_cache_write_addr <= mmu_search_position;
           //          mmu_cache_write_value <= 256*mmu_start_process_physical_segment_zero+mmu_address_to_search_segment;
@@ -1824,7 +1828,7 @@ module x_simple (
             write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
             write_value <= int_process_address[instruction1_2];
             if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
-              next_process_address <= write_value;
+              next_process_address <= int_process_address[instruction1_2];
             end else begin
               how_many <= 0;
             end
