@@ -12,7 +12,7 @@ parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -585,8 +585,6 @@ module mmu (
           stage <= MMU_IDLE;
           mmu_action_ready <= 1;
         end
-
-
         MMU_SEARCH: begin
           //          mmu_cache_write_addr <= mmu_search_position;
           //          mmu_cache_write_value <= 256*mmu_start_process_physical_segment_zero+mmu_address_to_search_segment;
@@ -605,8 +603,7 @@ module mmu (
               $display($time, " physical segment in position ", mmu_search_position);
             mmu_address_c <= mmu_address_a % MMU_PAGE_SIZE + mmu_search_position * MMU_PAGE_SIZE;
             //move found address to the beginning to speed up search in the future       
-            if ((int_search && int_source_process != mmu_search_position) ||
-            
+            if ((int_search && int_source_process != mmu_search_position) ||            
                 (!int_search && mmu_start_process_physical_segment != mmu_search_position)) begin
               mmu_chain_write_addr <= mmu_prev_search_position;
               mmu_chain_write_value <= mmu_chain_read_value == mmu_search_position? mmu_prev_search_position:mmu_chain_read_value;
@@ -636,9 +633,9 @@ module mmu (
           if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
             $display($time, " new start entry point ", mmu_search_position);
           if (int_search) begin
-            mmu_start_process_physical_segment <= mmu_search_position;
-          end else begin
             int_source_process <= mmu_search_position;
+          end else begin
+            mmu_start_process_physical_segment <= mmu_search_position;
           end
           stage <= MMU_IDLE;
           mmu_action_ready <= 1;
