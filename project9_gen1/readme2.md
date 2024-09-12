@@ -68,3 +68,21 @@ OPCODE_INT = 'h1b;  //int number (8 bit), start memory page, end memory page
 OPCODE_INT_RET = 'h1c;  //int number
 
 MMU
+
+MMU is using pages and two memories:
+
+* mmu_chain_memory - next physical segment index for process
+* mmu_logical_pages_memory - logical process page assigned to physical segment
+
+Every process process has got start point (mmu_start_process_physical_segment),
+which shows, what is index for first entry in both memories. To save time during
+process switch we use start point equal of index of memory page with logical page 0
+
+mmu_chain_memory is sorted during each searching for memory page - last
+found index is moved into beginning of the chain.
+
+special cases:
+  // mmu_chain_memory == own physical segment (element is pointing to itself) -> end segment
+  // mmu_logical_pages_memory == start point in segment 0 when process is not executed
+  // mmu_logical_pages_memory == 0 && mmu_chain_memory == 0 -> free segment for all physical segments != 0 (see note in next line)
+  // 0,0 can be assigned to process starting from physical segment 0 -> we handle it with mmu_first_possible_free_physical_segment 
