@@ -469,10 +469,8 @@ module mmu (
 
               mmu_search_position <= int_source_process;
               mmu_chain_read_addr <= int_source_process;
-              mmu_logical_read_addr <= int_source_process;
-              mmu_action_ready <= 0;
+              mmu_logical_read_addr <= int_source_process;             
               int_search <= 1;
-              stage <= MMU_SEARCH;
             end else begin
               mmu_address_to_search_segment <= mmu_address_to_search_segment_cache;
               //            mmu_cache_read_addr <= mmu_address_to_search_segment_cache;
@@ -491,10 +489,10 @@ module mmu (
               mmu_search_position <= mmu_start_process_physical_segment;
               mmu_chain_read_addr <= mmu_start_process_physical_segment;
               mmu_logical_read_addr <= mmu_start_process_physical_segment;
-              mmu_action_ready <= 0;
               int_search <= 0;
-              stage <= MMU_SEARCH;
             end
+             mmu_action_ready <= 0;
+              stage <= MMU_SEARCH;
           end else if (set_mmu_start_process_physical_segment) begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display(
@@ -533,7 +531,7 @@ module mmu (
             int_number <= mmu_address_a;
             int_start_page <= mmu_address_b;
             int_end_page <= mmu_address_d;
-            stage <= MMU_IDLE;
+           
             mmu_action_ready <= 1;
           end else if (delete_shared_mem) begin
             int_inside <= 0;
@@ -1814,7 +1812,7 @@ module x_simple (
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_INT: begin
-          if (mmu_action_ready) begin
+         // if (mmu_action_ready) begin
             mmu_add_shared_mem <= 0;
             mmu_delete_shared_mem <= 0;
             write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
@@ -1826,7 +1824,7 @@ module x_simple (
             end
             int_process_address[instruction1_2] <= process_address;
             stage <= STAGE_TASK_SWITCHER;
-          end
+          //end
         end
         STAGE_SET_PC: begin
         end
