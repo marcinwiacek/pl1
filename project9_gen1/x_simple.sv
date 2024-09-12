@@ -387,28 +387,22 @@ module mmu (
   parameter MMU_IDLE = 0;
   parameter MMU_SEARCH = 1;
   parameter MMU_SEARCH2 = 2;
-  parameter MMU_INIT = 3;
-  parameter MMU_INIT2 = 4;
-  parameter MMU_INIT3 = 5;
-  parameter MMU_INIT4 = 6;
-  parameter MMU_DELETE = 7;
-  parameter MMU_DELETE2 = 8;
-  parameter MMU_SPLIT = 9;
-  parameter MMU_SPLIT2 = 10;
-  parameter MMU_SPLIT3 = 11;
-  parameter MMU_SPLIT4 = 12;
-  parameter MMU_SET_PROCESS_DATA = 14;
-  parameter MMU_SET_PROCESS_DATA2 = 15;
-  parameter MMU_ALLOCATE_NEW = 16;
-  parameter MMU_ALLOCATE_NEW2 = 17;
+  parameter MMU_SEARCH3 = 3;
+  parameter MMU_INIT = 4;
+  parameter MMU_INIT2 = 5;
+  parameter MMU_INIT3 = 6;
+  parameter MMU_INIT4 = 7;
+  parameter MMU_DELETE = 8;
+  parameter MMU_DELETE2 = 9;
+  parameter MMU_SPLIT = 10;
+  parameter MMU_SPLIT2 = 11;
+  parameter MMU_SPLIT3 = 12;
+  parameter MMU_SPLIT4 = 14;
+  parameter MMU_SET_PROCESS_DATA = 15;
+  parameter MMU_SET_PROCESS_DATA2 = 16;
+  parameter MMU_ALLOCATE_NEW = 17;
+  parameter MMU_ALLOCATE_NEW2 = 18;
   parameter MMU_SWITCH = 19;
-  parameter MMU_SEARCH3 = 20;
-  parameter MMU_ADD_SHARED_MEM = 21;
-  parameter MMU_DELETE_SHARED_MEM = 22;
-  parameter MMU_INT_REG = 23;
-  parameter MMU_ADD_SHARED_MEM1 = 24;
-  parameter MMU_SEARCH_FOR_SHARED_MEM = 25;
-  parameter MMU_ADD_SHARED_MEM2 = 26;  
 
   bit [15:0] mmu_address_to_search_segment_cache;
 
@@ -432,6 +426,7 @@ module mmu (
         case (stage)
           MMU_SEARCH: $write("MMU_SEARCH");
           MMU_SEARCH2: $write("MMU_SEARCH2");
+          MMU_SEARCH3: $write("MMU_SEARCH3");          
           MMU_INIT: $write("MMU_INIT");
           MMU_INIT2: $write("MMU_INIT2");
           MMU_INIT3: $write("MMU_INIT3");
@@ -446,12 +441,7 @@ module mmu (
           MMU_SET_PROCESS_DATA2: $write("MMU_SET_PROCESS_DATA2");
           MMU_ALLOCATE_NEW: $write("MMU_ALLOCATE_NEW");
           MMU_ALLOCATE_NEW2: $write("MMU_ALLOCATE_NEW2");
-          MMU_SWITCH: $write("MMU_SWITCH");
-          MMU_SEARCH3: $write("MMU_SEARCH3");
-          MMU_ADD_SHARED_MEM: $write("MMU_ADD_SHARED_MEM");
-          MMU_DELETE_SHARED_MEM: $write("MMU_DELETE_SHARED_MEM");
-          MMU_INT_REG: $write("MMU_INT_REG");
-          MMU_ADD_SHARED_MEM1: $write("MMU_ADD_SHARED_MEM1");
+          MMU_SWITCH: $write("MMU_SWITCH");          
         endcase
         $display("");
       end
@@ -472,7 +462,8 @@ module mmu (
                     " segment ",
                     (int_start_page+mmu_address_to_search_segment_cache-int_memory_start[int_number]),
                     " entry point ",
-                    int_source_process,      " entry point zero ",
+                    int_source_process,
+                    " entry point zero ",
                     int_source_process_zero
                 );
 
@@ -493,7 +484,9 @@ module mmu (
                     " segment ",
                     (mmu_address_to_search_segment_cache),
                     " entry point ",
-                    mmu_start_process_physical_segment,   " entry point zero ",mmu_start_process_physical_segment_zero
+                    mmu_start_process_physical_segment,
+                    " entry point zero ",
+                    mmu_start_process_physical_segment_zero
                 );
               mmu_search_position <= mmu_start_process_physical_segment;
               mmu_chain_read_addr <= mmu_start_process_physical_segment;
@@ -536,7 +529,7 @@ module mmu (
           end else if (add_shared_mem) begin
             int_inside <= 1;
             int_source_process_zero <= mmu_start_process_physical_segment_zero;
-            int_source_process<=mmu_start_process_physical_segment;
+            int_source_process <= mmu_start_process_physical_segment;
             int_number <= mmu_address_a;
             int_start_page <= mmu_address_b;
             int_end_page <= mmu_address_d;
@@ -988,7 +981,7 @@ module x_simple (
       .mmu_address_a(mmu_address_a),
       .mmu_address_b(mmu_address_b),
       .mmu_address_c(mmu_address_c),
-      .mmu_address_d(mmu_address_d),    
+      .mmu_address_d(mmu_address_d),
       .mmu_action_ready(mmu_action_ready)
   );
 
@@ -1469,7 +1462,15 @@ module x_simple (
             //int number (8 bit), start memory page, end memory page 
             OPCODE_INT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)
-                $display($time, " opcode = int ", instruction1_2, " segments ",instruction2_1,"-",instruction2_2);  //DEBUG info
+                $display(
+                    $time,
+                    " opcode = int ",
+                    instruction1_2,
+                    " segments ",
+                    instruction2_1,
+                    "-",
+                    instruction2_2
+                );  //DEBUG info
               //replace current process with int process in the chain 
               write_address <= int_process_address[instruction1_2] + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -1521,26 +1522,34 @@ module x_simple (
         end
         STAGE_SET_RAM_BYTE: begin
           if (ram_read_save_reg_start == ram_read_save_reg_end) begin
-          
-              if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
-            $display(  //DEBUG info
-                $time,  //DEBUG info
-                " save value ",registers[process_num][ram_read_save_reg_start]," from reg ",ram_read_save_reg_start ,
-                " to ram address ",mmu_address_a 
-            );  //DEBUG info
+
+            if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
+              $display(  //DEBUG info
+                  $time,  //DEBUG info
+                  " save value ",
+                  registers[process_num][ram_read_save_reg_start],
+                  " from reg ",
+                  ram_read_save_reg_start,
+                  " to ram address ",
+                  mmu_address_a
+              );  //DEBUG info
             write_enabled <= 0;
             `MAKE_MMU_SEARCH2
           end else begin
             ram_read_save_reg_start <= ram_read_save_reg_start + 1;
             write_value <= registers[process_num][ram_read_save_reg_start];
-            
-               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
-            $display(  //DEBUG info
-                $time,  //DEBUG info
-                " save value ",registers[process_num][ram_read_save_reg_start+1]," from reg ",ram_read_save_reg_start + 1,
-                " to ram address ",mmu_address_a + 1
-            );  //DEBUG info
-            
+
+            if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
+              $display(  //DEBUG info
+                  $time,  //DEBUG info
+                  " save value ",
+                  registers[process_num][ram_read_save_reg_start+1],
+                  " from reg ",
+                  ram_read_save_reg_start + 1,
+                  " to ram address ",
+                  mmu_address_a + 1
+              );  //DEBUG info
+
             `MAKE_MMU_SEARCH(mmu_address_a + 1, STAGE_SET_RAM_BYTE);
           end
         end
