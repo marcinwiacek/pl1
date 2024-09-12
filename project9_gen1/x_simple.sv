@@ -1811,8 +1811,7 @@ module x_simple (
           mmu_set_start_process_physical_segment <= 1;
           `MAKE_SWITCH_TASK(0)
         end
-        STAGE_INT: begin
-          // if (mmu_action_ready) begin
+        STAGE_INT: begin        
           mmu_add_shared_mem <= 0;
           mmu_delete_shared_mem <= 0;
           write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
@@ -1824,7 +1823,6 @@ module x_simple (
           end
           int_process_address[instruction1_2] <= process_address;
           stage <= STAGE_TASK_SWITCHER;
-          //end
         end
         STAGE_SET_PC: begin
         end
