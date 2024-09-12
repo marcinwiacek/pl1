@@ -20,7 +20,7 @@ parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
 parameter MMU_STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
-parameter OP2_DEBUG = 0;
+parameter OP2_DEBUG = 1;
 parameter ALU_DEBUG = 0;
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
@@ -838,7 +838,8 @@ module x_simple (
   parameter OPCODE_REG_INT = 'h1a;  //int number (8 bit), start memory page, end memory page 
   parameter OPCODE_INT = 'h1b;  //int number (8 bit), start memory page, end memory page
   parameter OPCODE_INT_RET = 'h1c;  //int number
-
+  parameter OPCODE_RAM2OUT = 'h1d; //port number, 16 bit source address 
+ 
   parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions (8 bit value) // do..while
   parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions (8 bit value) //do..while
   parameter OPCODE_LOOP = 25;  //x, x, how many instructions (8 bit value) //for...
@@ -872,6 +873,8 @@ module x_simple (
   parameter STAGE_SAVE_NEXT_PROCESS2 = 25;
   parameter STAGE_TASK_SWITCHER = 26;
   parameter STAGE_READ_SAVE_REG_USED = 27;
+  
+  parameter STAGE_SET_PORT = 28;
 
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
@@ -1491,6 +1494,22 @@ module x_simple (
               //fixme: remove shared memory from int process
               mmu_delete_shared_mem <= 1;
             end
+            //port number, 16 bit source address 
+            OPCODE_RAM2OUT: begin
+              if (read_value2 < ADDRESS_PROGRAM) begin
+                error_code[process_num] <= ERROR_WRONG_ADDRESS;
+              end else begin
+                if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
+                  $display(  //DEBUG info
+                      $time,  //DEBUG info
+                      " opcode = ram2out read value from address ",  //DEBUG info
+                      read_value2,  //DEBUG info
+                      "+ to port ",  //DEBUG info
+                      instruction1_2  //DEBUG info
+                  );  //DEBUG info          
+                `MAKE_MMU_SEARCH(read_value2, STAGE_SET_PORT);
+              end
+            end
             default: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = unknown");  //DEBUG info
               `MAKE_MMU_SEARCH2;
@@ -1498,6 +1517,12 @@ module x_simple (
             end
           endcase
           instructions <= instructions + 1;
+        end
+        STAGE_SET_PORT: begin
+            if (reset_uart_buffer_available) uart_buffer_available = 0;
+            uart_buffer[uart_buffer_available++] = read_value2;   
+            $write("value ",read_value2);     
+            `MAKE_MMU_SEARCH2
         end
         STAGE_GET_RAM_BYTE: begin
           registers[process_num][ram_read_save_reg_start] <= read_value2;
@@ -1979,11 +2004,12 @@ module single_blockram (
       16'h1a37, 16'h0101, //reg int 
       16'h0911, 16'd0100, //ram to reg
       16'h1210, 16'h0a35, //value to reg
+      16'h1d10, 16'd0073, //ram2out      
       16'h1c37, 16'd0000, //int ret
      // 16'h1800, 16'h0000, //process end
       //16'h0e10, 16'h0064, //save to ram
       //16'h1902, 16'h0002, //split process segments 2-4
-      16'h0911, 16'h0064, //ram to reg
+      //16'h0911, 16'h0064, //ram to reg
       16'h0e10, 16'h00D4, //save to ram
       //16'h0c01, 16'h0001,  //proc
       16'h0c01, 16'h0002,  //proc
