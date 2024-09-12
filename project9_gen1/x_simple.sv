@@ -426,7 +426,7 @@ module mmu (
         case (stage)
           MMU_SEARCH: $write("MMU_SEARCH");
           MMU_SEARCH2: $write("MMU_SEARCH2");
-          MMU_SEARCH3: $write("MMU_SEARCH3");          
+          MMU_SEARCH3: $write("MMU_SEARCH3");
           MMU_INIT: $write("MMU_INIT");
           MMU_INIT2: $write("MMU_INIT2");
           MMU_INIT3: $write("MMU_INIT3");
@@ -441,7 +441,7 @@ module mmu (
           MMU_SET_PROCESS_DATA2: $write("MMU_SET_PROCESS_DATA2");
           MMU_ALLOCATE_NEW: $write("MMU_ALLOCATE_NEW");
           MMU_ALLOCATE_NEW2: $write("MMU_ALLOCATE_NEW2");
-          MMU_SWITCH: $write("MMU_SWITCH");          
+          MMU_SWITCH: $write("MMU_SWITCH");
         endcase
         $display("");
       end
@@ -469,7 +469,7 @@ module mmu (
 
               mmu_search_position <= int_source_process;
               mmu_chain_read_addr <= int_source_process;
-              mmu_logical_read_addr <= int_source_process;             
+              mmu_logical_read_addr <= int_source_process;
               int_search <= 1;
             end else begin
               mmu_address_to_search_segment <= mmu_address_to_search_segment_cache;
@@ -491,8 +491,8 @@ module mmu (
               mmu_logical_read_addr <= mmu_start_process_physical_segment;
               int_search <= 0;
             end
-             mmu_action_ready <= 0;
-              stage <= MMU_SEARCH;
+            mmu_action_ready <= 0;
+            stage <= MMU_SEARCH;
           end else if (set_mmu_start_process_physical_segment) begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display(
@@ -531,7 +531,7 @@ module mmu (
             int_number <= mmu_address_a;
             int_start_page <= mmu_address_b;
             int_end_page <= mmu_address_d;
-           
+
             mmu_action_ready <= 1;
           end else if (delete_shared_mem) begin
             int_inside <= 0;
@@ -1812,18 +1812,18 @@ module x_simple (
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_INT: begin
-         // if (mmu_action_ready) begin
-            mmu_add_shared_mem <= 0;
-            mmu_delete_shared_mem <= 0;
-            write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
-            write_value <= int_process_address[instruction1_2];
-            if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
-              next_process_address <= int_process_address[instruction1_2];
-            end else begin
-              how_many <= 0;
-            end
-            int_process_address[instruction1_2] <= process_address;
-            stage <= STAGE_TASK_SWITCHER;
+          // if (mmu_action_ready) begin
+          mmu_add_shared_mem <= 0;
+          mmu_delete_shared_mem <= 0;
+          write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
+          write_value <= int_process_address[instruction1_2];
+          if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
+            next_process_address <= int_process_address[instruction1_2];
+          end else begin
+            how_many <= 0;
+          end
+          int_process_address[instruction1_2] <= process_address;
+          stage <= STAGE_TASK_SWITCHER;
           //end
         end
         STAGE_SET_PC: begin
