@@ -300,7 +300,6 @@ module mmu (
     input bit [15:0] mmu_address_a,
     mmu_address_b,
     mmu_address_d,
-    mmu_address_e,
     output bit [15:0] mmu_address_c,
     output bit mmu_action_ready
 );
@@ -536,14 +535,13 @@ module mmu (
             stage <= MMU_SPLIT;
           end else if (add_shared_mem) begin
             int_inside <= 1;
-            int_source_process_zero <= mmu_address_a/MMU_PAGE_SIZE;
+            int_source_process_zero <= mmu_start_process_physical_segment_zero;
+            int_source_process<=mmu_start_process_physical_segment;
+            int_number <= mmu_address_a;
             int_start_page <= mmu_address_b;
             int_end_page <= mmu_address_d;
-            int_number <= mmu_address_e;
-
-            mmu_logical_read_addr <= mmu_address_a/MMU_PAGE_SIZE;
-            stage <= MMU_ADD_SHARED_MEM;
-            mmu_action_ready <= 0;
+            stage <= MMU_IDLE;
+            mmu_action_ready <= 1;
           end else if (delete_shared_mem) begin
             int_inside <= 0;
             //delete shared mem pages from int process. they could be duplicated, do it for first copy only.
@@ -580,18 +578,6 @@ module mmu (
 
           stage <= MMU_IDLE;
         end
-        MMU_ADD_SHARED_MEM: begin
-          int_source_process <= mmu_start_process_physical_segment_zero; //mmu_logical_read_value; //fixme process before switch = we dont have value yet
-           $display($time, " physical start segment for int process ", mmu_logical_read_value, " addr ",mmu_logical_read_addr);
-              mmu_logical_write_addr <= int_source_process_zero;
-          stage <= MMU_ADD_SHARED_MEM2;
-        end
-        MMU_ADD_SHARED_MEM2: begin
-          mmu_logical_write_value <= 0;
-              mmu_logical_write_enable<=1;
-          stage <= MMU_IDLE;
-          mmu_action_ready <= 1;
-        end      
         MMU_SEARCH: begin
           //          mmu_cache_write_addr <= mmu_search_position;
           //          mmu_cache_write_value <= 256*mmu_start_process_physical_segment_zero+mmu_address_to_search_segment;
@@ -986,7 +972,7 @@ module x_simple (
   bit mmu_add_shared_mem;
   bit mmu_delete_shared_mem;
   bit mmu_reg_int;
-  bit [15:0] mmu_address_a, mmu_address_b, mmu_address_d, mmu_address_e;
+  bit [15:0] mmu_address_a, mmu_address_b, mmu_address_d;
   wire [15:0] mmu_address_c;
   wire mmu_action_ready;
 
@@ -1003,8 +989,7 @@ module x_simple (
       .mmu_address_a(mmu_address_a),
       .mmu_address_b(mmu_address_b),
       .mmu_address_c(mmu_address_c),
-      .mmu_address_d(mmu_address_d),
-      .mmu_address_e(mmu_address_e),
+      .mmu_address_d(mmu_address_d),    
       .mmu_action_ready(mmu_action_ready)
   );
 
@@ -1493,10 +1478,9 @@ module x_simple (
               stage <= STAGE_INT;
               //fixme: add shared memory from current process to int process
               mmu_add_shared_mem <= 1;
-              mmu_address_a <= process_address;
+              mmu_address_a <= instruction1_2;
               mmu_address_b <= instruction2_1;
               mmu_address_d <= instruction2_2;
-              mmu_address_e <= instruction1_2;
             end
             //int number
             OPCODE_INT_RET: begin
