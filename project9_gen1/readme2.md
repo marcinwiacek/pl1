@@ -40,29 +40,31 @@ Instruction set
 First 8 bits - instruction code
 Next 24 bits - instruction parameters
 
-OPCODE_JMP: code 1, 24 bit target address
-OPCODE_JMP16: code 2, 8 bits unused, 16 bits with register num with target addr (we read one reg)
-OPCODE_JMP32: code 3, 8 bits unused, 16 bits with first register num with target addr (we read two reg)
-OPCODE_JMP_PLUS: code 5, 8 bits unused, 16 bit how many instructions
-OPCODE_JMP_PLUS16: code 6, 8 bits unused, 16 bits with register num with info (we read one reg)
-OPCODE_JMP_MINUS: code 7, 8 bits unused, 16 bit how many instructions
-  parameter OPCODE_JMP_MINUS16 = 8;  //x, register num with info (we read one reg)
-  parameter OPCODE_RAM2REG = 9;  //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
-  parameter OPCODE_RAM2REG16 = 'ha; //start register num, how many registers, register num with source addr (we read one reg), //ram -> reg  
-  //  parameter OPCODE_RAM2REG32 = 11; //start register num, how many registers, first register num with source addr (we read two reg), //ram -> reg
-  //  parameter OPCODE_RAM2REG64 = 12; //start register num, how many registers, first register num with source addr (we read four reg), //ram -> reg
-  parameter OPCODE_REG2RAM = 'he; //14 //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
-  parameter OPCODE_REG2RAM16 = 'hf; //15 //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
-  //  parameter OPCODE_REG2RAM32 = 16; //start register num, how many registers, first register num with target addr (we read two reg), //reg -> ram
-  //  parameter OPCODE_REG2RAM64 = 17; //start register num, how many registers, first register num with target addr (we read four reg), //reg -> ram
-  parameter OPCODE_NUM2REG = 'h12; //18;  //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
-  parameter OPCODE_REG_PLUS = 'h14;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
-  parameter OPCODE_REG_MINUS = 'h15; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-  parameter OPCODE_REG_MUL = 'h16; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
-  parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
-  parameter OPCODE_EXIT = 'h18;  //exit process
-  parameter OPCODE_PROC = 'h19;  //new process //how many segments, start segment number (16 bit)
-  parameter OPCODE_REG_INT = 'h1a;  //int number (8 bit), start memory page, end memory page 
-  parameter OPCODE_INT = 'h1b;  //int number (8 bit), start memory page, end memory page
-  parameter OPCODE_INT_RET = 'h1c;  //int number
+OPCODE_JMP = 1;  //24 bit target address
+OPCODE_JMP16 = 2;  //x, register num with target addr (we read one reg)
+  // OPCODE_JMP32 = 3;  //x, first register num with target addr (we read two reg)
+  // OPCODE_JMP64 = 4;  //x, first register num with target addr (we read four reg)  
+OPCODE_JMP_PLUS = 5;  //x, 16 bit how many instructions
+OPCODE_JMP_PLUS16 = 6;  //x, register num with info (we read one reg)
+OPCODE_JMP_MINUS = 7;  //x, 16 bit how many instructions  
+OPCODE_JMP_MINUS16 = 8;  //x, register num with info (we read one reg)
+OPCODE_RAM2REG = 9;  //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
+OPCODE_RAM2REG16 = 'ha; //start register num, how many registers, register num with source addr (we read one reg), //ram -> reg  
+  // OPCODE_RAM2REG32 = 11; //start register num, how many registers, first register num with source addr (we read two reg), //ram -> reg
+  // OPCODE_RAM2REG64 = 12; //start register num, how many registers, first register num with source addr (we read four reg), //ram -> reg
+OPCODE_REG2RAM = 'he; //14 //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
+OPCODE_REG2RAM16 = 'hf; //15 //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
+  // OPCODE_REG2RAM32 = 16; //start register num, how many registers, first register num with target addr (we read two reg), //reg -> ram
+  // OPCODE_REG2RAM64 = 17; //start register num, how many registers, first register num with target addr (we read four reg), //reg -> ram
+OPCODE_NUM2REG = 'h12; //18;  //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
+OPCODE_REG_PLUS = 'h14;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
+OPCODE_REG_MINUS = 'h15; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+OPCODE_REG_MUL = 'h16; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
+OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
+OPCODE_EXIT = 'h18;  //exit process
+OPCODE_PROC = 'h19;  //new process //how many segments, start segment number (16 bit)
+OPCODE_REG_INT = 'h1a;  //int number (8 bit), start memory page, end memory page 
+OPCODE_INT = 'h1b;  //int number (8 bit), start memory page, end memory page
+OPCODE_INT_RET = 'h1c;  //int number
 
+MMU
