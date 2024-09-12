@@ -12,15 +12,15 @@ parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
 parameter MMU_STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
-parameter OP2_DEBUG = 1;
+parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
@@ -544,7 +544,6 @@ module mmu (
             mmu_action_ready <= 1;
           end else if (delete_shared_mem) begin
             int_inside <= 0;
-            //delete shared mem pages from int process. they could be duplicated, do it for first copy only.
 
             //old process
             mmu_logical_write_addr <= int_source_process_zero;
