@@ -873,7 +873,7 @@ module x_simple (
   parameter STAGE_SAVE_NEXT_PROCESS2 = 25;
   parameter STAGE_TASK_SWITCHER = 26;
   parameter STAGE_READ_SAVE_REG_USED = 27;
-  
+
   parameter STAGE_SET_PORT = 28;
 
   parameter ALU_ADD = 1;
@@ -1452,8 +1452,6 @@ module x_simple (
               mmu_address_a <= instruction1_2;
               mmu_address_b <= instruction2_1;
               mmu_address_d <= instruction2_2;
-              //              int_memory_start[instruction1_2] <= instruction2_1;
-              //              int_memory_end[instruction1_2] <= instruction2_2;
               //delete process from chain
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -1825,7 +1823,7 @@ module x_simple (
         end
         STAGE_REG_INT: begin
           mmu_reg_int <= 0;
-          //old process          
+          //old process
           write_address <= process_address + ADDRESS_PC;
           write_value <= pc[process_num];
           stage <= STAGE_REG_INT2;
@@ -1836,7 +1834,7 @@ module x_simple (
           mmu_set_start_process_physical_segment <= 1;
           `MAKE_SWITCH_TASK(0)
         end
-        STAGE_INT: begin        
+        STAGE_INT: begin
           mmu_add_shared_mem <= 0;
           mmu_delete_shared_mem <= 0;
           write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
@@ -1932,7 +1930,7 @@ module single_blockram (
       16'h010E, 16'h0030,  //jmp,8'h0x30
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
-      
+
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
