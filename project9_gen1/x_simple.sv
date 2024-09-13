@@ -20,7 +20,7 @@ parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
 parameter MMU_STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
-parameter OP2_DEBUG = 1;
+parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
 
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
@@ -588,10 +588,7 @@ module mmu (
         MMU_SEARCH2: begin
           mmu_chain_write_addr <= mmu_search_position;
           mmu_chain_write_value <= int_search? int_source_process:mmu_start_process_physical_segment;
-          stage <= MMU_SEARCH3;
-        end
-        MMU_SEARCH3: begin
-          if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+            if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
             $display($time-starttime, " new start entry point ", mmu_search_position);
           if (int_search) begin
             int_source_process <= mmu_search_position;
