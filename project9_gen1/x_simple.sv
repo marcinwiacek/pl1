@@ -359,7 +359,7 @@ module mmu (
   parameter MMU_IDLE = 0;
   parameter MMU_SEARCH = 1;
   parameter MMU_SEARCH2 = 2;
-  parameter MMU_SEARCH3 = 3;
+  //parameter MMU_SEARCH3 = 3;
   parameter MMU_INIT = 4;
   parameter MMU_INIT2 = 5;
   parameter MMU_INIT3 = 6;
@@ -405,7 +405,7 @@ module mmu (
         case (stage)
           MMU_SEARCH: $write("MMU_SEARCH");
           MMU_SEARCH2: $write("MMU_SEARCH2");
-          MMU_SEARCH3: $write("MMU_SEARCH3");
+         // MMU_SEARCH3: $write("MMU_SEARCH3");
           MMU_INIT: $write("MMU_INIT");
           MMU_INIT2: $write("MMU_INIT2");
           MMU_INIT3: $write("MMU_INIT3");
@@ -1509,8 +1509,9 @@ module x_simple (
         end
         STAGE_SET_PORT: begin
           if (reset_uart_buffer_available) uart_buffer_available = 0;
-          uart_buffer[uart_buffer_available++] = read_value2;
-          //$write("value ", read_value2);
+          uart_buffer[uart_buffer_available++] = read_value/256;
+        //  $write("value ", read_value/256," ",read_value%256);
+        //  $write("value ", read_value2/256," ",read_value2%256);
           `MAKE_MMU_SEARCH2
         end
         STAGE_GET_RAM_BYTE: begin
@@ -1991,13 +1992,14 @@ module single_blockram (
       16'h1a37, 16'h0101, //reg int 
       16'h0911, 16'd0100, //ram to reg
       16'h1210, 16'h0a35, //value to reg
-      16'h1d10, 16'd0073, //ram2out      
+      16'h1d10, 16'd0052, //ram2out      
       16'h1c37, 16'd0000, //int ret
+      "AB","CD",
      // 16'h1800, 16'h0000, //process end
       //16'h0e10, 16'h0064, //save to ram
       //16'h1902, 16'h0002, //split process segments 2-4
       //16'h0911, 16'h0064, //ram to reg
-      16'h0e10, 16'h00D4, //save to ram
+      //16'h0e10, 16'h00D4, //save to ram
       //16'h0c01, 16'h0001,  //proc
       16'h0c01, 16'h0002,  //proc
       16'h1202, 16'h0003,  //num2reg
@@ -2008,9 +2010,8 @@ module single_blockram (
       16'h1201, 16'h0005,  //num2reg
       16'h0E01, 16'h0046,  //reg2ram
       16'h0F00, 16'h0002,  //int,8'h2
-      16'h010E, 16'h0030,  //jmp,8'h0x30
-      "Po","zd",
-      //16'h0000, 16'h0000,
+      16'h010E, 16'd0030,  //jmp,8'h0x30      
+      16'h0000, 16'h0000,
 
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
