@@ -1,4 +1,4 @@
-Welcome to the future or alternative to the mainstream in some scenarios.
+**Welcome to the future or at least alternative to the mainstream.**
 
 Modern hardware architectures (like X86 or ARM) are very impressive, but have
 some problems with security, complexity, intellectual property and/or government
@@ -8,22 +8,19 @@ problems (see words from Linus Torvalds "They’ll have all
 the same issues we have on the Arm side and that x86 had before them").
 
 This project contains 1st working generation of the PL SoC (System On Chip).
-It was initially created to check, how to create some hardware solutions
-(+ to proove, that some hardware based solutions can be better
-than software based one).
 
-PL1 allows for creating and running OS and apps:
+PL1 currently allows for creating and running OS and apps:
 
 1. without kernel
 2. with full protecting resources (you don't have hypervisor mode and other
-stuff, which in the end is always compromised)
+stuff, which earlier or later is compromised)
 3. without various unnecessary operations (like copying memory during
-interrupt or dumping things in ineffective way during task switch)
+interrupts or dumping things in ineffective way during task switch)
 
 This is done without legacy stuff, which is big advantage (when you don't
 have something, it cannot be broken).
 
-Current implementation:
+# Current implementation:
 
 1. has got support for RS-232 output
 2. has got OS concept directly in the bootloader
@@ -33,9 +30,9 @@ Current implementation:
 4. has got probably many FPGA design mistakes (they're removed step by step)
 5. works in the Artix-7 Nexys Video board
 
-Statistics:
+# Statistics:
 
-Instruction set
+# Instruction set
 
 First 8 bits - instruction code
 Next 24 bits - instruction parameters
@@ -67,22 +64,19 @@ OPCODE_REG_INT = 'h1a;  //int number (8 bit), start memory page, end memory page
 OPCODE_INT = 'h1b;  //int number (8 bit), start memory page, end memory page
 OPCODE_INT_RET = 'h1c;  //int number
 
-MMU
+# MMU
 
-MMU is using pages and two memories:
+MMU is handling RAM paging (for testing purposes every page has got 70 bytes) and has got two memories:
 
-* mmu_chain_memory - next physical segment index for process
-* mmu_logical_pages_memory - logical process page assigned to physical segment
+* mmu_chain_memory - index: physical RAM page; value: next physical page index for the process (when value is equal to index, it means end of the chain)
+* mmu_logical_pages_memory - index: physical RAM page; value: logical process page assigned to physical page (exception: when process is not used, for process page 0 we save index of first element in the process chain)
 
-Every process process has got start point (mmu_start_process_physical_segment),
-which shows, what is index for first entry in both memories. To save time during
-process switch we use start point equal of index of memory page with logical page 0
+mmu_logical_pages_memory == 0 && mmu_chain_memory == 0 means, that page is free
+(note: 0,0 can be assigned to process starting from physical page 0
+and because of it we have mmu_first_possible_free_physical_page saving index of first possible free page).
+
+Every process has got two start points - mmu_start_process_physical_page (index
+of the first element in the process chain) and mmu_start_process_physical_page_zero (shows index of the process page 0).
 
 mmu_chain_memory is sorted during each searching for memory page - last
 found index is moved into beginning of the chain.
-
-special cases:
-  // mmu_chain_memory == own physical segment (element is pointing to itself) -> end segment
-  // mmu_logical_pages_memory == start point in segment 0 when process is not executed
-  // mmu_logical_pages_memory == 0 && mmu_chain_memory == 0 -> free segment for all physical segments != 0 (see note in next line)
-  // 0,0 can be assigned to process starting from physical segment 0 -> we handle it with mmu_first_possible_free_physical_segment 
