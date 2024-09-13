@@ -1293,7 +1293,7 @@ module x_simple (
                       "+"  //DEBUG info
                   );  //DEBUG info
                 ram_read_save_reg_start <= instruction1_2_1;
-                ram_read_save_reg_end <= instruction1_2_1 + instruction1_2_2;
+                ram_read_save_reg_end <= instruction1_2_1 + instruction1_2_2;                
                 write_value <= registers[process_num][instruction1_2_1];
                 `MAKE_MMU_SEARCH(read_value2, STAGE_SET_RAM_BYTE);
               end
@@ -1317,7 +1317,7 @@ module x_simple (
                   );  //DEBUG info
                 ram_read_save_reg_start <= instruction1_2;
                 ram_read_save_reg_end <= instruction1_2 + instruction2_1;
-                write_value <= registers[process_num][instruction1_2];
+                write_value <= registers[process_num][instruction1_2];                
                 `MAKE_MMU_SEARCH(registers[process_num][instruction2_2], STAGE_SET_RAM_BYTE);
               end
             end
@@ -1517,7 +1517,7 @@ module x_simple (
           `MAKE_MMU_SEARCH2
         end
         STAGE_GET_RAM_BYTE: begin
-          registers[process_num][ram_read_save_reg_start] <= read_value2;
+          registers[process_num][ram_read_save_reg_start] <= read_value;
           if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
             $display(  //DEBUG info
                 $time-starttime,  //DEBUG info
@@ -1526,7 +1526,7 @@ module x_simple (
                 " from address ",  //DEBUG info
                 read_address,  //DEBUG info
                 " = ",  //DEBUG info
-                read_value2  //DEBUG info
+                read_value  //DEBUG info
             );  //DEBUG info
           if (ram_read_save_reg_start == ram_read_save_reg_end) begin
             `MAKE_MMU_SEARCH2
