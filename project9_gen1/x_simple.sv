@@ -11,7 +11,7 @@ parameter HARDWARE_DEBUG = 0;
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_CHANGES_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -188,29 +188,13 @@ module mmulutram (
 
   integer i;
 
-  initial begin
-    ram = '{default: 0};
-
-    ram[0] = 1;  //DEBUG info
-    ram[1] = 2;  //DEBUG info
-    ram[2] = 3;  //DEBUG info
-    ram[3] = 3;  //DEBUG info
-    //second process
-    ram[4] = 5;  //DEBUG info
-    ram[5] = 6;  //DEBUG info
-    ram[6] = 7;  //DEBUG info
-    ram[7] = 7;  //DEBUG info
-    `SHOW_MMU2("chain")
-    //$display($time, " rst memory mmu");
-  end
-
   assign read_value = ram[read_addr];
 
-  always @(negedge clk) begin
-    if (write_enable) begin
+  always @(negedge clk) begin          
+     if (write_enable) begin
       ram[write_addr] <= write_value;
       //$display($time, " chain write ", write_addr, "=", write_value);
-      `SHOW_MMU2("chain")
+     `SHOW_MMU2("chain")
     end
   end
 endmodule
@@ -231,29 +215,13 @@ module mmulutram2 (
 
   integer i;
 
-  initial begin
-    ram = '{default: 0};
-
-    ram[0] = 0;  //DEBUG info
-    ram[1] = 1;  //DEBUG info
-    ram[2] = 2;  //DEBUG info
-    ram[3] = 3;  //DEBUG info
-    //second process
-    ram[4] = 4;  //DEBUG info
-    ram[5] = 1;  //DEBUG info
-    ram[6] = 2;  //DEBUG info
-    ram[7] = 3;  //DEBUG info
-    `SHOW_MMU2("logical")
-    //$display($time, " rst memory mmu");
-  end
-
   assign read_value = ram[read_addr];
 
-  always @(negedge clk) begin
-    if (write_enable) begin
+  always @(negedge clk) begin         
+        if (write_enable) begin
       ram[write_addr] <= write_value;
       // $display($time, " logical write ", write_addr, "=", write_value);
-      `SHOW_MMU2("logical")
+`SHOW_MMU2("logical")
     end
   end
 endmodule
@@ -313,7 +281,6 @@ module mmu (
 
   bit [7:0] stage;
   bit rst_can_be_done = 1;
-  bit [8:0] temp, temp2;
 
   bit [7:0] int_memory_start[0:255];
   bit [7:0] int_memory_end[0:255];
@@ -411,14 +378,22 @@ module mmu (
   bit int_inside = 0, int_search = 0;
   bit [15:0] int_number, int_source_process, int_source_process_zero, int_start_page, int_end_page;
 
+  bit [7:0] logical_init_ram  [0:7]= {0,1,2,3,4,1,2,3}; 
+  bit [7:0] chain_init_ram  [0:7]={1,2,3,3,5,6,7,7};
+
   always @(posedge clk) begin
     //$display($time, " mmu stage ", stage);
     if (reset == 1 && rst_can_be_done == 1) begin
       rst_can_be_done <= 0;
-      if (OTHER_DEBUG && !HARDWARE_DEBUG) $display($time, " reset");
-      mmu_chain_write_enable <= 0;
-      mmu_logical_write_enable <= 0;
+      //if (OTHER_DEBUG && !HARDWARE_DEBUG) 
+      $display($time, " reset");
       mmu_action_ready <= 0;
+      mmu_chain_write_enable <= 1;
+      mmu_chain_write_value<=0;
+      mmu_chain_write_addr<=MMU_MAX_INDEX-1;
+      mmu_logical_write_enable <= 1;
+      mmu_logical_write_value<=0;
+      mmu_logical_write_addr<=MMU_MAX_INDEX-1;
       stage <= MMU_INIT;
     end else begin
       if (MMU_STAGE_DEBUG && !HARDWARE_DEBUG && stage != MMU_IDLE) begin
@@ -753,11 +728,24 @@ module mmu (
           stage <= MMU_IDLE;
         end
         MMU_INIT: begin
-          mmu_start_process_physical_segment <= 0;
-          mmu_start_process_physical_segment_zero <= 0;
-          mmu_first_possible_free_physical_segment <= 8;
-          rst_can_be_done <= 1;
-          stage <= MMU_IDLE;
+          if (mmu_chain_write_addr>0) begin
+          
+      mmu_chain_write_value<=mmu_chain_write_addr<9?chain_init_ram[mmu_chain_write_addr-1]:0;
+      mmu_chain_write_addr<=mmu_chain_write_addr-1;
+      
+    mmu_logical_write_value<=mmu_logical_write_addr<9?logical_init_ram[mmu_logical_write_addr-1]:0;
+      mmu_logical_write_addr<=mmu_logical_write_addr-1;
+    
+          end else begin
+          mmu_action_ready<=1;
+            mmu_chain_write_enable <= 0;
+            mmu_logical_write_enable <= 0;        
+            mmu_start_process_physical_segment <= 0;
+            mmu_start_process_physical_segment_zero <= 0;
+            mmu_first_possible_free_physical_segment <= 8;
+            rst_can_be_done <= 1;
+            stage <= MMU_IDLE;
+          end
         end
       endcase
     end
@@ -1039,6 +1027,8 @@ module x_simple (
 
       stage <= STAGE_AFTER_RESET;
     end else if (stage == STAGE_AFTER_RESET) begin
+    
+      if (mmu_action_ready) begin
       process_num <= 0;
 
       error_code[0] <= ERROR_NONE;
@@ -1058,6 +1048,7 @@ module x_simple (
 
       rst_can_be_done <= 1;
       stage <= STAGE_GET_1_BYTE;
+      end
     end else if (instructions < HOW_MANY_OP_SIMULATE && error_code[process_num] == ERROR_NONE) begin
       if (STAGE_DEBUG && !HARDWARE_DEBUG) begin  //DEBUG info
         $write($time, " stage ", stage, " ");  //DEBUG info
