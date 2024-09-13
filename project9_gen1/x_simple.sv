@@ -993,7 +993,7 @@ module x_simple (
         stage <= STAGE_TASK_SWITCHER; \
       end else begin \
         how_many <= how_many + 1; \
-        if (mmu_page_offset[process_num][process_num] == 2) begin \
+        if (mmu_page_offset[process_num] == 2) begin \
           mmu_address_a <= pc[process_num]; \
           mmu_search_address <= 1; \
           stage_after_mmu <= STAGE_GET_1_BYTE; \
