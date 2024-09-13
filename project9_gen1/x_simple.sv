@@ -890,7 +890,7 @@ module x_simple (
   bit [15:0] prev_process_address = 0, process_address = 0, next_process_address = 0;
   bit [0:31] registers_updated, temp_registers_updated;
 
-  bit [15:0] pc[0:2], physical_pc[0:2], mmu_page_offset;
+  bit [15:0] pc[0:2], physical_pc[0:2], mmu_page_offset[0:2];
   bit [5:0] error_code[0:2];
   bit [15:0] registers[0:2][0:31];  //512 bits = 32 x 16-bit registers
 
@@ -993,13 +993,13 @@ module x_simple (
         stage <= STAGE_TASK_SWITCHER; \
       end else begin \
         how_many <= how_many + 1; \
-        if (mmu_page_offset == 2) begin \
+        if (mmu_page_offset[process_num][process_num] == 2) begin \
           mmu_address_a <= pc[process_num]; \
           mmu_search_address <= 1; \
           stage_after_mmu <= STAGE_GET_1_BYTE; \
           stage <= STAGE_CHECK_MMU_ADDRESS; \
         end else begin \
-          mmu_page_offset <= mmu_page_offset - 2; \
+          mmu_page_offset[process_num] <= mmu_page_offset[process_num] - 2; \
           read_address  <= physical_pc[process_num] + 2; \
           read_address2 <= physical_pc[process_num] + 3; \
           stage <= STAGE_GET_1_BYTE; \
@@ -1038,7 +1038,7 @@ module x_simple (
 
         pc[0] <= ADDRESS_PROGRAM;
         physical_pc[0] <= ADDRESS_PROGRAM;
-        mmu_page_offset <= MMU_PAGE_SIZE - ADDRESS_PROGRAM;
+        mmu_page_offset[0] <= MMU_PAGE_SIZE - ADDRESS_PROGRAM;
         read_address <= ADDRESS_PROGRAM; //we start from page number 0 in first process, don't need MMU translation
         read_address2 <= ADDRESS_PROGRAM + 1;
 
@@ -1575,7 +1575,7 @@ module x_simple (
           if (mmu_action_ready) begin
             if (stage_after_mmu != STAGE_SET_RAM_BYTE) begin
               if (stage_after_mmu == STAGE_GET_1_BYTE) begin
-                mmu_page_offset <= mmu_address_c % MMU_PAGE_SIZE;
+                mmu_page_offset[process_num] <= mmu_address_c % MMU_PAGE_SIZE;
                 physical_pc[process_num] <= mmu_address_c;
               end
               read_address  <= mmu_address_c;
@@ -1679,7 +1679,7 @@ module x_simple (
           registers <= '{default: 0};
           //new process
           pc[process_num] <= read_value;
-          mmu_page_offset <= 2;  //signal, that we have to recalculate things with mmu
+          mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
           read_address <= next_process_address + ADDRESS_REG_USED;
           read_address2 <= next_process_address + ADDRESS_REG_USED + 1;
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
