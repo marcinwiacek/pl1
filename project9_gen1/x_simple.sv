@@ -1014,22 +1014,25 @@ module x_simple (
       end
 
   `define MAKE_SWITCH_TASK(ARG) \
+     mmu_address_a <= next_process_address / MMU_PAGE_SIZE; \
+     mmu_set_start_process_physical_page <= 1; \
      if (ARG==0) how_many <= 0; \
      if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
             $display("\n\n",$time-starttime, " TASK SWITCHER from ", process_address[process_num], " to ", next_process_address); \
-            temp_process_num<= process_num; \
+     temp_process_num<= process_num; \
      for (i=0;i<3;i=i+1) begin \
-        if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display ("cache ",process_used[i]," ", process_address[i]);\
-       if (process_used[i] && process_address[i] == next_process_address) begin \
+       if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display ("cache ",process_used[i]," ", process_address[i]);\
+       if (process_used[i]) begin \
+         if (process_address[i] == next_process_address) begin \
             prev_process_address <= process_address[process_num]; \
-         process_num <= i; \
-        if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)   $display ("found ",i);\
+            process_num <= i; \
+            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)   $display ("found ",i);\
+         end \
+       end else begin \
+         temp_process_num<= i; \
        end \
-       if (!process_used[i]) temp_process_num<= i; \
      end \
      write_enabled <= ARG; \
-     mmu_set_start_process_physical_page <= 1; \
-     mmu_address_a <= next_process_address / MMU_PAGE_SIZE; \
      read_address <= next_process_address + ADDRESS_PC; \
      stage <= STAGE_READ_SAVE_PC;
 
