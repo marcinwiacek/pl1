@@ -1054,7 +1054,7 @@ module x_simple (
       stage <= STAGE_AFTER_RESET;
     end else if (stage == STAGE_AFTER_RESET) begin
       if (mmu_action_ready) begin
-        temp_process_num<= 0;
+        temp_process_num <= 0;
         process_num <= 0;
         process_used[0] <= 1;
         process_address[0] <= 0;
@@ -1829,7 +1829,7 @@ module x_simple (
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display("\n\n");
             mmu_set_start_process_physical_page <= 0;
             next_process_address <= read_value;
-            temp_process_num<= process_num;
+            temp_process_num <= process_num;
             `MAKE_MMU_SEARCH2
           end
         end
