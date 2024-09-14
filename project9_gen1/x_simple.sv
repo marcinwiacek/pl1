@@ -1014,12 +1014,9 @@ module x_simple (
       end
 
   `define MAKE_SWITCH_TASK(ARG) \
-     mmu_address_a <= next_process_address / MMU_PAGE_SIZE; \
-     mmu_set_start_process_physical_page <= 1; \
      if (ARG==0) how_many <= 0; \
      if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
             $display("\n\n",$time-starttime, " TASK SWITCHER from ", process_address[process_num], " to ", next_process_address); \
-     temp_process_num<= process_num; \
      for (i=0;i<3;i=i+1) begin \
        if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display ("cache ",process_used[i]," ", process_address[i]);\
        if (process_used[i]) begin \
@@ -1034,7 +1031,9 @@ module x_simple (
      end \
      write_enabled <= ARG; \
      read_address <= next_process_address + ADDRESS_PC; \
-     stage <= STAGE_READ_SAVE_PC;
+     stage <= STAGE_READ_SAVE_PC; \
+     mmu_set_start_process_physical_page <= 1; \
+     mmu_address_a <= next_process_address / MMU_PAGE_SIZE;
 
   integer i;  //DEBUG info
 
@@ -1055,6 +1054,7 @@ module x_simple (
       stage <= STAGE_AFTER_RESET;
     end else if (stage == STAGE_AFTER_RESET) begin
       if (mmu_action_ready) begin
+        temp_process_num<= 0;
         process_num <= 0;
         process_used[0] <= 1;
         process_address[0] <= 0;
@@ -1829,6 +1829,7 @@ module x_simple (
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display("\n\n");
             mmu_set_start_process_physical_page <= 0;
             next_process_address <= read_value;
+            temp_process_num<= process_num;
             `MAKE_MMU_SEARCH2
           end
         end
