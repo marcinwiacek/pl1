@@ -3,22 +3,21 @@
 Modern hardware architectures (like X86 or ARM) are very impressive, but have
 some problems with security, complexity, intellectual property and/or government
 control. Risc-V wants to avoid this, but when you look into specs, you will
-see, that various elements and/or extensions have potentially doing the same
+see, that various elements and/or extensions have potentially the same
 problems (see words from Linus Torvalds "They’ll have all
 the same issues we have on the Arm side and that x86 had before them").
 
-This project contains 1st working generation of the PL SoC (System On Chip).
+This project contains 1st working generation of the PL1 SoC (System On Chip).
 
 PL1 currently allows for creating and running OS and apps:
 
 1. without kernel
-2. with full protecting resources (you don't have hypervisor mode and other
-stuff, which earlier or later is compromised)
-3. without various unnecessary operations (like copying memory during
-interrupts or dumping things in ineffective way during task switch)
+2. with full protecting resources
+3. without unnecessary operations
 
-This is done without legacy stuff, which is big advantage (when you don't
-have something, it cannot be broken).
+Applications are communicating with each other using interrupts + memory
+sharing. There are no other ways & you don't have kernel or hypervisor mode,
+which is big, big advantage (when you don't have something, it cannot be broken)
 
 # Current implementation:
 
@@ -30,7 +29,7 @@ have something, it cannot be broken).
 4. has got probably many FPGA design mistakes (they're removed step by step)
 5. works in the Artix-7 Nexys Video board
 
-# Statistics:
+# Statistics
 
 # Instruction set
 
@@ -80,3 +79,10 @@ of the first element in the process chain) and mmu_start_process_physical_page_z
 
 mmu_chain_memory is sorted during each searching for memory page - last
 found index is moved into beginning of the chain.
+
+# Process switching
+
+Every modern CPU / OS is running many processes in parallel. Software based switching
+gives flexibility, but... it can be not so effective like hardware one.
+
+PL1 has got table with 

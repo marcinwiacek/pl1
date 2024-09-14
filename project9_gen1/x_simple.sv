@@ -884,17 +884,22 @@ module x_simple (
   parameter ADDRESS_REG_USED = 8;
   parameter ADDRESS_REG = 10;
   parameter ADDRESS_PROGRAM = ADDRESS_REG + 32;
-
-  bit [4:0] how_many = 1;
-  bit [4:0] process_num = 0;
-  bit [15:0] prev_process_address = 0, process_address = 0, next_process_address = 0;
-  bit [0:31] registers_updated, temp_registers_updated;
-
-  bit [15:0] pc[0:2], physical_pc[0:2], mmu_page_offset[0:2];
+  
+  bit [4:0] how_many = 1; //how many instructions were executed
+  bit rst_can_be_done = 1;
+  
+  //all processes (including current)
+  bit [15:0] pc[0:2], physical_pc[0:2], mmu_page_offset[0:2], process_address[0:2]; 
+  bit process_used[0:2];
   bit [5:0] error_code[0:2];
   bit [15:0] registers[0:2][0:31];  //512 bits = 32 x 16-bit registers
 
-  bit rst_can_be_done = 1;
+//current process
+  bit [4:0] process_num = 0; //index for tables above
+  bit [15:0] prev_process_address = 0, next_process_address = 0;
+  bit [0:31] registers_updated, temp_registers_updated;
+
+//instruction execution
   bit [7:0] stage, stage_after_mmu;
   bit [5:0] ram_read_save_reg_start, ram_read_save_reg_end;
   bit [7:0] alu_op, alu_num;
@@ -1029,11 +1034,11 @@ module x_simple (
 
       instructions <= 0;
 
+process_used = '{default: 0};
+
       stage <= STAGE_AFTER_RESET;
     end else if (stage == STAGE_AFTER_RESET) begin
       if (mmu_action_ready) begin
-        process_num <= 0;
-
         error_code[0] <= ERROR_NONE;
 
         pc[0] <= ADDRESS_PROGRAM;
@@ -1042,7 +1047,10 @@ module x_simple (
         read_address <= ADDRESS_PROGRAM; //we start from page number 0 in first process, don't need MMU translation
         read_address2 <= ADDRESS_PROGRAM + 1;
 
-        process_address <= 0;
+        process_num <= 0;
+process_used[0] <= 1;
+        process_address[0] <= 0;
+        
         next_process_address <= 4 * MMU_PAGE_SIZE;
 
         uart_buffer_available = 0;
