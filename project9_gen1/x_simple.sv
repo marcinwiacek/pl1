@@ -17,8 +17,8 @@ parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 1;
-parameter MMU_STAGE_DEBUG = 1;
+parameter STAGE_DEBUG = 0;
+parameter MMU_STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
 parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
@@ -993,7 +993,7 @@ module x_simple (
       stage <= STAGE_CHECK_MMU_ADDRESS;
 
   `define MAKE_MMU_SEARCH2 \
-        if (how_many==HOW_MANY_OP_PER_TASK_SIMULATE && process_address != next_process_address) begin \
+        if (how_many==HOW_MANY_OP_PER_TASK_SIMULATE && process_address[process_num] != next_process_address) begin \
         how_many <= 0; \
         stage <= STAGE_TASK_SWITCHER; \
       end else begin \
@@ -1039,18 +1039,17 @@ process_used = '{default: 0};
       stage <= STAGE_AFTER_RESET;
     end else if (stage == STAGE_AFTER_RESET) begin
       if (mmu_action_ready) begin
-        error_code[0] <= ERROR_NONE;
-
-        pc[0] <= ADDRESS_PROGRAM;
-        physical_pc[0] <= ADDRESS_PROGRAM;
-        mmu_page_offset[0] <= MMU_PAGE_SIZE - ADDRESS_PROGRAM;
-        read_address <= ADDRESS_PROGRAM; //we start from page number 0 in first process, don't need MMU translation
-        read_address2 <= ADDRESS_PROGRAM + 1;
-
         process_num <= 0;
 process_used[0] <= 1;
         process_address[0] <= 0;
-        
+         error_code[0] <= ERROR_NONE;
+        pc[0] <= ADDRESS_PROGRAM;
+        physical_pc[0] <= ADDRESS_PROGRAM;
+        mmu_page_offset[0] <= MMU_PAGE_SIZE - ADDRESS_PROGRAM;
+
+         read_address <= ADDRESS_PROGRAM; //we start from page number 0 in first process, don't need MMU translation
+        read_address2 <= ADDRESS_PROGRAM + 1;
+               
         next_process_address <= 4 * MMU_PAGE_SIZE;
 
         uart_buffer_available = 0;
@@ -1113,7 +1112,7 @@ process_used[0] <= 1;
           if (OP_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
             $display(  //DEBUG info
                 $time - starttime,  //DEBUG info
-                process_address,  //DEBUG info
+                process_address[process_num],  //DEBUG info
                 " pc ",  //DEBUG info
                 (pc[process_num]),  //DEBUG info
                 " b1 %c",  //DEBUG info
@@ -1450,7 +1449,7 @@ process_used[0] <= 1;
                     instruction2_2
                 );  //DEBUG info
               int_pc[instruction1_2] <= pc[process_num];
-              int_process_address[instruction1_2] <= process_address;
+              int_process_address[instruction1_2] <= process_address[process_num];
               mmu_reg_int <= 1;
               mmu_address_a <= instruction1_2;
               mmu_address_b <= instruction2_1;
@@ -1644,7 +1643,7 @@ process_used[0] <= 1;
                   write_value <= div_c;
                 end
               endcase
-              write_address <= process_address + ADDRESS_REG + alu_num;
+              write_address <= process_address[process_num] + ADDRESS_REG + alu_num;
               write_enabled <= 1;
               alu_num <= alu_num + 1;
             end
@@ -1676,7 +1675,7 @@ process_used[0] <= 1;
         STAGE_TASK_SWITCHER: begin
           `HARD_DEBUG("W");
           //old process
-          write_address <= process_address + ADDRESS_PC;
+          write_address <= process_address[process_num] + ADDRESS_PC;
           write_value <= pc[process_num];
           write_enabled <= 1;
           //in parallel update MMU
@@ -1700,7 +1699,7 @@ process_used[0] <= 1;
             end  //DEBUG info
             $display("");  //DEBUG info
           end  //DEBUG info
-          write_address <= process_address + ADDRESS_REG_USED;
+          write_address <= process_address[process_num] + ADDRESS_REG_USED;
           write_value <= registers_updated[0:15];
           write_enabled <= 1;
           stage <= STAGE_READ_SAVE_REG_USED;
@@ -1717,7 +1716,7 @@ process_used[0] <= 1;
           ram_read_save_reg_end <= read_value2[15] ? 31 : 30;
           read_address2 <= next_process_address + ADDRESS_REG + (read_value2[15] ? 31 : 30);
           //old process
-          write_address <= process_address + ADDRESS_REG_USED + 1;
+          write_address <= process_address[process_num] + ADDRESS_REG_USED + 1;
           write_value <= registers_updated[16:31];
           stage <= STAGE_READ_REG;
           if (mmu_action_ready) mmu_set_start_process_physical_page <= 0;
@@ -1739,8 +1738,8 @@ process_used[0] <= 1;
           registers[process_num][ram_read_save_reg_end]   <= read_value2;
           if (temp_registers_updated == 0) begin
             //change process
-            prev_process_address <= process_address;
-            process_address <= next_process_address;
+            prev_process_address <= process_address[process_num];
+            process_address[process_num] <= next_process_address;
             //read next process address
             read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
@@ -1786,7 +1785,7 @@ process_used[0] <= 1;
         STAGE_DELETE_PROCESS: begin
           mmu_delete_process = 0;
           if (mmu_action_ready) begin
-            process_address <= prev_process_address;
+            process_address[process_num] <= prev_process_address;
             //in parallel update MMU
             mmu_set_start_process_physical_page <= 1;
             `MAKE_SWITCH_TASK(0)
@@ -1811,7 +1810,7 @@ process_used[0] <= 1;
           stage <= STAGE_SPLIT_PROCESS5;
         end
         STAGE_SPLIT_PROCESS5: begin
-          write_address <= process_address + ADDRESS_NEXT_PROCESS;
+          write_address <= process_address[process_num] + ADDRESS_NEXT_PROCESS;
           write_value <= mul_c;
           write_enabled <= 1;
           stage <= STAGE_SAVE_NEXT_PROCESS;
@@ -1830,12 +1829,12 @@ process_used[0] <= 1;
         STAGE_REG_INT: begin
           mmu_reg_int <= 0;
           //old process
-          write_address <= process_address + ADDRESS_PC;
+          write_address <= process_address[process_num] + ADDRESS_PC;
           write_value <= pc[process_num];
           stage <= STAGE_REG_INT2;
         end
         STAGE_REG_INT2: begin
-          process_address <= prev_process_address;
+          process_address[process_num] <= prev_process_address;
           //in parallel update MMU
           mmu_set_start_process_physical_page <= 1;
           `MAKE_SWITCH_TASK(0)
@@ -1850,7 +1849,7 @@ process_used[0] <= 1;
           end else begin
             how_many <= 0;
           end
-          int_process_address[instruction1_2] <= process_address;
+          int_process_address[instruction1_2] <= process_address[process_num];
           stage <= STAGE_TASK_SWITCHER;
         end
         STAGE_SET_PC: begin
@@ -1866,7 +1865,7 @@ process_used[0] <= 1;
       mmu_search_address <= 0;
       mmu_set_start_process_physical_page <= 0;
       mmu_split_process <= 0;
-      if (next_process_address == process_address) begin
+      if (next_process_address == process_address[process_num]) begin
         mmu_delete_process <= 0;
         stage <= STAGE_HLT;
       end else begin
