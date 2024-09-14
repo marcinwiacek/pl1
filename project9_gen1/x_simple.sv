@@ -1901,6 +1901,7 @@ module x_simple (
           write_value <= int_process_address[instruction1_2];
           if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
             next_process_address <= int_process_address[instruction1_2];
+            // temp_process_num <= process_num;
           end else begin
             how_many <= 0;
           end
