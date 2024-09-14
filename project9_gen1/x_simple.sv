@@ -1017,6 +1017,7 @@ module x_simple (
      if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
             $display("\n\n",$time-starttime, " TASK SWITCHER from ", process_address, " to ", next_process_address); \
      write_enabled <= ARG; \
+     mmu_set_start_process_physical_page <= 1; \
      mmu_address_a <= next_process_address / MMU_PAGE_SIZE; \
      read_address <= next_process_address + ADDRESS_PC; \
      stage <= STAGE_READ_SAVE_PC;
@@ -1678,8 +1679,6 @@ module x_simple (
           write_address <= process_address[process_num] + ADDRESS_PC;
           write_value <= pc[process_num];
           write_enabled <= 1;
-          //in parallel update MMU
-          mmu_set_start_process_physical_page <= 1;
           `MAKE_SWITCH_TASK(1);
         end
         STAGE_READ_SAVE_PC: begin
@@ -1786,8 +1785,6 @@ module x_simple (
           mmu_delete_process = 0;
           if (mmu_action_ready) begin
             process_address[process_num] <= prev_process_address;
-            //in parallel update MMU
-            mmu_set_start_process_physical_page <= 1;
             `MAKE_SWITCH_TASK(0)
           end
         end
@@ -1834,9 +1831,7 @@ module x_simple (
           stage <= STAGE_REG_INT2;
         end
         STAGE_REG_INT2: begin
-          process_address[process_num] <= prev_process_address;
-          //in parallel update MMU
-          mmu_set_start_process_physical_page <= 1;
+          process_address[process_num] <= prev_process_address;       
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_INT: begin
