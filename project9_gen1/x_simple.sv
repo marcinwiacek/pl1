@@ -1697,7 +1697,13 @@ module x_simple (
           if (process_used[process_num] && process_address[process_num] == next_process_address) begin
             write_enabled <= 0;
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
-              $display($time - starttime, " new process used(cache) ", process_num, " pc ",pc[process_num]);
+              $display(
+                  $time - starttime,
+                  " new process used(cache) ",
+                  process_num,
+                  " pc ",
+                  pc[process_num]
+              );
             //read next process address and finito
             read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
@@ -1705,9 +1711,7 @@ module x_simple (
           end else begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display(
-                  $time - starttime,
-                  " new process used ",
-                  temp_process_num, " pc ",read_value
+                  $time - starttime, " new process used ", temp_process_num, " pc ", read_value
               );
             //temp_registers_updated
             registers <= '{default: 0};
@@ -1722,8 +1726,7 @@ module x_simple (
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) begin  //DEBUG info
               $write($time - starttime, " old registers updated ");  //DEBUG info
               for (i = 0; i < 32; i = i + 1) begin  //DEBUG info
-                $write(
-                    registers_updated[process_num][i]);  //DEBUG info
+                $write(registers_updated[process_num][i]);  //DEBUG info
               end  //DEBUG info
               $display("");  //DEBUG info
             end  //DEBUG info
@@ -1884,7 +1887,7 @@ module x_simple (
           stage <= STAGE_REG_INT2;
         end
         STAGE_REG_INT2: begin
-//          process_address[process_num] <= prev_process_address;
+          //          process_address[process_num] <= prev_process_address;
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_INT: begin
