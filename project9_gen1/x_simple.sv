@@ -1017,10 +1017,13 @@ module x_simple (
      if (ARG==0) how_many <= 0; \
      if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
             $display("\n\n",$time-starttime, " TASK SWITCHER from ", process_address[process_num], " to ", next_process_address); \
+            temp_process_num<= process_num; \
      for (i=0;i<3;i=i+1) begin \
+        if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display ("cache ",process_used[i]," ", process_address[i]);\
        if (process_used[i] && process_address[i] == next_process_address) begin \
             prev_process_address <= process_address[process_num]; \
          process_num <= i; \
+        if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)   $display ("found ",i);\
        end \
        if (!process_used[i]) temp_process_num<= i; \
      end \
@@ -1691,10 +1694,10 @@ module x_simple (
           `MAKE_SWITCH_TASK(1);
         end
         STAGE_READ_SAVE_PC: begin
-          if (process_address[process_num] == next_process_address) begin
+          if (process_used[process_num] && process_address[process_num] == next_process_address) begin
             write_enabled <= 0;
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
-              $display($time - starttime, " new process used(cache) ", process_num);
+              $display($time - starttime, " new process used(cache) ", process_num, " pc ",pc[process_num]);
             //read next process address and finito
             read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
@@ -1704,13 +1707,13 @@ module x_simple (
               $display(
                   $time - starttime,
                   " new process used ",
-                  !process_used[temp_process_num] ? temp_process_num : process_num
+                  temp_process_num, " pc ",read_value
               );
             //temp_registers_updated
             registers <= '{default: 0};
             //new process
-            pc[!process_used[temp_process_num]?temp_process_num : process_num] <= read_value;
-            mmu_page_offset[!process_used[temp_process_num]?temp_process_num:process_num] <= 2;  //signal, that we have to recalculate things with mmu
+            pc[temp_process_num] <= read_value;
+            mmu_page_offset[temp_process_num] <= 2;  //signal, that we have to recalculate things with mmu
             read_address <= next_process_address + ADDRESS_REG_USED;
             read_address2 <= next_process_address + ADDRESS_REG_USED + 1;
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
@@ -1720,21 +1723,20 @@ module x_simple (
               $write($time - starttime, " old registers updated ");  //DEBUG info
               for (i = 0; i < 32; i = i + 1) begin  //DEBUG info
                 $write(
-                    registers_updated[!process_used[temp_process_num]?temp_process_num : process_num][i]);  //DEBUG info
+                    registers_updated[process_num][i]);  //DEBUG info
               end  //DEBUG info
               $display("");  //DEBUG info
             end  //DEBUG info
-            write_address <= process_address[!process_used[temp_process_num]?temp_process_num:process_num] + ADDRESS_REG_USED;
-            write_value <= registers_updated[!process_used[temp_process_num]?temp_process_num:process_num][0:15];
+            write_address <= process_address[process_num] + ADDRESS_REG_USED;
+            write_value <= registers_updated[process_num][0:15];
             write_enabled <= 1;
             stage <= STAGE_READ_SAVE_REG_USED;
-            process_used[!process_used[temp_process_num]?temp_process_num : process_num] <= 1;
-            process_num <= !process_used[temp_process_num] ? temp_process_num : process_num;
+            process_used[temp_process_num] <= 1;
+            process_num <= temp_process_num;
 
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display(" prev_process_address = ", process_address[process_num]);
             prev_process_address <= process_address[process_num];
-
           end
           if (mmu_action_ready) mmu_set_start_process_physical_page <= 0;
         end
@@ -1771,7 +1773,6 @@ module x_simple (
           registers[process_num][ram_read_save_reg_end]   <= read_value2;
           if (temp_registers_updated == 0) begin
             //change process
-
             process_address[process_num] <= next_process_address;
             //read next process address
             read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
@@ -1826,6 +1827,7 @@ module x_simple (
           end
         end
         STAGE_DELETE_PROCESS: begin
+          process_used[process_num] <= 0;
           mmu_delete_process = 0;
           if (mmu_action_ready) begin
             process_address[process_num] <= prev_process_address;
@@ -1882,7 +1884,7 @@ module x_simple (
           stage <= STAGE_REG_INT2;
         end
         STAGE_REG_INT2: begin
-          process_address[process_num] <= prev_process_address;
+//          process_address[process_num] <= prev_process_address;
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_INT: begin
