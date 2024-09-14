@@ -1717,7 +1717,7 @@ module x_simple (
                   $time - starttime, " new process used ", temp_process_num, " pc ", read_value
               );
             //temp_registers_updated
-            registers <= '{default: 0};
+            registers [temp_process_num] <= '{default: 0};
             //new process
             pc[temp_process_num] <= read_value;
             mmu_page_offset[temp_process_num] <= 2;  //signal, that we have to recalculate things with mmu
@@ -1738,7 +1738,7 @@ module x_simple (
             write_enabled <= 1;
             stage <= STAGE_READ_SAVE_REG_USED;
             process_used[temp_process_num] <= 1;
-            process_num <= temp_process_num;
+          
 
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display(" prev_process_address = ", process_address[process_num]);
@@ -1747,11 +1747,12 @@ module x_simple (
           if (mmu_action_ready) mmu_set_start_process_physical_page <= 0;
         end
         STAGE_READ_SAVE_REG_USED: begin
-          //new process
+           
+            //new process
           temp_registers_updated[0:15] <= read_value;
           temp_registers_updated[16:31] <= read_value2;
-          registers_updated[process_num][0:15] <= read_value;
-          registers_updated[process_num][16:31] <= read_value2;
+          registers_updated[temp_process_num][0:15] <= read_value;
+          registers_updated[temp_process_num][16:31] <= read_value2;
           ram_read_save_reg_start <= read_value[0] ? 0 : 1;
           read_address <= next_process_address + ADDRESS_REG + (read_value[0] ? 0 : 1);
           ram_read_save_reg_end <= read_value2[15] ? 31 : 30;
@@ -1775,11 +1776,12 @@ module x_simple (
                      read_value2,  //DEBUG info
                      " ");  //DEBUG info
           end  //DEBUG info
-          registers[process_num][ram_read_save_reg_start] <= read_value;
-          registers[process_num][ram_read_save_reg_end]   <= read_value2;
+          registers[temp_process_num][ram_read_save_reg_start] <= read_value;
+          registers[temp_process_num][ram_read_save_reg_end]   <= read_value2;
           if (temp_registers_updated == 0) begin
+           process_num <= temp_process_num;
             //change process
-            process_address[process_num] <= next_process_address;
+            process_address[temp_process_num] <= next_process_address;
             //read next process address
             read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
