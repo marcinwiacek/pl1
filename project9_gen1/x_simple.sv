@@ -1710,7 +1710,7 @@ module x_simple (
             //read next process address and finito
             read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
-            mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
+           // mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
           end else begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display(
