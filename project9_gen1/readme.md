@@ -87,7 +87,7 @@ Example:
 * mmu_logical_pages_memory - 0, 1, 2, 3
 * mmu_start_process_physical_page - 0
 
-In this case: physical page 0 contains logical page 0, physical page 1 contains logical page 1, physical page 2 contains logical page 2 and physical page 3 contains logical page 3.
+In this case: physical page 0 contains logical page 0, physical page 1 contains logical page 1, physical page 2 contains logical page 2 and physical page 3 contains logical page 3. PL1 is going into index 0, then 1, then 2 and in the end 3.
 
 To speed up things:
 
