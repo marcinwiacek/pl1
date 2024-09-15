@@ -837,6 +837,7 @@ module x_simple (
   parameter OPCODE_LOOP = 25;  //x, x, how many instructions (8 bit value) //for...
   parameter OPCODE_FREE = 31;  //free ram pages x-y 
   parameter OPCODE_FREE_LEVEL =32; //free ram pages allocated after page x (or pages with concrete level)
+  //parameter OPCODE_REG_INT_NON_BLOCKING =33; //int number (8 bit), address to jump in case of int
 
   parameter STAGE_AFTER_RESET = 1;
   parameter STAGE_GET_1_BYTE = 2;
