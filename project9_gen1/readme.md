@@ -1,10 +1,10 @@
 **Welcome to the future or at least some alternative to the mainstream.**
 
-Modern hardware architectures (like X86 or ARM) are very impressive, but have
+Modern hardware (like X86 or ARM) is very impressive, but have
 some problems with security, complexity, intellectual property and/or government
 control. Risc-V wants to avoid this, but when you look into specs, you will
-see, that various elements and/or extensions have potentially the same
-problems (see words from Linus Torvalds "They’ll have all
+see, that various elements and/or extensions are complex or
+have potentially the same problems (see words from Linus Torvalds "They’ll have all
 the same issues we have on the Arm side and that x86 had before them").
 
 This project contains first working generation of the PL1 SoC (System On Chip).
@@ -13,11 +13,11 @@ PL1 currently allows for creating and running OS and apps:
 
 1. without kernel
 2. with full protecting resources
-3. without unnecessary operations
+3. without many unnecessary operations
 
 Applications are communicating with each other using interrupts + memory
-sharing. There are no other ways & you don't have kernel or hypervisor mode,
-which is big, big advantage (when you don't have something, it cannot be broken)
+sharing. There are no other ways for doing this & you don't have kernel
+or hypervisor mode, which is big advantage (when you don't have something, it cannot be broken).
 
 **Current implementation**
 
