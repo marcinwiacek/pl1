@@ -11,14 +11,14 @@ parameter HARDWARE_DEBUG = 0;
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_CHANGES_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 0;
-parameter MMU_STAGE_DEBUG = 0;
+parameter STAGE_DEBUG = 1;
+parameter MMU_STAGE_DEBUG = 1;
 parameter OP_DEBUG = 1;
 parameter OP2_DEBUG = 1;
 parameter ALU_DEBUG = 0;
@@ -387,8 +387,10 @@ module mmu (
       int_source_start_page,
       int_source_end_page;
 
-  bit [7:0] logical_init_ram[0:7] = {0, 1, 2, 3, 4, 1, 2, 3};
-  bit [7:0] chain_init_ram  [0:7] = {1, 2, 3, 3, 5, 6, 7, 7};
+parameter HOW_MANY_INIT_ELEM = 8;
+
+  bit [7:0] logical_init_ram[0:HOW_MANY_INIT_ELEM-1] = {0, 1, 2, 3, 4, 1, 2, 3};
+  bit [7:0] chain_init_ram  [0:HOW_MANY_INIT_ELEM-1] = {1, 2, 3, 3, 5, 6, 7, 7};
 
   always @(posedge clk) begin
     //$display($time-starttime, " mmu stage ", stage);
@@ -727,10 +729,10 @@ module mmu (
         end
         MMU_INIT: begin
           if (mmu_chain_write_addr > 0) begin
-            mmu_chain_write_value<=mmu_chain_write_addr<9?chain_init_ram[mmu_chain_write_addr-1]:0;
+            mmu_chain_write_value<=mmu_chain_write_addr<(HOW_MANY_INIT_ELEM+1)?chain_init_ram[mmu_chain_write_addr-1]:0;
             mmu_chain_write_addr <= mmu_chain_write_addr - 1;
 
-            mmu_logical_write_value<=mmu_logical_write_addr<9?logical_init_ram[mmu_logical_write_addr-1]:0;
+            mmu_logical_write_value<=mmu_logical_write_addr<(HOW_MANY_INIT_ELEM+1)?logical_init_ram[mmu_logical_write_addr-1]:0;
             mmu_logical_write_addr <= mmu_logical_write_addr - 1;
           end else begin
             mmu_action_ready <= 1;
