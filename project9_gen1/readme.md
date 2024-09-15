@@ -1,6 +1,6 @@
 **Welcome to the future or at least some alternative to the mainstream.**
 
-Modern hardware (like X86 or ARM) is very impressive, but have
+Modern hardware (like X86 or ARM) is very impressive, but has got
 some problems with security, complexity, intellectual property and/or government
 control. Risc-V wants to avoid this, but when you look into specs, you will
 see, that various elements and/or extensions are complex or
