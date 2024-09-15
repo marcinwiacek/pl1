@@ -123,7 +123,7 @@ PL1 is building in the memory one way list with the process addresses and switch
 **My development environment**
 
 1. free Ubuntu
-2. free Vivado version from https://www.xilinx.com/support/download.html (needs free registering;
+2. free Vivado version from https://www.xilinx.com/support/download.html (needs free registration;
 after installing needs installing drivers for cables and adding board definition;
 update tool can be started with binary xic/xic)
 3. board

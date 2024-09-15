@@ -210,7 +210,7 @@ when nothing is done, I know, that something is very very wrong).
 
 # Development environment
 1. Ubuntu
-2. free Vivado version from https://www.xilinx.com/support/download.html (needs free registering;
+2. free Vivado version from https://www.xilinx.com/support/download.html (needs free registration;
 after installing needs installing drivers for cables and adding board definition;
 update tool can be started with binary xic/xic)
 3. board, for example Artix-7 (the most advanced will be probably Nexys Video)
