@@ -11,8 +11,8 @@ parameter HARDWARE_DEBUG = 0;
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_CHANGES_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -582,6 +582,8 @@ parameter HOW_MANY_INIT_ELEM = 8;
           end else if (mmu_chain_read_value == mmu_search_position) begin
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display($time - starttime, " needs to allocate new memory page");
+              mmu_chain_read_addr <= mmu_first_possible_free_physical_page;
+            mmu_logical_read_addr <= mmu_first_possible_free_physical_page;
             stage <= MMU_ALLOCATE_NEW;
           end else begin
             mmu_prev_search_position <= mmu_search_position;
@@ -632,8 +634,8 @@ parameter HOW_MANY_INIT_ELEM = 8;
         end else begin
             //            mmu_cache_write_value <= 0;
             mmu_first_possible_free_physical_page <= mmu_first_possible_free_physical_page + 1;
-            mmu_chain_read_addr <= mmu_first_possible_free_physical_page;
-            mmu_logical_read_addr <= mmu_first_possible_free_physical_page;
+            mmu_chain_read_addr <= mmu_first_possible_free_physical_page+1;
+            mmu_logical_read_addr <= mmu_first_possible_free_physical_page+1;
           end
         end
         MMU_DELETE: begin
@@ -740,7 +742,7 @@ parameter HOW_MANY_INIT_ELEM = 8;
             mmu_logical_write_enable <= 0;
             mmu_start_process_physical_page <= 0;
             mmu_start_process_physical_page_zero <= 0;
-            mmu_first_possible_free_physical_page <= 8;
+            mmu_first_possible_free_physical_page <= HOW_MANY_INIT_ELEM;
             rst_can_be_done <= 1;
             starttime <= $time;
             stage <= MMU_IDLE;
@@ -1975,7 +1977,7 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
 
       16'h1210, 16'd2613, //value to reg
-      16'h0e10, 16'd0100, //save to ram
+      16'h0e10, 16'd0290, //save to ram
       16'h0911, 16'd0100, //ram to reg
       16'h0e10, 16'd0212, //save to ram
       16'h0c01, 16'h0001,  //proc
@@ -2062,7 +2064,7 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
 
       16'h1a37, 16'h0101, //reg int 
-      16'h0911, 16'd0100, //ram to reg
+      16'h0911, 16'd0150, //ram to reg
       16'h1210, 16'h0a35, //value to reg
       16'h1d10, 16'd0052, //ram2out      
       16'h1c37, 16'd0000, //int ret
