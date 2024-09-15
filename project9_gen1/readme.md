@@ -2,12 +2,12 @@
 
 Modern hardware (like X86 or ARM) is very impressive, but has got
 some problems with security, complexity, intellectual property and/or government
-control. Risc-V wants to avoid this, but when you look into specs, you will
+control. Risc-V wants to avoid this, but when you look into [specs](https://riscv.org/technical/specifications/), you will
 see, that various elements and/or extensions are complex or
 have potentially the same problems (see words from Linus Torvalds "They’ll have all
 the same issues we have on the Arm side and that x86 had before them").
 
-This project contains first working generation of the PL1 SoC (System On Chip).
+This project contains first working version or generation of the PL1 SoC (System On Chip).
 
 PL1 currently allows for creating and running OS and apps:
 
@@ -24,8 +24,8 @@ or hypervisor mode, which is big advantage (when you don't have something, it ca
 1. has got support for RS-232 output
 2. has got OS concept directly in the bootloader
 3. doesn't have deep pipelining (planned in short future), asynchrononous design and multicore support (planned in longer future) and support for video/SDCard/RS-232 input/Ethernet/DDRx (planned)
-4. has got probably many FPGA design mistakes (they're removed step by step)
-5. works in the Artix-7 Nexys Video FPGA board
+4. has got many FPGA design mistakes (they're removed step by step)
+5. works in the [Artix-7 Nexys Video FPGA board](https://digilent.com/reference/programmable-logic/nexys-video/reference-manual)
 
 **Statistics**
 
