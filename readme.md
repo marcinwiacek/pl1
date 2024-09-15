@@ -1,6 +1,7 @@
 # News
 
-Sep 2024: first version going with big steps with project 9.
+Sep 2024: first working milestone / gen with project 9
+(including MMU, process creating, deleting & interrupts)
 
 June 2024: first work with real FPGA
 
