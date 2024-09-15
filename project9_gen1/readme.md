@@ -120,6 +120,14 @@ Every modern CPU / OS is running many processes in parallel. Software based swit
 
 PL1 is building in the memory one way list with the process addresses and switching to next one just specified number of instructions (in the future we will count number of cycles and / or have priorities). Process registered for interrupt is excluded during exuection, when we execute interrupt, we switch called process with interrupt process in this chain.
 
+**My development environment**
+
+1. free Ubuntu
+2. free Vivado version from https://www.xilinx.com/support/download.html (needs free registering;
+after installing needs installing drivers for cables and adding board definition;
+update tool can be started with binary xic/xic)
+3. board
+
 **It doesn't have any sense**
 
 I will remind you August 1991 and Linus Torvalds:
