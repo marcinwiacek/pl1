@@ -91,10 +91,16 @@ In this case: physical page 0 contains logical page 0, physical page 1 contains 
 
 To speed up things:
 
-1. mmu_chain_memory is sorted during each searching for memory page - last
-found index is moved into beginning of the chain
-2. new allocated page is saved in the beginning of chain
-3. CPU is calculating page for instruction fetch only when we (potentially) change page - in other cases we have cache with calculated value and just increase it by two
+1. mmu_chain_memory - sorted during each searching for memory page (last found index is moved into beginning of the chain, which speed up search in the future)
+2. new allocated page - saved in the beginning of chain
+3. instruction fetch - CPU is calculating page for instruction fetch only when we (potentially) change page (in other cases we have cache with calculated value and just increase it by two)
+4. shared memory - when we're inside interrupt, normally we should have shared memory info in the calling process chain. PL1 doesn't waste time to make any updates for it in the interrupt process, but is operating in the calling process chain
+
+Planned:
+
+1. started work on table caching all translations: index - logical page, values - process address & physical page assigned to it in the process
+(searching in this table could be done in parallel to search in mmu_chain_memory and mmu_logical_memory)
+2. increasing width of MMU memories and, if possible, further parallelization
 
 **Process memory**
 
