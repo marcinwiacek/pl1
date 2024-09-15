@@ -372,8 +372,7 @@ module mmu (
   parameter MMU_SET_PROCESS_DATA = 15;
   parameter MMU_SET_PROCESS_DATA2 = 16;
   parameter MMU_ALLOCATE_NEW = 17;
-  parameter MMU_ALLOCATE_NEW2 = 18;
-  parameter MMU_SWITCH = 19;
+  parameter MMU_SWITCH = 18;
 
   bit [15:0] mmu_address_to_search_page_cache;
 
@@ -423,8 +422,7 @@ module mmu (
           MMU_SPLIT4: $write("MMU_SPLIT4");
           MMU_SET_PROCESS_DATA: $write("MMU_SET_PROCESS_DATA");
           MMU_SET_PROCESS_DATA2: $write("MMU_SET_PROCESS_DATA2");
-          MMU_ALLOCATE_NEW: $write("MMU_ALLOCATE_NEW");
-          MMU_ALLOCATE_NEW2: $write("MMU_ALLOCATE_NEW2");
+          MMU_ALLOCATE_NEW: $write("MMU_ALLOCATE_NEW");         
           MMU_SWITCH: $write("MMU_SWITCH");
         endcase
         $display("");
@@ -608,38 +606,33 @@ module mmu (
             //            mmu_cache_write_addr <= mmu_first_possible_free_physical_page;
             //            mmu_cache_write_value <= 256*mmu_start_process_physical_page_zero+mmu_logical_read_value;
             //            mmu_cache_write_value <= 1;
-
-            mmu_chain_write_addr <= mmu_search_position;
-            mmu_chain_write_value <= mmu_first_possible_free_physical_page;
-            mmu_chain_write_enable <= 1;
-
-            stage <= MMU_ALLOCATE_NEW2;
-          end else begin
-            //            mmu_cache_write_value <= 0;
-            mmu_first_possible_free_physical_page <= mmu_first_possible_free_physical_page + 1;
-            mmu_chain_read_addr <= mmu_first_possible_free_physical_page;
-            mmu_logical_read_addr <= mmu_first_possible_free_physical_page;
-          end
-        end
-        MMU_ALLOCATE_NEW2: begin
+          
           mmu_chain_write_addr <= mmu_first_possible_free_physical_page;
-          mmu_chain_write_value <= mmu_first_possible_free_physical_page;
+          mmu_chain_write_value <= mmu_start_process_physical_page;
           mmu_chain_write_enable <= 1;
 
           mmu_logical_write_addr <= mmu_first_possible_free_physical_page;
           mmu_logical_write_value <= mmu_address_to_search_page;
           mmu_logical_write_enable <= 1;
-
+          
+          mmu_start_process_physical_page<=mmu_first_possible_free_physical_page;
+          
           if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
             $display(
                 $time - starttime,
-                " physical page in position (new allocated) ",
+                " physical page in position (new allocated & new start point) ",
                 mmu_first_possible_free_physical_page
             );
           mmu_address_c <= mmu_address_a % MMU_PAGE_SIZE + mmu_first_possible_free_physical_page * MMU_PAGE_SIZE;
           mmu_first_possible_free_physical_page <= mmu_first_possible_free_physical_page + 1;
           mmu_action_ready <= 1;
           stage <= MMU_IDLE;
+        end else begin
+            //            mmu_cache_write_value <= 0;
+            mmu_first_possible_free_physical_page <= mmu_first_possible_free_physical_page + 1;
+            mmu_chain_read_addr <= mmu_first_possible_free_physical_page;
+            mmu_logical_read_addr <= mmu_first_possible_free_physical_page;
+          end
         end
         MMU_DELETE: begin
           mmu_first_possible_free_physical_page <= mmu_first_possible_free_physical_page > mmu_search_position ? 
