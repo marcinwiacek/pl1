@@ -23,6 +23,8 @@ parameter OP_DEBUG = 1;
 parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
 
+parameter HOW_BIG_PROCESS_CACHE = 3;
+
 parameter MMU_PAGE_SIZE = 70;  //how many bytes are assigned to one memory page in MMU
 //parameter RAM_SIZE = 32767;
 parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
@@ -889,7 +891,10 @@ module x_simple (
   bit rst_can_be_done = 1;
 
   //all processes (including current)
-  bit [15:0] pc[0:2], physical_pc[0:2], mmu_page_offset[0:2], process_address[0:2];
+  bit [15:0] pc[0:HOW_BIG_PROCESS_CACHE-1],   //logical pc address
+      physical_pc[0:HOW_BIG_PROCESS_CACHE-1], //physical pc address
+      mmu_page_offset[0:HOW_BIG_PROCESS_CACHE-1],  //info, how many bytes till end of memory page
+      process_address[0:HOW_BIG_PROCESS_CACHE-1];
   bit process_used[0:2];
   bit [5:0] error_code[0:2];
   bit [15:0] registers[0:2][0:31];  //512 bits = 32 x 16-bit registers
@@ -1017,7 +1022,7 @@ module x_simple (
      if (ARG==0) how_many <= 0; \
      if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
             $display("\n\n",$time-starttime, " TASK SWITCHER from ", process_address[process_num], " to ", next_process_address); \
-     for (i=0;i<3;i=i+1) begin \
+     for (i=0;i<HOW_BIG_PROCESS_CACHE;i=i+1) begin \
        if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display ("cache ",process_used[i]," ", process_address[i]);\
        if (process_used[i]) begin \
          if (process_address[i] == next_process_address) begin \
