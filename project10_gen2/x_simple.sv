@@ -312,7 +312,9 @@ module x_simple (
   parameter STAGE_READ_SAVE_REG_USED = 27;
 
   parameter STAGE_SET_PORT = 28;
-
+  parameter STAGE_CHECK_MMU_ADDRESS2 = 29;
+  parameter STAGE_CHECK_MMU_ADDRESS3 = 30;
+  
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
   parameter ALU_DIV = 3;
@@ -411,7 +413,8 @@ module x_simple (
   bit [15:0] int_process_address[0:255];
 
   bit mmu_free_page[0:20] = {1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-  bit [15:0] mmu_address_a;
+  bit [15:0] mmu_address_a, mmu_address_c;
+  bit [15:0] mmu_address_segment_to_search;
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
       mmu_address_a <= ARG; \
@@ -1019,21 +1022,35 @@ module x_simple (
         end
         STAGE_CHECK_MMU_ADDRESS: begin
           write_enabled <= 0;
-          if (mmu_action_ready) begin
+          
+          mmu_address_segment_to_search <= mmu_address_a/MMU_PAGE_SIZE;
+            stage <= STAGE_CHECK_MMU_ADDRESS2;
+        end
+        STAGE_CHECK_MMU_ADDRESS2: begin
+           if (mmu_address_segment_to_search == 0) begin
+             mmu_address_c <= process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE;
+             stage <= STAGE_CHECK_MMU_ADDRESS3;
+           end else if (mmu_address_segment_to_search <= 7) begin
+              read_address<=process_address[process_num] + ADDRESS_MMU_LEN + mmu_address_segment_to_search;
+             stage <= STAGE_CHECK_MMU_ADDRESS3;
+           end else begin
+              //MMU segment
+              $display("big, big mistake");  //DEBUG info
+           end
+        end
+        STAGE_CHECK_MMU_ADDRESS3: begin
             if (stage_after_mmu != STAGE_SET_RAM_BYTE) begin
               if (stage_after_mmu == STAGE_GET_1_BYTE) begin
-                mmu_page_offset[process_num] <= mmu_address_c % MMU_PAGE_SIZE;
-                physical_pc[process_num] <= mmu_address_c;
+                mmu_page_offset[process_num] <= mmu_address_a % MMU_PAGE_SIZE;
+                physical_pc[process_num] <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value;
               end
-              read_address  <= mmu_address_c;
-              read_address2 <= mmu_address_c + 1;
+              read_address  <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value;
+              read_address2 <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value + 1;
             end else begin
-              write_address <= mmu_address_c;
+              write_address <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value;
               write_enabled <= 1;
             end
             stage <= stage_after_mmu;
-          end
-          mmu_search_address <= 0;
         end
         STAGE_ALU: begin
           if (ALU_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
