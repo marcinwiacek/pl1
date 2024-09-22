@@ -174,7 +174,7 @@ module div (
   end
 endmodule
 
-module mmufreelutram (
+/*module mmufreelutram (
     input clk,
     input [15:0] read_addr,
     output bit [8:0] read_value,
@@ -196,10 +196,9 @@ module mmufreelutram (
     if (write_enable) begin
       ram[write_addr] <= write_value;
       //$display($time-starttime, " chain write ", write_addr, "=", write_value);
-      `SHOW_MMU2("chain")
     end
   end
-endmodule
+endmodule*/
 
 module x_simple (
     input clk,
@@ -410,6 +409,8 @@ module x_simple (
 
   bit [15:0] int_pc[0:255];
   bit [15:0] int_process_address[0:255];
+
+  bit mmu_free_page[0:20] = {1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
       mmu_address_a <= ARG; \
@@ -1592,7 +1593,7 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000
     };
 
   // verilog_format:on
