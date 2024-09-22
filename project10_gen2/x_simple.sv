@@ -411,10 +411,10 @@ module x_simple (
   bit [15:0] int_process_address[0:255];
 
   bit mmu_free_page[0:20] = {1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+  bit [15:0] mmu_address_a;
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
       mmu_address_a <= ARG; \
-      mmu_search_address <= 1; \
       stage_after_mmu <= ARG2; \
       stage <= STAGE_CHECK_MMU_ADDRESS;
 
@@ -426,7 +426,6 @@ module x_simple (
         how_many <= how_many + 1; \
         if (mmu_page_offset[process_num] == 2) begin \
           mmu_address_a <= pc[process_num]; \
-          mmu_search_address <= 1; \
           stage_after_mmu <= STAGE_GET_1_BYTE; \
           stage <= STAGE_CHECK_MMU_ADDRESS; \
         end else begin \
@@ -478,7 +477,7 @@ module x_simple (
 
       stage <= STAGE_AFTER_RESET;
     end else if (stage == STAGE_AFTER_RESET) begin
-      if (mmu_action_ready) begin
+      
         temp_process_num <= 0;
         process_num <= 0;
         process_used[0] <= 1;
@@ -499,7 +498,7 @@ module x_simple (
 
         rst_can_be_done <= 1;
         stage <= STAGE_GET_1_BYTE;
-      end
+      
     end else if (instructions < HOW_MANY_OP_SIMULATE && error_code[process_num] == ERROR_NONE) begin
       if (STAGE_DEBUG && !HARDWARE_DEBUG) begin  //DEBUG info
         $write($time - starttime, " stage ", stage, " ");  //DEBUG info
