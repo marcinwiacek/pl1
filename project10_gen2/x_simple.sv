@@ -20,7 +20,7 @@ parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
 parameter MMU_STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
-parameter OP2_DEBUG = 0;
+parameter OP2_DEBUG = 1;
 parameter ALU_DEBUG = 0;
 
 parameter HOW_BIG_PROCESS_CACHE = 3;
@@ -490,7 +490,7 @@ module x_simple (
         read_address <= ADDRESS_PROGRAM; //we start from page number 0 in first process, don't need MMU translation
         read_address2 <= ADDRESS_PROGRAM + 1;
 
-        next_process_address <= 4 * MMU_PAGE_SIZE;
+        next_process_address <= 2 * MMU_PAGE_SIZE;
 
         uart_buffer_available = 0;
         `HARD_DEBUG("\n");  //DEBUG info
@@ -1012,7 +1012,6 @@ module x_simple (
         end
         STAGE_CHECK_MMU_ADDRESS: begin
           write_enabled <= 0;
-          
           mmu_address_segment_to_search <= mmu_address_a/MMU_PAGE_SIZE;
             stage <= STAGE_CHECK_MMU_ADDRESS2;
         end
@@ -1029,15 +1028,17 @@ module x_simple (
            end
         end
         STAGE_CHECK_MMU_ADDRESS3: begin
+          $display(  //DEBUG info
+                  $time, "process ",process_address[process_num], " logical address ", mmu_address_a, "= physical address ",mmu_address_segment_to_search == 0 ? mmu_address_c:read_value*MMU_PAGE_SIZE+mmu_address_a % MMU_PAGE_SIZE);
             if (stage_after_mmu != STAGE_SET_RAM_BYTE) begin
               if (stage_after_mmu == STAGE_GET_1_BYTE) begin
                 mmu_page_offset[process_num] <= mmu_address_a % MMU_PAGE_SIZE;
-                physical_pc[process_num] <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value;
+                physical_pc[process_num] <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value*MMU_PAGE_SIZE+mmu_address_a % MMU_PAGE_SIZE;
               end
-              read_address  <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value;
-              read_address2 <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value + 1;
+              read_address  <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value*MMU_PAGE_SIZE+mmu_address_a % MMU_PAGE_SIZE;
+              read_address2 <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value*MMU_PAGE_SIZE+mmu_address_a % MMU_PAGE_SIZE + 1;
             end else begin
-              write_address <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value;
+              write_address <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value*MMU_PAGE_SIZE+mmu_address_a % MMU_PAGE_SIZE;
               write_enabled <= 1;
             end
             stage <= stage_after_mmu;
@@ -1151,7 +1152,7 @@ module x_simple (
             registers[temp_process_num] <= '{default: 0};
             //new process
             pc[temp_process_num] <= read_value;
-           // mmu_page_offset[temp_process_num] <= 2;  //signal, that we have to recalculate things with mmu
+            mmu_page_offset[temp_process_num] <= 2;  //signal, that we have to recalculate things with mmu
             read_address <= next_process_address + ADDRESS_REG_USED;
             read_address2 <= next_process_address + ADDRESS_REG_USED + 1;
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
@@ -1213,8 +1214,7 @@ module x_simple (
           registers[temp_process_num][ram_read_save_reg_start] <= read_value;
           registers[temp_process_num][ram_read_save_reg_end]   <= read_value2;
           if (temp_registers_updated == 0) begin
-              mmu_page_offset[temp_process_num] <= mmu_address_c % MMU_PAGE_SIZE+2;
-              physical_pc[temp_process_num] <= mmu_address_c-2;                            
+                            
               process_num <= temp_process_num;
               //change process
               process_address[temp_process_num] <= next_process_address;
@@ -1380,10 +1380,10 @@ module single_blockram (
    bit [15:0] ram  [0:599]= {  // in Vivado (required by board)
   //  reg [0:559] [15:0] ram = {  // in iVerilog
 
-      //first process - 4 pages (400 elements)
+      //first process - 2 pages (200 elements)
       //page 1 (100 elements)
-      16'd0280, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
-      16'd0051, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
+      16'd0200, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
+      16'd0050, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
 
       16'h0000, 16'h0000,  //registers used
 
@@ -1398,8 +1398,8 @@ module single_blockram (
       
       16'd0006, //mmu segment length
       16'h0001, //physical segment address for mmu logical page 1 or 0 (not assigned)
-      16'h0002, //physical segment address for mmu logical page 2 or 0 (not assigned)
-      16'h0003,
+      16'h0000, //physical segment address for mmu logical page 2 or 0 (not assigned)
+      16'h0000,
       16'h0000,
       16'h0000,
       16'h0000,
@@ -1447,7 +1447,7 @@ module single_blockram (
       //second process - 2 pages (200 elements) + 2 pages (200 elements) new process nr 3
       //page 3 (100 elements)
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only
-      16'd0051, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
+      16'd0050, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
 
       16'h0000, 16'h0000,  //registers used
 
@@ -1462,8 +1462,8 @@ module single_blockram (
 
       16'd0006, //mmu segment length
       16'h0003, //physical segment address for mmu logical page 1 or 0 (not assigned)
-      16'h0000, //physical segment address for mmu logical page 2 or 0 (not assigned)
-      16'h0000,
+      16'h0004, //physical segment address for mmu logical page 2 or 0 (not assigned)
+      16'h0005,
       16'h0000,
       16'h0000,
       16'h0000,
@@ -1513,7 +1513,7 @@ module single_blockram (
       //third process - 2 pages (200 elements)
       //page 5 (100 elements)
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only
-      16'd0051, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
+      16'd0050, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
 
       16'h0000, 16'h0000,  //registers used
 
