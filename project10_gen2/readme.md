@@ -67,40 +67,27 @@ Instructions:
 
 **MMU**
 
-MMU is handling RAM paging (for testing purposes every page has got 70 bytes) and has got two memories:
+MMU is handling RAM paging (for testing purposes every page has got 100 bytes) and in current memory has got only
+one memory mmu_free_page, the real mapping is saved in RAM:
 
-* mmu_chain_memory - index: physical RAM page; value: next physical page index for the process (when value is equal to index, it means end of the chain)
-* mmu_logical_pages_memory - index: physical RAM page; value: logical process page assigned to physical page (exception: when process is not used, for process page 0 we save index of first element in the process chain)
+In process segment 0 we have
 
-mmu_logical_pages_memory == 0 && mmu_chain_memory == 0 means, that page is free
-(note: 0,0 can be assigned to process starting from physical page 0
-and because of it we have mmu_first_possible_free_physical_page saving index of first possible free page).
+* mmu_segment_length,
+* physical segment address for mmu logical page 1 or 0 (not assigned)
+* physical segment address for mmu logical page 2 or 0 (not assigned)
+* ...
+* physical segment address for mmu logical page n or 0 (not assigned)
+* address of next mmu segment
 
-Every process has got two start points:
+Next MMU segments have the whole segment for the MMU:
 
-1. mmu_start_process_physical_page (index of the first element in the process chain saved for process page 0 in mmu_logical_pages_memory when process is not used)
-2. mmu_start_process_physical_page_zero (shows index of the process page 0)
+* mmu_segment_length (how many entries are initialited)
+* physical segment address for mmu logical page n+1 or 0 (not assigned)
+* physical segment address for mmu logical page n+2 or 0 (not assigned)
+* ...
+* address of next mmu segment
 
-Example:
-
-* mmu_chain_memory - 1, 2, 3, 3
-* mmu_logical_pages_memory - 0, 1, 2, 3
-* mmu_start_process_physical_page - 0
-
-In this case: physical page 0 contains logical page 0, physical page 1 contains logical page 1, physical page 2 contains logical page 2 and physical page 3 contains logical page 3. PL1 is going into index 0, then 1, then 2 and in the end 3.
-
-To speed up things:
-
-1. mmu_chain_memory - sorted during each searching for memory page (last found index is moved into beginning of the chain, which speed up search in the future)
-2. new allocated page - saved in the beginning of chain
-3. instruction fetch - CPU is calculating page for instruction fetch only when we (potentially) change page (in other cases we have cache with calculated value and just increase it by two)
-4. shared memory - when we're inside interrupt, normally we should have shared memory info in the calling process chain. PL1 doesn't waste time to make any updates for it in the interrupt process, but is operating in the calling process chain
-
-Planned:
-
-1. started work on table caching all translations: index - logical page, values - process address & physical page assigned to it in the process
-(searching in this table could be done in parallel to search in mmu_chain_memory and mmu_logical_memory)
-2. increasing width of MMU memories and, if possible, further parallelization
+MMU just needs to find correct page and read value from value indexed by logical page number.
 
 **Process memory**
 
