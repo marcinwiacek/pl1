@@ -1,0 +1,13 @@
+echo
+echo Sorry
+echo Should start CPU with debug with such free tools like iverilog and gtkwave
+echo I need some time to make it working, for now start project with Vivado
+echo
+#sudo apt install iverilog gtkwave
+#rm ./cpu 2> /dev/null
+#rm ./cpu.vcd 2> /dev/null
+iverilog -g2005-sv -o x x_simple.sv x_simple.test.sv
+vvp x
+#gtkwave x_simple.vcd &
+rm ./x
+rm ./x_simple.vcd
