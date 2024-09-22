@@ -411,8 +411,8 @@ module x_simple (
   bit [15:0] int_pc[0:255];
   bit [15:0] int_process_address[0:255];
 
-  bit mmu_free_page[0:20] = {1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-  bit [15:0] mmu_address_a, mmu_address_c;
+  bit mmu_free_page[0:19] = {1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+  bit [15:0] mmu_address_a, mmu_address_b, mmu_address_c, mmu_address_d;
   bit [15:0] mmu_address_segment_to_search;
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
@@ -458,7 +458,6 @@ module x_simple (
      write_enabled <= ARG; \
      read_address <= next_process_address + ADDRESS_PC; \
      stage <= STAGE_READ_SAVE_PC; \
-     mmu_set_start_process_physical_page <= 1; \
      mmu_address_a <= next_process_address / MMU_PAGE_SIZE;
 
   integer i;  //DEBUG info
@@ -479,7 +478,6 @@ module x_simple (
 
       stage <= STAGE_AFTER_RESET;
     end else if (stage == STAGE_AFTER_RESET) begin
-      
         temp_process_num <= 0;
         process_num <= 0;
         process_used[0] <= 1;
@@ -499,8 +497,7 @@ module x_simple (
         `HARD_DEBUG("S");  //DEBUG info
 
         rst_can_be_done <= 1;
-        stage <= STAGE_GET_1_BYTE;
-      
+        stage <= STAGE_GET_1_BYTE;      
     end else if (instructions < HOW_MANY_OP_SIMULATE && error_code[process_num] == ERROR_NONE) begin
       if (STAGE_DEBUG && !HARDWARE_DEBUG) begin  //DEBUG info
         $write($time, " stage ", stage, " ");  //DEBUG info
@@ -857,7 +854,6 @@ module x_simple (
             OPCODE_EXIT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)
                 $display($time, " opcode = exit");  //DEBUG info
-              mmu_delete_process <= 1;
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
               write_enabled <= 1;
@@ -875,7 +871,6 @@ module x_simple (
                 );  //DEBUG info
               mmu_address_a <= read_value2;
               mmu_address_b <= read_value2 + instruction1_2;
-              mmu_split_process <= 1;
               stage <= STAGE_SPLIT_PROCESS;
             end
             //int number (8 bit), start memory page, end memory page 
@@ -891,8 +886,7 @@ module x_simple (
                     instruction2_2
                 );  //DEBUG info
               int_pc[instruction1_2] <= pc[process_num];
-              int_process_address[instruction1_2] <= process_address[process_num];
-              mmu_reg_int <= 1;
+              int_process_address[instruction1_2] <= process_address[process_num];             
               mmu_address_a <= instruction1_2;
               mmu_address_b <= instruction2_1;
               mmu_address_d <= instruction2_2;
@@ -919,8 +913,7 @@ module x_simple (
               write_value <= next_process_address;
               write_enabled <= 1;
               stage <= STAGE_INT;
-              //fixme: add shared memory from current process to int process
-              mmu_add_shared_mem <= 1;
+              //fixme: add shared memory from current process to int process       
               mmu_address_a <= instruction1_2;
               mmu_address_b <= instruction2_1;
               mmu_address_d <= instruction2_2;
@@ -934,8 +927,6 @@ module x_simple (
               write_value <= next_process_address;
               write_enabled <= 1;
               stage <= STAGE_INT;
-              //fixme: remove shared memory from int process
-              mmu_delete_shared_mem <= 1;
             end
             //port number, 16 bit source address 
             OPCODE_RAM2OUT: begin
@@ -1029,7 +1020,7 @@ module x_simple (
            if (mmu_address_segment_to_search == 0) begin
              mmu_address_c <= process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE;
              stage <= STAGE_CHECK_MMU_ADDRESS3;
-           end else if (mmu_address_segment_to_search <= 7) begin
+           end else if (mmu_address_segment_to_search <= 6) begin
               read_address<=process_address[process_num] + ADDRESS_MMU_LEN + mmu_address_segment_to_search;
              stage <= STAGE_CHECK_MMU_ADDRESS3;
            end else begin
@@ -1198,14 +1189,14 @@ module x_simple (
           write_address <= process_address[process_num] + ADDRESS_REG_USED + 1;
           write_value <= registers_updated[process_num][16:31];
           stage <= STAGE_READ_REG;
-          if (mmu_action_ready) begin        
-             mmu_set_start_process_physical_page <= 0;
-             mmu_address_a <= pc[temp_process_num];
-             mmu_search_address <= 1;
-          end
+          //if (mmu_action_ready) begin        
+//             mmu_set_start_process_physical_page <= 0;
+//             mmu_address_a <= pc[temp_process_num];
+//             mmu_search_address <= 1;
+//          end
         end
         STAGE_READ_REG: begin
-             mmu_search_address <= 0;
+  //           mmu_search_address <= 0;
          
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) begin  //DEBUG info
             $write($time, " new registers updated ");  //DEBUG info
@@ -1222,7 +1213,6 @@ module x_simple (
           registers[temp_process_num][ram_read_save_reg_start] <= read_value;
           registers[temp_process_num][ram_read_save_reg_end]   <= read_value2;
           if (temp_registers_updated == 0) begin
-            if (mmu_action_ready) begin
               mmu_page_offset[temp_process_num] <= mmu_address_c % MMU_PAGE_SIZE+2;
               physical_pc[temp_process_num] <= mmu_address_c-2;                            
               process_num <= temp_process_num;
@@ -1231,7 +1221,6 @@ module x_simple (
               //read next process address
               read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
               stage <= STAGE_READ_NEXT_NEXT_PROCESS;
-            end
           end else begin
             if (temp_registers_updated[ram_read_save_reg_start+1]) begin
               ram_read_save_reg_start <= ram_read_save_reg_start + 1;
@@ -1264,7 +1253,6 @@ module x_simple (
        
         end
         STAGE_READ_NEXT_NEXT_PROCESS: begin
-          if (mmu_action_ready) begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display(
                   $time,
@@ -1277,28 +1265,20 @@ module x_simple (
               );  //DEBUG info
 
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display("\n\n");
-            mmu_set_start_process_physical_page <= 0;
             next_process_address <= read_value;
             temp_process_num <= process_num;                                
             `MAKE_MMU_SEARCH2
-          end
         end
         STAGE_DELETE_PROCESS: begin
           process_used[process_num] <= 0;
-          mmu_delete_process = 0;
-          if (mmu_action_ready) begin
             process_address[process_num] <= prev_process_address;
             `MAKE_SWITCH_TASK(0)
-          end
         end
         STAGE_SPLIT_PROCESS: begin
-          mmu_split_process = 0;
-          if (mmu_action_ready) begin
             //  $display($time, " new  process chain starts in ", mmu_address_c, " x"); //DEBUG info            
             mul_a <= mmu_address_c;
             mul_b <= MMU_PAGE_SIZE;
             stage <= STAGE_SPLIT_PROCESS2;
-          end
         end
         STAGE_SPLIT_PROCESS2: begin
           stage <= STAGE_SPLIT_PROCESS3;
@@ -1334,7 +1314,6 @@ module x_simple (
           `MAKE_MMU_SEARCH2
         end
         STAGE_REG_INT: begin
-          mmu_reg_int <= 0;
           //old process
           write_address <= process_address[process_num] + ADDRESS_PC;
           write_value <= pc[process_num];
@@ -1345,8 +1324,6 @@ module x_simple (
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_INT: begin
-          mmu_add_shared_mem <= 0;
-          mmu_delete_shared_mem <= 0;
           write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
           write_value <= int_process_address[instruction1_2];
           if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
@@ -1368,14 +1345,9 @@ module x_simple (
       `HARD_DEBUG("O");  //DEBUG info
       `HARD_DEBUG("D");  //DEBUG info
       `HARD_DEBUG2(error_code[process_num]);  //DEBUG info
-      mmu_search_address <= 0;
-      mmu_set_start_process_physical_page <= 0;
-      mmu_split_process <= 0;
       if (next_process_address == process_address[process_num]) begin
-        mmu_delete_process <= 0;
         stage <= STAGE_HLT;
       end else begin
-        mmu_delete_process <= 1;
         write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
         write_value <= next_process_address;
         write_enabled <= 1;
@@ -1405,7 +1377,7 @@ module single_blockram (
 
   // verilog_format:off
    //(* ram_style = "block" *)
-   bit [15:0] ram  [0:559]= {  // in Vivado (required by board)
+   bit [15:0] ram  [0:599]= {  // in Vivado (required by board)
   //  reg [0:559] [15:0] ram = {  // in iVerilog
 
       //first process - 4 pages (400 elements)
@@ -1424,11 +1396,10 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       
-      16'd0007, //mmu segment length
+      16'd0006, //mmu segment length
       16'h0001, //physical segment address for mmu logical page 1 or 0 (not assigned)
       16'h0002, //physical segment address for mmu logical page 2 or 0 (not assigned)
       16'h0003,
-      16'h0000,
       16'h0000,
       16'h0000,
       16'h0000,
@@ -1489,10 +1460,9 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       16'h0000, 16'h0000, 16'h0000, 16'h0000, 
 
-      16'd0007, //mmu segment length
+      16'd0006, //mmu segment length
       16'h0003, //physical segment address for mmu logical page 1 or 0 (not assigned)
       16'h0000, //physical segment address for mmu logical page 2 or 0 (not assigned)
-      16'h0000,
       16'h0000,
       16'h0000,
       16'h0000,
@@ -1556,10 +1526,9 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
 
-      16'd0007, //mmu segment length
+      16'd0006, //mmu segment length
       16'h0000, //physical segment address for mmu logical page 1 or 0 (not assigned)
       16'h0000, //physical segment address for mmu logical page 2 or 0 (not assigned)
-      16'h0000,
       16'h0000,
       16'h0000,
       16'h0000,
