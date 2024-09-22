@@ -45,7 +45,7 @@ parameter MMU_MAX_INDEX_BIT_SIZE = 8;  //256 values can be saved in 8 bits
 
 /* DEBUG info */ `define SHOW_REG_DEBUG(ARG, INFO, ARG2, ARG3) \
 /* DEBUG info */     if (ARG == 1) begin \
-/* DEBUG info */       $write($time-starttime, INFO); \
+/* DEBUG info */       $write($time, INFO); \
 /* DEBUG info */       for (i = 0; i <= 10; i = i + 1) begin \
 /* DEBUG info */         $write($sformatf("%02x ", (i==ARG2?ARG3:registers[process_index][i]))); \
 /* DEBUG info */       end \
@@ -54,7 +54,7 @@ parameter MMU_MAX_INDEX_BIT_SIZE = 8;  //256 values can be saved in 8 bits
 
 /* DEBUG info */  `define SHOW_MMU_DEBUG \
 /* DEBUG info */     if (MMU_CHANGES_DEBUG == 1 && !HARDWARE_DEBUG) begin \
-/* DEBUG info */       $write($time-starttime, " mmu "); \
+/* DEBUG info */       $write($time, " mmu "); \
 /* DEBUG info */       for (i = 0; i <= 10; i = i + 1) begin \
 /* DEBUG info */         if (mmu_start_process_physical_page == i) $write("s"); \
 /* DEBUG info */         if (/* 0,0 on position 0 can be used in theory */ mmu_chain_memory[i] == 0 && mmu_logical_pages_memory[i] == 0) begin \
@@ -69,7 +69,7 @@ parameter MMU_MAX_INDEX_BIT_SIZE = 8;  //256 values can be saved in 8 bits
 
 /* DEBUG info */  `define SHOW_MMU2(ARG) \
 /* DEBUG info */     if (MMU_CHANGES_DEBUG == 1 && !HARDWARE_DEBUG) begin \
-/* DEBUG info */       $write($time-starttime, " mmu ",ARG," "); \
+/* DEBUG info */       $write($time, " mmu ",ARG," "); \
 /* DEBUG info */       for (i = 0; i <= 10; i = i + 1) begin \
 /* DEBUG info */         $write($sformatf("%02x ", ram[i])); \
 /* DEBUG info */       end \
@@ -79,7 +79,7 @@ parameter MMU_MAX_INDEX_BIT_SIZE = 8;  //256 values can be saved in 8 bits
 
 /* DEBUG info */  `define SHOW_TASK_INFO(ARG) \
 /* DEBUG info */     if (TASK_SWITCHER_DEBUG == 1 && !HARDWARE_DEBUG) begin \
-/* DEBUG info */          $write($time-starttime, " ",ARG," pc ", address_pc[process_index]); \
+/* DEBUG info */          $write($time, " ",ARG," pc ", address_pc[process_index]); \
 /* DEBUG info */          $display( \
 /* DEBUG info */              " ",ARG," process seg/addr ", mmu_start_process_page, process_start_address[process_index], \
 /* DEBUG info */              " process index ", process_index \
@@ -180,8 +180,7 @@ endmodule
     output bit [8:0] read_value,
     input write_enable,
     input [15:0] write_addr,
-    input [8:0] write_value,
-    input [10:0] starttime
+    input [8:0] write_value
 );
 
   //(* ram_style = "distributed" *)
@@ -195,7 +194,7 @@ endmodule
   always @(negedge clk) begin
     if (write_enable) begin
       ram[write_addr] <= write_value;
-      //$display($time-starttime, " chain write ", write_addr, "=", write_value);
+      //$display($time, " chain write ", write_addr, "=", write_value);
     end
   end
 endmodule*/
@@ -443,7 +442,7 @@ module x_simple (
   `define MAKE_SWITCH_TASK(ARG) \
      if (ARG==0) how_many <= 0; \
      if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
-            $display("\n\n",$time-starttime, " TASK SWITCHER from ", process_address[process_num], " to ", next_process_address); \
+            $display("\n\n",$time, " TASK SWITCHER from ", process_address[process_num], " to ", next_process_address); \
      for (i=0;i<HOW_BIG_PROCESS_CACHE;i=i+1) begin \
        if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display ("cache ",process_used[i]," ", process_address[i]);\
        if (process_used[i]) begin \
@@ -468,7 +467,7 @@ module x_simple (
     if (reset == 1 && rst_can_be_done == 1) begin
       write_enabled   <= 0;
       rst_can_be_done <= 0;
-      if (OTHER_DEBUG && !HARDWARE_DEBUG) $display($time - starttime, " reset");  //DEBUG info
+      if (OTHER_DEBUG && !HARDWARE_DEBUG) $display($time, " reset");  //DEBUG info
 
       error_code <= '{default: 0};
       registers <= '{default: 0};
@@ -504,7 +503,7 @@ module x_simple (
       
     end else if (instructions < HOW_MANY_OP_SIMULATE && error_code[process_num] == ERROR_NONE) begin
       if (STAGE_DEBUG && !HARDWARE_DEBUG) begin  //DEBUG info
-        $write($time - starttime, " stage ", stage, " ");  //DEBUG info
+        $write($time, " stage ", stage, " ");  //DEBUG info
         case (stage)  //DEBUG info
           STAGE_AFTER_RESET: $write("STAGE_AFTER_RESET");  //DEBUG info
           STAGE_GET_1_BYTE: $write("STAGE_GET_1_BYTE");  //DEBUG info
@@ -541,7 +540,7 @@ module x_simple (
           write_enabled <= 0;
           if (READ_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
             $display(  //DEBUG info
-                $time - starttime,  //DEBUG info
+                $time,  //DEBUG info
                 " read ready ",  //DEBUG info
                 read_address,  //DEBUG info
                 "=",  //DEBUG info
@@ -554,7 +553,7 @@ module x_simple (
           `HARD_DEBUG("a");  //DEBUG info
           if (OP_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
             $display(  //DEBUG info
-                $time - starttime,  //DEBUG info
+                $time,  //DEBUG info
                 process_address[process_num],  //DEBUG info
                 " pc ",  //DEBUG info
                 (pc[process_num]),  //DEBUG info
@@ -585,7 +584,7 @@ module x_simple (
               end else begin
                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                   $display(  //DEBUG info
-                      $time - starttime,
+                      $time,
                       " opcode = jmp to ",
                       (read_value2 + (256 * 256) * instruction1_2)  //DEBUG info
                   );  //DEBUG info
@@ -602,7 +601,7 @@ module x_simple (
               end else begin
                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                   $display(  //DEBUG info
-                      $time - starttime,
+                      $time,
                       " opcode = jmp to ",
                       (registers[process_num][read_value2] - 1)  //DEBUG info
                   );  //DEBUG info
@@ -614,7 +613,7 @@ module x_simple (
             OPCODE_JMP_PLUS: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                 $display(  //DEBUG info
-                    $time - starttime,  //DEBUG info
+                    $time,  //DEBUG info
                     " opcode = jmp plus to ",  //DEBUG info
                     pc[process_num] + read_value2 * 2 - 1,  //DEBUG info
                     " (",  //DEBUG info
@@ -631,7 +630,7 @@ module x_simple (
               end else begin
                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                   $display(  //DEBUG info
-                      $time - starttime,  //DEBUG info
+                      $time,  //DEBUG info
                       " opcode = jmp plus16 to ",  //DEBUG info
                       pc[process_num] + registers[process_num][read_value2] * 2 - 1,  //DEBUG info
                       " (",  //DEBUG info
@@ -649,7 +648,7 @@ module x_simple (
               end else begin
                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                   $display(  //DEBUG info
-                      $time - starttime,  //DEBUG info
+                      $time,  //DEBUG info
                       " opcode = jmp minus to ",  //DEBUG info
                       pc[process_num] - read_value2 * 2 - 1,  //DEBUG info
                       " (",  //DEBUG info
@@ -669,7 +668,7 @@ module x_simple (
               end else begin
                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                   $display(  //DEBUG info
-                      $time - starttime,  //DEBUG info
+                      $time,  //DEBUG info
                       " opcode = jmp minus16 to ",  //DEBUG info
                       pc[process_num] - registers[process_num][read_value2] * 2 - 1,  //DEBUG info
                       " (",  //DEBUG info
@@ -689,7 +688,7 @@ module x_simple (
               end else begin
                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                   $display(  //DEBUG info
-                      $time - starttime,  //DEBUG info
+                      $time,  //DEBUG info
                       " opcode = ram2reg read value from address ",  //DEBUG info
                       read_value2,  //DEBUG info
                       "+ to reg ",  //DEBUG info
@@ -711,7 +710,7 @@ module x_simple (
               end else begin
                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                   $display(  //DEBUG info
-                      $time - starttime,  //DEBUG info
+                      $time,  //DEBUG info
                       " opcode = ram2reg16 read from ram (address ",  //DEBUG info
                       registers[instruction2_2],  //DEBUG info
                       "+) to reg ",  //DEBUG info
@@ -733,7 +732,7 @@ module x_simple (
               end else begin
                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                   $display(  //DEBUG info
-                      $time - starttime,  //DEBUG info
+                      $time,  //DEBUG info
                       " opcode = reg2ram save reg ",  //DEBUG info
                       instruction1_2_1,  //DEBUG info
                       "-",  //DEBUG info
@@ -757,7 +756,7 @@ module x_simple (
               end else begin
                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                   $display(  //DEBUG info
-                      $time - starttime,  //DEBUG info
+                      $time,  //DEBUG info
                       " opcode = reg2ram16 save to ram (address ",  //DEBUG info
                       registers[instruction2_2],  //DEBUG info
                       "+) from reg ",  //DEBUG info
@@ -775,7 +774,7 @@ module x_simple (
             OPCODE_NUM2REG: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                 $display(  //DEBUG info
-                    $time - starttime,  //DEBUG info
+                    $time,  //DEBUG info
                     " opcode = num2reg save value ",  //DEBUG info
                     read_value2,  //DEBUG info
                     " to reg ",  //DEBUG info
@@ -791,7 +790,7 @@ module x_simple (
             OPCODE_REG_PLUS: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                 $display(  //DEBUG info
-                    $time - starttime,  //DEBUG info
+                    $time,  //DEBUG info
                     " opcode = regplus add value ",  //DEBUG info
                     read_value2,  //DEBUG info
                     " to reg ",  //DEBUG info
@@ -807,7 +806,7 @@ module x_simple (
             OPCODE_REG_MINUS: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                 $display(  //DEBUG info
-                    $time - starttime,  //DEBUG info
+                    $time,  //DEBUG info
                     " opcode = regminus dec value ",  //DEBUG info
                     read_value2,  //DEBUG info
                     " to reg ",  //DEBUG info
@@ -823,7 +822,7 @@ module x_simple (
             OPCODE_REG_MUL: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                 $display(  //DEBUG info
-                    $time - starttime,  //DEBUG info
+                    $time,  //DEBUG info
                     " opcode = regmul mul value ",  //DEBUG info
                     read_value2,  //DEBUG info
                     " to reg ",  //DEBUG info
@@ -842,7 +841,7 @@ module x_simple (
               end else begin
                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                   $display(  //DEBUG info
-                      $time - starttime,  //DEBUG info
+                      $time,  //DEBUG info
                       " opcode = regdiv div value ",  //DEBUG info
                       read_value2,  //DEBUG info
                       " to reg ",  //DEBUG info
@@ -857,7 +856,7 @@ module x_simple (
             //exit process
             OPCODE_EXIT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)
-                $display($time - starttime, " opcode = exit");  //DEBUG info
+                $display($time, " opcode = exit");  //DEBUG info
               mmu_delete_process <= 1;
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -868,7 +867,7 @@ module x_simple (
             OPCODE_PROC: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                 $display(  //DEBUG info
-                    $time - starttime,  //DEBUG info
+                    $time,  //DEBUG info
                     " opcode = proc, pages ",  //DEBUG info
                     read_value2,  //DEBUG info
                     "-",  //DEBUG info
@@ -883,7 +882,7 @@ module x_simple (
             OPCODE_REG_INT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                 $display(
-                    $time - starttime,
+                    $time,
                     " opcode = reg_int ",
                     instruction1_2,
                     " logical pages",
@@ -907,7 +906,7 @@ module x_simple (
             OPCODE_INT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)
                 $display(
-                    $time - starttime,
+                    $time,
                     " opcode = int ",
                     instruction1_2,
                     " pages ",
@@ -929,7 +928,7 @@ module x_simple (
             //int number
             OPCODE_INT_RET: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)
-                $display($time - starttime, " opcode = int_ret");  //DEBUG info
+                $display($time, " opcode = int_ret");  //DEBUG info
               //replace current process with int process in the chain 
               write_address <= int_process_address[instruction1_2] + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -945,7 +944,7 @@ module x_simple (
               end else begin
                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                   $display(  //DEBUG info
-                      $time - starttime,  //DEBUG info
+                      $time,  //DEBUG info
                       " opcode = ram2out read value from address ",  //DEBUG info
                       read_value2,  //DEBUG info
                       "+ to port ",  //DEBUG info
@@ -956,7 +955,7 @@ module x_simple (
             end
             default: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG)
-                $display($time - starttime, " opcode = unknown");  //DEBUG info
+                $display($time, " opcode = unknown");  //DEBUG info
               `MAKE_MMU_SEARCH2;
               //if (instructions == HOW_MANY_OP_SIMULATE) search_mmu_address = 0; //DEBUG info
             end
@@ -974,7 +973,7 @@ module x_simple (
           registers[process_num][ram_read_save_reg_start] <= read_value;
           if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
             $display(  //DEBUG info
-                $time - starttime,  //DEBUG info
+                $time,  //DEBUG info
                 " read value for reg ",  //DEBUG info
                 ram_read_save_reg_start,  //DEBUG info
                 " from address ",  //DEBUG info
@@ -993,7 +992,7 @@ module x_simple (
           if (ram_read_save_reg_start == ram_read_save_reg_end) begin
             if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
               $display(  //DEBUG info
-                  $time - starttime,  //DEBUG info
+                  $time,  //DEBUG info
                   " save value ",
                   registers[process_num][ram_read_save_reg_start],
                   " from reg ",
@@ -1008,7 +1007,7 @@ module x_simple (
             write_value <= registers[process_num][ram_read_save_reg_start];
             if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
               $display(  //DEBUG info
-                  $time - starttime,  //DEBUG info
+                  $time,  //DEBUG info
                   " save value ",
                   registers[process_num][ram_read_save_reg_start+1],
                   " from reg ",
@@ -1055,7 +1054,7 @@ module x_simple (
         STAGE_ALU: begin
           if (ALU_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
             $display(  //DEBUG info
-                $time - starttime,  //DEBUG info
+                $time,  //DEBUG info
                 " alu_num ",  //DEBUG info
                 alu_num,  //DEBUG info
                 " alu_op ",  //DEBUG info
@@ -1073,7 +1072,7 @@ module x_simple (
                 ALU_SET: begin
                   if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                     $display(
-                        $time - starttime, " set reg ", alu_num, " with ", read_value2
+                        $time, " set reg ", alu_num, " with ", read_value2
                     );  //DEBUG info
                   registers[process_num][alu_num] <= read_value2;
                   registers_updated[process_num][alu_num] <= read_value2 != 0;
@@ -1142,7 +1141,7 @@ module x_simple (
             write_enabled <= 0;
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display(
-                  $time - starttime,
+                  $time,
                   " new process used(cache) ",
                   process_num,
                   " pc ",
@@ -1155,7 +1154,7 @@ module x_simple (
           end else begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display(
-                  $time - starttime, " new process used ", temp_process_num, " pc ", read_value
+                  $time, " new process used ", temp_process_num, " pc ", read_value
               );
             //temp_registers_updated
             registers[temp_process_num] <= '{default: 0};
@@ -1165,10 +1164,10 @@ module x_simple (
             read_address <= next_process_address + ADDRESS_REG_USED;
             read_address2 <= next_process_address + ADDRESS_REG_USED + 1;
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
-              $display($time - starttime, " new pc ", read_value);  //DEBUG info
+              $display($time, " new pc ", read_value);  //DEBUG info
             //old process
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) begin  //DEBUG info
-              $write($time - starttime, " old registers updated ");  //DEBUG info
+              $write($time, " old registers updated ");  //DEBUG info
               for (i = 0; i < 32; i = i + 1) begin  //DEBUG info
                 $write(registers_updated[process_num][i]);  //DEBUG info
               end  //DEBUG info
@@ -1209,12 +1208,12 @@ module x_simple (
              mmu_search_address <= 0;
          
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) begin  //DEBUG info
-            $write($time - starttime, " new registers updated ");  //DEBUG info
+            $write($time, " new registers updated ");  //DEBUG info
             for (i = 0; i < 32; i = i + 1) begin  //DEBUG info
               $write(temp_registers_updated[i]);  //DEBUG info
             end  //DEBUG info
             $display("");  //DEBUG info
-            $display($time - starttime, " reading reg ", read_address, " ",
+            $display($time, " reading reg ", read_address, " ",
                      ram_read_save_reg_start, "=",  //DEBUG info
                      read_value, " ", read_address2, " ", ram_read_save_reg_end, "=",
                      read_value2,  //DEBUG info
@@ -1268,7 +1267,7 @@ module x_simple (
           if (mmu_action_ready) begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display(
-                  $time - starttime,
+                  $time,
                   " read next next ",
                   read_address,
                   " ",
@@ -1295,7 +1294,7 @@ module x_simple (
         STAGE_SPLIT_PROCESS: begin
           mmu_split_process = 0;
           if (mmu_action_ready) begin
-            //  $display($time-starttime, " new  process chain starts in ", mmu_address_c, " x"); //DEBUG info            
+            //  $display($time, " new  process chain starts in ", mmu_address_c, " x"); //DEBUG info            
             mul_a <= mmu_address_c;
             mul_b <= MMU_PAGE_SIZE;
             stage <= STAGE_SPLIT_PROCESS2;
@@ -1319,7 +1318,7 @@ module x_simple (
         STAGE_SAVE_NEXT_PROCESS: begin
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
             $display(
-                $time - starttime,
+                $time,
                 " save next ",
                 mul_c + ADDRESS_NEXT_PROCESS,
                 "=",
@@ -1363,7 +1362,7 @@ module x_simple (
         end
       endcase
     end else if (error_code[process_num] != ERROR_NONE) begin
-      $display($time - starttime, " BSOD ", error_code[process_num]);  //DEBUG info
+      $display($time, " BSOD ", error_code[process_num]);  //DEBUG info
       `HARD_DEBUG("B");  //DEBUG info
       `HARD_DEBUG("S");  //DEBUG info
       `HARD_DEBUG("O");  //DEBUG info
