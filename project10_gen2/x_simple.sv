@@ -411,10 +411,15 @@ module x_simple (
 
   bit [15:0] int_pc[0:255];
   bit [15:0] int_process_address[0:255];
+  bit mmu_inside_int=0;
+  bit [15:0] mmu_source_start_shared_page,mmu_source_end_shared_page, mmu_target_start_shared_page, mmu_target_end_shared_page;
+  bit [15:0] mmu_int_num;
 
   bit mmu_free_page[0:19] = {1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   bit [15:0] mmu_address_a, mmu_address_b, mmu_address_c, mmu_address_d;
   bit [15:0] mmu_address_segment_to_search;
+  
+  assign mmu_address_segment_to_search = mmu_address_a / MMU_PAGE_SIZE;
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
       mmu_address_a <= ARG; \
@@ -888,9 +893,8 @@ module x_simple (
                 );  //DEBUG info
               int_pc[instruction1_2] <= pc[process_num];
               int_process_address[instruction1_2] <= process_address[process_num];
-              mmu_address_a <= instruction1_2;
-              mmu_address_b <= instruction2_1;
-              mmu_address_d <= instruction2_2;
+              mmu_source_start_shared_page<=instruction2_1;
+              mmu_source_end_shared_page<=instruction2_1+instruction2_2;
               //delete process from chain
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -915,9 +919,10 @@ module x_simple (
               write_enabled <= 1;
               stage <= STAGE_INT;
               //fixme: add shared memory from current process to int process       
-              mmu_address_a <= instruction1_2;
-              mmu_address_b <= instruction2_1;
-              mmu_address_d <= instruction2_2;
+              mmu_target_start_shared_page<=instruction2_1;
+              mmu_target_end_shared_page<=instruction2_1+instruction2_2;
+              mmu_inside_int<=1;
+              mmu_int_num<=instruction1_2;
             end
             //int number
             OPCODE_INT_RET: begin
@@ -927,6 +932,7 @@ module x_simple (
               write_value <= next_process_address;
               write_enabled <= 1;
               stage <= STAGE_INT;
+              mmu_inside_int<=0;
             end
             //port number, 16 bit source address 
             OPCODE_RAM2OUT: begin
@@ -1011,17 +1017,31 @@ module x_simple (
         end
         STAGE_CHECK_MMU_ADDRESS: begin
           write_enabled <= 0;
-          mmu_address_segment_to_search <= mmu_address_a / MMU_PAGE_SIZE;
+
           if (mmu_address_a < MMU_PAGE_SIZE) begin
             mmu_address_c <= process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE;
-            stage <= STAGE_CHECK_MMU_ADDRESS2;
-          end else begin
-            //fixme. situation when needs to go new page
-            read_address<=process_address[process_num] + ADDRESS_MMU_LEN + (mmu_address_a / MMU_PAGE_SIZE);
-            stage <= STAGE_CHECK_MMU_ADDRESS2;                      
-          end
+          end else if (mmu_inside_int==1&& mmu_address_segment_to_search>=mmu_target_start_shared_page &&
+             mmu_address_segment_to_search<=mmu_target_end_shared_page) begin
+mmu_address_b<=int_process_address[mmu_int_num];
+mmu_address_c<=mmu_address_segment_to_search-mmu_target_start_shared_page+mmu_source_start_shared_page;
+mmu_address_d<=6;
+if (mmu_address_segment_to_search-mmu_target_start_shared_page+mmu_source_start_shared_page<=6) begin
+            read_address<=process_address[process_num] + ADDRESS_MMU_LEN + mmu_address_segment_to_search-mmu_target_start_shared_page+mmu_source_start_shared_page;
+end
+            read_address2<=process_address[process_num] + ADDRESS_MMU_LEN + 7;
+end else begin
+mmu_address_b<=process_address[process_num];
+mmu_address_c<=mmu_address_segment_to_search;
+mmu_address_d<=6;
+if (mmu_address_segment_to_search<=6) begin
+            read_address<=process_address[process_num] + ADDRESS_MMU_LEN + mmu_address_segment_to_search;
+end
+            read_address2<=process_address[process_num] + ADDRESS_MMU_LEN + 7;
+end
+            stage <= STAGE_CHECK_MMU_ADDRESS2;               
         end
         STAGE_CHECK_MMU_ADDRESS2: begin
+if (mmu_address_c<=mmu_address_d) begin
           if (mmu_address_segment_to_search != 0 && read_value == 0) begin
           $display(  //DEBUG info
              $time, "needs new memory page");             
@@ -1029,21 +1049,31 @@ module x_simple (
           $display(  //DEBUG info
               $time, "process ", process_address[process_num], " logical address ", mmu_address_a,
               "= physical address ",
-              (mmu_address_segment_to_search == 0 ? mmu_address_c : read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE), 
-              " ",read_value, " ",read_address," ",mmu_address_a / MMU_PAGE_SIZE," ",ADDRESS_MMU_LEN, " ",mmu_address_segment_to_search);
+              (mmu_address_a < MMU_PAGE_SIZE?mmu_address_c
+     :read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE));
           end    
           if (stage_after_mmu != STAGE_SET_RAM_BYTE) begin
             if (stage_after_mmu == STAGE_GET_1_BYTE) begin
               mmu_page_offset[process_num] <= mmu_address_a % MMU_PAGE_SIZE;
-              physical_pc[process_num] <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value*MMU_PAGE_SIZE+mmu_address_a % MMU_PAGE_SIZE;
+              physical_pc[process_num] <=  (mmu_address_a < MMU_PAGE_SIZE?mmu_address_c
+     :read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE);
             end
-            read_address  <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value*MMU_PAGE_SIZE+mmu_address_a % MMU_PAGE_SIZE;
-            read_address2 <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value*MMU_PAGE_SIZE+mmu_address_a % MMU_PAGE_SIZE + 1;
+            read_address  <=  (mmu_address_a < MMU_PAGE_SIZE?mmu_address_c
+     :read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE);
+            read_address2 <=  (mmu_address_a < MMU_PAGE_SIZE?mmu_address_c
+     :read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE) + 1;
           end else begin
-            write_address <= mmu_address_segment_to_search == 0 ? mmu_address_c:read_value*MMU_PAGE_SIZE+mmu_address_a % MMU_PAGE_SIZE;
+            write_address <=  (mmu_address_a < MMU_PAGE_SIZE?mmu_address_c
+     :read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE);
             write_enabled <= 1;
           end
           stage <= stage_after_mmu;
+end else begin
+          $display(  //DEBUG info
+             $time, "needs to traverse");             
+end
+
+
         end
         STAGE_ALU: begin
           if (ALU_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
@@ -1393,7 +1423,7 @@ module single_blockram (
       16'h0000,
       16'h0000,
       16'h0000,
-      16'h0000, //next mmu segment
+      16'h0000, //next mmu address or 0 (not assigned)
       
       16'h1210, 16'd2613, //value to reg
       16'h0e10, 16'd0290, //save to ram
@@ -1457,7 +1487,7 @@ module single_blockram (
       16'h0000,
       16'h0000,
       16'h0000,
-      16'h0000, //next mmu segment
+      16'h0000, //next mmu address or 0 (not assigned)
 
       16'h1210, 16'd2612, //value to reg
     //  16'h0e10, 16'd0101, //save to ram
@@ -1523,7 +1553,7 @@ module single_blockram (
       16'h0000,
       16'h0000,
       16'h0000,
-      16'h0000, //next mmu segment
+      16'h0000, //next mmu address or 0 (not assigned)
 
       16'h1a37, 16'h0101, //reg int 
       16'h0911, 16'd0150, //ram to reg
