@@ -1015,7 +1015,7 @@ module x_simple (
           if (mmu_address_segment_to_search < MMU_PAGE_SIZE) begin
             mmu_address_c <= process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE;
             stage <= STAGE_CHECK_MMU_ADDRESS3;
-          end else if (mmu_address_segment_to_search <= 6*MMU_PAGE_SIZE) begin
+          end else if (mmu_address_segment_to_search <= 6 * MMU_PAGE_SIZE) begin
             read_address<=process_address[process_num] + ADDRESS_MMU_LEN + mmu_address_segment_to_search;
             stage <= STAGE_CHECK_MMU_ADDRESS3;
           end else begin
@@ -1257,34 +1257,38 @@ module x_simple (
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_SPLIT_PROCESS: begin
-          mmu_address_d<=read_value*MMU_PAGE_SIZE;
-          stage<=STAGE_SPLIT_PROCESS2;
+          mmu_address_d <= read_value * MMU_PAGE_SIZE;
+          stage <= STAGE_SPLIT_PROCESS2;
         end
-        STAGE_SPLIT_PROCESS2: begin         
+        STAGE_SPLIT_PROCESS2: begin
           if (mmu_address_a == mmu_address_b) begin
-          // $display(
+            // $display(
             //    $time, " new process address ",read_address," ",mmu_address_d + ADDRESS_MMU_LEN + mmu_address_a,"=",read_value
             //);  //DEBUG info
-            write_address <= write_address+1;
+            write_address <= write_address + 1;
             write_value <= read_value;
             write_enabled <= 1;
-          
+
             stage <= STAGE_SAVE_NEXT_PROCESS;
           end else begin
-           //$display(
-//                $time, " new process address ",read_address," ",mmu_address_d + ADDRESS_MMU_LEN + mmu_address_a,"=",read_value
-  //          );  //DEBUG info
-            read_address<=read_address+1;
-            write_address <= write_address+1;
-            write_value <= read_value;
+            //$display(
+            //                $time, " new process address ",read_address," ",mmu_address_d + ADDRESS_MMU_LEN + mmu_address_a,"=",read_value
+            //          );  //DEBUG info
+            read_address  <= read_address + 1;
+            write_address <= write_address + 1;
+            write_value   <= read_value;
             write_enabled <= 1;
-            mmu_address_a <=mmu_address_a +1;
+            mmu_address_a <= mmu_address_a + 1;
           end
-        end           
+        end
         STAGE_SAVE_NEXT_PROCESS: begin
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
             $display(
-                $time, " save next ", mmu_address_d + ADDRESS_NEXT_PROCESS, "=", next_process_address
+                $time,
+                " save next ",
+                mmu_address_d + ADDRESS_NEXT_PROCESS,
+                "=",
+                next_process_address
             );  //DEBUG info
           write_address <= mmu_address_d + ADDRESS_NEXT_PROCESS;
           write_value <= next_process_address;
