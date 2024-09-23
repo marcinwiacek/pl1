@@ -1012,22 +1012,26 @@ module x_simple (
         STAGE_CHECK_MMU_ADDRESS: begin
           write_enabled <= 0;
           mmu_address_segment_to_search <= mmu_address_a / MMU_PAGE_SIZE;
-          if (mmu_address_segment_to_search < MMU_PAGE_SIZE) begin
+          if (mmu_address_a < MMU_PAGE_SIZE) begin
             mmu_address_c <= process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE;
-            stage <= STAGE_CHECK_MMU_ADDRESS3;
-          end else if (mmu_address_segment_to_search <= 6 * MMU_PAGE_SIZE) begin
-            read_address<=process_address[process_num] + ADDRESS_MMU_LEN + mmu_address_segment_to_search;
-            stage <= STAGE_CHECK_MMU_ADDRESS3;
+            stage <= STAGE_CHECK_MMU_ADDRESS2;
           end else begin
-            //MMU segment
-            $display("big, big mistake");  //DEBUG info
+            //fixme. situation when needs to go new page
+            read_address<=process_address[process_num] + ADDRESS_MMU_LEN + (mmu_address_a / MMU_PAGE_SIZE);
+            stage <= STAGE_CHECK_MMU_ADDRESS2;                      
           end
         end
-        STAGE_CHECK_MMU_ADDRESS3: begin
+        STAGE_CHECK_MMU_ADDRESS2: begin
+          if (mmu_address_segment_to_search != 0 && read_value == 0) begin
+          $display(  //DEBUG info
+             $time, "needs new memory page");             
+          end else begin 
           $display(  //DEBUG info
               $time, "process ", process_address[process_num], " logical address ", mmu_address_a,
               "= physical address ",
-              mmu_address_segment_to_search == 0 ? mmu_address_c : read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE);
+              (mmu_address_segment_to_search == 0 ? mmu_address_c : read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE), 
+              " ",read_value, " ",read_address," ",mmu_address_a / MMU_PAGE_SIZE," ",ADDRESS_MMU_LEN, " ",mmu_address_segment_to_search);
+          end    
           if (stage_after_mmu != STAGE_SET_RAM_BYTE) begin
             if (stage_after_mmu == STAGE_GET_1_BYTE) begin
               mmu_page_offset[process_num] <= mmu_address_a % MMU_PAGE_SIZE;
