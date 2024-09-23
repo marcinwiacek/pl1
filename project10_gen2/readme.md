@@ -19,6 +19,12 @@ Applications are communicating with each other using interrupts + memory
 sharing. There are no other ways for doing this & you don't have kernel
 or hypervisor mode, which is big advantage (when you don't have something, it cannot be broken).
 
+**Hardware or software?**
+
+Hardware in PL is going rather into RISC (simple, short instructions)... but
+it's also doing things, which normally are in software in all modern OS
+(in fact you can't find today one user OS working just with one task).
+
 **Current implementation**
 
 1. has got support for RS-232 output
@@ -79,7 +85,7 @@ In process segment 0 we have
 * physical segment address for mmu logical page n or 0 (not assigned)
 * address of next mmu segment
 
-Next MMU segments have the whole segment for the MMU:
+Next MMU segments use the whole memory segment just for the MMU:
 
 * mmu_segment_length (how many entries are initialited)
 * physical segment address for mmu logical page n+1 or 0 (not assigned)
@@ -89,6 +95,9 @@ Next MMU segments have the whole segment for the MMU:
 
 MMU just needs to find correct page and read value from value indexed by logical page number.
 
+Complexity of search is generally n, additionally future PL short sort pages
+(and order should depend on access order)
+
 **Process memory**
 
 In the first process page we save on beginning few elements:
@@ -97,6 +106,7 @@ In the first process page we save on beginning few elements:
 * 4 16-bit bytes with logical PC value
 * 2 16-bit bytes with information, which registers have values different than zero (one bit - one register)
 * 32 16-bit bytes with register values
+* 8 16-bit bytes with first MMU pages
 
 **Process switching**
 
