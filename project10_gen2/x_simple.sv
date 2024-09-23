@@ -20,7 +20,7 @@ parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
 parameter MMU_STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
-parameter OP2_DEBUG = 1;
+parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
 
 parameter HOW_BIG_PROCESS_CACHE = 3;
@@ -313,6 +313,7 @@ module x_simple (
   parameter STAGE_SET_PORT = 28;
   parameter STAGE_CHECK_MMU_ADDRESS2 = 29;
   parameter STAGE_CHECK_MMU_ADDRESS3 = 30;
+  parameter STAGE_SPLIT_PROCESS6 = 31;
 
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
@@ -870,6 +871,7 @@ module x_simple (
                 );  //DEBUG info
               mmu_address_a <= read_value2;
               mmu_address_b <= read_value2 + instruction1_2;
+              read_address <= process_address[process_num] + ADDRESS_MMU_LEN + read_value2;
               stage <= STAGE_SPLIT_PROCESS;
             end
             //int number (8 bit), start memory page, end memory page 
@@ -1010,13 +1012,10 @@ module x_simple (
         STAGE_CHECK_MMU_ADDRESS: begin
           write_enabled <= 0;
           mmu_address_segment_to_search <= mmu_address_a / MMU_PAGE_SIZE;
-          stage <= STAGE_CHECK_MMU_ADDRESS2;
-        end
-        STAGE_CHECK_MMU_ADDRESS2: begin
-          if (mmu_address_segment_to_search == 0) begin
+          if (mmu_address_segment_to_search < MMU_PAGE_SIZE) begin
             mmu_address_c <= process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE;
             stage <= STAGE_CHECK_MMU_ADDRESS3;
-          end else if (mmu_address_segment_to_search <= 6) begin
+          end else if (mmu_address_segment_to_search <= 6*MMU_PAGE_SIZE) begin
             read_address<=process_address[process_num] + ADDRESS_MMU_LEN + mmu_address_segment_to_search;
             stage <= STAGE_CHECK_MMU_ADDRESS3;
           end else begin
@@ -1258,38 +1257,42 @@ module x_simple (
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_SPLIT_PROCESS: begin
-          //  $display($time, " new  process chain starts in ", mmu_address_c, " x"); //DEBUG info            
-          mul_a <= mmu_address_c;
-          mul_b <= MMU_PAGE_SIZE;
-          stage <= STAGE_SPLIT_PROCESS2;
+          mmu_address_d<=read_value*MMU_PAGE_SIZE;
+          stage<=STAGE_SPLIT_PROCESS2;
         end
-        STAGE_SPLIT_PROCESS2: begin
-          stage <= STAGE_SPLIT_PROCESS3;
-        end
-        STAGE_SPLIT_PROCESS3: begin
-          stage <= STAGE_SPLIT_PROCESS4;
-        end
-        STAGE_SPLIT_PROCESS4: begin
-          stage <= STAGE_SPLIT_PROCESS5;
-        end
-        STAGE_SPLIT_PROCESS5: begin
-          write_address <= process_address[process_num] + ADDRESS_NEXT_PROCESS;
-          write_value <= mul_c;
-          write_enabled <= 1;
-          stage <= STAGE_SAVE_NEXT_PROCESS;
-        end
+        STAGE_SPLIT_PROCESS2: begin         
+          if (mmu_address_a == mmu_address_b) begin
+          // $display(
+            //    $time, " new process address ",read_address," ",mmu_address_d + ADDRESS_MMU_LEN + mmu_address_a,"=",read_value
+            //);  //DEBUG info
+            write_address <= write_address+1;
+            write_value <= read_value;
+            write_enabled <= 1;
+          
+            stage <= STAGE_SAVE_NEXT_PROCESS;
+          end else begin
+           //$display(
+//                $time, " new process address ",read_address," ",mmu_address_d + ADDRESS_MMU_LEN + mmu_address_a,"=",read_value
+  //          );  //DEBUG info
+            read_address<=read_address+1;
+            write_address <= write_address+1;
+            write_value <= read_value;
+            write_enabled <= 1;
+            mmu_address_a <=mmu_address_a +1;
+          end
+        end           
         STAGE_SAVE_NEXT_PROCESS: begin
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
             $display(
-                $time, " save next ", mul_c + ADDRESS_NEXT_PROCESS, "=", next_process_address
+                $time, " save next ", mmu_address_d + ADDRESS_NEXT_PROCESS, "=", next_process_address
             );  //DEBUG info
-          write_address <= mul_c + ADDRESS_NEXT_PROCESS;
+          write_address <= mmu_address_d + ADDRESS_NEXT_PROCESS;
           write_value <= next_process_address;
           stage <= STAGE_SAVE_NEXT_PROCESS2;
         end
         STAGE_SAVE_NEXT_PROCESS2: begin
           write_enabled <= 0;
-          next_process_address <= mul_c;
+          next_process_address <= mmu_address_d;
           `MAKE_MMU_SEARCH2
         end
         STAGE_REG_INT: begin
