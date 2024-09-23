@@ -19,11 +19,17 @@ Applications are communicating with each other using interrupts + memory
 sharing. There are no other ways for doing this & you don't have kernel
 or hypervisor mode, which is big advantage (when you don't have something, it cannot be broken).
 
-**Hardware or software?**
+**Hardware or software? And why FPGA?**
 
 Hardware in PL is going rather into RISC (simple, short instructions)... but
 it's also doing things, which normally are in software in all modern OS
 (in fact you can't find today one user OS working just with one task).
+
+Some simulator for PL1 was written in very short time and the whole project
+could stop in this moment (software could be emulated in some ARM and that's it)
+... but idea is to build the whole system in this way, that project is so close
+to real hardware as possible. FPGA is the only choice for it available with
+sensible money and Artix-7 board was selected because of architecture and extra features.
 
 **Current implementation**
 
@@ -95,8 +101,8 @@ Next MMU segments use the whole memory segment just for the MMU:
 
 MMU just needs to find correct page and read value from value indexed by logical page number.
 
-Complexity of search is generally n, additionally future PL short sort pages
-(and order should depend on access order)
+Complexity of search is generally n, additionally future PL should sort pages
+(order will be dependent on access order)
 
 **Process memory**
 
@@ -110,7 +116,7 @@ In the first process page we save on beginning few elements:
 
 **Process switching**
 
-Every modern CPU / OS is running many processes in parallel. Software based switching gives flexibility, but... it can be not so effective like hardware one.
+Once again: every modern CPU / OS is running many processes in parallel. Software based switching gives flexibility, but... it can be not so effective like hardware one.
 
 1. PL1 has got tables, where can save state of few processes (when one of them exist in the table, switching length is similiar to executing ONE instruction)
 2. when process info is not found in tables, we try to read only these registers from memory, which have value different than zero
@@ -123,11 +129,11 @@ PL1 is building in the memory one way list with the process addresses and switch
 2. free Vivado version from https://www.xilinx.com/support/download.html (needs free registration;
 after installing needs installing drivers for cables and adding board definition;
 update tool can be started with binary xic/xic)
-3. board
+3. FPGA board
 
 **It doesn't have any sense**
 
-I will remind you August 1991 and Linus Torvalds:
+I will remind August 1991 and Linus Torvalds:
 
 "I'm doing a (free) operating system (just a hobby, won't be big and professional like gnu) for 386(486) AT clones. This has been brewing since april, and is starting to get ready. I'd like any feedback on things people like/dislike in minix, as my OS resembles it somewhat (same physical layout of the file-system (due to practical reasons) among other things)."
 
