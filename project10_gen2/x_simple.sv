@@ -1247,7 +1247,6 @@ module x_simple (
           registers[temp_process_num][ram_read_save_reg_start] <= read_value;
           registers[temp_process_num][ram_read_save_reg_end]   <= read_value2;
           if (temp_registers_updated == 0) begin
-
             process_num <= temp_process_num;
             //change process
             process_address[temp_process_num] <= next_process_address;
@@ -1283,14 +1282,12 @@ module x_simple (
               temp_registers_updated[ram_read_save_reg_end-3] <= 0;
             end
           end
-
         end
         STAGE_READ_NEXT_NEXT_PROCESS: begin
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
             $display(
                 $time, " read next next ", read_address, " ", next_process_address, "=", read_value
             );  //DEBUG info
-
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display("\n\n");
           next_process_address <= read_value;
           temp_process_num <= process_num;
