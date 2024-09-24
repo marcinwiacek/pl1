@@ -17,10 +17,9 @@ parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 0;
-parameter MMU_STAGE_DEBUG = 0;
+parameter STAGE_DEBUG = 1;
 parameter OP_DEBUG = 1;
-parameter OP2_DEBUG = 0;
+parameter OP2_DEBUG = 1;
 parameter ALU_DEBUG = 0;
 
 parameter HOW_BIG_PROCESS_CACHE = 3;
@@ -173,31 +172,6 @@ module div (
     tmp4 <= tmp3;
   end
 endmodule
-
-/*module mmufreelutram (
-    input clk,
-    input [15:0] read_addr,
-    output bit [8:0] read_value,
-    input write_enable,
-    input [15:0] write_addr,
-    input [8:0] write_value
-);
-
-  //(* ram_style = "distributed" *)
-  //(* ram_style = "block" *)
-  (* rw_addr_collision= "yes" *) bit [8:0] ram[0:MMU_MAX_INDEX];
-
-  integer i;
-
-  assign read_value = ram[read_addr];
-
-  always @(negedge clk) begin
-    if (write_enable) begin
-      ram[write_addr] <= write_value;
-      //$display($time, " chain write ", write_addr, "=", write_value);
-    end
-  end
-endmodule*/
 
 module x_simple (
     input clk,
@@ -537,7 +511,11 @@ module x_simple (
           STAGE_SPLIT_PROCESS5: $write("STAGE_SPLIT_PROCESS5");  //DEBUG info
           STAGE_SAVE_NEXT_PROCESS2: $write("STAGE_SAVE_NEXT_PROCESS2");  //DEBUG info
           STAGE_TASK_SWITCHER: $write("STAGE_TASK_SWITCHER");  //DEBUG info
-          STAGE_READ_SAVE_REG_USED: $write("STAGE_READ_SAVE_REG_USED");  //DEBUG info
+          STAGE_READ_SAVE_REG_USED: $write("STAGE_READ_SAVE_REG_USED");  //DEBUG info          
+          STAGE_SET_PORT: $write("STAGE_SET_PORT");  //DEBUG info
+          STAGE_CHECK_MMU_ADDRESS2 : $write("STAGE_CHECK_MMU_ADDRESS2");  //DEBUG info
+          STAGE_CHECK_MMU_ADDRESS3 : $write("STAGE_CHECK_MMU_ADDRESS3");  //DEBUG info
+          STAGE_SPLIT_PROCESS6 : $write("STAGE_SPLIT_PROCESS6");  //DEBUG info
         endcase  //DEBUG info
         $display(" pc ", pc[process_num]);  //DEBUG info
       end  //DEBUG info
@@ -963,8 +941,8 @@ module x_simple (
           instructions <= instructions + 1;
         end
         STAGE_SET_PORT: begin
-          if (reset_uart_buffer_available) uart_buffer_available = 0;
-          uart_buffer[uart_buffer_available++] = read_value / 256;
+          //if (reset_uart_buffer_available) uart_buffer_available = 0;
+          //uart_buffer[uart_buffer_available++] = read_value / 256;
           //  $write("value ", read_value/256," ",read_value%256);
           //  $write("value ", read_value2/256," ",read_value2%256);
           `MAKE_MMU_SEARCH2
@@ -1327,7 +1305,6 @@ module x_simple (
           //old process
           write_address <= process_address[process_num] + ADDRESS_PC;
           write_value <= pc[process_num];
-          stage <= STAGE_REG_INT2;
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_INT: begin
