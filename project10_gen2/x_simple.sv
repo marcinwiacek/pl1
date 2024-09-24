@@ -4,11 +4,13 @@
 
 parameter HOW_MANY_OP_SIMULATE = 22;
 parameter HOW_MANY_OP_PER_TASK_SIMULATE = 2;
+parameter HOW_BIG_PROCESS_CACHE = 3;
+parameter MMU_PAGE_SIZE = 100;  //how many bytes are assigned to one memory page in MMU, current program aligned to 100
 
 //options below are less important than options higher //DEBUG info
 parameter HARDWARE_DEBUG = 0;
 
-parameter RAM_WRITE_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -21,13 +23,6 @@ parameter STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
 parameter OP2_DEBUG = 1;
 parameter ALU_DEBUG = 0;
-
-parameter HOW_BIG_PROCESS_CACHE = 3;
-
-parameter MMU_PAGE_SIZE = 100;  //how many bytes are assigned to one memory page in MMU
-//parameter RAM_SIZE = 32767;
-parameter MMU_MAX_INDEX = 255;  //(`RAM_SIZE+1)/`MMU_PAGE_SIZE;
-parameter MMU_MAX_INDEX_BIT_SIZE = 8;  //256 values can be saved in 8 bits
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
 /* DEBUG info */     if (reset_uart_buffer_available) uart_buffer_available = 0; \
@@ -50,31 +45,6 @@ parameter MMU_MAX_INDEX_BIT_SIZE = 8;  //256 values can be saved in 8 bits
 /* DEBUG info */       end \
 /* DEBUG info */       $display(""); \
 /* DEBUG info */     end
-
-/* DEBUG info */  `define SHOW_MMU_DEBUG \
-/* DEBUG info */     if (MMU_CHANGES_DEBUG == 1 && !HARDWARE_DEBUG) begin \
-/* DEBUG info */       $write($time, " mmu "); \
-/* DEBUG info */       for (i = 0; i <= 10; i = i + 1) begin \
-/* DEBUG info */         if (mmu_start_process_physical_page == i) $write("s"); \
-/* DEBUG info */         if (/* 0,0 on position 0 can be used in theory */ mmu_chain_memory[i] == 0 && mmu_logical_pages_memory[i] == 0) begin \
-/* DEBUG info */            $write("f"); \
-/* DEBUG info */         end else if (mmu_chain_memory[i] == i) begin \
-/* DEBUG info */           $write("e"); \
-/* DEBUG info */         end \
-/* DEBUG info */         $write($sformatf("%02x-%02x ", mmu_chain_memory[i], mmu_logical_pages_memory[i])); \
-/* DEBUG info */       end \
-/* DEBUG info */       $display(""); \
-/* DEBUG info */     end
-
-/* DEBUG info */  `define SHOW_MMU2(ARG) \
-/* DEBUG info */     if (MMU_CHANGES_DEBUG == 1 && !HARDWARE_DEBUG) begin \
-/* DEBUG info */       $write($time, " mmu ",ARG," "); \
-/* DEBUG info */       for (i = 0; i <= 10; i = i + 1) begin \
-/* DEBUG info */         $write($sformatf("%02x ", ram[i])); \
-/* DEBUG info */       end \
-/* DEBUG info */       $display(""); \
-/* DEBUG info */     end
-
 
 /* DEBUG info */  `define SHOW_TASK_INFO(ARG) \
 /* DEBUG info */     if (TASK_SWITCHER_DEBUG == 1 && !HARDWARE_DEBUG) begin \
@@ -1522,8 +1492,8 @@ module single_blockram (
       16'h0000, 16'h0000,
 
       //page 4 (100 elements)
-      "ab",        "cd","ef"    ,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      "Po",    "zd",    "ro",    "wi",    "en",    "ia",    " z"    ," p",    "ly",    "ty",
+      " d",    "la",    " M",    "ic",    "ha",    "la",    16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
