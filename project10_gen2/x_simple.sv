@@ -12,7 +12,7 @@ parameter RAM_WRITE_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -388,8 +388,8 @@ module x_simple (
   bit mmu_inside_int = 0;
   bit [15:0]
       mmu_source_start_shared_page,
-      mmu_source_end_shared_page,
       mmu_target_start_shared_page,
+      mmu_source_end_shared_page,
       mmu_target_end_shared_page;
   bit [15:0] mmu_int_num;
 
@@ -885,6 +885,10 @@ module x_simple (
             end
             //int number (8 bit), start memory page, end memory page 
             OPCODE_INT: begin
+            
+              if (instruction2_1 + instruction2_2 != mmu_source_end_shared_page-mmu_source_start_shared_page) begin
+                error_code[process_num] <= ERROR_WRONG_ADDRESS;
+              end else begin              
               if (OP2_DEBUG && !HARDWARE_DEBUG)
                 $display(
                     $time,
@@ -905,6 +909,7 @@ module x_simple (
               mmu_target_end_shared_page <= instruction2_1 + instruction2_2;
               mmu_inside_int <= 1;
               mmu_int_num <= instruction1_2;
+              end
             end
             //int number
             OPCODE_INT_RET: begin
@@ -1000,7 +1005,7 @@ module x_simple (
           if (mmu_address_a < MMU_PAGE_SIZE) begin
           if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)                       
               $display(  //DEBUG info
-                  $time, " process ", physical_pc[process_num], " logical address ", mmu_address_a,
+                  $time, " process ", process_address[process_num], " logical address ", mmu_address_a,
                   "= physical address from page 0 ",
                   process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE);                  
             mmu_address_c <= process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE;
@@ -1270,6 +1275,7 @@ module x_simple (
           `MAKE_MMU_SEARCH2
         end
         STAGE_DELETE_PROCESS: begin
+          //todo: deleting from free mmu info
           process_used[process_num] <= 0;
           process_address[process_num] <= prev_process_address;
           `MAKE_SWITCH_TASK(0)
@@ -1503,7 +1509,7 @@ module single_blockram (
       16'h0000, 16'h0000,
 
       //page 4 (100 elements)
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      "ab",        "cd","ef"    ,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
@@ -1539,11 +1545,11 @@ module single_blockram (
       16'h0000,
       16'h0000, //next mmu address or 0 (not assigned)
 
-      16'h1a37, 16'h0101, //reg int 
+      16'h1a37, 16'h0102, //reg int 
       16'h0911, 16'd0150, //ram to reg
       16'h1210, 16'h0a35, //value to reg
-      16'h1d10, 16'd0099, //ram2out   
-      16'h1d10, 16'd0100, //ram2out      
+      16'h1d10, 16'd0100, //ram2out   
+      16'h1d10, 16'd0101, //ram2out      
       16'h1c37, 16'd0000, //int ret      
      // 16'h1800, 16'h0000, //process end
       //16'h0e10, 16'h0064, //save to ram
