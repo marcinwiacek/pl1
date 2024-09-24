@@ -923,8 +923,9 @@ module x_simple (
 //              uart_buffer[0] = read_value / 256;
 //              uart_buffer[1] = read_value % 256;              
 //            end else begin
-              uart_buffer[uart_buffer_available++] = read_value / 256;
-              uart_buffer[uart_buffer_available++] = read_value % 256;
+              uart_buffer[uart_buffer_available] <= read_value / 256;
+              uart_buffer_available<=uart_buffer_available+1;
+             // uart_buffer[uart_buffer_available++] = read_value % 256;
   //          end
             $display($time, " value ", read_value / 256, " ", read_value % 256);
             read_address<=read_address+1;
