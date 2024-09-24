@@ -513,9 +513,9 @@ module x_simple (
           STAGE_TASK_SWITCHER: $write("STAGE_TASK_SWITCHER");  //DEBUG info
           STAGE_READ_SAVE_REG_USED: $write("STAGE_READ_SAVE_REG_USED");  //DEBUG info          
           STAGE_SET_PORT: $write("STAGE_SET_PORT");  //DEBUG info
-          STAGE_CHECK_MMU_ADDRESS2 : $write("STAGE_CHECK_MMU_ADDRESS2");  //DEBUG info
-          STAGE_CHECK_MMU_ADDRESS3 : $write("STAGE_CHECK_MMU_ADDRESS3");  //DEBUG info
-          STAGE_SPLIT_PROCESS6 : $write("STAGE_SPLIT_PROCESS6");  //DEBUG info
+          STAGE_CHECK_MMU_ADDRESS2: $write("STAGE_CHECK_MMU_ADDRESS2");  //DEBUG info
+          STAGE_CHECK_MMU_ADDRESS3: $write("STAGE_CHECK_MMU_ADDRESS3");  //DEBUG info
+          STAGE_SPLIT_PROCESS6: $write("STAGE_SPLIT_PROCESS6");  //DEBUG info
         endcase  //DEBUG info
         $display(" pc ", pc[process_num]);  //DEBUG info
       end  //DEBUG info
@@ -854,10 +854,10 @@ module x_simple (
                     " opcode = proc, pages ",  //DEBUG info
                     read_value2,  //DEBUG info
                     "-",  //DEBUG info
-                    (read_value2 + instruction1_2-1)  //DEBUG info
+                    (read_value2 + instruction1_2 - 1)  //DEBUG info
                 );  //DEBUG info
-              mmu_address_a <= read_value2+1;
-              mmu_address_b <= read_value2 + instruction1_2-1;
+              mmu_address_a <= read_value2 + 1;
+              mmu_address_b <= read_value2 + instruction1_2 - 1;
               read_address <= process_address[process_num] + ADDRESS_MMU_LEN + read_value2;
               stage <= STAGE_SPLIT_PROCESS;
             end
@@ -885,30 +885,30 @@ module x_simple (
             end
             //int number (8 bit), start memory page, end memory page 
             OPCODE_INT: begin
-            
+
               if (instruction2_1 + instruction2_2 != mmu_source_end_shared_page-mmu_source_start_shared_page) begin
                 error_code[process_num] <= ERROR_WRONG_ADDRESS;
-              end else begin              
-              if (OP2_DEBUG && !HARDWARE_DEBUG)
-                $display(
-                    $time,
-                    " opcode = int ",
-                    instruction1_2,
-                    " pages ",
-                    instruction2_1,
-                    "-",
-                    instruction2_2
-                );  //DEBUG info
-              //replace current process with int process in the chain 
-              write_address <= int_process_address[instruction1_2] + ADDRESS_NEXT_PROCESS;
-              write_value <= next_process_address;
-              write_enabled <= 1;
-              stage <= STAGE_INT;
-              //fixme: add shared memory from current process to int process       
-              mmu_target_start_shared_page <= instruction2_1;
-              mmu_target_end_shared_page <= instruction2_1 + instruction2_2;
-              mmu_inside_int <= 1;
-              mmu_int_num <= instruction1_2;
+              end else begin
+                if (OP2_DEBUG && !HARDWARE_DEBUG)
+                  $display(
+                      $time,
+                      " opcode = int ",
+                      instruction1_2,
+                      " pages ",
+                      instruction2_1,
+                      "-",
+                      instruction2_2
+                  );  //DEBUG info
+                //replace current process with int process in the chain 
+                write_address <= int_process_address[instruction1_2] + ADDRESS_NEXT_PROCESS;
+                write_value <= next_process_address;
+                write_enabled <= 1;
+                stage <= STAGE_INT;
+                //fixme: add shared memory from current process to int process       
+                mmu_target_start_shared_page <= instruction2_1;
+                mmu_target_end_shared_page <= instruction2_1 + instruction2_2;
+                mmu_inside_int <= 1;
+                mmu_int_num <= instruction1_2;
               end
             end
             //int number
@@ -948,8 +948,8 @@ module x_simple (
         STAGE_SET_PORT: begin
           //if (reset_uart_buffer_available) uart_buffer_available = 0;
           //uart_buffer[uart_buffer_available++] = read_value / 256;
-            $display(" value ", read_value/256," ",read_value%256);
-            $display(" value ", read_value2/256," ",read_value2%256);
+          $display(" value ", read_value / 256, " ", read_value % 256);
+          $display(" value ", read_value2 / 256, " ", read_value2 % 256);
           `MAKE_MMU_SEARCH2
         end
         STAGE_GET_RAM_BYTE: begin
@@ -1003,11 +1003,16 @@ module x_simple (
         end
         STAGE_CHECK_MMU_ADDRESS: begin
           if (mmu_address_a < MMU_PAGE_SIZE) begin
-          if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)                       
+            if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display(  //DEBUG info
-                  $time, " process ", process_address[process_num], " logical address ", mmu_address_a,
+                  $time,
+                  " process ",
+                  process_address[process_num],
+                  " logical address ",
+                  mmu_address_a,
                   "= physical address from page 0 ",
-                  process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE);                  
+                  process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE
+              );
             mmu_address_c <= process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE;
             if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
               write_address <= process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE;
@@ -1025,9 +1030,10 @@ module x_simple (
           end else if (mmu_inside_int==1&& mmu_address_segment_to_search>=mmu_target_start_shared_page && 
              mmu_address_segment_to_search<=mmu_target_end_shared_page) begin
             write_enabled <= 0;
-              if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)            
-            $display(  //DEBUG info
-                $time, " mmu inside int");
+            if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+              $display(  //DEBUG info
+                  $time, " mmu inside int"
+              );
             mmu_address_b <= int_process_address[mmu_int_num];
             mmu_address_d<=mmu_address_segment_to_search-mmu_target_start_shared_page+mmu_source_start_shared_page;
             if (mmu_address_segment_to_search-mmu_target_start_shared_page+mmu_source_start_shared_page<=6) begin
@@ -1049,15 +1055,21 @@ module x_simple (
         STAGE_CHECK_MMU_ADDRESS2: begin
           if (mmu_address_d <= 6) begin
             if (mmu_address_c != 0 && read_value == 0) begin
-              if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)                       
-              $display(  //DEBUG info
-                  $time, " mmu needs new memory page");
-            end else begin            
-              if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)                       
-              $display(  //DEBUG info
-                  $time, " process ", mmu_address_b, " logical address ", mmu_address_a,
-                  "= physical address ",
-                  read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE);
+              if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+                $display(  //DEBUG info
+                    $time, " mmu needs new memory page"
+                );
+            end else begin
+              if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+                $display(  //DEBUG info
+                    $time,
+                    " process ",
+                    mmu_address_b,
+                    " logical address ",
+                    mmu_address_a,
+                    "= physical address ",
+                    read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE
+                );
             end
             if (stage_after_mmu != STAGE_SET_RAM_BYTE) begin
               if (stage_after_mmu == STAGE_GET_1_BYTE) begin
@@ -1072,9 +1084,10 @@ module x_simple (
             end
             stage <= stage_after_mmu;
           end else begin
-              if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)                       
-            $display(  //DEBUG info
-                $time, " mmu needs to traverse, segment ", mmu_address_d);
+            if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+              $display(  //DEBUG info
+                  $time, " mmu needs to traverse, segment ", mmu_address_d
+              );
           end
         end
         STAGE_ALU: begin
@@ -1281,34 +1294,34 @@ module x_simple (
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_SPLIT_PROCESS: begin
-          mmu_address_d <= read_value * MMU_PAGE_SIZE;//new process address
+          mmu_address_d <= read_value * MMU_PAGE_SIZE;  //new process address
           write_address <= read_value * MMU_PAGE_SIZE + ADDRESS_MMU_LEN + 1;
-           read_address  <= read_address + 1;
+          read_address <= read_address + 1;
           stage <= STAGE_SPLIT_PROCESS2;
         end
         STAGE_SPLIT_PROCESS2: begin
-            if (mmu_address_a  > mmu_address_b) begin
-              stage <= STAGE_SPLIT_PROCESS3;
-               mmu_address_a <= read_value2;
-              write_address <= process_address[process_num] + ADDRESS_MMU_LEN + read_value2;
-               write_enabled <= 0;
-            end else begin
+          if (mmu_address_a > mmu_address_b) begin
+            stage <= STAGE_SPLIT_PROCESS3;
+            mmu_address_a <= read_value2;
+            write_address <= process_address[process_num] + ADDRESS_MMU_LEN + read_value2;
+            write_enabled <= 0;
+          end else begin
             read_address  <= read_address + 1;
             write_address <= write_address + 1;
             write_value   <= read_value;
             write_enabled <= 1;
-              mmu_address_a <= mmu_address_a + 1;                        
-            end
+            mmu_address_a <= mmu_address_a + 1;
+          end
         end
         STAGE_SPLIT_PROCESS3: begin
-            write_address <= write_address + 1;
-            write_value   <= 0;
-               write_enabled <= 1;
-            if (mmu_address_a  == mmu_address_b) begin
-              stage <= STAGE_SAVE_NEXT_PROCESS;
-            end else begin
-              mmu_address_a <= mmu_address_a + 1;            
-            end
+          write_address <= write_address + 1;
+          write_value   <= 0;
+          write_enabled <= 1;
+          if (mmu_address_a == mmu_address_b) begin
+            stage <= STAGE_SAVE_NEXT_PROCESS;
+          end else begin
+            mmu_address_a <= mmu_address_a + 1;
+          end
         end
         STAGE_SAVE_NEXT_PROCESS: begin
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
@@ -1331,7 +1344,7 @@ module x_simple (
         STAGE_REG_INT: begin
           //old process
           write_address <= process_address[process_num] + ADDRESS_PC;
-          write_value <= pc[process_num];
+          write_value   <= pc[process_num];
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_INT: begin
