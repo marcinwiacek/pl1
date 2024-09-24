@@ -1137,7 +1137,6 @@ module x_simple (
               alu_num <= alu_num + 1;
             end
             if (alu_num == instruction1_2_1 + instruction1_2_2) begin
-              //write_enabled <= 0;
               `MAKE_MMU_SEARCH2
             end else begin
               case (alu_op)
@@ -1177,7 +1176,6 @@ module x_simple (
             //read next process address and finito
             read_address <= next_process_address + ADDRESS_NEXT_PROCESS;
             stage <= STAGE_READ_NEXT_NEXT_PROCESS;
-            // mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
           end else begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display($time, " new process used ", temp_process_num, " pc ", read_value);
@@ -1207,7 +1205,6 @@ module x_simple (
               $display(" prev_process_address = ", process_address[process_num]);
             prev_process_address <= process_address[process_num];
           end
-          //     if (mmu_action_ready) mmu_set_start_process_physical_page <= 0;
         end
         STAGE_READ_SAVE_REG_USED: begin
           //new process
@@ -1223,15 +1220,8 @@ module x_simple (
           write_address <= process_address[process_num] + ADDRESS_REG_USED + 1;
           write_value <= registers_updated[process_num][16:31];
           stage <= STAGE_READ_REG;
-          //if (mmu_action_ready) begin        
-          //             mmu_set_start_process_physical_page <= 0;
-          //             mmu_address_a <= pc[temp_process_num];
-          //             mmu_search_address <= 1;
-          //          end
         end
         STAGE_READ_REG: begin
-          //           mmu_search_address <= 0;
-
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) begin  //DEBUG info
             $write($time, " new registers updated ");  //DEBUG info
             for (i = 0; i < 32; i = i + 1) begin  //DEBUG info
@@ -1304,18 +1294,10 @@ module x_simple (
         end
         STAGE_SPLIT_PROCESS2: begin
           if (mmu_address_a == mmu_address_b) begin
-            // $display(
-            //    $time, " new process address ",read_address," ",mmu_address_d + ADDRESS_MMU_LEN + mmu_address_a,"=",read_value
-            //);  //DEBUG info
             write_address <= write_address + 1;
             write_value <= read_value;
-            write_enabled <= 1;
-
             stage <= STAGE_SAVE_NEXT_PROCESS;
           end else begin
-            //$display(
-            //                $time, " new process address ",read_address," ",mmu_address_d + ADDRESS_MMU_LEN + mmu_address_a,"=",read_value
-            //          );  //DEBUG info
             read_address  <= read_address + 1;
             write_address <= write_address + 1;
             write_value   <= read_value;
@@ -1346,9 +1328,6 @@ module x_simple (
           write_address <= process_address[process_num] + ADDRESS_PC;
           write_value <= pc[process_num];
           stage <= STAGE_REG_INT2;
-        end
-        STAGE_REG_INT2: begin
-          //          process_address[process_num] <= prev_process_address;
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_INT: begin
@@ -1356,7 +1335,6 @@ module x_simple (
           write_value   <= int_process_address[instruction1_2];
           if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
             next_process_address <= int_process_address[instruction1_2];
-            // temp_process_num <= process_num;
           end else begin
             how_many <= 0;
           end
