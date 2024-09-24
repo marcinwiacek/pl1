@@ -2,9 +2,10 @@
 
 Sep 2024: first working milestone / gen with project 9
 (including MMU, process creating, deleting & interrupts)
-and totally new MMU with complexity access n with project 10
+and totally new MMU with complexity access equal n (n=number of assigned process pages
+divided by one MMU page size, which gives even 1 with small processes) with project 10.
 
-June 2024: first work with real FPGA
+June 2024: first work with real FPGA (Artix-7 Nexys Video)
 
 18 May 2024: there was prepared quite advanced System Verilog code with majority of things
 (unfortunately not compatible with Vidado) and there is prepared realistic System Verilog compatible
