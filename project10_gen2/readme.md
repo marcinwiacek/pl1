@@ -21,15 +21,16 @@ or hypervisor mode, which is big advantage (when you don't have something, it ca
 
 **Hardware or software? And why FPGA?**
 
-Hardware in PL is going rather into RISC (simple, short instructions)... but
-it's also doing things, which normally are in software in all modern OS
-(in fact you can't find today one user OS working just with one task).
+Hardware in PL1 is going rather into RISC (simple, short instructions)... but
+it's additionally doing things, which normally are software based in all modern OS
+(example: you can't find today one user OS working just with one task and you need kernel and task switcher).
 
-Some simulator for PL1 was written in very short time and the whole project
-could stop in this moment (software could be emulated in some ARM and that's it)
-... but idea is to build the whole system in this way, that project is so close
-to real hardware as possible. FPGA is the only choice for it available with
-sensible money and Artix-7 board was selected because of architecture and extra features.
+Some simulators for PL1 idea were written in very short time and the whole project
+could be stopped in this moment (software could be emulated in some ARM and that's it)... but idea is to build the whole system this way, that project is close
+to real hardware as much as possible.
+
+FPGA is the only choice for it available with
+sensible money and Artix-7 board was selected because of architecture, price and extra features ([+AMD support till 2040](https://community.amd.com/t5/adaptive-computing/amd-supports-new-long-lifecycle-fpga-designs-through-2040-2045/ba-p/702533)).
 
 **Current implementation**
 
@@ -129,7 +130,11 @@ PL1 is building in the memory one way list with the process addresses and switch
 2. free Vivado version from https://www.xilinx.com/support/download.html (needs free registration;
 after installing needs installing drivers for cables and adding board definition;
 update tool can be started with binary xic/xic)
-3. FPGA board
+3. non-free FPGA board (when you look on Artix-7 boards, Nexys Video is not the cheapest one,
+but... doesn't have any compromises, seems to be less complicated than Zynq 7000 boards and Ultra96-V2 Zynq UltraScale+ and it's still much cheaper than any industry FPGA board)
+
+In the future things will be probably ported to the cheapest Artix-7 35T, Zynq 7000 or Ultra96-V2 Zynq UltraScale+.
+
 
 **It doesn't have any sense**
 
