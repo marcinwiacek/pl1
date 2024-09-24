@@ -8,7 +8,7 @@ parameter HOW_MANY_OP_PER_TASK_SIMULATE = 2;
 //options below are less important than options higher //DEBUG info
 parameter HARDWARE_DEBUG = 0;
 
-parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter RAM_WRITE_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -17,7 +17,7 @@ parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter STAGE_DEBUG = 1;
+parameter STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
 parameter OP2_DEBUG = 1;
 parameter ALU_DEBUG = 0;
@@ -854,10 +854,10 @@ module x_simple (
                     " opcode = proc, pages ",  //DEBUG info
                     read_value2,  //DEBUG info
                     "-",  //DEBUG info
-                    (read_value2 + instruction1_2)  //DEBUG info
+                    (read_value2 + instruction1_2-1)  //DEBUG info
                 );  //DEBUG info
-              mmu_address_a <= read_value2;
-              mmu_address_b <= read_value2 + instruction1_2;
+              mmu_address_a <= read_value2+1;
+              mmu_address_b <= read_value2 + instruction1_2-1;
               read_address <= process_address[process_num] + ADDRESS_MMU_LEN + read_value2;
               stage <= STAGE_SPLIT_PROCESS;
             end
@@ -943,8 +943,8 @@ module x_simple (
         STAGE_SET_PORT: begin
           //if (reset_uart_buffer_available) uart_buffer_available = 0;
           //uart_buffer[uart_buffer_available++] = read_value / 256;
-          //  $write("value ", read_value/256," ",read_value%256);
-          //  $write("value ", read_value2/256," ",read_value2%256);
+            $display(" value ", read_value/256," ",read_value%256);
+            $display(" value ", read_value2/256," ",read_value2%256);
           `MAKE_MMU_SEARCH2
         end
         STAGE_GET_RAM_BYTE: begin
@@ -993,12 +993,16 @@ module x_simple (
                   " to ram address ",
                   mmu_address_a + 1
               );  //DEBUG info
-
             `MAKE_MMU_SEARCH(mmu_address_a + 1, STAGE_SET_RAM_BYTE);
           end
         end
         STAGE_CHECK_MMU_ADDRESS: begin
           if (mmu_address_a < MMU_PAGE_SIZE) begin
+          if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)                       
+              $display(  //DEBUG info
+                  $time, " process ", physical_pc[process_num], " logical address ", mmu_address_a,
+                  "= physical address from page 0 ",
+                  process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE);                  
             mmu_address_c <= process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE;
             if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
               write_address <= process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE;
@@ -1016,8 +1020,9 @@ module x_simple (
           end else if (mmu_inside_int==1&& mmu_address_segment_to_search>=mmu_target_start_shared_page && 
              mmu_address_segment_to_search<=mmu_target_end_shared_page) begin
             write_enabled <= 0;
+              if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)            
             $display(  //DEBUG info
-                $time, "inside int");
+                $time, " mmu inside int");
             mmu_address_b <= int_process_address[mmu_int_num];
             mmu_address_d<=mmu_address_segment_to_search-mmu_target_start_shared_page+mmu_source_start_shared_page;
             if (mmu_address_segment_to_search-mmu_target_start_shared_page+mmu_source_start_shared_page<=6) begin
@@ -1039,11 +1044,13 @@ module x_simple (
         STAGE_CHECK_MMU_ADDRESS2: begin
           if (mmu_address_d <= 6) begin
             if (mmu_address_c != 0 && read_value == 0) begin
+              if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)                       
               $display(  //DEBUG info
-                  $time, "needs new memory page");
-            end else begin
+                  $time, " mmu needs new memory page");
+            end else begin            
+              if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)                       
               $display(  //DEBUG info
-                  $time, "process ", mmu_address_b, " logical address ", mmu_address_a,
+                  $time, " process ", mmu_address_b, " logical address ", mmu_address_a,
                   "= physical address ",
                   read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE);
             end
@@ -1060,8 +1067,9 @@ module x_simple (
             end
             stage <= stage_after_mmu;
           end else begin
+              if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)                       
             $display(  //DEBUG info
-                $time, "needs to traverse, segment ", mmu_address_d);
+                $time, " mmu needs to traverse, segment ", mmu_address_d);
           end
         end
         STAGE_ALU: begin
@@ -1267,21 +1275,34 @@ module x_simple (
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_SPLIT_PROCESS: begin
-          mmu_address_d <= read_value * MMU_PAGE_SIZE;
+          mmu_address_d <= read_value * MMU_PAGE_SIZE;//new process address
+          write_address <= read_value * MMU_PAGE_SIZE + ADDRESS_MMU_LEN + 1;
+           read_address  <= read_address + 1;
           stage <= STAGE_SPLIT_PROCESS2;
         end
         STAGE_SPLIT_PROCESS2: begin
-          if (mmu_address_a == mmu_address_b) begin
-            write_address <= write_address + 1;
-            write_value <= read_value;
-            stage <= STAGE_SAVE_NEXT_PROCESS;
-          end else begin
+            if (mmu_address_a  > mmu_address_b) begin
+              stage <= STAGE_SPLIT_PROCESS3;
+               mmu_address_a <= read_value2;
+              write_address <= process_address[process_num] + ADDRESS_MMU_LEN + read_value2;
+               write_enabled <= 0;
+            end else begin
             read_address  <= read_address + 1;
             write_address <= write_address + 1;
             write_value   <= read_value;
             write_enabled <= 1;
-            mmu_address_a <= mmu_address_a + 1;
-          end
+              mmu_address_a <= mmu_address_a + 1;                        
+            end
+        end
+        STAGE_SPLIT_PROCESS3: begin
+            write_address <= write_address + 1;
+            write_value   <= 0;
+               write_enabled <= 1;
+            if (mmu_address_a  == mmu_address_b) begin
+              stage <= STAGE_SAVE_NEXT_PROCESS;
+            end else begin
+              mmu_address_a <= mmu_address_a + 1;            
+            end
         end
         STAGE_SAVE_NEXT_PROCESS: begin
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
@@ -1521,9 +1542,9 @@ module single_blockram (
       16'h1a37, 16'h0101, //reg int 
       16'h0911, 16'd0150, //ram to reg
       16'h1210, 16'h0a35, //value to reg
-      16'h1d10, 16'd0052, //ram2out      
-      16'h1c37, 16'd0000, //int ret
-      "AB","CD",
+      16'h1d10, 16'd0099, //ram2out   
+      16'h1d10, 16'd0100, //ram2out      
+      16'h1c37, 16'd0000, //int ret      
      // 16'h1800, 16'h0000, //process end
       //16'h0e10, 16'h0064, //save to ram
       //16'h1902, 16'h0002, //split process pages 2-4
@@ -1551,7 +1572,7 @@ module single_blockram (
       16'h0000, 16'h0000,
 
       //page 6 (100 elements)
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      "AB",        "CD",16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
