@@ -135,7 +135,6 @@ but... doesn't have any compromises, seems to be less complicated than Zynq 7000
 
 In the future things will be probably ported to the cheapest Artix-7 35T, Zynq 7000 or Ultra96-V2 Zynq UltraScale+.
 
-
 **It doesn't have any sense**
 
 I will remind August 1991 and Linus Torvalds:

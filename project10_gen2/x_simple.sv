@@ -855,7 +855,6 @@ module x_simple (
             end
             //int number (8 bit), start memory page, end memory page 
             OPCODE_INT: begin
-
               if (instruction2_1 + instruction2_2 != mmu_source_end_shared_page-mmu_source_start_shared_page) begin
                 error_code[process_num] <= ERROR_WRONG_ADDRESS;
               end else begin
@@ -874,7 +873,7 @@ module x_simple (
                 write_value <= next_process_address;
                 write_enabled <= 1;
                 stage <= STAGE_INT;
-                //fixme: add shared memory from current process to int process       
+                //add shared memory from current process to int process       
                 mmu_target_start_shared_page <= instruction2_1;
                 mmu_target_end_shared_page <= instruction2_1 + instruction2_2;
                 mmu_inside_int <= 1;
@@ -916,11 +915,20 @@ module x_simple (
           instructions <= instructions + 1;
         end
         STAGE_SET_PORT: begin
-          //if (reset_uart_buffer_available) uart_buffer_available = 0;
-          //uart_buffer[uart_buffer_available++] = read_value / 256;
-          $display(" value ", read_value / 256, " ", read_value % 256);
-          $display(" value ", read_value2 / 256, " ", read_value2 % 256);
-          `MAKE_MMU_SEARCH2
+          if (read_value == 0) begin
+            `MAKE_MMU_SEARCH2
+          end else begin
+           // if (reset_uart_buffer_available) begin
+//              uart_buffer_available =2;
+//              uart_buffer[0] = read_value / 256;
+//              uart_buffer[1] = read_value % 256;              
+//            end else begin
+              uart_buffer[uart_buffer_available++] = read_value / 256;
+              uart_buffer[uart_buffer_available++] = read_value % 256;
+  //          end
+            $display($time, " value ", read_value / 256, " ", read_value % 256);
+            read_address<=read_address+1;
+          end
         end
         STAGE_GET_RAM_BYTE: begin
           registers[process_num][ram_read_save_reg_start] <= read_value;
@@ -1492,8 +1500,8 @@ module single_blockram (
       16'h0000, 16'h0000,
 
       //page 4 (100 elements)
-      "Po",    "zd",    "ro",    "wi",    "en",    "ia",    " z"    ," p",    "ly",    "ty",
-      " d",    "la",    " M",    "ic",    "ha",    "la",    16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,"Po",    "zd",    "ro",    "wi",    "en",    "ia",    " z"    ," p",    "ly",
+      "ty",    " d",    "la",    " M",    "ic",    "ha",    "la",    16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
@@ -1531,8 +1539,7 @@ module single_blockram (
       16'h1a37, 16'h0102, //reg int 
       16'h0911, 16'd0150, //ram to reg
       16'h1210, 16'h0a35, //value to reg
-      16'h1d10, 16'd0100, //ram2out   
-      16'h1d10, 16'd0101, //ram2out      
+      16'h1d10, 16'd0101, //ram2out         
       16'h1c37, 16'd0000, //int ret      
      // 16'h1800, 16'h0000, //process end
       //16'h0e10, 16'h0064, //save to ram
@@ -1559,7 +1566,8 @@ module single_blockram (
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
-
+      16'h0000, 16'h0000,
+      
       //page 6 (100 elements)
       "AB",        "CD",16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
