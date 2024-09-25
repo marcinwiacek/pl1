@@ -26,14 +26,14 @@ parameter ALU_DEBUG = 0;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
 /* DEBUG info */     if (reset_uart_buffer_available) uart_buffer_available = 0; \
-/* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG; \
+/* DEBUG info */     //uart_buffer[uart_buffer_available++] = ARG; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG);
 
 // verilog_format:off
 /* DEBUG info */ `define HARD_DEBUG2(ARG) \
 /* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
-/* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
-/* DEBUG info */     uart_buffer[uart_buffer_available++] = ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48; \
+/* DEBUG info */     //uart_buffer[uart_buffer_available++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
+/* DEBUG info */     //uart_buffer[uart_buffer_available++] = ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1) $write("%c",ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48,"%c",ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48);
 // verilog_format:on
 
@@ -918,16 +918,9 @@ module x_simple (
           if (read_value == 0) begin
             `MAKE_MMU_SEARCH2
           end else begin
-           // if (reset_uart_buffer_available) begin
-//              uart_buffer_available =2;
-//              uart_buffer[0] = read_value / 256;
-//              uart_buffer[1] = read_value % 256;              
-//            end else begin
-              uart_buffer[uart_buffer_available] <= read_value / 256;
-              uart_buffer_available<=uart_buffer_available+1;
-             // uart_buffer[uart_buffer_available++] = read_value % 256;
-  //          end
-            $display($time, " value ", read_value / 256, " ", read_value % 256);
+             uart_buffer[uart_buffer_available++] = read_value / 256;
+             uart_buffer[uart_buffer_available++] = read_value % 256;
+       //     $display($time, " value ", read_value / 256, " ", read_value % 256);
             read_address<=read_address+1;
           end
         end
