@@ -156,18 +156,26 @@ module uart_rx (
   reg [ 6:0] uart_tx_state = STATE_IDLE;
   reg [20:0] counter = 0;
   reg [7:0] value=1;
+  reg [1:0] uartrxreg ;
 
-  always @(posedge clk) begin
+
+assign inp = uartrxreg[1];
+
+ always @(posedge clk) begin
+    uartrxreg <= { uartrxreg[0], uartrx };
+
+
+ 
     if (uart_tx_state == STATE_IDLE) begin
-      if (uartrx == 0 && value==1) begin
+      if (inp == 0 && value==1) begin
         counter<=0;
         uart_tx_state <= uart_tx_state+1;   
       end else begin
-        value<=uartrx;
+        value<=inp;
       end
     end else if (uart_tx_state == STATE_START_BIT) begin
       if (counter == CLK_PER_BYTE_HALF) begin
-        if (uartrx == 1) begin      
+        if (inp == 1) begin      
           uart_tx_state <= STATE_IDLE;
           value<=1;
         end else begin
@@ -183,7 +191,7 @@ module uart_rx (
       end         
     end else if (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) begin
       if (counter == CLK_PER_BYTE_HALF) begin
-        bb<=bb+uartrx*(2**(uart_tx_state - STATE_DATA_BIT_0));
+        bb<=bb+inp*(2**(uart_tx_state - STATE_DATA_BIT_0));
       end else if (counter == CLK_PER_BYTE) begin
         uart_tx_state <= uart_tx_state+1;   
         counter<=0;     
@@ -192,7 +200,7 @@ module uart_rx (
       end     
     end else if (uart_tx_state==STATE_STOP_BIT) begin
       if (counter == CLK_PER_BYTE_HALF) begin
-        if (uartrx == 0) begin
+        if (inp == 0) begin
           uart_tx_state <= STATE_IDLE;
           value<=0;
         end else begin
