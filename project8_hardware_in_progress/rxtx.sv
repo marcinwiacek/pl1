@@ -36,17 +36,17 @@ bit flag=1;
   
   always @(negedge clk) begin
     if (flag==1) begin
-        uart_buffer[0]<="a";
-         uart_buffer[1]<="b";
-        uart_buffer_index<=2;
-        flag<=0;
+        uart_buffer[0]="a";
+         uart_buffer[1]="b";
+        uart_buffer_index=2;
+        flag=0;
     end else begin
     //  if (reset_uart_buffer_index) begin
 //        uart_buffer_index<= 0;
 //      end else if (!uart_buffer_full) begin
        if (uart_bb_ready) begin
-        uart_buffer[uart_buffer_index]<=uart_bb;
-        uart_buffer_index<=uart_buffer_index+1;
+        uart_buffer[uart_buffer_index]=uart_bb;
+        uart_buffer_index=uart_buffer_index+1;
        end
   //    end
     end
@@ -140,7 +140,7 @@ module uart_rx (
     input clk,    
     input uartrx,
     output logic [7:0] bb,
-    output logic bb_ready
+    output logic bb_ready=0
 );
 
   parameter CLK_PER_BYTE = (100000000 / 115200 );  //100 Mhz / transmission speed in bps (bits per second)
@@ -154,27 +154,30 @@ module uart_rx (
   parameter STATE_STOP_BIT = 10; //1
 
   reg [ 6:0] uart_tx_state = STATE_IDLE;
-  reg [10:0] counter = 0;
-  reg [10:0] value=1;
+  reg [20:0] counter = 0;
+  reg [7:0] value=1;
 
   always @(posedge clk) begin
     if (uart_tx_state == STATE_IDLE) begin
       if (uartrx == 0 && value==1) begin
         counter<=0;
-        uart_tx_state <= STATE_START_BIT;      
+        uart_tx_state <= uart_tx_state+1;   
       end else begin
-        bb_ready<=0;
         value<=uartrx;
       end
     end else if (uart_tx_state == STATE_START_BIT) begin
-      if (counter == CLK_PER_BYTE_HALF && uartrx == 1) begin
-        uart_tx_state <= STATE_IDLE;
-         value<=1;
-      end else if (counter == CLK_PER_BYTE) begin
-        uart_tx_state <= STATE_DATA_BIT_0;
+      if (counter == CLK_PER_BYTE_HALF) begin
+        if (uartrx == 1) begin      
+          uart_tx_state <= STATE_IDLE;
+          value<=1;
+        end else begin
+          counter<=counter+1;
+        end
+      end else if (counter == CLK_PER_BYTE) begin      
         bb<=0;
+        bb_ready<=0;
+        uart_tx_state <= uart_tx_state+1;   
         counter<=0;
-          bb_ready<=0;
       end else begin
         counter<=counter+1;
       end         
@@ -188,14 +191,16 @@ module uart_rx (
         counter<=counter+1;
       end     
     end else if (uart_tx_state==STATE_STOP_BIT) begin
-      //if (counter == CLK_PER_BYTE_HALF && uartrx == 0) begin
-//        uart_tx_state <= STATE_IDLE;
-//          value<=0;
-//      end else 
-      if (counter == CLK_PER_BYTE) begin
-        uart_tx_state <= STATE_IDLE;
+      if (counter == CLK_PER_BYTE_HALF) begin
+        if (uartrx == 0) begin
+          uart_tx_state <= STATE_IDLE;
+          value<=0;
+        end else begin
+          counter<=counter+1;
+        end
+      end else if (counter == CLK_PER_BYTE) begin
         bb_ready<=1;
-          counter<=0;
+        uart_tx_state <= STATE_IDLE;
       end else begin
         counter<=counter+1;
       end         
