@@ -143,8 +143,7 @@ module uart_rx (
     output logic bb_ready=0
 );
 
-  parameter CLK_PER_BYTE = (100000000 / 115200 );  //100 Mhz / transmission speed in bps (bits per second)
-  parameter CLK_PER_BYTE_HALF = (100000000 / 115200 )/2;  //100 Mhz / transmission speed in bps (bits per second)
+parameter CLK_PER_BYTE = (100000000 / (115200*16) );  //100 Mhz / transmission speed in bps (bits per second)
 
   parameter STATE_IDLE = 0; //1
   parameter STATE_START_BIT = 1; //0
@@ -163,9 +162,10 @@ assign inp = uartrxreg[1];
 
  always @(posedge clk) begin
     uartrxreg <= { uartrxreg[0], uartrx };
-
+end
 
  
+ always @(posedge clk) begin
     if (uart_tx_state == STATE_IDLE) begin
       if (inp == 0 && value==1) begin
         counter<=0;
@@ -174,14 +174,14 @@ assign inp = uartrxreg[1];
         value<=inp;
       end
     end else if (uart_tx_state == STATE_START_BIT) begin
-      if (counter == CLK_PER_BYTE_HALF) begin
+      if (counter == CLK_PER_BYTE*8) begin
         if (inp == 1) begin      
           uart_tx_state <= STATE_IDLE;
           value<=1;
         end else begin
           counter<=counter+1;
         end
-      end else if (counter == CLK_PER_BYTE) begin      
+      end else if (counter == CLK_PER_BYTE*16) begin      
         bb<=0;
         bb_ready<=0;
         uart_tx_state <= uart_tx_state+1;   
@@ -190,23 +190,23 @@ assign inp = uartrxreg[1];
         counter<=counter+1;
       end         
     end else if (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) begin
-      if (counter == CLK_PER_BYTE_HALF) begin
+      if (counter == CLK_PER_BYTE*8) begin
         bb<=bb+inp*(2**(uart_tx_state - STATE_DATA_BIT_0));
-      end else if (counter == CLK_PER_BYTE) begin
+      end else if (counter == CLK_PER_BYTE*16) begin
         uart_tx_state <= uart_tx_state+1;   
         counter<=0;     
       end else begin      
         counter<=counter+1;
       end     
     end else if (uart_tx_state==STATE_STOP_BIT) begin
-      if (counter == CLK_PER_BYTE_HALF) begin
+      if (counter == CLK_PER_BYTE*8) begin
         if (inp == 0) begin
           uart_tx_state <= STATE_IDLE;
           value<=0;
         end else begin
           counter<=counter+1;
         end
-      end else if (counter == CLK_PER_BYTE) begin
+      end else if (counter == CLK_PER_BYTE*16) begin
         bb_ready<=1;
         uart_tx_state <= STATE_IDLE;
       end else begin
