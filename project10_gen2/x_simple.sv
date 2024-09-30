@@ -1492,13 +1492,13 @@ module single_blockram (
       16'h0000,
       16'h0000, //next mmu address or 0 (not assigned)
       
-      16'h1210, 16'd2613, //value to reg
-      16'h0e10, 16'd0290, //save to ram
-      16'h0911, 16'd0100, //ram to reg
-      16'h0e10, 16'd0212, //save to ram
-      16'h0c01, 16'h0001, //unknown
-      16'h0c01, 16'h0002, //unknown
-      16'h1202, 16'h0003, //num2reg
+      16'h1210, 16'd2613, //value to reg // not used for anything usefull, just for debugging
+      16'h0e10, 16'd0290, //save to ram // not used for anything usefull, just for debugging
+      16'h0911, 16'd0100, //ram to reg // not used for anything usefull, just for debugging
+      16'h0e10, 16'd0212, //save to ram // not used for anything usefull, just for debugging
+      16'h0c01, 16'h0001, //unknown // not used for anything usefull, just for debugging
+      16'h0c01, 16'h0002, //unknown // not used for anything usefull, just for debugging
+      16'h1202, 16'h0003, //num2reg // not used for anything usefull, just for debugging
       16'h1800, 16'h0007, //process end
       16'hfb00, 16'h0000,
       16'h0000, 16'h0000,
@@ -1555,10 +1555,10 @@ module single_blockram (
       16'h0000,
       16'h0000, //next mmu address or 0 (not assigned)
 
-      16'h1210, 16'd2612, //value to reg
+      16'h1210, 16'd2612, //value to reg // not used for anything usefull, just for debugging
       16'h1902, 16'h0003, //split process pages 2-5
-      16'h1210, 16'd2615, //value to reg
-      16'h0e10, 16'd0100, //save to ram
+      16'h1210, 16'd2615, //value to reg // not used for anything usefull, just for debugging
+      16'h0e10, 16'd0100, //save to ram // not used for anything usefull, just for debugging
       16'h1b37, 16'h0101, //int
       16'h1e00, 16'd0200, //in2ram
       16'h1b37, 16'h0202, //int
@@ -1635,8 +1635,8 @@ module single_blockram (
       16'h0000, //next mmu address or 0 (not assigned)
 
       16'h1a37, 16'h0101, //reg int 
-      16'h0911, 16'd0150, //ram to reg
-      16'h1210, 16'h0a35, //value to reg
+      16'h0911, 16'd0150, //ram to reg // not used for anything usefull, just for debugging
+      16'h1210, 16'h0a35, //value to reg // not used for anything usefull, just for debugging
       16'h1d10, 16'd0101, //ram2out         
       16'h1c37, 16'd0000, //int ret      
       16'hff00, 16'h0000,
