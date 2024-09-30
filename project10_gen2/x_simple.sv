@@ -372,7 +372,7 @@ module x_simple (
 
   bit [15:0] int_pc[0:255];
   bit [15:0] int_process_address[0:255];
-  
+
   bit mmu_inside_int = 0;
   bit [15:0]
       mmu_source_start_shared_page,
@@ -386,12 +386,12 @@ module x_simple (
   bit [15:0] mmu_address_segment_to_search;
 
   assign mmu_address_segment_to_search = mmu_address_a / MMU_PAGE_SIZE;
-  
+
   bit port_registered[0:255];
   bit [15:0] port_pc[0:255];
   bit [15:0] port_process_address[0:255];
   bit inside_port = 0;
-    
+
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
       mmu_address_a <= ARG; \
@@ -439,17 +439,17 @@ module x_simple (
      mmu_address_a <= next_process_address / MMU_PAGE_SIZE;
 
   integer i;  //DEBUG info
-  
+
   always @(negedge clk) begin
-  
-        
-              if (!uart_bb_ready) begin
-                uart_bb_processed <= 0;
-              end else if (port_registered[0]) begin
-                if (!uart_bb_processed) begin
-                  //add process to the chain
-                end
-              end
+
+
+    if (!uart_bb_ready) begin
+      uart_bb_processed <= 0;
+    end else if (port_registered[0]) begin
+      if (!uart_bb_processed) begin
+        //add process to the chain
+      end
+    end
   end
 
   always @(negedge clk) begin
@@ -972,21 +972,21 @@ module x_simple (
               end
             end
             //port number, 16 bit source address
-            OPCODE_REG_IN2RAM: begin            
-            if (port_registered[instruction1_2]==0) begin
-             port_pc[instruction1_2] <= pc[process_num];
-              port_process_address[instruction1_2] <= process_address[process_num];
-              //delete process from chain
-              write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
-              write_value <= next_process_address;
-              write_enabled <= 1;
-              stage <= STAGE_REG_INT;
+            OPCODE_REG_IN2RAM: begin
+              if (port_registered[instruction1_2] == 0) begin
+                port_pc[instruction1_2] <= pc[process_num];
+                port_process_address[instruction1_2] <= process_address[process_num];
+                //delete process from chain
+                write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
+                write_value <= next_process_address;
+                write_enabled <= 1;
+                stage <= STAGE_REG_INT;
               end else begin
-                  uart_bb_processed <= 1;
-                  write_value <= uart_bb;
-                  `MAKE_MMU_SEARCH(read_value2, STAGE_SET_ONE_RAM_BYTE);
-              end       
-            end            
+                uart_bb_processed <= 1;
+                write_value <= uart_bb;
+                `MAKE_MMU_SEARCH(read_value2, STAGE_SET_ONE_RAM_BYTE);
+              end
+            end
             OPCODE_IN2RAM_RET: begin
               //delete process from chain
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
