@@ -32,7 +32,7 @@ wire uart_bb_ready;
     .bb_ready(uart_bb_ready)
 );
 
-bit flag=1;
+bit flag=1, uart_processed=0;
   
   always @(negedge clk) begin
     if (flag==1) begin
@@ -45,8 +45,14 @@ bit flag=1;
 //        uart_buffer_index<= 0;
 //      end else if (!uart_buffer_full) begin
        if (uart_bb_ready) begin
-        uart_buffer[uart_buffer_index]=uart_bb;
-        uart_buffer_index=uart_buffer_index+1;
+        if (!uart_processed) begin
+          uart_buffer[uart_buffer_index]=uart_bb;
+          uart_buffer_index=uart_buffer_index+1;
+          uart_processed=1;
+        end
+       end else begin
+          uart_processed=0;
+         
        end
   //    end
     end
@@ -143,7 +149,8 @@ module uart_rx (
     output logic bb_ready=0
 );
 
-parameter CLK_PER_BYTE = (100000000 / (115200*16) );  //100 Mhz / transmission speed in bps (bits per second)
+parameter CLK_PER_BYTE = (100000000 / 115200 );  //100 Mhz / transmission speed in bps (bits per second)
+parameter CLK_PER_BYTE2 = (100000000 / 115200 )*1.5;  //100 Mhz / transmission speed in bps (bits per second)
 
   parameter STATE_IDLE = 0; //1
   parameter STATE_START_BIT = 1; //0
@@ -154,61 +161,47 @@ parameter CLK_PER_BYTE = (100000000 / (115200*16) );  //100 Mhz / transmission s
 
   reg [ 6:0] uart_tx_state = STATE_IDLE;
   reg [20:0] counter = 0;
-  reg [7:0] value=1;
-  reg [1:0] uartrxreg ;
+  reg uartrxreg, inp;
 
 
-assign inp = uartrxreg[1];
-
+//double buffering for avoiding metastability
  always @(posedge clk) begin
-    uartrxreg <= { uartrxreg[0], uartrx };
+    uartrxreg<=uartrx;
+    inp <= uartrxreg;
 end
 
  
  always @(posedge clk) begin
     if (uart_tx_state == STATE_IDLE) begin
-      if (inp == 0 && value==1) begin
+      if (inp == 0) begin
         counter<=0;
         uart_tx_state <= uart_tx_state+1;   
-      end else begin
-        value<=inp;
       end
     end else if (uart_tx_state == STATE_START_BIT) begin
-      if (counter == CLK_PER_BYTE*8) begin
+      if (counter == (CLK_PER_BYTE-1)/2) begin
         if (inp == 1) begin      
           uart_tx_state <= STATE_IDLE;
-          value<=1;
         end else begin
-          counter<=counter+1;
+          //starting from this point we will be checking RS input value in the middle of the cycle
+          bb_ready<=0;
+          uart_tx_state <= uart_tx_state+1;   
+          counter<=0;
         end
-      end else if (counter == CLK_PER_BYTE*16) begin      
-        bb<=0;
-        bb_ready<=0;
-        uart_tx_state <= uart_tx_state+1;   
-        counter<=0;
       end else begin
         counter<=counter+1;
       end         
     end else if (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) begin
-      if (counter == CLK_PER_BYTE*8) begin
-        bb<=bb+inp*(2**(uart_tx_state - STATE_DATA_BIT_0));
-      end else if (counter == CLK_PER_BYTE*16) begin
+      if (counter == CLK_PER_BYTE) begin
+        bb[uart_tx_state - STATE_DATA_BIT_0]<=inp;
         uart_tx_state <= uart_tx_state+1;   
         counter<=0;     
       end else begin      
         counter<=counter+1;
       end     
     end else if (uart_tx_state==STATE_STOP_BIT) begin
-      if (counter == CLK_PER_BYTE*8) begin
-        if (inp == 0) begin
+      if (counter == CLK_PER_BYTE) begin
+          bb_ready<=inp;    
           uart_tx_state <= STATE_IDLE;
-          value<=0;
-        end else begin
-          counter<=counter+1;
-        end
-      end else if (counter == CLK_PER_BYTE*16) begin
-        bb_ready<=1;
-        uart_tx_state <= STATE_IDLE;
       end else begin
         counter<=counter+1;
       end         
