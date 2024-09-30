@@ -17,13 +17,13 @@ parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
-parameter OP2_DEBUG = 1;
+parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
@@ -863,7 +863,7 @@ module x_simple (
               int_pc[instruction1_2] <= pc[process_num];
               int_process_address[instruction1_2] <= process_address[process_num];
               mmu_source_start_shared_page <= instruction2_1;
-              mmu_source_end_shared_page <= instruction2_1 + instruction2_2;
+              mmu_source_end_shared_page <=  instruction2_2;
               //delete process from chain
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -871,12 +871,17 @@ module x_simple (
               stage <= STAGE_REG_INT;
             end
             //int number (8 bit), start memory page, end memory page 
-            OPCODE_INT: begin
-            
-              if (instruction2_1 + instruction2_2 != mmu_source_end_shared_page-mmu_source_start_shared_page) begin
+            OPCODE_INT: begin            
+              if (instruction2_2- instruction2_1 != mmu_source_end_shared_page-mmu_source_start_shared_page) begin
+                if (OP2_DEBUG && !HARDWARE_DEBUG)
+                  $display(
+                      $time," ",instruction2_2," ",  instruction2_1 ," ", mmu_source_end_shared_page," ",mmu_source_start_shared_page);
                 error_code[process_num] <= ERROR_WRONG_ADDRESS;
               end else begin
-                if (OP2_DEBUG && !HARDWARE_DEBUG)
+                 if (OP2_DEBUG && !HARDWARE_DEBUG)
+                  $display(
+                      $time," ",instruction2_2," ",  instruction2_1 ," ", mmu_source_end_shared_page," ",mmu_source_start_shared_page);
+              if (OP2_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time,
                       " opcode = int ",
@@ -1444,8 +1449,8 @@ module single_blockram (
       16'h0c01, 16'h0001, //unknown
       16'h0c01, 16'h0002, //unknown
       16'h1202, 16'h0003, //num2reg
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
+      16'h1800, 16'h0007, //process end
+      16'hfb00, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
@@ -1508,7 +1513,7 @@ module single_blockram (
       16'h1e00, 16'd0100, //in2ram
       16'h1b37, 16'h0202, //int
       16'h0700, 16'd0002, //jmp minus
-      16'h1800, 16'h0007, //process end, not used with jmp
+      16'hfe00, 16'h0000,            
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
@@ -1579,12 +1584,12 @@ module single_blockram (
       16'h0000,
       16'h0000, //next mmu address or 0 (not assigned)
 
-      16'h1a37, 16'h0102, //reg int 
+      16'h1a37, 16'h0101, //reg int 
       16'h0911, 16'd0150, //ram to reg
       16'h1210, 16'h0a35, //value to reg
       16'h1d10, 16'd0101, //ram2out         
       16'h1c37, 16'd0000, //int ret      
-      16'h0000, 16'h0000,
+      16'hff00, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
