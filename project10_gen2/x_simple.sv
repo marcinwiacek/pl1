@@ -541,7 +541,8 @@ module x_simple (
                 "-",  //DEBUG info
                 instruction1_2_2,  //DEBUG info
                 ") b2 ",  //DEBUG info
-                read_value2  //DEBUG info
+                read_value2  , //DEBUG info
+                " (", instruction2_1,"-",instruction2_2,")"
             );  //DEBUG info
           pc[process_num] <= pc[process_num] + 2;
           `HARD_DEBUG2(instruction1_1);  //DEBUG info
@@ -871,6 +872,7 @@ module x_simple (
             end
             //int number (8 bit), start memory page, end memory page 
             OPCODE_INT: begin
+            
               if (instruction2_1 + instruction2_2 != mmu_source_end_shared_page-mmu_source_start_shared_page) begin
                 error_code[process_num] <= ERROR_WRONG_ADDRESS;
               end else begin
@@ -1504,7 +1506,7 @@ module single_blockram (
       16'h0e10, 16'd0100, //save to ram
       16'h1b37, 16'h0101, //int
       16'h1e00, 16'd0100, //in2ram
-      16'h1b37, 16'h0201, //int
+      16'h1b37, 16'h0202, //int
       16'h0700, 16'd0002, //jmp minus
       16'h1800, 16'h0007, //process end, not used with jmp
       16'h0000, 16'h0000,
