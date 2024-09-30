@@ -1439,18 +1439,17 @@ module single_blockram (
       16'h0e10, 16'd0290, //save to ram
       16'h0911, 16'd0100, //ram to reg
       16'h0e10, 16'd0212, //save to ram
-      16'h0c01, 16'h0001,  //proc
-      16'h0c01, 16'h0002,  //proc
-      16'h1202, 16'h0003,  //num2reg
-      16'hff02, 16'h0002,  //loop,8'hwith,8'hcache:,8'hloopeqvalue
-      16'h1402, 16'h0001,  //regminusnum
-      16'h1402, 16'h0000,  //regminusnum
-      //16'h0201, 16'h0001,  //after,8'hloop:,8'hram2reg
-      16'h1201, 16'h0005,  //num2reg
-      16'h1201, 16'h0005,  //num2reg
-      16'h0E01, 16'h0046,  //reg2ram
-      16'h0F00, 16'h0002,  //int,8'h2      
-      16'h010E, 16'h0030,  //jmp,8'h0x30
+      16'h0c01, 16'h0001, //unknown
+      16'h0c01, 16'h0002, //unknown
+      16'h1202, 16'h0003, //num2reg
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
@@ -1500,32 +1499,29 @@ module single_blockram (
       16'h0000, //next mmu address or 0 (not assigned)
 
       16'h1210, 16'd2612, //value to reg
-    //  16'h0e10, 16'd0101, //save to ram
-      16'h1902, 16'h0003, //split process pages 2-4
-       16'h1210, 16'd2615, //value to reg
+      16'h1902, 16'h0003, //split process pages 2-5
+      16'h1210, 16'd2615, //value to reg
       16'h0e10, 16'd0100, //save to ram
       16'h1b37, 16'h0101, //int
       16'h1e00, 16'd0100, //in2ram
       16'h1b37, 16'h0201, //int
       16'h0700, 16'd0002, //jmp minus
-      //16'h0e10, 16'h00D4, //save to ram
-      16'h1800, 16'h0007, //process end
-      //16'h0c01, 16'h0001,  //proc
-      16'h0c01, 16'h0002,  //proc
-      16'h1202, 16'h0003,  //num2reg
-      16'hff02, 16'h0002,  //loop,8'hwith,8'hcache:,8'hloopeqvalue
-      16'h1402, 16'h0001,  //regminusnum
-      16'h1402, 16'h0000,  //regminusnum
-      16'h0201, 16'h0001,  //after,8'hloop:,8'hram2reg
-      16'h1201, 16'h0005,  //num2reg
-      16'h0E01, 16'h0046,  //reg2ram
-      16'h0F00, 16'h0002,  //int,8'h2
-      16'h010E, 16'h0030,  //jmp,8'h0x30
+      16'h1800, 16'h0007, //process end, not used with jmp
       16'h0000, 16'h0000,
-       16'h0000, 16'h0000,
-        16'h0000, 16'h0000,
-         16'h0000, 16'h0000,
-          16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
@@ -1586,22 +1582,16 @@ module single_blockram (
       16'h1210, 16'h0a35, //value to reg
       16'h1d10, 16'd0101, //ram2out         
       16'h1c37, 16'd0000, //int ret      
-     // 16'h1800, 16'h0000, //process end
-      //16'h0e10, 16'h0064, //save to ram
-      //16'h1902, 16'h0002, //split process pages 2-4
-      //16'h0911, 16'h0064, //ram to reg
-      //16'h0e10, 16'h00D4, //save to ram
-      //16'h0c01, 16'h0001,  //proc
-      16'h0c01, 16'h0002,  //proc
-      16'h1202, 16'h0003,  //num2reg
-      16'hff02, 16'h0002,  //loop,8'hwith,8'hcache:,8'hloopeqvalue
-      16'h1402, 16'h0001,  //regminusnum
-      16'h1402, 16'h0000,  //regminusnum
-      16'h0201, 16'h0001,  //after,8'hloop:,8'hram2reg
-      16'h1201, 16'h0005,  //num2reg
-      16'h0E01, 16'h0046,  //reg2ram
-      16'h0F00, 16'h0002,  //int,8'h2
-      16'h010E, 16'd0030,  //jmp,8'h0x30      
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
