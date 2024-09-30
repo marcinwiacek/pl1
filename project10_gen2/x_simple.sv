@@ -441,8 +441,6 @@ module x_simple (
   integer i;  //DEBUG info
 
   always @(negedge clk) begin
-
-
     if (!uart_bb_ready) begin
       uart_bb_processed <= 0;
     end else if (port_registered[0]) begin
