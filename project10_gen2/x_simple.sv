@@ -7,10 +7,10 @@ parameter HOW_MANY_OP_PER_TASK_SIMULATE = 2;
 parameter HOW_BIG_PROCESS_CACHE = 3;
 parameter MMU_PAGE_SIZE = 100;  //how many bytes are assigned to one memory page in MMU, current program aligned to 100
 
-parameter HARDWARE_WORK_INSTEAD_OF_DEBUG = 0;
+parameter HARDWARE_WORK_INSTEAD_OF_DEBUG = 1;
 
 //options below are less important than options higher //DEBUG info
-parameter HARDWARE_DEBUG = 1;
+parameter HARDWARE_DEBUG = 0;
 
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -193,6 +193,16 @@ module x_simple (
       .uart_buffer_full(uart_buffer_full),
       .tx(uart_rx_out)
   );
+  
+  wire[7:0] uart_bb;
+  wire uart_bb_ready;
+
+  uart_rx uart_rx (
+    .clk(clk),    
+    .uartrx(uart_tx_in),
+    .bb(uart_bb),
+    .bb_ready(uart_bb_ready)
+  );
 
   parameter OPCODE_JMP = 1;  //24 bit target address
   parameter OPCODE_JMP16 = 2;  //x, register num with target addr (we read one reg)
@@ -220,7 +230,8 @@ module x_simple (
   parameter OPCODE_REG_INT = 'h1a;  //int number (8 bit), start memory page, end memory page 
   parameter OPCODE_INT = 'h1b;  //int number (8 bit), start memory page, end memory page
   parameter OPCODE_INT_RET = 'h1c;  //int number
-  parameter OPCODE_RAM2OUT = 'h1d;  //port number, 16 bit source address 
+  parameter OPCODE_RAM2OUT = 'h1d;  //port number, 16 bit source address
+  parameter OPCODE_IN2RAM = 'h1e; //port number, 16 bit source address
 
   parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions (8 bit value) // do..while
   parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions (8 bit value) //do..while
@@ -1671,6 +1682,70 @@ module uart_tx (
     end else begin
       uart_tx_state <= counter == 0 ? (uart_tx_state== STATE_STOP_BIT? STATE_IDLE : uart_tx_state + 1) : uart_tx_state;
       counter <= counter == 0 ? CLK_PER_BIT : counter - 1;
+    end
+  end
+endmodule
+
+module uart_rx (
+    input clk,    
+    input uartrx,
+    output logic [7:0] bb,
+    output logic bb_ready=0
+);
+
+  parameter CLK_PER_BYTE = 100000000 / 115200;  //100 Mhz / transmission speed in bps (bits per second)
+
+  parameter STATE_IDLE = 0; //1
+  parameter STATE_START_BIT = 1; //0
+  parameter STATE_DATA_BIT_0 = 2;
+  //...
+  parameter STATE_DATA_BIT_7 = 9;
+  parameter STATE_STOP_BIT = 10; //1
+
+  reg [ 6:0] uart_tx_state = STATE_IDLE;
+  reg [20:0] counter = 0;
+  reg uartrxreg, inp;
+
+//double buffering for avoiding metastability
+ always @(posedge clk) begin
+    uartrxreg<=uartrx;
+    inp <= uartrxreg;
+end
+ 
+ always @(posedge clk) begin
+    if (uart_tx_state == STATE_IDLE) begin
+      if (inp == 0) begin
+        counter<=0;
+        uart_tx_state <= uart_tx_state+1;   
+      end
+    end else if (uart_tx_state == STATE_START_BIT) begin
+      if (counter == (CLK_PER_BYTE-1)/2) begin
+        if (inp == 1) begin      
+          uart_tx_state <= STATE_IDLE;
+        end else begin
+          //starting from this point we will be checking RS input value in the middle of the cycle
+          bb_ready<=0;
+          uart_tx_state <= uart_tx_state+1;   
+          counter<=0;
+        end
+      end else begin
+        counter<=counter+1;
+      end         
+    end else if (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) begin
+      if (counter == CLK_PER_BYTE) begin
+        bb[uart_tx_state - STATE_DATA_BIT_0]<=inp;
+        uart_tx_state <= uart_tx_state+1;   
+        counter<=0;     
+      end else begin      
+        counter<=counter+1;
+      end     
+    end else if (uart_tx_state==STATE_STOP_BIT) begin
+      if (counter == CLK_PER_BYTE) begin
+          bb_ready<=inp;    
+          uart_tx_state <= STATE_IDLE;
+      end else begin
+        counter<=counter+1;
+      end         
     end
   end
 endmodule
