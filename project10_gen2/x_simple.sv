@@ -232,7 +232,8 @@ module x_simple (
   parameter OPCODE_INT = 'h1b;  //int number (8 bit), start memory page, end memory page
   parameter OPCODE_INT_RET = 'h1c;  //int number
   parameter OPCODE_RAM2OUT = 'h1d;  //port number, 16 bit source address
-  parameter OPCODE_IN2RAM = 'h1e;  //port number, 16 bit source address
+  parameter OPCODE_REG_IN2RAM = 'h1e;  //port number, 16 bit source address
+  parameter OPCODE_IN2RAM_RET = 'h1f;
 
   parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions (8 bit value) // do..while
   parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions (8 bit value) //do..while
@@ -371,6 +372,7 @@ module x_simple (
 
   bit [15:0] int_pc[0:255];
   bit [15:0] int_process_address[0:255];
+  
   bit mmu_inside_int = 0;
   bit [15:0]
       mmu_source_start_shared_page,
@@ -384,6 +386,12 @@ module x_simple (
   bit [15:0] mmu_address_segment_to_search;
 
   assign mmu_address_segment_to_search = mmu_address_a / MMU_PAGE_SIZE;
+  
+  bit port_registered[0:255];
+  bit [15:0] port_pc[0:255];
+  bit [15:0] port_process_address[0:255];
+  bit inside_port = 0;
+    
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
       mmu_address_a <= ARG; \
@@ -431,6 +439,18 @@ module x_simple (
      mmu_address_a <= next_process_address / MMU_PAGE_SIZE;
 
   integer i;  //DEBUG info
+  
+  always @(negedge clk) begin
+  
+        
+              if (!uart_bb_ready) begin
+                uart_bb_processed <= 0;
+              end else if (port_registered[0]) begin
+                if (!uart_bb_processed) begin
+                  //add process to the chain
+                end
+              end
+  end
 
   always @(negedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
@@ -952,17 +972,27 @@ module x_simple (
               end
             end
             //port number, 16 bit source address
-            OPCODE_IN2RAM: begin
-              if (!uart_bb_ready) begin
-                uart_bb_processed <= 0;
-                `MAKE_MMU_SEARCH2
+            OPCODE_REG_IN2RAM: begin            
+            if (port_registered[instruction1_2]==0) begin
+             port_pc[instruction1_2] <= pc[process_num];
+              port_process_address[instruction1_2] <= process_address[process_num];
+              //delete process from chain
+              write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
+              write_value <= next_process_address;
+              write_enabled <= 1;
+              stage <= STAGE_REG_INT;
               end else begin
-                if (!uart_bb_processed) begin
                   uart_bb_processed <= 1;
                   write_value <= uart_bb;
                   `MAKE_MMU_SEARCH(read_value2, STAGE_SET_ONE_RAM_BYTE);
-                end
-              end
+              end       
+            end            
+            OPCODE_IN2RAM_RET: begin
+              //delete process from chain
+              write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
+              write_value <= next_process_address;
+              write_enabled <= 1;
+              stage <= STAGE_REG_INT;
             end
             default: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = unknown");  //DEBUG info
@@ -1532,9 +1562,9 @@ module single_blockram (
       16'h1210, 16'd2615, //value to reg
       16'h0e10, 16'd0100, //save to ram
       16'h1b37, 16'h0101, //int
-      16'h1e00, 16'd0100, //in2ram
+      16'h1e00, 16'd0200, //in2ram
       16'h1b37, 16'h0202, //int
-      16'h0700, 16'd0002, //jmp minus
+      16'h1f00, 16'd0002, //ret in2ram
       16'hfe00, 16'h0000,            
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
