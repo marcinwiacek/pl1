@@ -7,6 +7,8 @@ parameter HOW_MANY_OP_PER_TASK_SIMULATE = 2;
 parameter HOW_BIG_PROCESS_CACHE = 3;
 parameter MMU_PAGE_SIZE = 100;  //how many bytes are assigned to one memory page in MMU, current program aligned to 100
 
+parameter HARDWARE_WORK_INSTEAD_OF_DEBUG = 0;
+
 //options below are less important than options higher //DEBUG info
 parameter HARDWARE_DEBUG = 0;
 
@@ -26,14 +28,14 @@ parameter ALU_DEBUG = 0;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
 /* DEBUG info */     if (reset_uart_buffer_available) uart_buffer_available = 0; \
-/* DEBUG info */     //uart_buffer[uart_buffer_available++] = ARG; \
+/* DEBUG info */     if (HARDWARE_WORK_INSTEAD_OF_DEBUG == 0) uart_buffer[uart_buffer_available++] = ARG; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG);
 
 // verilog_format:off
 /* DEBUG info */ `define HARD_DEBUG2(ARG) \
 /* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
-/* DEBUG info */     //uart_buffer[uart_buffer_available++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
-/* DEBUG info */     //uart_buffer[uart_buffer_available++] = ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48; \
+/* DEBUG info */     if (HARDWARE_WORK_INSTEAD_OF_DEBUG == 0) uart_buffer[uart_buffer_available++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
+/* DEBUG info */     if (HARDWARE_WORK_INSTEAD_OF_DEBUG == 0) uart_buffer[uart_buffer_available++] = ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1) $write("%c",ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48,"%c",ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48);
 // verilog_format:on
 
@@ -146,7 +148,8 @@ endmodule
 module x_simple (
     input clk,
     input bit btnc,
-    output bit uart_rx_out
+    output bit uart_rx_out,
+    input bit uart_tx_in
 );
 
   bit [31:0] ctn = 0;
@@ -918,8 +921,8 @@ module x_simple (
           if (read_value == 0) begin
             `MAKE_MMU_SEARCH2
           end else begin
-             uart_buffer[uart_buffer_available++] = read_value / 256;
-             uart_buffer[uart_buffer_available++] = read_value % 256;
+             if (HARDWARE_WORK_INSTEAD_OF_DEBUG == 1) uart_buffer[uart_buffer_available++] = read_value / 256;
+             if (HARDWARE_WORK_INSTEAD_OF_DEBUG == 1) uart_buffer[uart_buffer_available++] = read_value % 256;
        //     $display($time, " value ", read_value / 256, " ", read_value % 256);
             read_address<=read_address+1;
           end
