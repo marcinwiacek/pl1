@@ -2,7 +2,7 @@
 
 `timescale 1ns / 1ps
 
-parameter HOW_MANY_OP_SIMULATE = 22;
+parameter HOW_MANY_OP_SIMULATE = 220;
 parameter HOW_MANY_OP_PER_TASK_SIMULATE = 2;
 parameter HOW_BIG_PROCESS_CACHE = 3;
 parameter MMU_PAGE_SIZE = 100;  //how many bytes are assigned to one memory page in MMU, current program aligned to 100
@@ -16,7 +16,7 @@ parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -196,6 +196,7 @@ module x_simple (
 
   wire [7:0] uart_bb;
   wire uart_bb_ready;
+  bit uart_bb_processed = 0;
 
   uart_rx uart_rx (
       .clk(clk),
@@ -272,7 +273,8 @@ module x_simple (
   parameter STAGE_CHECK_MMU_ADDRESS2 = 29;
   parameter STAGE_CHECK_MMU_ADDRESS3 = 30;
   parameter STAGE_SPLIT_PROCESS6 = 31;
-
+  parameter STAGE_SET_ONE_RAM_BYTE = 32;
+  
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
   parameter ALU_DIV = 3;
@@ -377,7 +379,7 @@ module x_simple (
       mmu_target_end_shared_page;
   bit [15:0] mmu_int_num;
 
-  bit mmu_free_page[0:19] = {1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  bit mmu_free_page[0:19] = {1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   bit [15:0] mmu_address_a, mmu_address_b, mmu_address_c, mmu_address_d;
   bit [15:0] mmu_address_segment_to_search;
 
@@ -920,6 +922,19 @@ module x_simple (
                 `MAKE_MMU_SEARCH(read_value2, STAGE_SET_PORT);
               end
             end
+            //port number, 16 bit source address
+            OPCODE_IN2RAM: begin
+               if (!uart_bb_ready) begin
+                 uart_bb_processed<=0;
+                 `MAKE_MMU_SEARCH2
+               end else begin
+                 if (!uart_bb_processed) begin
+                 uart_bb_processed<=1;
+                  write_value <= uart_bb;
+                  `MAKE_MMU_SEARCH(read_value2, STAGE_SET_ONE_RAM_BYTE);
+                  end
+               end
+            end
             default: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = unknown");  //DEBUG info
               `MAKE_MMU_SEARCH2;
@@ -989,6 +1004,10 @@ module x_simple (
             `MAKE_MMU_SEARCH(mmu_address_a + 1, STAGE_SET_RAM_BYTE);
           end
         end
+        STAGE_SET_ONE_RAM_BYTE: begin
+            write_enabled <= 0;
+            `MAKE_MMU_SEARCH2
+        end
         STAGE_CHECK_MMU_ADDRESS: begin
           if (mmu_address_a < MMU_PAGE_SIZE) begin
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
@@ -1002,7 +1021,7 @@ module x_simple (
                   process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE
               );
             mmu_address_c <= process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE;
-            if (stage_after_mmu == STAGE_SET_RAM_BYTE) begin
+            if (stage_after_mmu == STAGE_SET_RAM_BYTE || stage_after_mmu == STAGE_SET_ONE_RAM_BYTE) begin
               write_address <= process_address[process_num] + mmu_address_a % MMU_PAGE_SIZE;
               write_enabled <= 1;
             end else begin
@@ -1059,7 +1078,7 @@ module x_simple (
                     read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE
                 );
             end
-            if (stage_after_mmu != STAGE_SET_RAM_BYTE) begin
+            if (stage_after_mmu != STAGE_SET_RAM_BYTE && stage_after_mmu!= STAGE_SET_ONE_RAM_BYTE) begin
               if (stage_after_mmu == STAGE_GET_1_BYTE) begin
                 mmu_page_offset[process_num] <= mmu_address_a % MMU_PAGE_SIZE;
                 physical_pc[process_num] <=  read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE;
@@ -1388,7 +1407,7 @@ module single_blockram (
 
   // verilog_format:off
    //(* ram_style = "block" *)
-   bit [15:0] ram  [0:599]= {  // in Vivado (required by board)
+   bit [15:0] ram  [0:699]= {  // in Vivado (required by board)
   //  reg [0:559] [15:0] ram = {  // in iVerilog
 
       //first process - 2 pages (200 elements)
@@ -1455,7 +1474,7 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
                  
-      //second process - 2 pages (200 elements) + 2 pages (200 elements) new process nr 3
+      //second process - 3 pages (300 elements) + 2 pages (200 elements) new process nr 3
       //page 3 (100 elements)
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only
       16'd0050, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
@@ -1475,17 +1494,20 @@ module single_blockram (
       16'h0003, //physical segment address for mmu logical page 1 or 0 (not assigned)
       16'h0004, //physical segment address for mmu logical page 2 or 0 (not assigned)
       16'h0005,
-      16'h0000,
+      16'h0006,
       16'h0000,
       16'h0000,
       16'h0000, //next mmu address or 0 (not assigned)
 
       16'h1210, 16'd2612, //value to reg
     //  16'h0e10, 16'd0101, //save to ram
-      16'h1902, 16'h0002, //split process pages 2-4
+      16'h1902, 16'h0003, //split process pages 2-4
        16'h1210, 16'd2615, //value to reg
       16'h0e10, 16'd0100, //save to ram
       16'h1b37, 16'h0101, //int
+      16'h1e00, 16'd0100, //in2ram
+      16'h1b37, 16'h0201, //int
+      16'h0700, 16'd0002, //jmp minus
       //16'h0e10, 16'h00D4, //save to ram
       16'h1800, 16'h0007, //process end
       //16'h0c01, 16'h0001,  //proc
@@ -1500,8 +1522,10 @@ module single_blockram (
       16'h0F00, 16'h0002,  //int,8'h2
       16'h010E, 16'h0030,  //jmp,8'h0x30
       16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
+       16'h0000, 16'h0000,
+        16'h0000, 16'h0000,
+         16'h0000, 16'h0000,
+          16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
@@ -1521,8 +1545,19 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       
-      //third process - 2 pages (200 elements)
       //page 5 (100 elements)
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      
+      //third process - 2 pages (200 elements)
+      //page 6 (100 elements)
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only
       16'd0050, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
 
@@ -1578,7 +1613,7 @@ module single_blockram (
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       
-      //page 6 (100 elements)
+      //page 7 (100 elements)
       "AB",        "CD",16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
