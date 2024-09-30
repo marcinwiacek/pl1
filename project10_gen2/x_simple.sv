@@ -274,7 +274,7 @@ module x_simple (
   parameter STAGE_CHECK_MMU_ADDRESS3 = 30;
   parameter STAGE_SPLIT_PROCESS6 = 31;
   parameter STAGE_SET_ONE_RAM_BYTE = 32;
-  
+
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
   parameter ALU_DIV = 3;
@@ -541,8 +541,12 @@ module x_simple (
                 "-",  //DEBUG info
                 instruction1_2_2,  //DEBUG info
                 ") b2 ",  //DEBUG info
-                read_value2  , //DEBUG info
-                " (", instruction2_1,"-",instruction2_2,")"
+                read_value2,  //DEBUG info
+                " (",
+                instruction2_1,
+                "-",
+                instruction2_2,
+                ")"
             );  //DEBUG info
           pc[process_num] <= pc[process_num] + 2;
           `HARD_DEBUG2(instruction1_1);  //DEBUG info
@@ -863,7 +867,7 @@ module x_simple (
               int_pc[instruction1_2] <= pc[process_num];
               int_process_address[instruction1_2] <= process_address[process_num];
               mmu_source_start_shared_page <= instruction2_1;
-              mmu_source_end_shared_page <=  instruction2_2;
+              mmu_source_end_shared_page <= instruction2_2;
               //delete process from chain
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -871,17 +875,35 @@ module x_simple (
               stage <= STAGE_REG_INT;
             end
             //int number (8 bit), start memory page, end memory page 
-            OPCODE_INT: begin            
+            OPCODE_INT: begin
               if (instruction2_2- instruction2_1 != mmu_source_end_shared_page-mmu_source_start_shared_page) begin
                 if (OP2_DEBUG && !HARDWARE_DEBUG)
                   $display(
-                      $time," ",instruction2_2," ",  instruction2_1 ," ", mmu_source_end_shared_page," ",mmu_source_start_shared_page);
+                      $time,
+                      " ",
+                      instruction2_2,
+                      " ",
+                      instruction2_1,
+                      " ",
+                      mmu_source_end_shared_page,
+                      " ",
+                      mmu_source_start_shared_page
+                  );
                 error_code[process_num] <= ERROR_WRONG_ADDRESS;
               end else begin
-                 if (OP2_DEBUG && !HARDWARE_DEBUG)
+                if (OP2_DEBUG && !HARDWARE_DEBUG)
                   $display(
-                      $time," ",instruction2_2," ",  instruction2_1 ," ", mmu_source_end_shared_page," ",mmu_source_start_shared_page);
-              if (OP2_DEBUG && !HARDWARE_DEBUG)
+                      $time,
+                      " ",
+                      instruction2_2,
+                      " ",
+                      instruction2_1,
+                      " ",
+                      mmu_source_end_shared_page,
+                      " ",
+                      mmu_source_start_shared_page
+                  );
+                if (OP2_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time,
                       " opcode = int ",
@@ -931,16 +953,16 @@ module x_simple (
             end
             //port number, 16 bit source address
             OPCODE_IN2RAM: begin
-               if (!uart_bb_ready) begin
-                 uart_bb_processed<=0;
-                 `MAKE_MMU_SEARCH2
-               end else begin
-                 if (!uart_bb_processed) begin
-                 uart_bb_processed<=1;
+              if (!uart_bb_ready) begin
+                uart_bb_processed <= 0;
+                `MAKE_MMU_SEARCH2
+              end else begin
+                if (!uart_bb_processed) begin
+                  uart_bb_processed <= 1;
                   write_value <= uart_bb;
                   `MAKE_MMU_SEARCH(read_value2, STAGE_SET_ONE_RAM_BYTE);
-                  end
-               end
+                end
+              end
             end
             default: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = unknown");  //DEBUG info
@@ -1012,8 +1034,8 @@ module x_simple (
           end
         end
         STAGE_SET_ONE_RAM_BYTE: begin
-            write_enabled <= 0;
-            `MAKE_MMU_SEARCH2
+          write_enabled <= 0;
+          `MAKE_MMU_SEARCH2
         end
         STAGE_CHECK_MMU_ADDRESS: begin
           if (mmu_address_a < MMU_PAGE_SIZE) begin
