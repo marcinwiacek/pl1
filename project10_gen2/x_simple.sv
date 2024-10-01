@@ -16,8 +16,8 @@ parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -28,14 +28,14 @@ parameter ALU_DEBUG = 0;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
 /* DEBUG info */     if (reset_uart_buffer_available) uart_buffer_available = 0; \
-/* DEBUG info */     if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG; \
+/* DEBUG info */    // if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG);
 
 // verilog_format:off
 /* DEBUG info */ `define HARD_DEBUG2(ARG) \
 /* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
-/* DEBUG info */     if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
-/* DEBUG info */     if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48; \
+/* DEBUG info */    // if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
+/* DEBUG info */    // if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1) $write("%c",ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48,"%c",ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48);
 // verilog_format:on
 
@@ -276,6 +276,8 @@ module x_simple (
   parameter STAGE_TASK_SWITCHER2 = 32;
   parameter STAGE_TASK_SWITCHER3 = 33;
   parameter STAGE_READ_SAVE_REG_USED = 34;
+  
+  parameter STAGE_REG_PORT = 35;
 
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
@@ -421,7 +423,7 @@ module x_simple (
 
   `define MAKE_SWITCH_TASK(ARG) \
      if (ARG==0) how_many <= 0; \
-       if (process_numbers > 1) begin\
+     if (process_numbers > 0) begin\
        if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
             $display("\n\n",$time, " TASK SWITCHER from ", process_address[process_num], " to ", next_process_address); \
        for (i=0;i<HOW_BIG_PROCESS_CACHE;i=i+1) begin \
@@ -440,6 +442,8 @@ module x_simple (
        read_address <= next_process_address + ADDRESS_PC; \
        stage <= STAGE_READ_SAVE_PC; \
        mmu_address_a <= next_process_address / MMU_PAGE_SIZE;\
+     end else if (process_numbers ==  0) begin\
+       stage <= STAGE_HLT;\
      end
 
   integer i;  //DEBUG info
@@ -484,6 +488,12 @@ module x_simple (
 
       rst_can_be_done <= 1;
       stage <= STAGE_GET_1_BYTE;
+    end else if (stage == STAGE_HLT) begin
+              if (switch_required) begin
+              process_numbers<=process_numbers+1;
+                next_process_address <= port_process_address[0];
+            `MAKE_SWITCH_TASK(1);
+            end
     end else if (instructions < HOW_MANY_OP_SIMULATE && error_code[process_num] == ERROR_NONE) begin
       if (STAGE_DEBUG && !HARDWARE_DEBUG) begin  //DEBUG info
         $write($time, " stage ", stage, " ");  //DEBUG info
@@ -521,7 +531,7 @@ module x_simple (
         endcase  //DEBUG info
         $display(" pc ", pc[process_num]);  //DEBUG info
       end
-      $display($time, process_numbers);  //DEBUG info
+     // $display($time, process_numbers);  //DEBUG info
       // (*parallel_case *)(*full_case *) 
       case (stage)
         STAGE_GET_1_BYTE: begin
@@ -924,7 +934,7 @@ module x_simple (
                       " ",
                       mmu_source_start_shared_page
                   );
-                if (OP2_DEBUG && !HARDWARE_DEBUG)
+               // if (OP2_DEBUG && !HARDWARE_DEBUG)
                   $display(
                       $time,
                       " opcode = int ",
@@ -941,7 +951,7 @@ module x_simple (
                 stage <= STAGE_INT;
                 //add shared memory from current process to int process       
                 mmu_target_start_shared_page <= instruction2_1;
-                mmu_target_end_shared_page <= instruction2_1 + instruction2_2;
+                mmu_target_end_shared_page <=  instruction2_2;
                 mmu_inside_int <= 1;
                 mmu_int_num <= instruction1_2;
               end
@@ -986,7 +996,7 @@ module x_simple (
               if (port_registered[instruction1_2] == 0) begin
                 process_numbers <= process_numbers - 1;
                 port_registered[instruction1_2] <= 1;
-                port_pc[instruction1_2] <= pc[process_num] + 2;
+                port_pc[instruction1_2] <= pc[process_num]-2 ;
                 port_process_address[instruction1_2] <= process_address[process_num];
                 //delete process from chain
                 write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
@@ -997,8 +1007,7 @@ module x_simple (
                       $time,  //DEBUG info
                       " first registration "  //DEBUG info
                   );
-
-                `MAKE_SWITCH_TASK(0)
+              stage <= STAGE_REG_PORT;
               end else begin
                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                   $display(  //DEBUG info
@@ -1006,7 +1015,9 @@ module x_simple (
                       " executing "  //DEBUG info
                   );
                 uart_bb_processed <= 1;
-                write_value <= uart_bb;
+                 $display(  //DEBUG info
+                      $time, " setting ", uart_bb, " to addr ",read_value2); 
+                write_value <= uart_bb*256;
                 `MAKE_MMU_SEARCH(read_value2, STAGE_SET_ONE_RAM_BYTE);
               end
             end
@@ -1024,7 +1035,7 @@ module x_simple (
               pc[process_num] <= port_pc[instruction1_2];
               mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
 
-              stage <= STAGE_HLT;
+               `MAKE_SWITCH_TASK(0)
             end
             default: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = unknown");  //DEBUG info
@@ -1033,6 +1044,12 @@ module x_simple (
             end
           endcase
           instructions <= instructions + 1;
+        end
+        STAGE_REG_PORT: begin
+            
+                     mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
+                     pc[process_num]<=pc[process_num]-2;
+                `MAKE_SWITCH_TASK(0)
         end
         STAGE_SET_PORT: begin
           $display($time, read_address, " value ", read_value / 256, " ", read_value % 256);
@@ -1101,6 +1118,11 @@ module x_simple (
           `MAKE_MMU_SEARCH2
         end
         STAGE_CHECK_MMU_ADDRESS: begin
+          $display(  //DEBUG info
+                  $time," mmu debug ",
+mmu_inside_int, " ", mmu_address_segment_to_search," " ,mmu_source_start_shared_page," ",mmu_target_start_shared_page," ", 
+             mmu_address_segment_to_search," ",mmu_target_end_shared_page," ",mmu_target_end_shared_page);
+             
           if (mmu_address_a < MMU_PAGE_SIZE) begin
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display(  //DEBUG info
@@ -1126,17 +1148,18 @@ module x_simple (
               write_enabled <= 0;
             end
             stage <= stage_after_mmu;
-          end else if (mmu_inside_int==1&& mmu_address_segment_to_search>=mmu_target_start_shared_page && 
-             mmu_address_segment_to_search<=mmu_target_end_shared_page) begin
+          end else if (mmu_inside_int==1&& mmu_address_segment_to_search>=mmu_source_start_shared_page && 
+             mmu_address_segment_to_search<=mmu_source_end_shared_page) begin
             write_enabled <= 0;
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display(  //DEBUG info
                   $time, " mmu inside int"
               );
             mmu_address_b <= int_process_address[mmu_int_num];
-            mmu_address_d<=mmu_address_segment_to_search-mmu_target_start_shared_page+mmu_source_start_shared_page;
-            if (mmu_address_segment_to_search-mmu_target_start_shared_page+mmu_source_start_shared_page<=6) begin
-              read_address<=int_process_address[mmu_int_num] + ADDRESS_MMU_LEN + mmu_address_segment_to_search-mmu_target_start_shared_page+mmu_source_start_shared_page;
+            mmu_address_d<=mmu_target_start_shared_page + mmu_source_start_shared_page-mmu_address_segment_to_search;
+            if (mmu_target_start_shared_page + mmu_source_start_shared_page-mmu_address_segment_to_search<=6) begin
+              read_address<=int_process_address[mmu_int_num] + ADDRESS_MMU_LEN + 
+              mmu_target_start_shared_page + mmu_source_start_shared_page-mmu_address_segment_to_search;
             end
             read_address2 <= int_process_address[mmu_int_num] + ADDRESS_MMU_LEN + 7;
             stage <= STAGE_CHECK_MMU_ADDRESS2;
@@ -1478,11 +1501,11 @@ module x_simple (
         STAGE_INT: begin
           write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
           write_value   <= int_process_address[instruction1_2];
-          if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
+          //if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
             next_process_address <= int_process_address[instruction1_2];
-          end else begin
-            how_many <= 0;
-          end
+          //end else begin
+//            how_many <= 0;
+//          end
           int_process_address[instruction1_2] <= process_address[process_num];
           stage <= STAGE_TASK_SWITCHER;
         end
@@ -1564,8 +1587,7 @@ module single_blockram (
       16'h0c01, 16'h0001, //unknown // not used for anything usefull, just for debugging
       16'h0c01, 16'h0002, //unknown // not used for anything usefull, just for debugging
       16'h1202, 16'h0003, //num2reg // not used for anything usefull, just for debugging
-      //16'h1800, 16'h0007, //process end
-      16'hfb00, 16'h0000,
+      16'h1800, 16'h0007, //process end
       16'hfb00, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
@@ -1863,8 +1885,8 @@ module uart_rx (
   end
 
   always @(posedge clk) begin
-    bb_ready <= 1;
-    bb <= "a";
+   // bb_ready <= 1;
+   // bb <= "a";
     if (uart_tx_state == STATE_IDLE) begin
       if (inp == 0) begin
         counter <= 0;
