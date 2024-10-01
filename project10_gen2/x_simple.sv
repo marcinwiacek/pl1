@@ -23,7 +23,7 @@ parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
-parameter OP2_DEBUG = 0;
+parameter OP2_DEBUG = 1;
 parameter ALU_DEBUG = 0;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
@@ -245,36 +245,37 @@ module x_simple (
   parameter STAGE_AFTER_RESET = 1;
   parameter STAGE_GET_1_BYTE = 2;
   parameter STAGE_CHECK_MMU_ADDRESS = 3;
-  parameter STAGE_SET_PC = 4;  //jump instructions
-  parameter STAGE_GET_PARAM_BYTE = 5;
-  parameter STAGE_SET_PARAM_BYTE = 6;
-  parameter STAGE_GET_RAM_BYTE = 7;
-  parameter STAGE_SET_RAM_BYTE = 8;
-  parameter STAGE_HLT = 9;
-  parameter STAGE_ALU = 10;
-  parameter STAGE_DELETE_PROCESS = 11;
-  parameter STAGE_SPLIT_PROCESS = 12;
-  parameter STAGE_REG_INT = 14;
-  parameter STAGE_REG_INT2 = 15;
-  parameter STAGE_INT = 16;
+  parameter STAGE_CHECK_MMU_ADDRESS2 = 4;
+  parameter STAGE_CHECK_MMU_ADDRESS3 = 5;
+  parameter STAGE_SET_PC = 6;  //jump instructions
+  parameter STAGE_GET_PARAM_BYTE = 7;
+  parameter STAGE_SET_PARAM_BYTE = 8;
+  parameter STAGE_GET_RAM_BYTE = 9;
+  parameter STAGE_SET_RAM_BYTE = 10;
+  parameter STAGE_SET_ONE_RAM_BYTE = 11;
+  parameter STAGE_HLT = 12;
+  parameter STAGE_ALU = 14;
+  parameter STAGE_DELETE_PROCESS = 15;
+  parameter STAGE_SPLIT_PROCESS = 16;
+  parameter STAGE_REG_INT = 17;
+  parameter STAGE_REG_INT2 = 18;
+  parameter STAGE_INT = 19;
+  parameter STAGE_SET_PORT = 20;
   /*task switching*/
-  parameter STAGE_READ_SAVE_PC = 17;
-  parameter STAGE_READ_REG = 18;
-  parameter STAGE_READ_NEXT_NEXT_PROCESS = 19;
-  parameter STAGE_SAVE_NEXT_PROCESS = 20;
-  parameter STAGE_SPLIT_PROCESS2 = 21;
-  parameter STAGE_SPLIT_PROCESS3 = 22;
-  parameter STAGE_SPLIT_PROCESS4 = 23;
-  parameter STAGE_SPLIT_PROCESS5 = 24;
-  parameter STAGE_SAVE_NEXT_PROCESS2 = 25;
-  parameter STAGE_TASK_SWITCHER = 26;
-  parameter STAGE_READ_SAVE_REG_USED = 27;
-
-  parameter STAGE_SET_PORT = 28;
-  parameter STAGE_CHECK_MMU_ADDRESS2 = 29;
-  parameter STAGE_CHECK_MMU_ADDRESS3 = 30;
-  parameter STAGE_SPLIT_PROCESS6 = 31;
-  parameter STAGE_SET_ONE_RAM_BYTE = 32;
+  parameter STAGE_READ_SAVE_PC = 21;
+  parameter STAGE_READ_REG = 22;
+  parameter STAGE_READ_NEXT_NEXT_PROCESS = 23;
+  parameter STAGE_SAVE_NEXT_PROCESS = 24;
+  parameter STAGE_SPLIT_PROCESS2 = 25;
+  parameter STAGE_SPLIT_PROCESS3 = 26;
+  parameter STAGE_SPLIT_PROCESS4 = 27;
+  parameter STAGE_SPLIT_PROCESS5 = 28;
+  parameter STAGE_SPLIT_PROCESS6 = 29;
+  parameter STAGE_SAVE_NEXT_PROCESS2 = 30;
+  parameter STAGE_TASK_SWITCHER = 31;
+  parameter STAGE_TASK_SWITCHER2 = 32;
+  parameter STAGE_TASK_SWITCHER3 = 33;
+  parameter STAGE_READ_SAVE_REG_USED = 34;
 
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
@@ -424,7 +425,7 @@ module x_simple (
      for (i=0;i<HOW_BIG_PROCESS_CACHE;i=i+1) begin \
        if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display ("cache ",process_used[i]," ", process_address[i]);\
        if (process_used[i]) begin \
-         if (process_address[i] == (switch_required?port_process_address[0]:next_process_address)) begin \
+         if (process_address[i] == next_process_address) begin \
             prev_process_address <= process_address[process_num]; \
             process_num <= i; \
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)   $display ("found ",i);\
@@ -434,9 +435,9 @@ module x_simple (
        end \
      end \
      write_enabled <= ARG; \
-     read_address <= (switch_required?port_process_address[0]:next_process_address) + ADDRESS_PC; \
+     read_address <= next_process_address + ADDRESS_PC; \
      stage <= STAGE_READ_SAVE_PC; \
-     mmu_address_a <= (switch_required?port_process_address[0]:next_process_address) / MMU_PAGE_SIZE;
+     mmu_address_a <= next_process_address / MMU_PAGE_SIZE;
 
   integer i;  //DEBUG info
 
@@ -941,9 +942,11 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
             OPCODE_INT_RET: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int_ret");  //DEBUG info
               //replace current process with int process in the chain 
+              $display($time, " opcode = int_ret ",process_address[process_num]," ",next_process_address," ",int_process_address[instruction1_2]);
               write_address <= int_process_address[instruction1_2] + ADDRESS_NEXT_PROCESS;
-              write_value <= next_process_address;
+              write_value <= process_address[process_num]==next_process_address?int_process_address[instruction1_2]:next_process_address;
               write_enabled <= 1;
+              next_process_address<=process_address[process_num]==next_process_address?int_process_address[instruction1_2]:next_process_address;
               stage <= STAGE_INT;
               mmu_inside_int <= 0;
             end
@@ -1228,10 +1231,26 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
           write_address <= process_address[process_num] + ADDRESS_PC;
           write_value   <= pc[process_num];
           write_enabled <= 1;
-          
-      
+               
+               if (switch_required) begin
+                 stage<=STAGE_TASK_SWITCHER2;
+                 end else begin
           `MAKE_SWITCH_TASK(1);
+          end
         end
+          STAGE_TASK_SWITCHER2: begin
+               write_address <= port_process_address[0] + ADDRESS_NEXT_PROCESS;
+               write_value   <= next_process_address;
+              write_enabled <= 1;
+              next_process_address<=port_process_address[0];
+                 stage<=STAGE_TASK_SWITCHER3;
+          end
+          STAGE_TASK_SWITCHER3: begin
+                write_address <= process_address[process_num] + ADDRESS_NEXT_PROCESS;
+               write_value   <= port_process_address[0];
+              write_enabled <= 1;
+          `MAKE_SWITCH_TASK(1);
+          end
         STAGE_READ_SAVE_PC: begin
           if (process_used[process_num] && process_address[process_num] == next_process_address) begin
             write_enabled <= 0;
@@ -1772,7 +1791,7 @@ module uart_rx (
     input clk,
     input uartrx,
     output logic [7:0] bb,
-    output logic bb_ready = 0
+    output logic bb_ready 
 );
 
   parameter CLK_PER_BYTE = 100000000 / 115200;  //100 Mhz / transmission speed in bps (bits per second)
@@ -1795,6 +1814,8 @@ module uart_rx (
   end
 
   always @(posedge clk) begin
+  bb_ready<=1;
+  bb<="a";
     if (uart_tx_state == STATE_IDLE) begin
       if (inp == 0) begin
         counter <= 0;
