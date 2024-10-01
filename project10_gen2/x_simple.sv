@@ -424,7 +424,7 @@ module x_simple (
      for (i=0;i<HOW_BIG_PROCESS_CACHE;i=i+1) begin \
        if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display ("cache ",process_used[i]," ", process_address[i]);\
        if (process_used[i]) begin \
-         if (process_address[i] == next_process_address) begin \
+         if (process_address[i] == (switch_required?port_process_address[0]:next_process_address)) begin \
             prev_process_address <= process_address[process_num]; \
             process_num <= i; \
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)   $display ("found ",i);\
@@ -434,21 +434,15 @@ module x_simple (
        end \
      end \
      write_enabled <= ARG; \
-     read_address <= next_process_address + ADDRESS_PC; \
+     read_address <= (switch_required?port_process_address[0]:next_process_address) + ADDRESS_PC; \
      stage <= STAGE_READ_SAVE_PC; \
-     mmu_address_a <= next_process_address / MMU_PAGE_SIZE;
+     mmu_address_a <= (switch_required?port_process_address[0]:next_process_address) / MMU_PAGE_SIZE;
 
   integer i;  //DEBUG info
 
-  always @(negedge clk) begin
-    if (!uart_bb_ready) begin
-      uart_bb_processed <= 0;
-    end else if (port_registered[0]) begin
-      if (!uart_bb_processed) begin
-        //add process to the chain
-      end
-    end
-  end
+bit switch_required;
+
+assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_processed;
 
   always @(negedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
@@ -1234,6 +1228,8 @@ module x_simple (
           write_address <= process_address[process_num] + ADDRESS_PC;
           write_value   <= pc[process_num];
           write_enabled <= 1;
+          
+      
           `MAKE_SWITCH_TASK(1);
         end
         STAGE_READ_SAVE_PC: begin
@@ -1342,12 +1338,14 @@ module x_simple (
           end
         end
         STAGE_READ_NEXT_NEXT_PROCESS: begin
-          if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
-            $display(
+          if (!switch_required) begin
+            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
+              $display(
                 $time, " read next next ", read_address, " ", next_process_address, "=", read_value
-            );  //DEBUG info
+              );  //DEBUG info
+            next_process_address <= read_value;
+          end
           if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display("\n\n");
-          next_process_address <= read_value;
           temp_process_num <= process_num;
           `MAKE_MMU_SEARCH2
         end
