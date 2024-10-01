@@ -7,7 +7,7 @@ parameter HOW_MANY_OP_PER_TASK_SIMULATE = 2;
 parameter HOW_BIG_PROCESS_CACHE = 3;
 parameter MMU_PAGE_SIZE = 100;  //how many bytes are assigned to one memory page in MMU, current program aligned to 100
 
-parameter HARDWARE_WORK_INSTEAD_OF_DEBUG = 0;
+parameter HARDWARE_WORK_INSTEAD_OF_DEBUG = 1;
 
 //options below are less important than options higher //DEBUG info
 parameter HARDWARE_DEBUG = 0;
@@ -23,7 +23,7 @@ parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
 parameter OP_DEBUG = 1;
-parameter OP2_DEBUG = 1;
+parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
@@ -393,6 +393,7 @@ module x_simple (
   bit [15:0] port_process_address[0:255];
   bit inside_port = 0;
 
+bit[100:0] process_numbers = 2;
 
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
       mmu_address_a <= ARG; \
@@ -420,24 +421,26 @@ module x_simple (
 
   `define MAKE_SWITCH_TASK(ARG) \
      if (ARG==0) how_many <= 0; \
-     if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
+       if (process_numbers > 1) begin\
+       if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
             $display("\n\n",$time, " TASK SWITCHER from ", process_address[process_num], " to ", next_process_address); \
-     for (i=0;i<HOW_BIG_PROCESS_CACHE;i=i+1) begin \
-       if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display ("cache ",process_used[i]," ", process_address[i]);\
-       if (process_used[i]) begin \
-         if (process_address[i] == next_process_address) begin \
-            prev_process_address <= process_address[process_num]; \
-            process_num <= i; \
-            if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)   $display ("found ",i);\
+       for (i=0;i<HOW_BIG_PROCESS_CACHE;i=i+1) begin \
+         if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) $display ("cache ",process_used[i]," ", process_address[i]);\
+         if (process_used[i]) begin \
+           if (process_address[i] == next_process_address) begin \
+              prev_process_address <= process_address[process_num]; \
+              process_num <= i; \
+              if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)   $display ("found ",i);\
+           end \
+         end else begin \
+           temp_process_num<= i; \
          end \
-       end else begin \
-         temp_process_num<= i; \
        end \
-     end \
-     write_enabled <= ARG; \
-     read_address <= next_process_address + ADDRESS_PC; \
-     stage <= STAGE_READ_SAVE_PC; \
-     mmu_address_a <= next_process_address / MMU_PAGE_SIZE;
+       write_enabled <= ARG; \
+       read_address <= next_process_address + ADDRESS_PC; \
+       stage <= STAGE_READ_SAVE_PC; \
+       mmu_address_a <= next_process_address / MMU_PAGE_SIZE;\
+     end
 
   integer i;  //DEBUG info
 
@@ -517,10 +520,12 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
           STAGE_SPLIT_PROCESS6: $write("STAGE_SPLIT_PROCESS6");  //DEBUG info
         endcase  //DEBUG info
         $display(" pc ", pc[process_num]);  //DEBUG info
-      end  //DEBUG info
+      end  
+      $display($time, process_numbers); //DEBUG info
       // (*parallel_case *)(*full_case *) 
-      case (stage)
+      case (stage)   
         STAGE_GET_1_BYTE: begin
+    
           write_enabled <= 0;
           if (READ_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
             $display(  //DEBUG info
@@ -844,6 +849,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
             end
             //exit process
             OPCODE_EXIT: begin
+              process_numbers<=process_numbers-1;
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = exit");  //DEBUG info
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -852,6 +858,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
             end
             //new process //how many pages, start page number (16 bit
             OPCODE_PROC: begin
+              process_numbers<=process_numbers+1;
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                 $display(  //DEBUG info
                     $time,  //DEBUG info
@@ -867,6 +874,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
             end
             //int number (8 bit), start memory page, end memory page 
             OPCODE_REG_INT: begin
+            process_numbers<=process_numbers-1;
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                 $display(
                     $time,
@@ -976,6 +984,8 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
                       " opcode = REG_IN2RAM "  //DEBUG info
                       );
               if (port_registered[instruction1_2] == 0) begin
+                process_numbers<=process_numbers-1;
+              port_registered[instruction1_2]<=1;
                 port_pc[instruction1_2] <= pc[process_num]+2;
                 port_process_address[instruction1_2] <= process_address[process_num];
                 //delete process from chain
@@ -988,7 +998,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
                       " first registration "  //DEBUG info
                       );
                       
-                `MAKE_SWITCH_TASK(1)
+                `MAKE_SWITCH_TASK(0)
               end else begin
                  if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                   $display(  //DEBUG info
@@ -1010,6 +1020,10 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
               write_enabled <= 1;
+              
+                  pc[process_num]<=port_pc[instruction1_2];
+               mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
+               
                   stage <= STAGE_HLT;
             end
             default: begin
@@ -1021,6 +1035,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
           instructions <= instructions + 1;
         end
         STAGE_SET_PORT: begin
+           $display($time, read_address," value ", read_value / 256, " ", read_value % 256);
           if (read_value == 0) begin
             `MAKE_MMU_SEARCH2
           end else begin
@@ -1028,7 +1043,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
               uart_buffer[uart_buffer_available++] = read_value / 256;
             if (HARDWARE_WORK_INSTEAD_OF_DEBUG)
               uart_buffer[uart_buffer_available++] = read_value % 256;
-                 $display($time, " value ", read_value / 256, " ", read_value % 256);
+              
             read_address <= read_address + 1;
           end
         end
@@ -1399,7 +1414,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_SPLIT_PROCESS: begin
-        $display("split mmu page: ",read_value);
+       // $display("split mmu page: ",read_value);
           mmu_address_d <= read_value * MMU_PAGE_SIZE;  //new process address
           write_address <= read_value * MMU_PAGE_SIZE + ADDRESS_MMU_LEN + 1;
           read_address <= read_address + 1;
@@ -1412,7 +1427,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
             write_address <= process_address[process_num] + ADDRESS_MMU_LEN + read_value2;
             write_enabled <= 0;
           end else begin
-        $display("split mmu page: ",read_value);
+        //$display("split mmu page: ",read_value);
             read_address  <= read_address + 1;
             write_address <= write_address + 1;
             write_value   <= read_value;
@@ -1469,6 +1484,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
         end
       endcase
     end else if (error_code[process_num] != ERROR_NONE) begin
+      process_numbers<=process_numbers-1;
       $display($time, " BSOD ", error_code[process_num]);  //DEBUG info
       `HARD_DEBUG("B");  //DEBUG info
       `HARD_DEBUG("S");  //DEBUG info
@@ -1542,7 +1558,8 @@ module single_blockram (
       16'h0c01, 16'h0001, //unknown // not used for anything usefull, just for debugging
       16'h0c01, 16'h0002, //unknown // not used for anything usefull, just for debugging
       16'h1202, 16'h0003, //num2reg // not used for anything usefull, just for debugging
-      16'h1800, 16'h0007, //process end
+      //16'h1800, 16'h0007, //process end
+      16'hfb00, 16'h0000,
       16'hfb00, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
@@ -1600,20 +1617,17 @@ module single_blockram (
 
       16'h1210, 16'd2612, //value to reg // not used for anything usefull, just for debugging
       16'h1902, 16'h0003, //split process process pages 3-4 (page 6 & 7)
-     // 16'h0000, 16'h0000,
-    //  16'h0000, 16'h0000,
-      16'h1210, 16'd2615, //value to reg // not used for anything usefull, just for debugging
-      16'h0e10, 16'd0100, //save to ram // not used for anything usefull, just for debugging
+      //16'h0000, 16'h0000,
+      //16'h0000, 16'h0000,
+       16'h0911, 16'd0101, //ram to reg // not used for anything usefull, just for debugging
+       16'h0911, 16'd0102, //ram to reg // not used for anything usefull, just for debugging
+    //  16'h1210, 16'd2615, //value to reg // not used for anything usefull, just for debugging
+//      16'h0e10, 16'd0100, //save to ram // not used for anything usefull, just for debugging
       16'h1b37, 16'h0101, //int
       16'h1e00, 16'd0201, //in2ram
       16'h1b37, 16'h0202, //int
       16'h1f00, 16'd0002, //ret in2ram
       16'hfe00, 16'h0000,            
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
@@ -1653,7 +1667,8 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+            
       //third process - 2 pages (200 elements)
       //page 6 (100 elements)
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only
@@ -1682,7 +1697,7 @@ module single_blockram (
       16'h1a37, 16'h0101, //reg int 
       16'h0911, 16'd0150, //ram to reg // not used for anything usefull, just for debugging
       16'h1210, 16'h0a35, //value to reg // not used for anything usefull, just for debugging
-      16'h1d10, 16'd0100, //ram2out         
+      16'h1d10, 16'd0101, //ram2out         
       16'h1c37, 16'd0000, //int ret      
       16'hff00, 16'h0000,
       16'h0000, 16'h0000,
@@ -1842,8 +1857,8 @@ module uart_rx (
   end
 
   always @(posedge clk) begin
-  //bb_ready<=1;
-  //bb<="a";
+  bb_ready<=1;
+  bb<="a";
     if (uart_tx_state == STATE_IDLE) begin
       if (inp == 0) begin
         counter <= 0;
