@@ -28,14 +28,14 @@ parameter ALU_DEBUG = 0;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
 /* DEBUG info */     if (reset_uart_buffer_available) uart_buffer_available = 0; \
-/* DEBUG info */     if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG; \
+/* DEBUG info */    // if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG);
 
 // verilog_format:off
 /* DEBUG info */ `define HARD_DEBUG2(ARG) \
 /* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
-/* DEBUG info */     if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
-/* DEBUG info */     if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48; \
+/* DEBUG info */   //  if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
+/* DEBUG info */   //  if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1) $write("%c",ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48,"%c",ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48);
 // verilog_format:on
 
@@ -1013,9 +1013,9 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
           if (read_value == 0) begin
             `MAKE_MMU_SEARCH2
           end else begin
-            if (HARDWARE_WORK_INSTEAD_OF_DEBUG)
+            //if (HARDWARE_WORK_INSTEAD_OF_DEBUG)
               uart_buffer[uart_buffer_available++] = read_value / 256;
-            if (HARDWARE_WORK_INSTEAD_OF_DEBUG)
+           // if (HARDWARE_WORK_INSTEAD_OF_DEBUG)
               uart_buffer[uart_buffer_available++] = read_value % 256;
             //     $display($time, " value ", read_value / 256, " ", read_value % 256);
             read_address <= read_address + 1;
@@ -1587,10 +1587,12 @@ module single_blockram (
 
       16'h1210, 16'd2612, //value to reg // not used for anything usefull, just for debugging
       16'h1902, 16'h0003, //split process pages 2-5
-      16'h1210, 16'd2615, //value to reg // not used for anything usefull, just for debugging
-      16'h0e10, 16'd0100, //save to ram // not used for anything usefull, just for debugging
+      16'h0000, 16'h0000,
+      16'h0000, 16'h0000,
+      //16'h1210, 16'd2615, //value to reg // not used for anything usefull, just for debugging
+      //16'h0e10, 16'd0100, //save to ram // not used for anything usefull, just for debugging
       16'h1b37, 16'h0101, //int
-      16'h1e00, 16'd0200, //in2ram
+      16'h1e00, 16'd0201, //in2ram
       16'h1b37, 16'h0202, //int
       16'h1f00, 16'd0002, //ret in2ram
       16'hfe00, 16'h0000,            
@@ -1827,8 +1829,8 @@ module uart_rx (
   end
 
   always @(posedge clk) begin
-  bb_ready<=1;
-  bb<="a";
+  //bb_ready<=1;
+  //bb<="a";
     if (uart_tx_state == STATE_IDLE) begin
       if (inp == 0) begin
         counter <= 0;
