@@ -17,13 +17,13 @@ parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
-parameter OP_DEBUG = 1;
-parameter OP2_DEBUG = 1;
+parameter OP_DEBUG = 0;
+parameter OP2_DEBUG = 0;
 parameter ALU_DEBUG = 0;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
@@ -877,7 +877,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
                     "-",
                     instruction2_2
                 );  //DEBUG info
-              int_pc[instruction1_2] <= pc[process_num];
+              int_pc[instruction1_2] <= pc[process_num]+2;
               int_process_address[instruction1_2] <= process_address[process_num];
               mmu_source_start_shared_page <= instruction2_1;
               mmu_source_end_shared_page <= instruction2_2;
@@ -942,11 +942,13 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
             OPCODE_INT_RET: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = int_ret");  //DEBUG info
               //replace current process with int process in the chain 
-              $display($time, " opcode = int_ret ",process_address[process_num]," ",next_process_address," ",int_process_address[instruction1_2]);
+             // $display($time, " opcode = int_ret ",pc[process_num]," ",int_pc[instruction1_2]," ",process_address[process_num]," ",next_process_address," ",int_process_address[instruction1_2]);
               write_address <= int_process_address[instruction1_2] + ADDRESS_NEXT_PROCESS;
               write_value <= process_address[process_num]==next_process_address?int_process_address[instruction1_2]:next_process_address;
               write_enabled <= 1;
               next_process_address<=process_address[process_num]==next_process_address?int_process_address[instruction1_2]:next_process_address;
+              pc[process_num]<=int_pc[instruction1_2];
+               mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
               stage <= STAGE_INT;
               mmu_inside_int <= 0;
             end
@@ -968,8 +970,13 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
             end
             //port number, 16 bit source address
             OPCODE_REG_IN2RAM: begin
+               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
+                  $display(  //DEBUG info
+                      $time,  //DEBUG info
+                      " opcode = REG_IN2RAM "  //DEBUG info
+                      );
               if (port_registered[instruction1_2] == 0) begin
-                port_pc[instruction1_2] <= pc[process_num];
+                port_pc[instruction1_2] <= pc[process_num]+2;
                 port_process_address[instruction1_2] <= process_address[process_num];
                 //delete process from chain
                 write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
@@ -983,11 +990,16 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
               end
             end
             OPCODE_IN2RAM_RET: begin
+               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
+                  $display(  //DEBUG info
+                      $time,  //DEBUG info
+                      " opcode = IN2RAM_RET "  //DEBUG info
+                      );
               //delete process from chain
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
               write_enabled <= 1;
-              stage <= STAGE_REG_INT;
+                  stage <= STAGE_HLT;
             end
             default: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = unknown");  //DEBUG info
@@ -1227,6 +1239,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
         end
         STAGE_TASK_SWITCHER: begin
           `HARD_DEBUG("W");
+        //  $display($time, " old pc ",pc[process_num]);
           //old process
           write_address <= process_address[process_num] + ADDRESS_PC;
           write_value   <= pc[process_num];
