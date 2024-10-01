@@ -7,7 +7,7 @@ parameter HOW_MANY_OP_PER_TASK_SIMULATE = 2;
 parameter HOW_BIG_PROCESS_CACHE = 3;
 parameter MMU_PAGE_SIZE = 100;  //how many bytes are assigned to one memory page in MMU, current program aligned to 100
 
-parameter HARDWARE_WORK_INSTEAD_OF_DEBUG = 1;
+parameter HARDWARE_WORK_INSTEAD_OF_DEBUG = 0;
 
 //options below are less important than options higher //DEBUG info
 parameter HARDWARE_DEBUG = 0;
@@ -22,20 +22,20 @@ parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter STAGE_DEBUG = 0;
-parameter OP_DEBUG = 0;
-parameter OP2_DEBUG = 0;
+parameter OP_DEBUG = 1;
+parameter OP2_DEBUG = 1;
 parameter ALU_DEBUG = 0;
 
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
 /* DEBUG info */     if (reset_uart_buffer_available) uart_buffer_available = 0; \
-/* DEBUG info */    // if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG; \
+/* DEBUG info */     if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1)  $write(ARG);
 
 // verilog_format:off
 /* DEBUG info */ `define HARD_DEBUG2(ARG) \
 /* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
-/* DEBUG info */   //  if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
-/* DEBUG info */   //  if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48; \
+/* DEBUG info */     if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
+/* DEBUG info */     if (!HARDWARE_WORK_INSTEAD_OF_DEBUG) uart_buffer[uart_buffer_available++] = ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48; \
 /* DEBUG info */     if (HARDWARE_DEBUG == 1) $write("%c",ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48,"%c",ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48);
 // verilog_format:on
 
@@ -855,7 +855,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                 $display(  //DEBUG info
                     $time,  //DEBUG info
-                    " opcode = proc, pages ",  //DEBUG info
+                    " opcode = proc, process pages ",  //DEBUG info
                     read_value2,  //DEBUG info
                     "-",  //DEBUG info
                     (read_value2 + instruction1_2 - 1)  //DEBUG info
@@ -982,8 +982,19 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
                 write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
                 write_value <= next_process_address;
                 write_enabled <= 1;
-                stage <= STAGE_REG_INT;
+                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
+                  $display(  //DEBUG info
+                      $time,  //DEBUG info
+                      " first registration "  //DEBUG info
+                      );
+                      
+                `MAKE_SWITCH_TASK(1)
               end else begin
+                 if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
+                  $display(  //DEBUG info
+                      $time,  //DEBUG info
+                      " executing "  //DEBUG info
+                      );
                 uart_bb_processed <= 1;
                 write_value <= uart_bb;
                 `MAKE_MMU_SEARCH(read_value2, STAGE_SET_ONE_RAM_BYTE);
@@ -1013,11 +1024,11 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
           if (read_value == 0) begin
             `MAKE_MMU_SEARCH2
           end else begin
-            //if (HARDWARE_WORK_INSTEAD_OF_DEBUG)
+            if (HARDWARE_WORK_INSTEAD_OF_DEBUG)
               uart_buffer[uart_buffer_available++] = read_value / 256;
-           // if (HARDWARE_WORK_INSTEAD_OF_DEBUG)
+            if (HARDWARE_WORK_INSTEAD_OF_DEBUG)
               uart_buffer[uart_buffer_available++] = read_value % 256;
-            //     $display($time, " value ", read_value / 256, " ", read_value % 256);
+                 $display($time, " value ", read_value / 256, " ", read_value % 256);
             read_address <= read_address + 1;
           end
         end
@@ -1388,6 +1399,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_SPLIT_PROCESS: begin
+        $display("split mmu page: ",read_value);
           mmu_address_d <= read_value * MMU_PAGE_SIZE;  //new process address
           write_address <= read_value * MMU_PAGE_SIZE + ADDRESS_MMU_LEN + 1;
           read_address <= read_address + 1;
@@ -1400,6 +1412,7 @@ assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_process
             write_address <= process_address[process_num] + ADDRESS_MMU_LEN + read_value2;
             write_enabled <= 0;
           end else begin
+        $display("split mmu page: ",read_value);
             read_address  <= read_address + 1;
             write_address <= write_address + 1;
             write_value   <= read_value;
@@ -1586,11 +1599,11 @@ module single_blockram (
       16'h0000, //next mmu address or 0 (not assigned)
 
       16'h1210, 16'd2612, //value to reg // not used for anything usefull, just for debugging
-      16'h1902, 16'h0003, //split process pages 2-5
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      //16'h1210, 16'd2615, //value to reg // not used for anything usefull, just for debugging
-      //16'h0e10, 16'd0100, //save to ram // not used for anything usefull, just for debugging
+      16'h1902, 16'h0003, //split process process pages 3-4 (page 6 & 7)
+     // 16'h0000, 16'h0000,
+    //  16'h0000, 16'h0000,
+      16'h1210, 16'd2615, //value to reg // not used for anything usefull, just for debugging
+      16'h0e10, 16'd0100, //save to ram // not used for anything usefull, just for debugging
       16'h1b37, 16'h0101, //int
       16'h1e00, 16'd0201, //in2ram
       16'h1b37, 16'h0202, //int
@@ -1669,7 +1682,7 @@ module single_blockram (
       16'h1a37, 16'h0101, //reg int 
       16'h0911, 16'd0150, //ram to reg // not used for anything usefull, just for debugging
       16'h1210, 16'h0a35, //value to reg // not used for anything usefull, just for debugging
-      16'h1d10, 16'd0101, //ram2out         
+      16'h1d10, 16'd0100, //ram2out         
       16'h1c37, 16'd0000, //int ret      
       16'hff00, 16'h0000,
       16'h0000, 16'h0000,
@@ -1806,7 +1819,7 @@ module uart_rx (
     input clk,
     input uartrx,
     output logic [7:0] bb,
-    output logic bb_ready 
+    output logic bb_ready = 0
 );
 
   parameter CLK_PER_BYTE = 100000000 / 115200;  //100 Mhz / transmission speed in bps (bits per second)
