@@ -423,7 +423,6 @@ module x_simple (
 
   `define MAKE_SWITCH_TASK(ARG) \
      if (ARG==0) how_many <= 0; \
-     if (process_numbers > 0) begin\
        if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
             $display("\n\n",$time, " TASK SWITCHER from ", process_address[process_num], " to ", next_process_address); \
        for (i=0;i<HOW_BIG_PROCESS_CACHE;i=i+1) begin \
@@ -441,10 +440,7 @@ module x_simple (
        write_enabled <= ARG; \
        read_address <= next_process_address + ADDRESS_PC; \
        stage <= STAGE_READ_SAVE_PC; \
-       mmu_address_a <= next_process_address / MMU_PAGE_SIZE;\
-     end else if (process_numbers ==  0) begin\
-       stage <= STAGE_HLT;\
-     end
+       mmu_address_a <= next_process_address / MMU_PAGE_SIZE;
 
   integer i;  //DEBUG info
 
@@ -989,7 +985,7 @@ module x_simple (
               if (port_registered[instruction1_2] == 0) begin
                 process_numbers <= process_numbers - 1;
                 port_registered[instruction1_2] <= 1;
-                port_pc[instruction1_2] <= pc[process_num] - 2;
+                port_pc[instruction1_2] <= pc[process_num] ;
                 port_process_address[instruction1_2] <= process_address[process_num];
                 //delete process from chain
                 write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
@@ -1028,7 +1024,11 @@ module x_simple (
               pc[process_num] <= port_pc[instruction1_2];
               mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
 
+  if (next_process_address == process_address[process_num]) begin
+        stage <= STAGE_HLT;
+        end else begin
               `MAKE_SWITCH_TASK(0)
+              end
             end
             default: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = unknown");  //DEBUG info
@@ -1042,7 +1042,11 @@ module x_simple (
 
           mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
           pc[process_num] <= pc[process_num] - 2;
-          `MAKE_SWITCH_TASK(0)
+   if (next_process_address == process_address[process_num]) begin
+        stage <= STAGE_HLT;
+        end else begin
+              `MAKE_SWITCH_TASK(0)
+              end
         end
         STAGE_SET_PORT: begin
           $display($time, read_address, " value ", read_value / 256, " ", read_value % 256);
