@@ -378,9 +378,9 @@ module x_simple (
 
   bit mmu_inside_int = 0;
   bit [15:0]
-      mmu_source_start_shared_page,
-      mmu_target_start_shared_page,
+      mmu_source_start_shared_page, //caller
       mmu_source_end_shared_page,
+      mmu_target_start_shared_page,//called process
       mmu_target_end_shared_page;
   bit [15:0] mmu_int_num;
 
@@ -897,8 +897,8 @@ module x_simple (
                 );  //DEBUG info
               int_pc[instruction1_2] <= pc[process_num] + 2;
               int_process_address[instruction1_2] <= process_address[process_num];
-              mmu_source_start_shared_page <= instruction2_1;
-              mmu_source_end_shared_page <= instruction2_2;
+              mmu_target_start_shared_page <= instruction2_1;
+              mmu_target_end_shared_page <= instruction2_2;
               //delete process from chain
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -943,8 +943,8 @@ module x_simple (
                 write_enabled <= 1;
                 stage <= STAGE_INT;
                 //add shared memory from current process to int process       
-                mmu_target_start_shared_page <= instruction2_1;
-                mmu_target_end_shared_page <= instruction2_2;
+                mmu_source_start_shared_page <= instruction2_1;
+                mmu_source_end_shared_page <= instruction2_2;
                 mmu_inside_int <= 1;
                 mmu_int_num <= instruction1_2;
               end
@@ -1142,18 +1142,18 @@ module x_simple (
               write_enabled <= 0;
             end
             stage <= stage_after_mmu;
-          end else if (mmu_inside_int==1&& mmu_address_segment_to_search>=mmu_source_start_shared_page && 
-             mmu_address_segment_to_search<=mmu_source_end_shared_page) begin
+          end else if (mmu_inside_int==1&& mmu_address_segment_to_search>=mmu_target_start_shared_page && 
+             mmu_address_segment_to_search<=mmu_target_end_shared_page) begin
             write_enabled <= 0;
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display(  //DEBUG info
                   $time, " mmu inside int"
               );
             mmu_address_b <= int_process_address[mmu_int_num];
-            mmu_address_d<=mmu_target_start_shared_page + mmu_source_start_shared_page-mmu_address_segment_to_search;
-            if (mmu_target_start_shared_page + mmu_source_start_shared_page-mmu_address_segment_to_search<=6) begin
+            mmu_address_d<=mmu_source_start_shared_page + mmu_target_start_shared_page-mmu_address_segment_to_search;
+            if (mmu_source_start_shared_page + mmu_target_start_shared_page-mmu_address_segment_to_search<=6) begin
               read_address<=int_process_address[mmu_int_num] + ADDRESS_MMU_LEN + 
-              mmu_target_start_shared_page + mmu_source_start_shared_page-mmu_address_segment_to_search;
+              mmu_source_start_shared_page + mmu_target_start_shared_page-mmu_address_segment_to_search;
             end
             read_address2 <= int_process_address[mmu_int_num] + ADDRESS_MMU_LEN + 7;
             stage <= STAGE_CHECK_MMU_ADDRESS2;
