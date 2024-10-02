@@ -2,7 +2,7 @@
 
 `timescale 1ns / 1ps
 
-parameter HOW_MANY_OP_SIMULATE = 0; //0 means no limit
+parameter HOW_MANY_OP_SIMULATE = 0;  //0 means no limit
 parameter HOW_MANY_OP_PER_TASK_SIMULATE = 2;
 parameter HOW_BIG_PROCESS_CACHE = 3;
 parameter MMU_PAGE_SIZE = 100;  //how many bytes are assigned to one memory page in MMU, current program aligned to 100
@@ -301,8 +301,7 @@ module x_simple (
   parameter ADDRESS_MMU_NEXT_SEGMENT = ADDRESS_REG + 32 + 7;
   parameter ADDRESS_PROGRAM = ADDRESS_REG + 32 + 7 + 1;
 
-
-  bit  [ 20:0] instructions; //how many instructions in total were executed
+  bit [20:0] instructions;  //how many instructions in total were executed
   bit [4:0] how_many = 1;  //how many instructions in current process were executed
   bit rst_can_be_done = 1;
 
@@ -395,7 +394,7 @@ module x_simple (
   bit [15:0] port_pc[0:255];
   bit [15:0] port_process_address[0:255];
   bit inside_port = 0;
-  
+
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
       mmu_address_a <= ARG; \
       stage_after_mmu <= ARG2; \
@@ -422,9 +421,9 @@ module x_simple (
 
   `define MAKE_SWITCH_TASK(ARG) \
      if (ARG==0) how_many <= 0; \
-     if (next_process_address == process_address[process_num] &&  stage != STAGE_HLT) begin\
-        stage <= STAGE_HLT;\
-        end else begin\
+     if (next_process_address == process_address[process_num] && stage != STAGE_HLT) begin\
+       stage <= STAGE_HLT;\
+     end else begin\
        if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
             $display("\n\n",$time, " TASK SWITCHER from ", process_address[process_num], " to ", next_process_address); \
        for (i=0;i<HOW_BIG_PROCESS_CACHE;i=i+1) begin \
@@ -443,16 +442,11 @@ module x_simple (
        read_address <= next_process_address + ADDRESS_PC; \
        stage <= STAGE_READ_SAVE_PC; \
        mmu_address_a <= next_process_address / MMU_PAGE_SIZE;\
-       end
+     end
 
   integer i;  //DEBUG info
 
-
-  
-  always @(negedge clk) begin  
-  
-  //$display("ready processed ", uart_bb_ready ," ",uart_bb_processed);
-  
+  always @(negedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
       write_enabled   <= 0;
       rst_can_be_done <= 0;
@@ -534,7 +528,6 @@ module x_simple (
       // (*parallel_case *)(*full_case *) 
       case (stage)
         STAGE_GET_1_BYTE: begin
-
           write_enabled <= 0;
           if (READ_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
             $display(  //DEBUG info
@@ -857,7 +850,7 @@ module x_simple (
               end
             end
             //exit process
-            OPCODE_EXIT: begin   
+            OPCODE_EXIT: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = exit");  //DEBUG info
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -984,7 +977,7 @@ module x_simple (
                 );
               if (port_registered[instruction1_2] == 0) begin
                 port_registered[instruction1_2] <= 1;
-                port_pc[instruction1_2] <= pc[process_num] ;
+                port_pc[instruction1_2] <= pc[process_num];
                 port_process_address[instruction1_2] <= process_address[process_num];
                 //delete process from chain
                 write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
@@ -1022,7 +1015,7 @@ module x_simple (
 
               pc[process_num] <= port_pc[instruction1_2];
               mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
-   uart_bb_processed <= 0;
+              uart_bb_processed <= 0;
               `MAKE_SWITCH_TASK(0)
             end
             default: begin
@@ -1031,14 +1024,14 @@ module x_simple (
               //if (instructions == HOW_MANY_OP_SIMULATE) search_mmu_address = 0; //DEBUG info
             end
           endcase
-       if (HOW_MANY_OP_SIMULATE!=0)    instructions <= instructions + 1;
+          if (HOW_MANY_OP_SIMULATE != 0) instructions <= instructions + 1;
         end
         STAGE_REG_PORT: begin
 
           mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
           pc[process_num] <= pc[process_num] - 2;
-   
-              `MAKE_SWITCH_TASK(0)       
+
+          `MAKE_SWITCH_TASK(0)
         end
         STAGE_SET_PORT: begin
           $display($time, read_address, " value ", read_value / 256, " ", read_value % 256);
@@ -1851,8 +1844,8 @@ module uart_rx (
     input clk,
     input uartrx,
     input bb_processed,
-    output logic [7:0] bb="z",
-    output logic bb_ready = 1
+    output logic [7:0] bb,
+    output logic bb_ready = 0
 );
 
   parameter CLK_PER_BYTE = 100000000 / 115200;  //100 Mhz / transmission speed in bps (bits per second)
@@ -1864,22 +1857,18 @@ module uart_rx (
   parameter STATE_DATA_BIT_7 = 9;
   parameter STATE_STOP_BIT = 10;  //1
 
-  reg [ 7:0] uart_tx_state = STATE_IDLE;
-  reg [ 20:0] counter = 0;
+  reg [ 5:0] uart_tx_state = STATE_IDLE;
+  reg [10:0] counter = 0;
   reg uartrxreg, inp;
 
-  //double buffering for avoiding metastability
+  //double buffering to avoid metastability
   always @(posedge clk) begin
     uartrxreg <= uartrx;
     inp <= uartrxreg;
   end
 
   always @(posedge clk) begin
-   //  bb_ready <= 1;
-   //  bb <= "a";
- //   $display("ready processed2 ",bb_processed, " ",bb_ready," ",uart_tx_state);
     if (uart_tx_state == STATE_IDLE) begin
-   
       if (bb_processed) bb_ready <= 0;
       if (inp == 0) begin
         counter <= 0;
