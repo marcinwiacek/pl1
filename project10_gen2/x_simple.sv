@@ -2,7 +2,7 @@
 
 `timescale 1ns / 1ps
 
-parameter HOW_MANY_OP_SIMULATE = 900;
+parameter HOW_MANY_OP_SIMULATE = 0; //0 means no limit
 parameter HOW_MANY_OP_PER_TASK_SIMULATE = 2;
 parameter HOW_BIG_PROCESS_CACHE = 3;
 parameter MMU_PAGE_SIZE = 100;  //how many bytes are assigned to one memory page in MMU, current program aligned to 100
@@ -300,7 +300,9 @@ module x_simple (
   parameter ADDRESS_MMU_NEXT_SEGMENT = ADDRESS_REG + 32 + 7;
   parameter ADDRESS_PROGRAM = ADDRESS_REG + 32 + 7 + 1;
 
-  bit [40:0] how_many = 1;  //how many instructions were executed
+
+  bit  [ 20:0] instructions; //how many instructions in total were executed
+  bit [4:0] how_many = 1;  //how many instructions in current process were executed
   bit rst_can_be_done = 1;
 
   //all processes (including current)
@@ -345,8 +347,6 @@ module x_simple (
   wire [15:0] plus_c;
   bit [15:0] minus_a, minus_b;
   wire [15:0] minus_c;
-
-  bit  [ 7:0] instructions;
 
   mul mul (
       .clk(clk),
@@ -441,9 +441,12 @@ module x_simple (
        mmu_address_a <= next_process_address / MMU_PAGE_SIZE;
 
   integer i;  //DEBUG info
-  
+
   always @(negedge clk) begin  
     if (uart_bb_ready==0) uart_bb_processed<=0;
+end
+  
+  always @(negedge clk) begin  
     if (reset == 1 && rst_can_be_done == 1) begin
       write_enabled   <= 0;
       rst_can_be_done <= 0;
@@ -1026,7 +1029,7 @@ module x_simple (
               //if (instructions == HOW_MANY_OP_SIMULATE) search_mmu_address = 0; //DEBUG info
             end
           endcase
-          instructions <= instructions + 1;
+       if (HOW_MANY_OP_SIMULATE!=0)    instructions <= instructions + 1;
         end
         STAGE_REG_PORT: begin
 
@@ -1848,8 +1851,8 @@ endmodule
 module uart_rx (
     input clk,
     input uartrx,
-    output logic [7:0] bb,
-    output logic bb_ready = 0
+    output logic [7:0] bb="z",
+    output logic bb_ready = 1
 );
 
   parameter CLK_PER_BYTE = 100000000 / 115200;  //100 Mhz / transmission speed in bps (bits per second)
@@ -1872,8 +1875,8 @@ module uart_rx (
   end
 
   always @(posedge clk) begin
-    // bb_ready <= 1;
-    // bb <= "a";
+   //  bb_ready <= 1;
+   //  bb <= "a";
     if (uart_tx_state == STATE_IDLE) begin
       if (inp == 0) begin
         counter <= 0;
