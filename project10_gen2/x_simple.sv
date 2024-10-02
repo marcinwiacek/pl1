@@ -2,7 +2,7 @@
 
 `timescale 1ns / 1ps
 
-parameter HOW_MANY_OP_SIMULATE = 220;
+parameter HOW_MANY_OP_SIMULATE = 900;
 parameter HOW_MANY_OP_PER_TASK_SIMULATE = 2;
 parameter HOW_BIG_PROCESS_CACHE = 3;
 parameter MMU_PAGE_SIZE = 100;  //how many bytes are assigned to one memory page in MMU, current program aligned to 100
@@ -204,10 +204,6 @@ module x_simple (
       .bb(uart_bb),
       .bb_ready(uart_bb_ready)
   );
-  
-  always @(negedge clk) begin
-    if (uart_bb_ready==0) uart_bb_processed<=0;
-  end
 
   parameter OPCODE_JMP = 1;  //24 bit target address
   parameter OPCODE_JMP16 = 2;  //x, register num with target addr (we read one reg)
@@ -304,7 +300,7 @@ module x_simple (
   parameter ADDRESS_MMU_NEXT_SEGMENT = ADDRESS_REG + 32 + 7;
   parameter ADDRESS_PROGRAM = ADDRESS_REG + 32 + 7 + 1;
 
-  bit [4:0] how_many = 1;  //how many instructions were executed
+  bit [40:0] how_many = 1;  //how many instructions were executed
   bit rst_can_be_done = 1;
 
   //all processes (including current)
@@ -446,7 +442,8 @@ module x_simple (
 
   integer i;  //DEBUG info
   
-  always @(negedge clk) begin
+  always @(negedge clk) begin  
+    if (uart_bb_ready==0) uart_bb_processed<=0;
     if (reset == 1 && rst_can_be_done == 1) begin
       write_enabled   <= 0;
       rst_can_be_done <= 0;
@@ -1832,7 +1829,7 @@ module uart_tx (
   parameter STATE_DATA_BIT_7 = 9;
   parameter STATE_STOP_BIT = 10;  //1
 
-  bit [ 6:0] uart_tx_state = STATE_IDLE;
+  bit [ 5:0] uart_tx_state = STATE_IDLE;
   bit [10:0] counter = CLK_PER_BIT;
 
   assign uarttx = uart_tx_state == STATE_IDLE || uart_tx_state == STATE_STOP_BIT ? 1:(uart_tx_state == STATE_START_BIT ? 0:input_data[uart_tx_state-STATE_DATA_BIT_0]);
@@ -1864,8 +1861,8 @@ module uart_rx (
   parameter STATE_DATA_BIT_7 = 9;
   parameter STATE_STOP_BIT = 10;  //1
 
-  reg [ 6:0] uart_tx_state = STATE_IDLE;
-  reg [20:0] counter = 0;
+  reg [ 5:0] uart_tx_state = STATE_IDLE;
+  reg [ 10:0] counter = 0;
   reg uartrxreg, inp;
 
   //double buffering for avoiding metastability
