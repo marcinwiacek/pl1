@@ -378,9 +378,9 @@ module x_simple (
 
   bit mmu_inside_int = 0;
   bit [15:0]
-      mmu_source_start_shared_page, //caller
+      mmu_source_start_shared_page,  //caller
       mmu_source_end_shared_page,
-      mmu_target_start_shared_page,//called process
+      mmu_target_start_shared_page,  //called process
       mmu_target_end_shared_page;
   bit [15:0] mmu_int_num;
 
