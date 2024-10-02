@@ -3,12 +3,13 @@
 module x_simple_test;
 
 wire tx;
+reg rx=1;
 reg clk = 0;
 reg rst;
 reg btnc = 0;
 
 x_simple x_simple (
-    .clk(clk),  .uart_rx_out(tx), .btnc(btnc)
+    .clk(clk),  .uart_rx_out(tx), .btnc(btnc), .uart_tx_in(rx)
 );
 
 always #1 clk = ~clk;

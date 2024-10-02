@@ -200,6 +200,7 @@ module x_simple (
 
   uart_rx uart_rx (
       .clk(clk),
+      .bb_processed(uart_bb_processed),
       .uartrx(uart_tx_in),
       .bb(uart_bb),
       .bb_ready(uart_bb_ready)
@@ -421,6 +422,9 @@ module x_simple (
 
   `define MAKE_SWITCH_TASK(ARG) \
      if (ARG==0) how_many <= 0; \
+     if (next_process_address == process_address[process_num] &&  stage != STAGE_HLT) begin\
+        stage <= STAGE_HLT;\
+        end else begin\
        if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG) \
             $display("\n\n",$time, " TASK SWITCHER from ", process_address[process_num], " to ", next_process_address); \
        for (i=0;i<HOW_BIG_PROCESS_CACHE;i=i+1) begin \
@@ -438,15 +442,17 @@ module x_simple (
        write_enabled <= ARG; \
        read_address <= next_process_address + ADDRESS_PC; \
        stage <= STAGE_READ_SAVE_PC; \
-       mmu_address_a <= next_process_address / MMU_PAGE_SIZE;
+       mmu_address_a <= next_process_address / MMU_PAGE_SIZE;\
+       end
 
   integer i;  //DEBUG info
 
-  always @(negedge clk) begin  
-    if (uart_bb_ready==0) uart_bb_processed<=0;
-end
+
   
   always @(negedge clk) begin  
+  
+  //$display("ready processed ", uart_bb_ready ," ",uart_bb_processed);
+  
     if (reset == 1 && rst_can_be_done == 1) begin
       write_enabled   <= 0;
       rst_can_be_done <= 0;
@@ -487,7 +493,7 @@ end
         next_process_address <= port_process_address[0];
         `MAKE_SWITCH_TASK(1);
       end
-    end else if (instructions < HOW_MANY_OP_SIMULATE && error_code[process_num] == ERROR_NONE) begin
+    end else if (instructions <= HOW_MANY_OP_SIMULATE && error_code[process_num] == ERROR_NONE) begin
       if (STAGE_DEBUG && !HARDWARE_DEBUG) begin  //DEBUG info
         $write($time, " stage ", stage, " ");  //DEBUG info
         case (stage)  //DEBUG info
@@ -1016,12 +1022,8 @@ end
 
               pc[process_num] <= port_pc[instruction1_2];
               mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
-
-  if (next_process_address == process_address[process_num]) begin
-        stage <= STAGE_HLT;
-        end else begin
+   uart_bb_processed <= 0;
               `MAKE_SWITCH_TASK(0)
-              end
             end
             default: begin
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = unknown");  //DEBUG info
@@ -1035,11 +1037,8 @@ end
 
           mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
           pc[process_num] <= pc[process_num] - 2;
-   if (next_process_address == process_address[process_num]) begin
-        stage <= STAGE_HLT;
-        end else begin
-              `MAKE_SWITCH_TASK(0)
-              end
+   
+              `MAKE_SWITCH_TASK(0)       
         end
         STAGE_SET_PORT: begin
           $display($time, read_address, " value ", read_value / 256, " ", read_value % 256);
@@ -1851,6 +1850,7 @@ endmodule
 module uart_rx (
     input clk,
     input uartrx,
+    input bb_processed,
     output logic [7:0] bb="z",
     output logic bb_ready = 1
 );
@@ -1864,8 +1864,8 @@ module uart_rx (
   parameter STATE_DATA_BIT_7 = 9;
   parameter STATE_STOP_BIT = 10;  //1
 
-  reg [ 5:0] uart_tx_state = STATE_IDLE;
-  reg [ 10:0] counter = 0;
+  reg [ 7:0] uart_tx_state = STATE_IDLE;
+  reg [ 20:0] counter = 0;
   reg uartrxreg, inp;
 
   //double buffering for avoiding metastability
@@ -1877,7 +1877,10 @@ module uart_rx (
   always @(posedge clk) begin
    //  bb_ready <= 1;
    //  bb <= "a";
+ //   $display("ready processed2 ",bb_processed, " ",bb_ready," ",uart_tx_state);
     if (uart_tx_state == STATE_IDLE) begin
+   
+      if (bb_processed) bb_ready <= 0;
       if (inp == 0) begin
         counter <= 0;
         uart_tx_state <= uart_tx_state + 1;
@@ -1888,7 +1891,6 @@ module uart_rx (
           uart_tx_state <= STATE_IDLE;
         end else begin
           //starting from this point we will be checking RS input value in the middle of the cycle
-          bb_ready <= 0;
           uart_tx_state <= uart_tx_state + 1;
           counter <= 0;
         end
