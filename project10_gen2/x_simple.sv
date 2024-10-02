@@ -204,6 +204,10 @@ module x_simple (
       .bb(uart_bb),
       .bb_ready(uart_bb_ready)
   );
+  
+  always @(negedge clk) begin
+    if (uart_bb_ready==0) uart_bb_processed<=0;
+  end
 
   parameter OPCODE_JMP = 1;  //24 bit target address
   parameter OPCODE_JMP16 = 2;  //x, register num with target addr (we read one reg)
@@ -394,9 +398,7 @@ module x_simple (
   bit [15:0] port_pc[0:255];
   bit [15:0] port_process_address[0:255];
   bit inside_port = 0;
-
-  bit [100:0] process_numbers = 2;
-
+  
   `define MAKE_MMU_SEARCH(ARG, ARG2) \
       mmu_address_a <= ARG; \
       stage_after_mmu <= ARG2; \
@@ -443,11 +445,7 @@ module x_simple (
        mmu_address_a <= next_process_address / MMU_PAGE_SIZE;
 
   integer i;  //DEBUG info
-
-  bit switch_required;
-
-  assign switch_required = uart_bb_ready && port_registered[0] && !uart_bb_processed;
-
+  
   always @(negedge clk) begin
     if (reset == 1 && rst_can_be_done == 1) begin
       write_enabled   <= 0;
@@ -485,8 +483,7 @@ module x_simple (
       rst_can_be_done <= 1;
       stage <= STAGE_GET_1_BYTE;
     end else if (stage == STAGE_HLT) begin
-      if (switch_required) begin
-        process_numbers <= process_numbers + 1;
+      if (uart_bb_ready && port_registered[0] && !uart_bb_processed) begin
         next_process_address <= port_process_address[0];
         `MAKE_SWITCH_TASK(1);
       end
@@ -854,8 +851,7 @@ module x_simple (
               end
             end
             //exit process
-            OPCODE_EXIT: begin
-              process_numbers <= process_numbers - 1;
+            OPCODE_EXIT: begin   
               if (OP2_DEBUG && !HARDWARE_DEBUG) $display($time, " opcode = exit");  //DEBUG info
               write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
               write_value <= next_process_address;
@@ -864,7 +860,6 @@ module x_simple (
             end
             //new process //how many pages, start page number (16 bit
             OPCODE_PROC: begin
-              process_numbers <= process_numbers + 1;
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                 $display(  //DEBUG info
                     $time,  //DEBUG info
@@ -880,7 +875,6 @@ module x_simple (
             end
             //int number (8 bit), start memory page, end memory page 
             OPCODE_REG_INT: begin
-              process_numbers <= process_numbers - 1;
               if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
                 $display(
                     $time,
@@ -983,7 +977,6 @@ module x_simple (
                     " opcode = REG_IN2RAM "  //DEBUG info
                 );
               if (port_registered[instruction1_2] == 0) begin
-                process_numbers <= process_numbers - 1;
                 port_registered[instruction1_2] <= 1;
                 port_pc[instruction1_2] <= pc[process_num] ;
                 port_process_address[instruction1_2] <= process_address[process_num];
@@ -1292,7 +1285,7 @@ module x_simple (
           write_value   <= pc[process_num];
           write_enabled <= 1;
 
-          if (switch_required) begin
+          if (uart_bb_ready && port_registered[0] && !uart_bb_processed) begin
             stage <= STAGE_TASK_SWITCHER2;
           end else begin
             `MAKE_SWITCH_TASK(1);
@@ -1417,7 +1410,7 @@ module x_simple (
           end
         end
         STAGE_READ_NEXT_NEXT_PROCESS: begin
-          if (!switch_required) begin
+          if (!(uart_bb_ready && port_registered[0] && !uart_bb_processed)) begin
             if (TASK_SWITCHER_DEBUG && !HARDWARE_DEBUG)
               $display(
                   $time,
@@ -1511,7 +1504,6 @@ module x_simple (
         end
       endcase
     end else if (error_code[process_num] != ERROR_NONE) begin
-      process_numbers <= process_numbers - 1;
       $display($time, " BSOD ", error_code[process_num]);  //DEBUG info
       `HARD_DEBUG("B");  //DEBUG info
       `HARD_DEBUG("S");  //DEBUG info
