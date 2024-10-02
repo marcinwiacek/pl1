@@ -3,7 +3,7 @@
 Sep 2024: first working milestone / gen with project 9
 (including MMU, process creating, deleting & interrupts)
 and totally new MMU with complexity access equal n (n=number of assigned process pages
-divided by one MMU page size, which gives even 1 with small processes) with project 10.
+divided by single MMU page size, which gives 1 with small processes) with project 10.
 
 June 2024: first work with real FPGA (Artix-7 Nexys Video)
 
