@@ -494,7 +494,8 @@ module x_simple (
           STAGE_GET_1_BYTE: $write("STAGE_GET_1_BYTE");  //DEBUG info
           STAGE_CHECK_MMU_ADDRESS: $write("STAGE_CHECK_MMU_ADDRESS");  //DEBUG info
           STAGE_CHECK_MMU_ADDRESS2: $write("STAGE_CHECK_MMU_ADDRESS2");  //DEBUG info
-          STAGE_CHECK_MMU_ADDRESS3: $write("STAGE_CHECK_MMU_ADDRESS3");  //DEBUG info                    
+          STAGE_CHECK_MMU_ADDRESS3:
+          $write("STAGE_CHECK_MMU_ADDRESS3");  //DEBUG info                    
           STAGE_SET_PC: $write("STAGE_SET_PC");  //DEBUG info
           STAGE_GET_PARAM_BYTE: $write("STAGE_GET_PARAM_BYTE");  //DEBUG info
           STAGE_SET_PARAM_BYTE: $write("STAGE_SET_PARAM_BYTE");  //DEBUG info
@@ -926,8 +927,15 @@ module x_simple (
                       mmu_source_start_shared_page
                   );
                 if (OP2_DEBUG && !HARDWARE_DEBUG)
-                $display($time, " opcode = int ", instruction1_2, " pages ", instruction2_1, "-",
-                         instruction2_2);  //DEBUG info
+                  $display(
+                      $time,
+                      " opcode = int ",
+                      instruction1_2,
+                      " pages ",
+                      instruction2_1,
+                      "-",
+                      instruction2_2
+                  );  //DEBUG info
                 //replace current process with int process in the chain 
                 write_address <= int_process_address[instruction1_2] + ADDRESS_NEXT_PROCESS;
                 write_value <= next_process_address;
@@ -1034,8 +1042,8 @@ module x_simple (
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_SET_PORT: begin
-           if (OP2_DEBUG && !HARDWARE_DEBUG)
-              $display($time, read_address, " value ", read_value / 256, " ", read_value % 256);
+          if (OP2_DEBUG && !HARDWARE_DEBUG)
+            $display($time, read_address, " value ", read_value / 256, " ", read_value % 256);
           if (read_value == 0) begin
             `MAKE_MMU_SEARCH2
           end else begin
@@ -1101,10 +1109,10 @@ module x_simple (
         end
         STAGE_CHECK_MMU_ADDRESS: begin
           //$display(  //DEBUG info
-             // $time, " mmu debug ", mmu_inside_int, " ", mmu_address_segment_to_search, " ",
-//              mmu_source_start_shared_page, " ", mmu_target_start_shared_page, " ",
-//              mmu_address_segment_to_search, " ", mmu_target_end_shared_page, " ",
-//              mmu_target_end_shared_page);
+          // $time, " mmu debug ", mmu_inside_int, " ", mmu_address_segment_to_search, " ",
+          //              mmu_source_start_shared_page, " ", mmu_target_start_shared_page, " ",
+          //              mmu_address_segment_to_search, " ", mmu_target_end_shared_page, " ",
+          //              mmu_target_end_shared_page);
           if (mmu_address_a < MMU_PAGE_SIZE) begin
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display(  //DEBUG info
