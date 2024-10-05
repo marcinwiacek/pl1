@@ -16,7 +16,7 @@ parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -1054,6 +1054,23 @@ module x_simple (
             read_address <= read_address + 1;
           end
         end
+        STAGE_REG_INT: begin
+          //old process
+          write_address <= process_address[process_num] + ADDRESS_PC;
+          write_value   <= pc[process_num];
+          `MAKE_SWITCH_TASK(0)
+        end
+        STAGE_INT: begin
+          write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
+          write_value <= int_process_address[instruction1_2];
+          //if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
+          next_process_address <= int_process_address[instruction1_2];
+          //end else begin
+          //            how_many <= 0;
+          //          end
+          int_process_address[instruction1_2] <= process_address[process_num];
+          stage <= STAGE_TASK_SWITCHER;
+        end
         STAGE_GET_RAM_BYTE: begin
           registers[process_num][ram_read_save_reg_start] <= read_value;
           if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
@@ -1166,7 +1183,7 @@ module x_simple (
         end
         STAGE_CHECK_MMU_ADDRESS2: begin
           if (mmu_address_d <= 6) begin
-            if (mmu_address_c != 0 && read_value == 0) begin
+            if (read_value == 0) begin
               if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
                 $display(  //DEBUG info
                     $time, " mmu needs new memory page"
@@ -1202,80 +1219,6 @@ module x_simple (
               );
           end
         end
-        STAGE_ALU: begin
-          if (ALU_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
-            $display(  //DEBUG info
-                $time,  //DEBUG info
-                " alu_num ",  //DEBUG info
-                alu_num,  //DEBUG info
-                " alu_op ",  //DEBUG info
-                alu_op,  //DEBUG info
-                " end ",  //DEBUG info
-                (instruction1_2_1 + instruction1_2_2)  //DEBUG info
-            );  //DEBUG info
-          if (instruction1_2_1 + instruction1_2_2 >= 32) begin
-            error_code[process_num] <= ERROR_WRONG_REG_NUM;
-          end else begin
-            if (alu_num == 255) begin
-              alu_num <= instruction1_2_1;
-            end else begin
-              case (alu_op)
-                ALU_SET: begin
-                  if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
-                    $display($time, " set reg ", alu_num, " with ", read_value2);  //DEBUG info
-                  registers[process_num][alu_num] <= read_value2;
-                  registers_updated[process_num][alu_num] <= read_value2 != 0;
-                  write_value <= read_value2;
-                end
-                ALU_ADD: begin
-                  registers[process_num][alu_num] <= plus_c;
-                  registers_updated[process_num][alu_num] <= plus_c != 0;
-                  write_value <= plus_c;
-                end
-                ALU_DEC: begin
-                  registers[process_num][alu_num] <= minus_c;
-                  registers_updated[process_num][alu_num] <= minus_c != 0;
-                  write_value <= minus_c;
-                end
-                ALU_MUL: begin
-                  registers[process_num][alu_num] <= mul_c;
-                  registers_updated[process_num][alu_num] <= mul_c != 0;
-                  write_value <= mul_c;
-                end
-                ALU_DIV: begin
-                  registers[process_num][alu_num] <= div_c;
-                  registers_updated[process_num][alu_num] <= div_c != 0;
-                  write_value <= div_c;
-                end
-              endcase
-              write_address <= process_address[process_num] + ADDRESS_REG + alu_num;
-              write_enabled <= 1;
-              alu_num <= alu_num + 1;
-            end
-            if (alu_num == instruction1_2_1 + instruction1_2_2) begin
-              `MAKE_MMU_SEARCH2
-            end else begin
-              case (alu_op)
-                ALU_ADD: begin
-                  plus_a = registers[process_num][alu_num];
-                  plus_b = read_value2;
-                end
-                ALU_DEC: begin
-                  minus_a = registers[process_num][alu_num];
-                  minus_b = read_value2;
-                end
-                ALU_MUL: begin
-                  mul_a = registers[process_num][alu_num];
-                  mul_b = read_value2;
-                end
-                ALU_DIV: begin
-                  div_a = registers[process_num][alu_num];
-                  div_b = read_value2;
-                end
-              endcase
-            end
-          end
-        end
         STAGE_TASK_SWITCHER: begin
           `HARD_DEBUG("W");
           //  $display($time, " old pc ",pc[process_num]);
@@ -1283,7 +1226,6 @@ module x_simple (
           write_address <= process_address[process_num] + ADDRESS_PC;
           write_value   <= pc[process_num];
           write_enabled <= 1;
-
           if (uart_bb_ready && port_registered[0] && !uart_bb_processed) begin
             stage <= STAGE_TASK_SWITCHER2;
           end else begin
@@ -1482,22 +1424,79 @@ module x_simple (
           next_process_address <= mmu_address_d;
           `MAKE_MMU_SEARCH2
         end
-        STAGE_REG_INT: begin
-          //old process
-          write_address <= process_address[process_num] + ADDRESS_PC;
-          write_value   <= pc[process_num];
-          `MAKE_SWITCH_TASK(0)
-        end
-        STAGE_INT: begin
-          write_address <= prev_process_address + ADDRESS_NEXT_PROCESS;
-          write_value <= int_process_address[instruction1_2];
-          //if (how_many < HOW_MANY_OP_PER_TASK_SIMULATE) begin
-          next_process_address <= int_process_address[instruction1_2];
-          //end else begin
-          //            how_many <= 0;
-          //          end
-          int_process_address[instruction1_2] <= process_address[process_num];
-          stage <= STAGE_TASK_SWITCHER;
+        STAGE_ALU: begin
+          if (ALU_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
+            $display(  //DEBUG info
+                $time,  //DEBUG info
+                " alu_num ",  //DEBUG info
+                alu_num,  //DEBUG info
+                " alu_op ",  //DEBUG info
+                alu_op,  //DEBUG info
+                " end ",  //DEBUG info
+                (instruction1_2_1 + instruction1_2_2)  //DEBUG info
+            );  //DEBUG info
+          if (instruction1_2_1 + instruction1_2_2 >= 32) begin
+            error_code[process_num] <= ERROR_WRONG_REG_NUM;
+          end else begin
+            if (alu_num == 255) begin
+              alu_num <= instruction1_2_1;
+            end else begin
+              case (alu_op)
+                ALU_SET: begin
+                  if (OP2_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
+                    $display($time, " set reg ", alu_num, " with ", read_value2);  //DEBUG info
+                  registers[process_num][alu_num] <= read_value2;
+                  registers_updated[process_num][alu_num] <= read_value2 != 0;
+                  write_value <= read_value2;
+                end
+                ALU_ADD: begin
+                  registers[process_num][alu_num] <= plus_c;
+                  registers_updated[process_num][alu_num] <= plus_c != 0;
+                  write_value <= plus_c;
+                end
+                ALU_DEC: begin
+                  registers[process_num][alu_num] <= minus_c;
+                  registers_updated[process_num][alu_num] <= minus_c != 0;
+                  write_value <= minus_c;
+                end
+                ALU_MUL: begin
+                  registers[process_num][alu_num] <= mul_c;
+                  registers_updated[process_num][alu_num] <= mul_c != 0;
+                  write_value <= mul_c;
+                end
+                ALU_DIV: begin
+                  registers[process_num][alu_num] <= div_c;
+                  registers_updated[process_num][alu_num] <= div_c != 0;
+                  write_value <= div_c;
+                end
+              endcase
+              write_address <= process_address[process_num] + ADDRESS_REG + alu_num;
+              write_enabled <= 1;
+              alu_num <= alu_num + 1;
+            end
+            if (alu_num == instruction1_2_1 + instruction1_2_2) begin
+              `MAKE_MMU_SEARCH2
+            end else begin
+              case (alu_op)
+                ALU_ADD: begin
+                  plus_a = registers[process_num][alu_num];
+                  plus_b = read_value2;
+                end
+                ALU_DEC: begin
+                  minus_a = registers[process_num][alu_num];
+                  minus_b = read_value2;
+                end
+                ALU_MUL: begin
+                  mul_a = registers[process_num][alu_num];
+                  mul_b = read_value2;
+                end
+                ALU_DIV: begin
+                  div_a = registers[process_num][alu_num];
+                  div_b = read_value2;
+                end
+              endcase
+            end
+          end
         end
         STAGE_SET_PC: begin
         end
