@@ -310,11 +310,19 @@ module x_simple (
       physical_pc[0:HOW_BIG_PROCESS_CACHE-1],  //physical pc address
       mmu_page_offset[0:HOW_BIG_PROCESS_CACHE-1],  //info, how many bytes till end of memory page
       process_address[0:HOW_BIG_PROCESS_CACHE-1];
-  bit process_used[0:2];
-  bit [5:0] error_code[0:2];
-  bit [15:0] registers[0:2][0:31];  //512 bits = 32 x 16-bit registers
-  bit [0:31] registers_updated[0:2];
-
+  bit process_used[0:HOW_BIG_PROCESS_CACHE-1];
+  bit [5:0] error_code[0:HOW_BIG_PROCESS_CACHE-1];
+  bit [15:0] registers[0:HOW_BIG_PROCESS_CACHE-1][0:31];  //512 bits = 32 x 16-bit registers
+  bit [0:31] registers_updated[0:HOW_BIG_PROCESS_CACHE-1];
+  
+  bit mmu_inside_int = 0;
+  bit [15:0]
+      mmu_source_start_shared_page,  //caller
+      mmu_source_end_shared_page,
+      mmu_target_start_shared_page,  //called process
+      mmu_target_end_shared_page;
+  bit [15:0] mmu_int_num;
+  
   //current process
   bit [4:0] process_num = 0, temp_process_num;  //index for tables above
   bit [15:0] prev_process_address = 0, next_process_address = 0;
@@ -374,14 +382,6 @@ module x_simple (
 
   bit [15:0] int_pc[0:255];
   bit [15:0] int_process_address[0:255];
-
-  bit mmu_inside_int = 0;
-  bit [15:0]
-      mmu_source_start_shared_page,  //caller
-      mmu_source_end_shared_page,
-      mmu_target_start_shared_page,  //called process
-      mmu_target_end_shared_page;
-  bit [15:0] mmu_int_num;
 
   bit mmu_free_page[0:19] = {1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   bit [15:0] mmu_address_a, mmu_address_b, mmu_address_c, mmu_address_d;
