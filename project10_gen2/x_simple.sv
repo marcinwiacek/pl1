@@ -16,8 +16,8 @@ parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter REG_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter MMU_CHANGES_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-parameter MMU_TRANSLATION_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
-parameter TASK_SWITCHER_DEBUG = 1;  //1 enabled, 0 disabled //DEBUG info
+parameter MMU_TRANSLATION_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
+parameter TASK_SWITCHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter TASK_SPLIT_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter OTHER_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -925,7 +925,7 @@ module x_simple (
                       " ",
                       mmu_source_start_shared_page
                   );
-                // if (OP2_DEBUG && !HARDWARE_DEBUG)
+                if (OP2_DEBUG && !HARDWARE_DEBUG)
                 $display($time, " opcode = int ", instruction1_2, " pages ", instruction2_1, "-",
                          instruction2_2);  //DEBUG info
                 //replace current process with int process in the chain 
@@ -1029,14 +1029,13 @@ module x_simple (
           if (HOW_MANY_OP_SIMULATE != 0) instructions <= instructions + 1;
         end
         STAGE_REG_PORT: begin
-
           mmu_page_offset[process_num] <= 2;  //signal, that we have to recalculate things with mmu
           pc[process_num] <= pc[process_num] - 2;
-
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_SET_PORT: begin
-          $display($time, read_address, " value ", read_value / 256, " ", read_value % 256);
+           if (OP2_DEBUG && !HARDWARE_DEBUG)
+              $display($time, read_address, " value ", read_value / 256, " ", read_value % 256);
           if (read_value == 0) begin
             `MAKE_MMU_SEARCH2
           end else begin
@@ -1044,7 +1043,6 @@ module x_simple (
               uart_buffer[uart_buffer_available++] = read_value / 256;
             if (HARDWARE_WORK_INSTEAD_OF_DEBUG)
               uart_buffer[uart_buffer_available++] = read_value % 256;
-
             read_address <= read_address + 1;
           end
         end
@@ -1102,12 +1100,11 @@ module x_simple (
           `MAKE_MMU_SEARCH2
         end
         STAGE_CHECK_MMU_ADDRESS: begin
-          $display(  //DEBUG info
-              $time, " mmu debug ", mmu_inside_int, " ", mmu_address_segment_to_search, " ",
-              mmu_source_start_shared_page, " ", mmu_target_start_shared_page, " ",
-              mmu_address_segment_to_search, " ", mmu_target_end_shared_page, " ",
-              mmu_target_end_shared_page);
-
+          //$display(  //DEBUG info
+             // $time, " mmu debug ", mmu_inside_int, " ", mmu_address_segment_to_search, " ",
+//              mmu_source_start_shared_page, " ", mmu_target_start_shared_page, " ",
+//              mmu_address_segment_to_search, " ", mmu_target_end_shared_page, " ",
+//              mmu_target_end_shared_page);
           if (mmu_address_a < MMU_PAGE_SIZE) begin
             if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
               $display(  //DEBUG info
