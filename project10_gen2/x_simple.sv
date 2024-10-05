@@ -258,20 +258,19 @@ module x_simple (
   parameter STAGE_ALU = 14;
   parameter STAGE_DELETE_PROCESS = 15;
   parameter STAGE_SPLIT_PROCESS = 16;
-  parameter STAGE_REG_INT = 17;
-  parameter STAGE_REG_INT2 = 18;
-  parameter STAGE_INT = 19;
-  parameter STAGE_SET_PORT = 20;
-  /*task switching*/
-  parameter STAGE_READ_SAVE_PC = 21;
-  parameter STAGE_READ_REG = 22;
-  parameter STAGE_READ_NEXT_NEXT_PROCESS = 23;
-  parameter STAGE_SAVE_NEXT_PROCESS = 24;
-  parameter STAGE_SPLIT_PROCESS2 = 25;
-  parameter STAGE_SPLIT_PROCESS3 = 26;
-  parameter STAGE_SPLIT_PROCESS4 = 27;
-  parameter STAGE_SPLIT_PROCESS5 = 28;
-  parameter STAGE_SPLIT_PROCESS6 = 29;
+  parameter STAGE_SPLIT_PROCESS2 = 17;
+  parameter STAGE_SPLIT_PROCESS3 = 18;
+  parameter STAGE_SPLIT_PROCESS4 = 19;
+  parameter STAGE_SPLIT_PROCESS5 = 20;
+  parameter STAGE_SPLIT_PROCESS6 = 21;
+  parameter STAGE_REG_INT = 22;
+  parameter STAGE_REG_INT2 = 23;
+  parameter STAGE_INT = 24;
+  parameter STAGE_SET_PORT = 25;
+  parameter STAGE_READ_SAVE_PC = 26;
+  parameter STAGE_READ_REG = 27;
+  parameter STAGE_READ_NEXT_NEXT_PROCESS = 28;
+  parameter STAGE_SAVE_NEXT_PROCESS = 29;
   parameter STAGE_SAVE_NEXT_PROCESS2 = 30;
   parameter STAGE_TASK_SWITCHER = 31;
   parameter STAGE_TASK_SWITCHER2 = 32;
@@ -494,33 +493,36 @@ module x_simple (
           STAGE_AFTER_RESET: $write("STAGE_AFTER_RESET");  //DEBUG info
           STAGE_GET_1_BYTE: $write("STAGE_GET_1_BYTE");  //DEBUG info
           STAGE_CHECK_MMU_ADDRESS: $write("STAGE_CHECK_MMU_ADDRESS");  //DEBUG info
+          STAGE_CHECK_MMU_ADDRESS2: $write("STAGE_CHECK_MMU_ADDRESS2");  //DEBUG info
+          STAGE_CHECK_MMU_ADDRESS3: $write("STAGE_CHECK_MMU_ADDRESS3");  //DEBUG info                    
           STAGE_SET_PC: $write("STAGE_SET_PC");  //DEBUG info
           STAGE_GET_PARAM_BYTE: $write("STAGE_GET_PARAM_BYTE");  //DEBUG info
           STAGE_SET_PARAM_BYTE: $write("STAGE_SET_PARAM_BYTE");  //DEBUG info
           STAGE_GET_RAM_BYTE: $write("STAGE_GET_RAM_BYTE");  //DEBUG info
           STAGE_SET_RAM_BYTE: $write("STAGE_SET_RAM_BYTE");  //DEBUG info
+          STAGE_SET_ONE_RAM_BYTE: $write("STAGE_SET_ONE_RAM_BYTE");  //DEBUG info
           STAGE_HLT: $write("STAGE_HLT");  //DEBUG info
           STAGE_ALU: $write("STAGE_ALU");  //DEBUG info
           STAGE_DELETE_PROCESS: $write("STAGE_DELETE_PROCESS");  //DEBUG info
           STAGE_SPLIT_PROCESS: $write("STAGE_SPLIT_PROCESS");  //DEBUG info
-          STAGE_REG_INT: $write("STAGE_REG_INT");  //DEBUG info
-          STAGE_REG_INT2: $write("STAGE_REG_INT2");  //DEBUG info
-          STAGE_INT: $write("STAGE_INT");  //DEBUG info
-          STAGE_READ_SAVE_PC: $write("STAGE_READ_SAVE_PC");  //DEBUG info
-          STAGE_READ_REG: $write("STAGE_READ_REG");  //DEBUG info
-          STAGE_READ_NEXT_NEXT_PROCESS: $write("STAGE_READ_NEXT_NEXT_PROCESS");  //DEBUG info
-          STAGE_SAVE_NEXT_PROCESS: $write("STAGE_SAVE_NEXT_PROCESS");  //DEBUG info
           STAGE_SPLIT_PROCESS2: $write("STAGE_SPLIT_PROCESS2");  //DEBUG info
           STAGE_SPLIT_PROCESS3: $write("STAGE_SPLIT_PROCESS3");  //DEBUG info
           STAGE_SPLIT_PROCESS4: $write("STAGE_SPLIT_PROCESS4");  //DEBUG info
           STAGE_SPLIT_PROCESS5: $write("STAGE_SPLIT_PROCESS5");  //DEBUG info
+          STAGE_SPLIT_PROCESS6: $write("STAGE_SPLIT_PROCESS6");  //DEBUG info
+          STAGE_REG_INT: $write("STAGE_REG_INT");  //DEBUG info
+          STAGE_REG_INT2: $write("STAGE_REG_INT2");  //DEBUG info
+          STAGE_INT: $write("STAGE_INT");  //DEBUG info
+          STAGE_SET_PORT: $write("STAGE_SET_PORT");  //DEBUG info
+          STAGE_READ_SAVE_PC: $write("STAGE_READ_SAVE_PC");  //DEBUG info
+          STAGE_READ_REG: $write("STAGE_READ_REG");  //DEBUG info
+          STAGE_READ_NEXT_NEXT_PROCESS: $write("STAGE_READ_NEXT_NEXT_PROCESS");  //DEBUG info
+          STAGE_SAVE_NEXT_PROCESS: $write("STAGE_SAVE_NEXT_PROCESS");  //DEBUG info
           STAGE_SAVE_NEXT_PROCESS2: $write("STAGE_SAVE_NEXT_PROCESS2");  //DEBUG info
           STAGE_TASK_SWITCHER: $write("STAGE_TASK_SWITCHER");  //DEBUG info
+          STAGE_TASK_SWITCHER2: $write("STAGE_TASK_SWITCHER2");  //DEBUG info
+          STAGE_TASK_SWITCHER3: $write("STAGE_TASK_SWITCHER3");  //DEBUG info
           STAGE_READ_SAVE_REG_USED: $write("STAGE_READ_SAVE_REG_USED");  //DEBUG info          
-          STAGE_SET_PORT: $write("STAGE_SET_PORT");  //DEBUG info
-          STAGE_CHECK_MMU_ADDRESS2: $write("STAGE_CHECK_MMU_ADDRESS2");  //DEBUG info
-          STAGE_CHECK_MMU_ADDRESS3: $write("STAGE_CHECK_MMU_ADDRESS3");  //DEBUG info
-          STAGE_SPLIT_PROCESS6: $write("STAGE_SPLIT_PROCESS6");  //DEBUG info
         endcase  //DEBUG info
         $display(" pc ", pc[process_num]);  //DEBUG info
       end
