@@ -495,7 +495,7 @@ module x_simple (
           STAGE_CHECK_MMU_ADDRESS: $write("STAGE_CHECK_MMU_ADDRESS");  //DEBUG info
           STAGE_CHECK_MMU_ADDRESS2: $write("STAGE_CHECK_MMU_ADDRESS2");  //DEBUG info
           STAGE_CHECK_MMU_ADDRESS3:
-          $write("STAGE_CHECK_MMU_ADDRESS3");  //DEBUG info                    
+          $write("STAGE_CHECK_MMU_ADDRESS3");  //DEBUG info
           STAGE_SET_PC: $write("STAGE_SET_PC");  //DEBUG info
           STAGE_GET_PARAM_BYTE: $write("STAGE_GET_PARAM_BYTE");  //DEBUG info
           STAGE_SET_PARAM_BYTE: $write("STAGE_SET_PARAM_BYTE");  //DEBUG info
@@ -523,7 +523,7 @@ module x_simple (
           STAGE_TASK_SWITCHER: $write("STAGE_TASK_SWITCHER");  //DEBUG info
           STAGE_TASK_SWITCHER2: $write("STAGE_TASK_SWITCHER2");  //DEBUG info
           STAGE_TASK_SWITCHER3: $write("STAGE_TASK_SWITCHER3");  //DEBUG info
-          STAGE_READ_SAVE_REG_USED: $write("STAGE_READ_SAVE_REG_USED");  //DEBUG info          
+          STAGE_READ_SAVE_REG_USED: $write("STAGE_READ_SAVE_REG_USED");  //DEBUG info
         endcase  //DEBUG info
         $display(" pc ", pc[process_num]);  //DEBUG info
       end
@@ -618,7 +618,7 @@ module x_simple (
                     " (",  //DEBUG info
                     read_value2,  //DEBUG info
                     " instructions)"  //DEBUG info
-                );  //DEBUG info      
+                );  //DEBUG info
               pc[process_num] <= pc[process_num] + read_value2 * 2 - 1;
               stage <= STAGE_SET_PC;
             end
@@ -974,7 +974,7 @@ module x_simple (
                       read_value2,  //DEBUG info
                       "+ to port ",  //DEBUG info
                       instruction1_2  //DEBUG info
-                  );  //DEBUG info          
+                  );  //DEBUG info
                 `MAKE_MMU_SEARCH(read_value2, STAGE_SET_PORT);
               end
             end
@@ -1558,7 +1558,7 @@ module single_blockram (
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
-      
+
       16'd0006, //mmu segment length
       16'h0001, //physical segment address for mmu logical page 1 or 0 (not assigned)
       16'h0000, //physical segment address for mmu logical page 2 or 0 (not assigned)
@@ -1567,7 +1567,7 @@ module single_blockram (
       16'h0000,
       16'h0000,
       16'h0000, //next mmu address or 0 (not assigned)
-      
+
       16'h1210, 16'd2613, //value to reg // not used for anything usefull, just for debugging
       16'h0e10, 16'd0290, //save to ram // not used for anything usefull, just for debugging
       16'h0911, 16'd0100, //ram to reg // not used for anything usefull, just for debugging
@@ -1593,7 +1593,7 @@ module single_blockram (
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
-      
+
       //page 2 (100 elements)
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
@@ -1605,7 +1605,7 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-                 
+
       //second process - 3 pages (300 elements) + 2 pages (200 elements) new process nr 3
       //page 3 (100 elements)
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only
@@ -1643,7 +1643,7 @@ module single_blockram (
       16'h1e00, 16'd0201, //in2ram
       16'h1b37, 16'h0202, //int
       16'h1f00, 16'd0002, //ret in2ram
-      16'hfe00, 16'h0000,            
+      16'hfe00, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
@@ -1672,7 +1672,7 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      
+
       //page 5 (100 elements)
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
@@ -1684,7 +1684,7 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-            
+
       //third process - 2 pages (200 elements)
       //page 6 (100 elements)
       16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only
@@ -1710,11 +1710,11 @@ module single_blockram (
       16'h0000,
       16'h0000, //next mmu address or 0 (not assigned)
 
-      16'h1a37, 16'h0101, //reg int 
+      16'h1a37, 16'h0101, //reg int
       16'h0911, 16'd0150, //ram to reg // not used for anything usefull, just for debugging
       16'h1210, 16'h0a35, //value to reg // not used for anything usefull, just for debugging
-      16'h1d10, 16'd0101, //ram2out         
-      16'h1c37, 16'd0000, //int ret      
+      16'h1d10, 16'd0101, //ram2out
+      16'h1c37, 16'd0000, //int ret
       16'hff00, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
@@ -1735,7 +1735,7 @@ module single_blockram (
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
-      
+
       //page 7 (100 elements)
       "AB",        "CD",16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
