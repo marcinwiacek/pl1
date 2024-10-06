@@ -1183,13 +1183,11 @@ module x_simple (
         end
         STAGE_CHECK_MMU_ADDRESS2: begin
           if (mmu_address_d <= 6) begin
-            if (read_value == 0) begin
-              if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+            if (read_value == 0 && MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
                 $display(  //DEBUG info
                     $time, " mmu needs new memory page"
                 );
-            end else begin
-              if (MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+            end else if( MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
                 $display(  //DEBUG info
                     $time,
                     " process ",
@@ -1199,7 +1197,6 @@ module x_simple (
                     "= physical address ",
                     read_value * MMU_PAGE_SIZE + mmu_address_a % MMU_PAGE_SIZE
                 );
-            end
             if (stage_after_mmu != STAGE_SET_RAM_BYTE && stage_after_mmu!= STAGE_SET_ONE_RAM_BYTE) begin
               if (stage_after_mmu == STAGE_GET_1_BYTE) begin
                 mmu_page_offset[process_num] <= mmu_address_a % MMU_PAGE_SIZE;
