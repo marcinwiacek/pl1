@@ -1847,8 +1847,8 @@ module uart_rx (
     input clk,
     input uartrx,
     input bb_processed,
-    output logic [7:0] bb="a",
-    output logic bb_ready = 1
+    output logic [7:0] bb,
+    output logic bb_ready = 0
 );
 
   parameter CLK_PER_BYTE = 100000000 / 115200;  //100 Mhz / transmission speed in bps (bits per second)
