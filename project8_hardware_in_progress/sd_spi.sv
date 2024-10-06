@@ -11,7 +11,8 @@
 //...but Nexys Video seems to support 3,3V only, which the most probably means max. speed 25MB/s
 module x (
   input clk,
-  output bit sd_cclk, //400 Hz (init) or 25 Mhz (later)
+  output bit uart_rx_out,
+  output bit sd_cclk=0, //400 Hz (init) or 25 Mhz (later)
   output bit sd_cmd, //input for the card
   input bit sd_data,
   output bit sd_reset, //0 to power slot
@@ -66,9 +67,13 @@ always @(negedge clk) begin
       sd_reset<=0;
       cmd <= 56'hFF_FF_FF_FF_FF_FF_FF;
       cmd_bits<=56;
-      sd_cclk<=0;
+    //  sd_cclk<=0;
       state <=STATE_SEND_CMD;
       next_state <=STATE_SEND_CMD0;
+               uart_buffer[uart_buffer_index]="a";
+        uart_buffer_index=uart_buffer_index+1;
+        $display("a");
+      
       flag<=0;
     end else begin
       if (state == STATE_SEND_CMD) begin
@@ -78,6 +83,9 @@ always @(negedge clk) begin
           if (cmd_bits==0) begin
             state<=next_state;
             next_state<=next_next_state;
+        $display("b");
+               uart_buffer[uart_buffer_index]="b";
+        uart_buffer_index=uart_buffer_index+1;
           end else begin
             cmd_bits<=cmd_bits-1;
           end
@@ -87,12 +95,20 @@ always @(negedge clk) begin
           cmd[cmd_bits] <= sd_data;
         end else if (clk_counter==(clk_divider-1)) begin                   
           if (cmd_bits==7) begin
+                  $display("c");
+
+               uart_buffer[uart_buffer_index]="c";
+        uart_buffer_index=uart_buffer_index+1;
             state<=next_state;
           end else begin
             cmd_bits<=cmd_bits+1;            
           end
         end
       end else if (state == STATE_SEND_CMD0) begin
+              $display("d");
+
+               uart_buffer[uart_buffer_index]="d";
+        uart_buffer_index=uart_buffer_index+1;
         sd_cs <= 0;
         cmd <= 56'hFF_40_00_00_00_00_95;        
         cmd_bits<=56;
@@ -100,6 +116,7 @@ always @(negedge clk) begin
         next_state <=STATE_GET_R1_RESPONSE;
         next_next_state <=STATE_GET_CMD0_RESPONSE;
       end else if (state == STATE_GET_CMD0_RESPONSE) begin
+              $display("e");
         uart_buffer[uart_buffer_index]=cmd[7:0];
         uart_buffer_index=uart_buffer_index+1;
         state<=cmd[7:0]==1?STATE_SEND_CMD8:STATE_SEND_CMD0;
