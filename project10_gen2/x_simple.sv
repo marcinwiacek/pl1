@@ -266,6 +266,7 @@ module x_simple (
   parameter STAGE_REG_INT = 22;
   parameter STAGE_REG_INT2 = 23;
   parameter STAGE_INT = 24;
+  parameter STAGE_REG_PORT = 35;
   parameter STAGE_SET_PORT = 25;
   parameter STAGE_READ_SAVE_PC = 26;
   parameter STAGE_READ_REG = 27;
@@ -276,9 +277,7 @@ module x_simple (
   parameter STAGE_TASK_SWITCHER2 = 32;
   parameter STAGE_TASK_SWITCHER3 = 33;
   parameter STAGE_READ_SAVE_REG_USED = 34;
-
-  parameter STAGE_REG_PORT = 35;
-
+  
   parameter ALU_ADD = 1;
   parameter ALU_DEC = 2;
   parameter ALU_DIV = 3;
@@ -514,6 +513,7 @@ module x_simple (
           STAGE_REG_INT: $write("STAGE_REG_INT");  //DEBUG info
           STAGE_REG_INT2: $write("STAGE_REG_INT2");  //DEBUG info
           STAGE_INT: $write("STAGE_INT");  //DEBUG info
+          STAGE_REG_PORT:$write("STAGE_REG_PORT");  //DEBUG info          
           STAGE_SET_PORT: $write("STAGE_SET_PORT");  //DEBUG info
           STAGE_READ_SAVE_PC: $write("STAGE_READ_SAVE_PC");  //DEBUG info
           STAGE_READ_REG: $write("STAGE_READ_REG");  //DEBUG info
@@ -1850,8 +1850,8 @@ module uart_rx (
     input clk,
     input uartrx,
     input bb_processed,
-    output logic [7:0] bb,
-    output logic bb_ready = 0
+    output logic [7:0] bb="a",
+    output logic bb_ready = 1
 );
 
   parameter CLK_PER_BYTE = 100000000 / 115200;  //100 Mhz / transmission speed in bps (bits per second)
