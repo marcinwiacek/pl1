@@ -1042,7 +1042,7 @@ module x_simple (
           `MAKE_SWITCH_TASK(0)
         end
         STAGE_SET_PORT: begin
-          if (OP2_DEBUG && !HARDWARE_DEBUG)
+         // if (OP2_DEBUG && !HARDWARE_DEBUG)
             $display($time, read_address, " value ", read_value / 256, " ", read_value % 256);
           if (read_value == 0) begin
             `MAKE_MMU_SEARCH2
@@ -1183,11 +1183,11 @@ module x_simple (
         end
         STAGE_CHECK_MMU_ADDRESS2: begin
           if (mmu_address_d <= 6) begin
-            if (read_value == 0 && MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+            if (read_value == 0 && MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG) 
                 $display(  //DEBUG info
                     $time, " mmu needs new memory page"
                 );
-            end else if( MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
+            else if( MMU_TRANSLATION_DEBUG && !HARDWARE_DEBUG)
                 $display(  //DEBUG info
                     $time,
                     " process ",
