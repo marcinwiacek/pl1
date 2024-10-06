@@ -2,7 +2,8 @@
 
 //https://www.sdcard.org/downloads/pls/ :
 //SD Specifications Part 1 Physical Layer Simplified Specification Version 9.10 December 1, 2023
-//SPI protocol is not supported by SDUC card (> 2TB)
+//SPI protocol is the most simple (+ has got only one bit parallel communication)
+//additionally is not supported by SDUC card (> 2TB)
 //
 //https://digilent.com/reference/programmable-logic/nexys-video/reference-manual :
 //"All of the SD pins on the FPGA are wired to support full SD speeds in native interface mode,
@@ -39,13 +40,15 @@ parameter STATE_IDLE=0;
 parameter STATE_SEND_CMD=1;
 parameter STATE_GET_R1_RESPONSE=2;
 parameter STATE_SEND_CMD0 = 3; //reset command
-parameter STATE_GET_CMD0_RESPONSE = 4; //reset command
+parameter STATE_GET_CMD0_RESPONSE = 4;
+parameter STATE_SEND_CMD8 = 5; //verify interface operating condition. Not supported by old cards
+parameter STATE_GET_CMD8_RESPONSE = 6;
 
 reg[55:0] cmd;
 reg[55:0] cmd_bits;
 reg[20:0] clk_divider = CLK_DIVIDER_400kHz;
 reg[20:0] clk_counter=0;
-reg[7:0] state, next_state;
+reg[7:0] state, next_state, next_next_state;
 bit flag=1;
 
 always @(posedge clk) begin
@@ -74,6 +77,7 @@ always @(negedge clk) begin
         end else if (clk_counter==clk_divider-1) begin         
           if (cmd_bits==0) begin
             state<=next_state;
+            next_state<=next_next_state;
           end else begin
             cmd_bits<=cmd_bits-1;
           end
@@ -92,11 +96,13 @@ always @(negedge clk) begin
         sd_cs <= 0;
         cmd <= 56'hFF_40_00_00_00_00_95;        
         cmd_bits<=56;
-        state <=STATE_GET_R1_RESPONSE;
-        next_state <=STATE_GET_CMD0_RESPONSE;
+        state <=STATE_SEND_CMD;
+        next_state <=STATE_GET_R1_RESPONSE;
+        next_next_state <=STATE_GET_CMD0_RESPONSE;
       end else if (state == STATE_GET_CMD0_RESPONSE) begin
         uart_buffer[uart_buffer_index]=cmd[7:0];
         uart_buffer_index=uart_buffer_index+1;
+        state<=cmd[7:0]==1?STATE_SEND_CMD8:STATE_SEND_CMD0;
       end
     end
   end
