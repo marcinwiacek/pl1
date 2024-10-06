@@ -8,14 +8,12 @@
 //"All of the SD pins on the FPGA are wired to support full SD speeds in native interface mode,
 //as shown in Fig. 12. The SPI interface is also available, if needed".
 //...but Nexys Video seems to support 3,3V only, which the most probably means max. speed 25MB/s
-//
 module x (
   input clk,
-  output bit sd_clk, //400 Hz (init) or 25 Mhz (later)
-  input sd_cd,  //card detect
+  output bit sd_cclk, //400 Hz (init) or 25 Mhz (later)
   output bit sd_cmd, //input for the card
-  output bit sd_reset,   //0 to power slot
-  input bit sd_data, //in SPI 0 output from the card
+  input bit sd_data,
+  output bit sd_reset, //0 to power slot
   output bit sd_cs
 );
 
@@ -37,23 +35,23 @@ module x (
 parameter CLK_DIVIDER_400kHz = 100000000/400000; //100 Mhz / 400 Khz
 parameter CLK_DIVIDER_25Mhz = 100000000 / 25000000; //100 Mhz / 25 Mhz
 
+parameter STATE_IDLE=0;
+parameter STATE_SEND_CMD=1;
+parameter STATE_GET_R1_RESPONSE=2;
+parameter STATE_SEND_CMD0 = 3; //reset command
+parameter STATE_GET_CMD0_RESPONSE = 4; //reset command
 
 reg[55:0] cmd;
 reg[55:0] cmd_bits;
-reg [20:0] clk_divider = CLK_DIVIDER_400kHz;
+reg[20:0] clk_divider = CLK_DIVIDER_400kHz;
 reg[20:0] clk_counter=0;
-bit flag=1;
 reg[7:0] state, next_state;
-
-parameter STATE_IDLE=0;
-parameter STATE_SEND_CMD=1;
-parameter STATE_SEND_CMD0 = 2;
-parameter STATE_GET_CMD0_RESPONSE=3;
+bit flag=1;
 
 always @(posedge clk) begin
   if (clk_counter==clk_divider-1) begin
     clk_counter<=0;
-    sd_clk<=~sd_clk;
+    sd_cclk<=~sd_cclk;
   end else begin
     clk_counter<=clk_counter+1;
   end
@@ -65,9 +63,10 @@ always @(negedge clk) begin
       sd_reset<=0;
       cmd <= 56'hFF_FF_FF_FF_FF_FF_FF;
       cmd_bits<=56;
-      sd_clk<=0;
+      sd_cclk<=0;
       state <=STATE_SEND_CMD;
       next_state <=STATE_SEND_CMD0;
+      flag<=0;
     end else begin
       if (state == STATE_SEND_CMD) begin
         if (clk_counter == 0) begin
@@ -79,14 +78,25 @@ always @(negedge clk) begin
             cmd_bits<=cmd_bits-1;
           end
         end
+      end else if (state == STATE_GET_R1_RESPONSE) begin
+        if (clk_counter==(clk_divider-1)/2) begin
+          cmd[cmd_bits] <= sd_data;
+        end else if (clk_counter==(clk_divider-1)) begin                   
+          if (cmd_bits==7) begin
+            state<=next_state;
+          end else begin
+            cmd_bits<=cmd_bits+1;            
+          end
+        end
       end else if (state == STATE_SEND_CMD0) begin
         sd_cs <= 0;
         cmd <= 56'hFF_40_00_00_00_00_95;        
-        state <=STATE_SEND_CMD;
+        cmd_bits<=56;
+        state <=STATE_GET_R1_RESPONSE;
         next_state <=STATE_GET_CMD0_RESPONSE;
       end else if (state == STATE_GET_CMD0_RESPONSE) begin
-        if (sd_data==1) begin
-        end
+        uart_buffer[uart_buffer_index]=cmd[7:0];
+        uart_buffer_index=uart_buffer_index+1;
       end
     end
   end
