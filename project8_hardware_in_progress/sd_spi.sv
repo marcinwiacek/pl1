@@ -46,6 +46,7 @@ module x (
   parameter STATE_GET_CMD0_RESPONSE = 5;
   parameter STATE_SEND_CMD8 = 6;  //verify interface operating condition. Not supported by old cards
   parameter STATE_GET_CMD8_RESPONSE = 7;
+  parameter STATE_INIT = 8;
 
   reg [55:0] cmd;
   reg [55:0] cmd_bits;
@@ -53,22 +54,33 @@ module x (
   reg [20:0] clk_counter = 0;
   reg [7:0] state, next_state, next_next_state;
   
+  reg[5:0] retry_counter;
   bit flag = 1;
 
   always @(negedge clk) begin        
     if (flag == 1) begin
       sd_reset <= 0;     
-      sd_cs <= 0;
-      state <= STATE_SEND_CMD0;
+      sd_cs <= 1;
+      state <= STATE_INIT;
       flag <= 0;
       sd_cclk <= 0;
       clk_counter <= 0;
+        $display("a");
+        uart_buffer[uart_buffer_index++] = "a";
+    end else if (state == STATE_INIT) begin
+      if (clk_counter == 100) begin
+        state<=STATE_SEND_CMD0;
+      clk_counter <= 0;
+      end else begin
+        clk_counter<=clk_counter+1;
+      end
     end else begin
       if (state == STATE_SEND_CMD0) begin
         $display("d");
         uart_buffer[uart_buffer_index++] = "d";
         cmd <= 56'hFF_40_00_00_00_00_95;
         cmd_bits <= 56;
+        sd_cs<=0;
         state <= STATE_START_SEND_CMD;
         next_state <= STATE_GET_R1_RESPONSE;
         next_next_state <= STATE_GET_CMD0_RESPONSE;
@@ -80,17 +92,17 @@ module x (
         uart_buffer[
         uart_buffer_index++
         ] = cmd[7:0] % 16 >= 10 ? cmd[7:0] % 16 + 65 - 10 : cmd[7:0] % 16 + 48;
-        state <= cmd[7:0] == 1 ? STATE_SEND_CMD8 : STATE_SEND_CMD0;
+        state <= cmd[7:0] != 1 && retry_counter<10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
+        retry_counter<=retry_counter +1 ;
       end
-      if (clk_counter == 0) begin
+      if (clk_counter == 0 && sd_cclk==1) begin
         if (state == STATE_START_SEND_CMD) begin
           sd_cmd <= cmd[56-cmd_bits];
           state <= STATE_SEND_CMD;
         end
       end else if (clk_counter == clk_divider - 1) begin
-        clk_counter <= 0;
         sd_cclk <= ~sd_cclk;
-        if (state == STATE_SEND_CMD) begin
+        if (state == STATE_SEND_CMD && sd_cclk==1) begin
           if (cmd_bits == 0) begin
             state <= next_state;
             next_state <= next_next_state;
@@ -99,7 +111,7 @@ module x (
           end else begin
             cmd_bits <= cmd_bits - 1;            
           end
-        end else if (state == STATE_GET_R1_RESPONSE) begin
+        end else if (state == STATE_GET_R1_RESPONSE && sd_cclk==1) begin
           if (cmd_bits == 7) begin
             $display("c");
             uart_buffer[uart_buffer_index++] = "c";
@@ -109,13 +121,11 @@ module x (
           end
         end              
       end else if (clk_counter == (clk_divider - 1) / 2) begin
-        if (state == STATE_GET_R1_RESPONSE) begin
+        if (state == STATE_GET_R1_RESPONSE && sd_cclk==1) begin
           cmd[cmd_bits] <= sd_data;
         end
-        clk_counter <= clk_counter + 1;
-      end else begin
-        clk_counter <= clk_counter + 1;
       end      
+      clk_counter <= clk_counter == clk_divider - 1?0:clk_counter + 1;      
     end
   end
 
