@@ -37,16 +37,10 @@ module x (
   parameter CLK_DIVIDER_400kHz = 100000000 / 400000;  //100 Mhz / 400 Khz
   parameter CLK_DIVIDER_25Mhz = 100000000 / 25000000;  //100 Mhz / 25 Mhz
 
-  parameter STATE_IDLE = 0;
-  parameter STATE_START_SEND_CMD = 1;
-  parameter STATE_SEND_CMD = 2;
-  parameter STATE_GET_R1_RESPONSE = 3;
-  parameter STATE_SEND_CMD0 = 4;  //reset command
-  parameter STATE_GET_CMD0_RESPONSE = 5;
-  parameter STATE_SEND_CMD8 = 6;  //verify interface operating condition. Not supported by old cards
-  parameter STATE_GET_CMD8_RESPONSE = 7;
-  parameter STATE_INIT = 8;
-  parameter STATE_WAIT = 9;
+  parameter STATE_WAIT = 1;
+  parameter STATE_SEND_CMD0 = 2;  //reset command
+  parameter STATE_GET_CMD0_RESPONSE = 3;
+  parameter STATE_SEND_CMD8 = 4;
 
   reg [55:0] cmd;
   reg [55:0] cmd_bits, cmd_expected_bits;
@@ -54,8 +48,8 @@ module x (
   reg [55:0] resp_bits, resp_expected_bits;
   reg resp_started;
   reg [20:0] clk_divider = CLK_DIVIDER_400kHz;
-  reg [20:0] clk_counter = 0;
-  reg [7:0] state, next_state, next_next_state;
+  reg [20:0] clk_counter;
+  reg [7:0] state, next_state;
 
   reg [10:0] retry_counter;
   bit flag = 1;
@@ -91,15 +85,14 @@ module x (
         state <= next_state;
       end
     end
-
     clk_counter <= clk_counter == clk_divider - 1 ? 0 : clk_counter + 1;
-    sd_cclk <= clk_counter == clk_divider - 1 ? ~sd_cclk : sd_cclk;
-    if (clk_counter == 0 && sd_cclk == 0 && cmd_bits < cmd_expected_bits) begin
+    sd_cclk <= clk_counter == 0 ? ~sd_cclk : sd_cclk;
+    if (clk_counter == 0 && sd_cclk == 1 && cmd_bits < cmd_expected_bits) begin
       sd_mosi_cmd <= cmd[cmd_bits];
       cmd_bits <= cmd_bits + 1;
       resp_bits <= 0;
       resp_started <= 0;
-    end else if (clk_counter == 0 & sd_cclk==1 && cmd_bits==cmd_expected_bits && resp_bits<resp_expected_bits) begin
+    end else if (clk_counter == 0 & sd_cclk==0 && cmd_bits==cmd_expected_bits && resp_bits<resp_expected_bits) begin
       //  sd_mosi_cmd <=1;  
       if (sd_miso_data == 0 || resp_started == 1) begin
         resp_started <= 1;
@@ -107,9 +100,7 @@ module x (
         resp_bits <= resp_bits + 1;
       end
     end
-
   end
-
 endmodule
 
 
