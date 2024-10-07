@@ -10,13 +10,13 @@
 //as shown in Fig. 12. The SPI interface is also available, if needed".
 //...but Nexys Video seems to support 3,3V only, which the most probably means max. speed 25MB/s
 module x (
-  input clk,
-  output bit uart_rx_out,
-  output bit sd_cclk=0, //400 Hz (init) or 25 Mhz (later)
-  output bit sd_cmd, //input for the card
-  input bit sd_data,
-  output bit sd_reset, //0 to power slot
-  output bit sd_cs
+    input clk,
+    output bit uart_rx_out,
+    output bit sd_cclk = 0,  //400 Hz (init) or 25 Mhz (later)
+    output bit sd_cmd,  //input for the card
+    input bit sd_data,
+    output bit sd_reset,  //0 to power slot
+    output bit sd_cs
 );
 
   //uart
@@ -24,102 +24,104 @@ module x (
   reg [6:0] uart_buffer_index = 0;
   wire reset_uart_buffer_index;
   wire uart_buffer_full;
-  
+
   uartx_tx_with_buffer uartx_tx_with_buffer (
-    .clk(clk),
-    .uart_buffer(uart_buffer),
-    .uart_buffer_available(uart_buffer_index),
-    .reset_uart_buffer_available(reset_uart_buffer_index),
-    .uart_buffer_full(uart_buffer_full),
-    .tx(uart_rx_out)
-);
+      .clk(clk),
+      .uart_buffer(uart_buffer),
+      .uart_buffer_available(uart_buffer_index),
+      .reset_uart_buffer_available(reset_uart_buffer_index),
+      .uart_buffer_full(uart_buffer_full),
+      .tx(uart_rx_out)
+  );
 
-parameter CLK_DIVIDER_400kHz = 100000000/400000; //100 Mhz / 400 Khz
-parameter CLK_DIVIDER_25Mhz = 100000000 / 25000000; //100 Mhz / 25 Mhz
+  parameter CLK_DIVIDER_400kHz = 100000000 / 400000;  //100 Mhz / 400 Khz
+  parameter CLK_DIVIDER_25Mhz = 100000000 / 25000000;  //100 Mhz / 25 Mhz
 
-parameter STATE_IDLE=0;
-parameter STATE_SEND_CMD=1;
-parameter STATE_GET_R1_RESPONSE=2;
-parameter STATE_SEND_CMD0 = 3; //reset command
-parameter STATE_GET_CMD0_RESPONSE = 4;
-parameter STATE_SEND_CMD8 = 5; //verify interface operating condition. Not supported by old cards
-parameter STATE_GET_CMD8_RESPONSE = 6;
+  parameter STATE_IDLE = 0;
+  parameter STATE_SEND_CMD = 1;
+  parameter STATE_GET_R1_RESPONSE = 2;
+  parameter STATE_SEND_CMD0 = 3;  //reset command
+  parameter STATE_GET_CMD0_RESPONSE = 4;
+  parameter STATE_SEND_CMD8 = 5;  //verify interface operating condition. Not supported by old cards
+  parameter STATE_GET_CMD8_RESPONSE = 6;
 
-reg[55:0] cmd;
-reg[55:0] cmd_bits;
-reg[20:0] clk_divider = CLK_DIVIDER_400kHz;
-reg[20:0] clk_counter=0;
-reg[7:0] state, next_state, next_next_state;
-bit flag=1;
+  reg [55:0] cmd;
+  reg [55:0] cmd_bits;
+  reg [20:0] clk_divider = CLK_DIVIDER_400kHz;
+  reg [20:0] clk_counter = 0;
+  reg [7:0] state, next_state, next_next_state;
+  bit flag = 1;
 
-always @(posedge clk) begin
-  if (clk_counter==clk_divider-1) begin
-    clk_counter<=0;
-    sd_cclk<=~sd_cclk;
-  end else begin
-    clk_counter<=clk_counter+1;
-  end
-end
-
-always @(negedge clk) begin
-    if (flag ==1) begin
+  always @(negedge clk) begin
+    if (flag == 1) begin
       sd_cs <= 1;
-      sd_reset<=0;
+      sd_reset <= 0;
       cmd <= 56'hFF_FF_FF_FF_FF_FF_FF;
-      cmd_bits<=56;
-    //  sd_cclk<=0;
-      state <=STATE_SEND_CMD;
-      next_state <=STATE_SEND_CMD0;
-               uart_buffer[uart_buffer_index]="a";
-        uart_buffer_index=uart_buffer_index+1;
-        $display("a");
-      
-      flag<=0;
+      cmd_bits <= 56;
+      //  sd_cclk<=0;
+      state <= STATE_SEND_CMD;
+      next_state <= STATE_SEND_CMD0;
+      uart_buffer[uart_buffer_index] = "a";
+      uart_buffer_index = uart_buffer_index + 1;
+      $display("a");
+      flag <= 0;
+      sd_cclk <= 0;
+      clk_counter <= 0;
     end else begin
+      if (clk_counter == clk_divider - 1) begin
+        clk_counter <= 0;
+        sd_cclk <= ~sd_cclk;
+      end else begin
+        clk_counter <= clk_counter + 1;
+      end
       if (state == STATE_SEND_CMD) begin
         if (clk_counter == 0) begin
-          sd_cmd<=cmd[56-cmd_bits];
-        end else if (clk_counter==clk_divider-1) begin         
-          if (cmd_bits==0) begin
-            state<=next_state;
-            next_state<=next_next_state;
-        $display("b");
-               uart_buffer[uart_buffer_index]="b";
-        uart_buffer_index=uart_buffer_index+1;
+          sd_cmd <= cmd[56-cmd_bits];
+        end else if (clk_counter == clk_divider - 1) begin
+          if (cmd_bits == 0) begin
+            state <= next_state;
+            next_state <= next_next_state;
+            $display("b");
+            uart_buffer[uart_buffer_index] = "b";
+            uart_buffer_index = uart_buffer_index + 1;
           end else begin
-            cmd_bits<=cmd_bits-1;
+            cmd_bits <= cmd_bits - 1;
           end
         end
       end else if (state == STATE_GET_R1_RESPONSE) begin
-        if (clk_counter==(clk_divider-1)/2) begin
+        if (clk_counter == (clk_divider - 1) / 2) begin
           cmd[cmd_bits] <= sd_data;
-        end else if (clk_counter==(clk_divider-1)) begin                   
-          if (cmd_bits==7) begin
-                  $display("c");
+        end else if (clk_counter == (clk_divider - 1)) begin
+          if (cmd_bits == 7) begin
+            $display("c");
 
-               uart_buffer[uart_buffer_index]="c";
-        uart_buffer_index=uart_buffer_index+1;
-            state<=next_state;
+            uart_buffer[uart_buffer_index] = "c";
+            uart_buffer_index = uart_buffer_index + 1;
+            state <= next_state;
           end else begin
-            cmd_bits<=cmd_bits+1;            
+            cmd_bits <= cmd_bits + 1;
           end
         end
       end else if (state == STATE_SEND_CMD0) begin
-              $display("d");
+        $display("d");
 
-               uart_buffer[uart_buffer_index]="d";
-        uart_buffer_index=uart_buffer_index+1;
+        uart_buffer[uart_buffer_index] = "d";
+        uart_buffer_index = uart_buffer_index + 1;
         sd_cs <= 0;
-        cmd <= 56'hFF_40_00_00_00_00_95;        
-        cmd_bits<=56;
-        state <=STATE_SEND_CMD;
-        next_state <=STATE_GET_R1_RESPONSE;
-        next_next_state <=STATE_GET_CMD0_RESPONSE;
+        cmd <= 56'hFF_40_00_00_00_00_95;
+        cmd_bits <= 56;
+        state <= STATE_SEND_CMD;
+        next_state <= STATE_GET_R1_RESPONSE;
+        next_next_state <= STATE_GET_CMD0_RESPONSE;
       end else if (state == STATE_GET_CMD0_RESPONSE) begin
-              $display("e");
-        uart_buffer[uart_buffer_index]=cmd[7:0];
-        uart_buffer_index=uart_buffer_index+1;
-        state<=cmd[7:0]==1?STATE_SEND_CMD8:STATE_SEND_CMD0;
+        $display("e");
+        uart_buffer[
+        uart_buffer_index++
+        ] = cmd[7:0] / 16 >= 10 ? cmd[7:0] / 16 + 65 - 10 : cmd[7:0] / 16 + 48;
+        uart_buffer[
+        uart_buffer_index++
+        ] = cmd[7:0] % 16 >= 10 ? cmd[7:0] % 16 + 65 - 10 : cmd[7:0] % 16 + 48;
+        state <= cmd[7:0] == 1 ? STATE_SEND_CMD8 : STATE_SEND_CMD0;
       end
     end
   end
