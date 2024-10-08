@@ -11,9 +11,9 @@ module x (
     input clk,
     output bit uart_rx_out,
     output bit sd_cclk,  //400 Hz (init) or 25 Mhz (later)
-    inout sd_cmd,  //input for the card
+    inout sd_cmd,  //cmd input / output
     inout sd_data0,
-    output bit sd_reset
+    output bit sd_reset 
 );
 
   //uart
@@ -99,26 +99,21 @@ module x (
         resp_bits <= 0;
         resp_started <= 0;
         timeout_counter <= 0;
-        // uart_buffer[uart_buffer_index++] = "d";     
         cmd_bits <= 1;
       end else if (cmd_bits < cmd_expected_bits) begin
-        //  uart_buffer[uart_buffer_index++] = "e";     
         cmd_bits <= cmd_bits + 1;
       end else if (resp_bits < resp_expected_bits) begin
-        if (!sd_cmd || resp_started) begin
-          //   uart_buffer[uart_buffer_index++] = "f";        
-          resp_started <= 1;
+        resp_started <= 1;
+        if (!sd_cmd || resp_bits==0) begin
           resp[resp_bits] <= sd_cmd;
           resp_bits <= resp_bits + 1;
         end else begin
-          //   uart_buffer[uart_buffer_index++] = "g";        
           resp = {0};
           timeout_counter <= timeout_counter + 1;
           if (timeout_counter == 20) resp_bits <= resp_expected_bits + 1;
         end
       end else begin
         cmd_started <= 0;
-        //   uart_buffer[uart_buffer_index++] = "h";              
       end
     end
   end
