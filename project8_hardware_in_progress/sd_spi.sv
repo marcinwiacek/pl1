@@ -41,7 +41,7 @@ module x (
   parameter STATE_SEND_CMD8 = 4;
   parameter STATE_WAIT_0 = 5;
 
-  reg [0:55] cmd;
+  reg[0:55]  cmd;
   reg [55:0] cmd_bits, cmd_expected_bits;
   reg [0:55] resp;
   reg [55:0] resp_bits, resp_expected_bits;
@@ -50,7 +50,6 @@ module x (
   reg [20:0] clk_counter;
   reg [7:0] state, next_state;
   reg [20:0] timeout_counter;
-
   reg [10:0] retry_counter;
   bit flag = 1;
   bit sd_cclk1 = 0;
@@ -85,10 +84,10 @@ module x (
       state <= (resp[0:7] != 1 || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
       retry_counter <= retry_counter + 1;
     end else if (state ==STATE_WAIT && !sd_cclk1 && sd_cclk) begin
-      if (!cmd_started && !resp_started) begin
+      if (!cmd_started) begin
         cmd_started <= 1;
         resp_bits <= 0;
-        resp_started <= 0;
+       resp_started <= 0;
         timeout_counter <= 0;
         cmd_bits <= 1;
         sd_cmd   <= cmd[0];
@@ -98,9 +97,9 @@ module x (
         uart_buffer[uart_buffer_index++] = cmd[cmd_bits]+48;
         cmd_bits <= cmd_bits + 1;
       end else if (resp_bits < resp_expected_bits) begin
-        resp_started <= 1;
          sd_cmd<=1;
-        if (!sd_data0 || resp_bits==0) begin
+        if (!sd_data0 || resp_started) begin
+          resp_started <= 1;
           resp[resp_bits] <= sd_data0;
           resp_bits <= resp_bits + 1;
         end else begin
@@ -109,6 +108,7 @@ module x (
           if (timeout_counter == 20) resp_bits <= resp_expected_bits + 1;
         end
       end else begin
+      sd_cmd<=0;
         state <= next_state;
         cmd_started <= 0;
       end
