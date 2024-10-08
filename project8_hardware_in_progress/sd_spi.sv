@@ -14,7 +14,7 @@ module x (
     output bit sd_cmd,  //cmd input / output
     input sd_data0,
     output bit sd_reset,
-    output bit sd_cs 
+    output bit sd_cs
 );
 
   //uart
@@ -41,7 +41,7 @@ module x (
   parameter STATE_SEND_CMD8 = 4;
   parameter STATE_WAIT_0 = 5;
 
-  reg[0:55]  cmd;
+  reg [0:55] cmd;
   reg [55:0] cmd_bits, cmd_expected_bits;
   reg [0:55] resp;
   reg [55:0] resp_bits, resp_expected_bits;
@@ -59,14 +59,14 @@ module x (
       state <= STATE_WAIT_0;
       flag  <= 0;
       uart_buffer[uart_buffer_index++] = "a";
-      sd_cmd<=1;
-      sd_cs<=1;
-      sd_cclk<=0;
-      sd_reset<=0;
+      sd_cmd <= 1;
+      sd_cs <= 1;
+      sd_cclk <= 0;
+      sd_reset <= 0;
     end else if (state == STATE_WAIT_0) begin
       if (timeout_counter == 1000000) begin
         state <= STATE_SEND_CMD0;
-        sd_cs<=0;
+        sd_cs <= 0;
       end
       timeout_counter <= timeout_counter + 1;
     end else if (state == STATE_SEND_CMD0) begin
@@ -79,25 +79,29 @@ module x (
       next_state <= STATE_GET_CMD0_RESPONSE;
     end else if (state == STATE_GET_CMD0_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "c";
-      uart_buffer[uart_buffer_index++] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
-      uart_buffer[uart_buffer_index++] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
       state <= (resp[0:7] != 1 || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
       retry_counter <= retry_counter + 1;
-    end else if (state ==STATE_WAIT && !sd_cclk1 && sd_cclk) begin
+    end else if (state == STATE_WAIT && !sd_cclk1 && sd_cclk) begin
       if (!cmd_started) begin
         cmd_started <= 1;
         resp_bits <= 0;
-       resp_started <= 0;
+        resp_started <= 0;
         timeout_counter <= 0;
         cmd_bits <= 1;
-        sd_cmd   <= cmd[0];
-        uart_buffer[uart_buffer_index++] = cmd[0]+48;
+        sd_cmd <= cmd[0];
+        uart_buffer[uart_buffer_index++] = cmd[0] + 48;
       end else if (cmd_bits < cmd_expected_bits) begin
-        sd_cmd   <= cmd[cmd_bits];
-        uart_buffer[uart_buffer_index++] = cmd[cmd_bits]+48;
+        sd_cmd <= cmd[cmd_bits];
+        uart_buffer[uart_buffer_index++] = cmd[cmd_bits] + 48;
         cmd_bits <= cmd_bits + 1;
       end else if (resp_bits < resp_expected_bits) begin
-         sd_cmd<=1;
+        sd_cmd <= 1;
         if (!sd_data0 || resp_started) begin
           resp_started <= 1;
           resp[resp_bits] <= sd_data0;
@@ -108,7 +112,7 @@ module x (
           if (timeout_counter == 20) resp_bits <= resp_expected_bits + 1;
         end
       end else begin
-      sd_cmd<=0;
+        sd_cmd <= 0;
         state <= next_state;
         cmd_started <= 0;
       end
@@ -119,7 +123,7 @@ module x (
     end else begin
       clk_counter <= clk_counter + 1;
     end
-    sd_cclk1 <= sd_cclk;   
+    sd_cclk1 <= sd_cclk;
   end
 endmodule
 
