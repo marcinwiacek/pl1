@@ -38,13 +38,13 @@ module x (
   parameter STATE_SEND_CMD0 = 2;  //reset command
   parameter STATE_GET_CMD0_RESPONSE = 3;
   parameter STATE_SEND_CMD8 = 4;
-  parameter STATE_WAIT_0 =5;
+  parameter STATE_WAIT_0 = 5;
 
   reg [55:0] cmd;
   reg [55:0] cmd_bits, cmd_expected_bits;
   reg [55:0] resp;
   reg [55:0] resp_bits, resp_expected_bits;
-  reg cmd_started,resp_started;
+  reg cmd_started, resp_started;
   reg [20:0] clk_divider = CLK_DIVIDER_400kHz;
   reg [20:0] clk_counter;
   reg [7:0] state, next_state;
@@ -52,73 +52,73 @@ module x (
 
   reg [10:0] retry_counter;
   bit flag = 1;
-  bit sd_cclk1=0;
+  bit sd_cclk1 = 0;
 
-assign sd_cmd = cmd_started && !resp_started?cmd[cmd_bits-1]:1'b1;
-assign sd_reset =0;
+  assign sd_cmd   = cmd_started && !resp_started ? cmd[cmd_bits-1] : 1'b1;
+  assign sd_reset = 0;
 
   always @(negedge clk) begin
     if (flag) begin
       state <= STATE_WAIT_0;
       flag  <= 0;
-      uart_buffer[uart_buffer_index++] = "a";     
+      uart_buffer[uart_buffer_index++] = "a";
     end else if (state == STATE_WAIT_0) begin
-      if (timeout_counter ==1000000) state <= STATE_SEND_CMD0;
-      timeout_counter<=timeout_counter+1;
+      if (timeout_counter == 1000000) state <= STATE_SEND_CMD0;
+      timeout_counter <= timeout_counter + 1;
     end else if (state == STATE_SEND_CMD0) begin
-        uart_buffer[uart_buffer_index++] = "b";
-        cmd <= 56'hFF_40_00_00_00_00_95;
-        cmd_bits <= 0;
-        cmd_expected_bits <= 56;
-        resp_expected_bits <= 8;
-        state <= STATE_WAIT;
-        next_state <= STATE_GET_CMD0_RESPONSE;
-      end else if (state == STATE_GET_CMD0_RESPONSE) begin
-       uart_buffer[uart_buffer_index++] = "c";
-        uart_buffer[
-        uart_buffer_index++
-        ] = resp[7:0] / 16 >= 10 ? resp[7:0] / 16 + 65 - 10 : resp[7:0] / 16 + 48;
-        uart_buffer[
-        uart_buffer_index++
-        ] = resp[7:0] % 16 >= 10 ? resp[7:0] % 16 + 65 - 10 : resp[7:0] % 16 + 48;
-        state <= (resp[7:0] != 1 || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
-        retry_counter <= retry_counter + 1;
-      end else if (state ==STATE_WAIT && cmd_bits==cmd_expected_bits && resp_bits >= resp_expected_bits) begin
-        state <= next_state;
-      end
+      uart_buffer[uart_buffer_index++] = "b";
+      cmd <= 56'hFF_40_00_00_00_00_95;
+      cmd_bits <= 0;
+      cmd_expected_bits <= 56;
+      resp_expected_bits <= 8;
+      state <= STATE_WAIT;
+      next_state <= STATE_GET_CMD0_RESPONSE;
+    end else if (state == STATE_GET_CMD0_RESPONSE) begin
+      uart_buffer[uart_buffer_index++] = "c";
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[7:0] / 16 >= 10 ? resp[7:0] / 16 + 65 - 10 : resp[7:0] / 16 + 48;
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[7:0] % 16 >= 10 ? resp[7:0] % 16 + 65 - 10 : resp[7:0] % 16 + 48;
+      state <= (resp[7:0] != 1 || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
+      retry_counter <= retry_counter + 1;
+    end else if (state ==STATE_WAIT && cmd_bits==cmd_expected_bits && resp_bits >= resp_expected_bits) begin
+      state <= next_state;
+    end
     if (clk_counter == clk_divider - 1) begin
-      clk_counter <=  0;
+      clk_counter <= 0;
       sd_cclk <= ~sd_cclk;
     end else begin
-      clk_counter <=  clk_counter + 1;
+      clk_counter <= clk_counter + 1;
     end
-    sd_cclk1<=sd_cclk;
+    sd_cclk1 <= sd_cclk;
     if (!sd_cclk1 && sd_cclk && (cmd_bits<cmd_expected_bits || resp_bits < resp_expected_bits)) begin
       if (!cmd_started && !resp_started) begin
-        cmd_started<=1;         
+        cmd_started <= 1;
         resp_bits <= 0;
         resp_started <= 0;
-        timeout_counter<=0;
-       // uart_buffer[uart_buffer_index++] = "d";     
-          cmd_bits <= cmd_bits + 1;
-      end else if (cmd_bits < cmd_expected_bits) begin    
-      //  uart_buffer[uart_buffer_index++] = "e";     
+        timeout_counter <= 0;
+        // uart_buffer[uart_buffer_index++] = "d";     
         cmd_bits <= cmd_bits + 1;
-      end else if (resp_bits<resp_expected_bits) begin                 
+      end else if (cmd_bits < cmd_expected_bits) begin
+        //  uart_buffer[uart_buffer_index++] = "e";     
+        cmd_bits <= cmd_bits + 1;
+      end else if (resp_bits < resp_expected_bits) begin
         if (!sd_data0 || resp_started) begin
-       //   uart_buffer[uart_buffer_index++] = "f";        
+          //   uart_buffer[uart_buffer_index++] = "f";        
           resp_started <= 1;
           resp[resp_bits] <= sd_data0;
           resp_bits <= resp_bits + 1;
         end else begin
-       //   uart_buffer[uart_buffer_index++] = "g";        
+          //   uart_buffer[uart_buffer_index++] = "g";        
           resp = {0};
-          timeout_counter<=timeout_counter+1;
-          if (timeout_counter==20) resp_bits<=resp_expected_bits+1;
+          timeout_counter <= timeout_counter + 1;
+          if (timeout_counter == 20) resp_bits <= resp_expected_bits + 1;
         end
       end else begin
-          cmd_started<=0;
-       //   uart_buffer[uart_buffer_index++] = "h";              
+        cmd_started <= 0;
+        //   uart_buffer[uart_buffer_index++] = "h";              
       end
     end
   end
