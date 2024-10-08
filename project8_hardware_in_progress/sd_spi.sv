@@ -2,8 +2,6 @@
 
 //https://www.sdcard.org/downloads/pls/ :
 //SD Specifications Part 1 Physical Layer Simplified Specification Version 9.10 December 1, 2023
-//SPI protocol is the most simple (+ has got only one bit parallel communication)
-//additionally is not supported by SDUC card (> 2TB)
 //
 //https://digilent.com/reference/programmable-logic/nexys-video/reference-manual :
 //"All of the SD pins on the FPGA are wired to support full SD speeds in native interface mode,
@@ -13,12 +11,9 @@ module x (
     input clk,
     output bit uart_rx_out,
     output bit sd_cclk,  //400 Hz (init) or 25 Mhz (later)
-    output bit sd_mosi_cmd,  //input for the card
-    input bit sd_miso_data,
-    output bit sd_cs,
+    inout sd_cmd,  //input for the card
+    input wire sd_data0,
     output bit sd_reset
-    
-    //sd_cd //card detect
 );
 
   //uart
@@ -36,34 +31,40 @@ module x (
       .tx(uart_rx_out)
   );
 
-  parameter CLK_DIVIDER_400kHz = 100000000 / 400000;  //100 Mhz / 400 Khz
+  parameter CLK_DIVIDER_400kHz = 100000000 / 400000;  //100 Mhz / 300 Khz
   parameter CLK_DIVIDER_25Mhz = 100000000 / 25000000;  //100 Mhz / 25 Mhz
 
   parameter STATE_WAIT = 1;
   parameter STATE_SEND_CMD0 = 2;  //reset command
   parameter STATE_GET_CMD0_RESPONSE = 3;
   parameter STATE_SEND_CMD8 = 4;
+  parameter STATE_WAIT_0 =5;
 
   reg [55:0] cmd;
   reg [55:0] cmd_bits, cmd_expected_bits;
   reg [55:0] resp;
   reg [55:0] resp_bits, resp_expected_bits;
-  reg resp_started;
+  reg cmd_started,resp_started;
   reg [20:0] clk_divider = CLK_DIVIDER_400kHz;
   reg [20:0] clk_counter;
   reg [7:0] state, next_state;
+  reg [20:0] timeout_counter;
 
   reg [10:0] retry_counter;
   bit flag = 1;
+  bit sd_cclk1=0;
+
+assign sd_cmd = cmd_started && !resp_started?cmd[cmd_bits-1]:1'b1;
+assign sd_reset =0;
 
   always @(negedge clk) begin
-    if (flag == 1) begin
-      state <= STATE_SEND_CMD0;
+    if (flag) begin
+      state <= STATE_WAIT_0;
       flag  <= 0;
-      uart_buffer[uart_buffer_index++] = "a";
-      sd_cs <= 0;
-      sd_reset<=0;
-      sd_cclk<=0;
+      uart_buffer[uart_buffer_index++] = "a";     
+    end else if (state == STATE_WAIT_0) begin
+      if (timeout_counter ==1000000) state <= STATE_SEND_CMD0;
+      timeout_counter<=timeout_counter+1;
     end else if (state == STATE_SEND_CMD0) begin
         uart_buffer[uart_buffer_index++] = "b";
         cmd <= 56'hFF_40_00_00_00_00_95;
@@ -80,26 +81,44 @@ module x (
         uart_buffer[
         uart_buffer_index++
         ] = resp[7:0] % 16 >= 10 ? resp[7:0] % 16 + 65 - 10 : resp[7:0] % 16 + 48;
-        state <= resp[7:0] != 1 && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
+        state <= (resp[7:0] != 1 || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
         retry_counter <= retry_counter + 1;
-      end else if (state ==STATE_WAIT && cmd_bits==cmd_expected_bits && resp_bits == resp_expected_bits) begin
+      end else if (state ==STATE_WAIT && cmd_bits==cmd_expected_bits && resp_bits >= resp_expected_bits) begin
         state <= next_state;
       end
-    clk_counter <= clk_counter == clk_divider - 1 ? 0 : clk_counter + 1;
-    sd_cclk <= clk_counter == clk_divider - 1 ? ~sd_cclk : sd_cclk;
-    if (clk_counter == 0 && sd_cclk == 1 && cmd_bits < cmd_expected_bits) begin
-       uart_buffer[uart_buffer_index++] = "d";
-      sd_mosi_cmd <= cmd[cmd_bits];
-      cmd_bits <= cmd_bits + 1;
-      resp_bits <= 0;
-      resp_started <= 0;
-    end else if (clk_counter == 0 & sd_cclk==0 && cmd_bits==cmd_expected_bits && resp_bits<resp_expected_bits) begin
-     // sd_mosi_cmd <=1;  
-      if (sd_miso_data == 0 || resp_started == 1) begin
-       uart_buffer[uart_buffer_index++] = "e";
-        resp_started <= 1;
-        resp[resp_bits] <= sd_miso_data;
-        resp_bits <= resp_bits + 1;
+    if (clk_counter == clk_divider - 1) begin
+      clk_counter <=  0;
+      sd_cclk <= ~sd_cclk;
+    end else begin
+      clk_counter <=  clk_counter + 1;
+    end
+    sd_cclk1<=sd_cclk;
+    if (!sd_cclk1 && sd_cclk && (cmd_bits<cmd_expected_bits || resp_bits < resp_expected_bits)) begin
+      if (!cmd_started && !resp_started) begin
+        cmd_started<=1;         
+        resp_bits <= 0;
+        resp_started <= 0;
+        timeout_counter<=0;
+       // uart_buffer[uart_buffer_index++] = "d";     
+          cmd_bits <= cmd_bits + 1;
+      end else if (cmd_bits < cmd_expected_bits) begin    
+      //  uart_buffer[uart_buffer_index++] = "e";     
+        cmd_bits <= cmd_bits + 1;
+      end else if (resp_bits<resp_expected_bits) begin                 
+        if (!sd_data0 || resp_started) begin
+       //   uart_buffer[uart_buffer_index++] = "f";        
+          resp_started <= 1;
+          resp[resp_bits] <= sd_data0;
+          resp_bits <= resp_bits + 1;
+        end else begin
+       //   uart_buffer[uart_buffer_index++] = "g";        
+          resp = {0};
+          timeout_counter<=timeout_counter+1;
+          if (timeout_counter==20) resp_bits<=resp_expected_bits+1;
+        end
+      end else begin
+          cmd_started<=0;
+       //   uart_buffer[uart_buffer_index++] = "h";              
       end
     end
   end
