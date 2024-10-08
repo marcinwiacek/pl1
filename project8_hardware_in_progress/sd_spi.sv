@@ -7,12 +7,21 @@
 //"All of the SD pins on the FPGA are wired to support full SD speeds in native interface mode,
 //as shown in Fig. 12. The SPI interface is also available, if needed".
 //...but Nexys Video seems to support 3,3V only, which the most probably means max. speed 25MB/s
+//
+// set_property -dict { PACKAGE_PIN W19   IOSTANDARD LVCMOS33 } [get_ports { sd_cclk }]; #IO_L12P_T1_MRCC_14 Sch=sd_cclk
+// #set_property -dict { PACKAGE_PIN T18   IOSTANDARD LVCMOS33 } [get_ports { sd_cd }]; #IO_L20N_T3_A07_D23_14 Sch=sd_cd
+// set_property -dict { PACKAGE_PIN W20   IOSTANDARD LVCMOS33 } [get_ports { sd_cmd }]; #IO_L12N_T1_MRCC_14 Sch=sd_cmd
+// set_property -dict { PACKAGE_PIN V19   IOSTANDARD LVCMOS33 } [get_ports { sd_data0 }]; #IO_L14N_T2_SRCC_14 Sch=sd_d[0]
+// #set_property -dict { PACKAGE_PIN T21   IOSTANDARD LVCMOS33 } [get_ports { sd_d1 }]; #IO_L4P_T0_D04_14 Sch=sd_d[1]
+// #set_property -dict { PACKAGE_PIN T20   IOSTANDARD LVCMOS33 } [get_ports { sd_d2 }]; #IO_L6N_T0_D08_VREF_14 Sch=sd_d[2]
+// set_property -dict { PACKAGE_PIN U18   IOSTANDARD LVCMOS33 } [get_ports { sd_cs }]; #IO_L18N_T2_A11_D27_14 Sch=sd_d[3]
+// set_property -dict { PACKAGE_PIN V20   IOSTANDARD LVCMOS33 } [get_ports { sd_reset }]; #IO_L11N_T1_SRCC_14 Sch=sd_reset
 module x (
     input clk,
     output bit uart_rx_out,
     output bit sd_cclk,  //400 Hz (init) or 25 Mhz (later)
-    output bit sd_cmd,  //cmd input / output
-    input sd_data0,
+    output bit sd_cmd,  //cmd input
+    input sd_data0, //cmd & data output
     output bit sd_reset,
     output bit sd_cs
 );
@@ -41,7 +50,6 @@ module x (
   parameter STATE_GET_CMD0_RESPONSE = 4;
   parameter STATE_SEND_CMD8 = 5;
   parameter STATE_GET_CMD8_RESPONSE = 6;
-
   parameter STATE_SEND_CMDx = 7;
 
   reg [0:55] cmd;
@@ -54,8 +62,8 @@ module x (
   reg [7:0] state, next_state;
   reg [20:0] timeout_counter;
   reg [10:0] retry_counter;
-  bit flag = 1;
-  bit sd_cclk1 = 0;
+  reg flag = 1;
+  reg sd_cclk1;
 
   always @(negedge clk) begin
     if (flag) begin
@@ -175,7 +183,6 @@ module x (
     sd_cclk1 <= sd_cclk;
   end
 endmodule
-
 
 module uartx_tx_with_buffer (
     input clk,
