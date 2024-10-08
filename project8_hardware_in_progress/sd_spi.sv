@@ -41,9 +41,9 @@ module x (
   parameter STATE_SEND_CMD8 = 4;
   parameter STATE_WAIT_0 = 5;
 
-  reg [55:0] cmd;
+  reg [0:55] cmd;
   reg [55:0] cmd_bits, cmd_expected_bits;
-  reg [55:0] resp;
+  reg [0:55] resp;
   reg [55:0] resp_bits, resp_expected_bits;
   reg cmd_started, resp_started;
   reg [20:0] clk_divider = CLK_DIVIDER_400kHz;
@@ -55,9 +55,6 @@ module x (
   bit flag = 1;
   bit sd_cclk1 = 0;
 
- // assign sd_cmd   = cmd_started && !resp_started ? cmd[cmd_bits-1] : 1'bz;
-  assign sd_reset = 0;
-
   always @(negedge clk) begin
     if (flag) begin
       state <= STATE_WAIT_0;
@@ -66,8 +63,9 @@ module x (
       sd_cmd<=1;
       sd_cs<=1;
       sd_cclk<=0;
+      sd_reset<=0;
     end else if (state == STATE_WAIT_0) begin
-      if (timeout_counter == 100000) begin
+      if (timeout_counter == 1000000) begin
         state <= STATE_SEND_CMD0;
         sd_cs<=0;
       end
@@ -82,25 +80,11 @@ module x (
       next_state <= STATE_GET_CMD0_RESPONSE;
     end else if (state == STATE_GET_CMD0_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "c";
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[7:0] / 16 >= 10 ? resp[7:0] / 16 + 65 - 10 : resp[7:0] / 16 + 48;
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[7:0] % 16 >= 10 ? resp[7:0] % 16 + 65 - 10 : resp[7:0] % 16 + 48;
-      state <= (resp[7:0] != 1 || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
+      uart_buffer[uart_buffer_index++] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
+      uart_buffer[uart_buffer_index++] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
+      state <= (resp[0:7] != 1 || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
       retry_counter <= retry_counter + 1;
-    end else if (state ==STATE_WAIT && cmd_bits==cmd_expected_bits && resp_bits >= resp_expected_bits) begin
-      state <= next_state;
-    end
-    if (clk_counter == clk_divider - 1) begin
-      clk_counter <= 0;
-      sd_cclk <= ~sd_cclk;
-    end else begin
-      clk_counter <= clk_counter + 1;
-    end
-    sd_cclk1 <= sd_cclk;
-    if (!sd_cclk1 && sd_cclk && (cmd_bits<cmd_expected_bits || resp_bits < resp_expected_bits)) begin
+    end else if (state ==STATE_WAIT && !sd_cclk1 && sd_cclk) begin
       if (!cmd_started && !resp_started) begin
         cmd_started <= 1;
         resp_bits <= 0;
@@ -125,9 +109,17 @@ module x (
           if (timeout_counter == 20) resp_bits <= resp_expected_bits + 1;
         end
       end else begin
+        state <= next_state;
         cmd_started <= 0;
       end
     end
+    if (clk_counter == clk_divider - 1) begin
+      clk_counter <= 0;
+      sd_cclk <= ~sd_cclk;
+    end else begin
+      clk_counter <= clk_counter + 1;
+    end
+    sd_cclk1 <= sd_cclk;   
   end
 endmodule
 
