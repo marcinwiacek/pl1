@@ -32,15 +32,17 @@ module x (
       .tx(uart_rx_out)
   );
 
-  parameter CLK_DIVIDER_400kHz = 100000000 / 200000;  //100 Mhz / 300 Khz
+  parameter CLK_DIVIDER_400kHz = 100000000 / 400000;  //100 Mhz / 400 Khz
   parameter CLK_DIVIDER_25Mhz = 100000000 / 25000000;  //100 Mhz / 25 Mhz
 
   parameter STATE_WAIT = 1;
   parameter STATE_SEND_CMD0 = 2;  //reset command
   parameter STATE_GET_CMD0_RESPONSE = 3;
   parameter STATE_SEND_CMD8 = 4;
-  parameter STATE_WAIT_0 = 5;
-
+  parameter STATE_GET_CMD8_RESPONSE = 5;
+  parameter STATE_WAIT_0 = 6;
+  parameter STATE_SEND_CMDx = 7;
+  
   reg [0:55] cmd;
   reg [55:0] cmd_bits, cmd_expected_bits;
   reg [0:55] resp;
@@ -87,6 +89,52 @@ module x (
       ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
       state <= (resp[0:7] != 1 || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
       retry_counter <= retry_counter + 1;
+ end else if (state == STATE_SEND_CMD8) begin
+      uart_buffer[uart_buffer_index++] = "B";
+      cmd <= 56'h48_00_00_01_AA_87_00;
+      cmd_bits <= 0;
+      cmd_expected_bits <= 48;
+      resp_expected_bits <= 40;
+      state <= STATE_WAIT;
+      next_state <= STATE_GET_CMD8_RESPONSE;   
+  end else if (state == STATE_GET_CMD8_RESPONSE) begin
+      uart_buffer[uart_buffer_index++] = "C";
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
+      
+       uart_buffer[
+      uart_buffer_index++
+      ] = resp[8:15] / 16 >= 10 ? resp[8:15] / 16 + 65 - 10 : resp[8:15] / 16 + 48;
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[8:15] % 16 >= 10 ? resp[8:15] % 16 + 65 - 10 : resp[8:15] % 16 + 48;
+
+       uart_buffer[
+      uart_buffer_index++
+      ] = resp[16:23] / 16 >= 10 ? resp[16:23] / 16 + 65 - 10 : resp[16:23] / 16 + 48;
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[16:23] % 16 >= 10 ? resp[16:23] % 16 + 65 - 10 : resp[16:23] % 16 + 48;
+      
+       uart_buffer[
+      uart_buffer_index++
+      ] = resp[24:31] / 16 >= 10 ? resp[24:31] / 16 + 65 - 10 : resp[24:31] / 16 + 48;
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[24:31] % 16 >= 10 ? resp[24:31] % 16 + 65 - 10 : resp[24:31] % 16 + 48;
+
+       uart_buffer[
+      uart_buffer_index++
+      ] = resp[32:39] / 16 >= 10 ? resp[32:39] / 16 + 65 - 10 : resp[32:39] / 16 + 48;
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[32:39] % 16 >= 10 ? resp[32:39] % 16 + 65 - 10 : resp[32:39] % 16 + 48;
+      
+      state <= STATE_SEND_CMDx;
     end else if (state == STATE_WAIT && !sd_cclk1 && sd_cclk) begin
       if (!cmd_started) begin
         cmd_started <= 1;
