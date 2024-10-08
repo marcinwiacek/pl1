@@ -11,9 +11,10 @@ module x (
     input clk,
     output bit uart_rx_out,
     output bit sd_cclk,  //400 Hz (init) or 25 Mhz (later)
-    inout sd_cmd,  //cmd input / output
-    inout sd_data0,
-    output bit sd_reset 
+    output bit sd_cmd,  //cmd input / output
+    input sd_data0,
+    output bit sd_reset,
+    output bit sd_cs 
 );
 
   //uart
@@ -31,7 +32,7 @@ module x (
       .tx(uart_rx_out)
   );
 
-  parameter CLK_DIVIDER_400kHz = 100000000 / 400000;  //100 Mhz / 300 Khz
+  parameter CLK_DIVIDER_400kHz = 100000000 / 200000;  //100 Mhz / 300 Khz
   parameter CLK_DIVIDER_25Mhz = 100000000 / 25000000;  //100 Mhz / 25 Mhz
 
   parameter STATE_WAIT = 1;
@@ -54,7 +55,7 @@ module x (
   bit flag = 1;
   bit sd_cclk1 = 0;
 
-  assign sd_cmd   = cmd_started && !resp_started ? cmd[cmd_bits-1] : 1'bz;
+ // assign sd_cmd   = cmd_started && !resp_started ? cmd[cmd_bits-1] : 1'bz;
   assign sd_reset = 0;
 
   always @(negedge clk) begin
@@ -62,14 +63,20 @@ module x (
       state <= STATE_WAIT_0;
       flag  <= 0;
       uart_buffer[uart_buffer_index++] = "a";
+      sd_cmd<=1;
+      sd_cs<=1;
+      sd_cclk<=0;
     end else if (state == STATE_WAIT_0) begin
-      if (timeout_counter == 1000000) state <= STATE_SEND_CMD0;
+      if (timeout_counter == 100000) begin
+        state <= STATE_SEND_CMD0;
+        sd_cs<=0;
+      end
       timeout_counter <= timeout_counter + 1;
     end else if (state == STATE_SEND_CMD0) begin
       uart_buffer[uart_buffer_index++] = "b";
-      cmd <= 56'hFF_40_00_00_00_00_95;
+      cmd <= 56'h40_00_00_00_00_95_00;
       cmd_bits <= 0;
-      cmd_expected_bits <= 56;
+      cmd_expected_bits <= 48;
       resp_expected_bits <= 8;
       state <= STATE_WAIT;
       next_state <= STATE_GET_CMD0_RESPONSE;
@@ -100,12 +107,17 @@ module x (
         resp_started <= 0;
         timeout_counter <= 0;
         cmd_bits <= 1;
+        sd_cmd   <= cmd[0];
+        uart_buffer[uart_buffer_index++] = cmd[0]+48;
       end else if (cmd_bits < cmd_expected_bits) begin
+        sd_cmd   <= cmd[cmd_bits];
+        uart_buffer[uart_buffer_index++] = cmd[cmd_bits]+48;
         cmd_bits <= cmd_bits + 1;
       end else if (resp_bits < resp_expected_bits) begin
         resp_started <= 1;
-        if (!sd_cmd || resp_bits==0) begin
-          resp[resp_bits] <= sd_cmd;
+         sd_cmd<=1;
+        if (!sd_data0 || resp_bits==0) begin
+          resp[resp_bits] <= sd_data0;
           resp_bits <= resp_bits + 1;
         end else begin
           resp = {0};
