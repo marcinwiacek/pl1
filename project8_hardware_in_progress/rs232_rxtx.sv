@@ -1,5 +1,12 @@
 `timescale 1ns / 1ps
 
+//Reads characters from RS232 input and dumps it into RS232 output
+//(115200, 8 bits (LSB first), 1 stop, no parity, for example cu -l /dev/ttyUSB0 -s 115200)
+//For Nexys Video:
+//## UART
+//set_property -dict { PACKAGE_PIN AA19  IOSTANDARD LVCMOS33 } [get_ports { uart_rx_out }]; #IO_L15P_T2_DQS_RDWR_B_14 Sch=uart_rx_out
+//set_property -dict { PACKAGE_PIN V18   IOSTANDARD LVCMOS33 } [get_ports { uart_tx_in }]; #IO_L14P_T2_SRCC_14 Sch=uart_tx_in
+
 module x (
     input clk,
     output logic uart_rx_out,

@@ -1,13 +1,20 @@
 `timescale 1ns / 1ps
 
-//https://www.sdcard.org/downloads/pls/ :
+//Makes init of the SD card in the 1-bit SPI mode
+//and dumps some debug into RS232 (115200, 8 bits (LSB first), 1 stop, no parity, for example cu -l /dev/ttyUSB0 -s 115200)
+
+//1. https://www.sdcard.org/downloads/pls/ :
 //SD Specifications Part 1 Physical Layer Simplified Specification Version 9.10 December 1, 2023
+//2. https://electronics.stackexchange.com/questions/602105/how-can-i-initialize-use-sd-cards-with-spi
 //
-//https://digilent.com/reference/programmable-logic/nexys-video/reference-manual :
+//FPGA board specs https://digilent.com/reference/programmable-logic/nexys-video/reference-manual :
 //"All of the SD pins on the FPGA are wired to support full SD speeds in native interface mode,
 //as shown in Fig. 12. The SPI interface is also available, if needed".
 //...but Nexys Video seems to support 3,3V only, which the most probably means max. speed 25MB/s
 //
+//## UART
+//set_property -dict { PACKAGE_PIN AA19  IOSTANDARD LVCMOS33 } [get_ports { uart_rx_out }]; #IO_L15P_T2_DQS_RDWR_B_14 Sch=uart_rx_out
+//## SD card
 // set_property -dict { PACKAGE_PIN W19   IOSTANDARD LVCMOS33 } [get_ports { sd_cclk }]; #IO_L12P_T1_MRCC_14 Sch=sd_cclk
 // #set_property -dict { PACKAGE_PIN T18   IOSTANDARD LVCMOS33 } [get_ports { sd_cd }]; #IO_L20N_T3_A07_D23_14 Sch=sd_cd
 // set_property -dict { PACKAGE_PIN W20   IOSTANDARD LVCMOS33 } [get_ports { sd_cmd }]; #IO_L12N_T1_MRCC_14 Sch=sd_cmd
