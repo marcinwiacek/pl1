@@ -155,7 +155,7 @@ module x (
       end else begin
         state <= STATE_INIT_ERROR;
       end
-    end else if (state == STATE_SEND_CMD58 || STATE_SEND_CMD58_2) begin
+    end else if (state == STATE_SEND_CMD58 || state == STATE_SEND_CMD58_2) begin
       uart_buffer[uart_buffer_index++] = "B";
       cmd <= 56'h7A_00_00_00_00_FD_00;
       cmd_bits <= 0;
@@ -171,10 +171,9 @@ module x (
       uart_buffer[
       uart_buffer_index++
       ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
-
       state <= STATE_SEND_CMD41;
     end else if (state == STATE_GET_CMD58_2_RESPONSE) begin
-      uart_buffer[uart_buffer_index++] = "C";
+      uart_buffer[uart_buffer_index++] = "K";
       uart_buffer[
       uart_buffer_index++
       ] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
@@ -190,8 +189,8 @@ module x (
       cmd_expected_bits <= 32;
       resp_expected_bits <= 8;
       state <= STATE_WAIT_CMD;
-      next_state <= STATE_GET_CMD58_RESPONSE;
-    end else if (state == STATE_GET_CMD58_RESPONSE) begin
+      next_state <= STATE_GET_CMD41_RESPONSE;
+    end else if (state == STATE_GET_CMD41_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "C";
       uart_buffer[
       uart_buffer_index++
@@ -201,6 +200,7 @@ module x (
       ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
       if (resp[0:7] == 1  /*idle*/) begin
         state <= STATE_SEND_CMD41;
+        //state <= STATE_INIT_ERROR;
       end else if (resp[0:7] == 0) begin
         state <= STATE_SEND_CMD58_2;
       end else begin
