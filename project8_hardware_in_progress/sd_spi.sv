@@ -69,9 +69,9 @@ module x (
   parameter STATE_GET_CMD58_2_RESPONSE = 17;
 
   reg [0:47] cmd;
-  reg [55:0] cmd_bits, cmd_expected_bits;
+  reg [55:0] cmd_bits, cmd_bits_to_send;
   reg [0:55] resp;
-  reg [55:0] resp_bits, resp_expected_bits;
+  reg [55:0] resp_bits, resp_bits_to_receive;
   reg cmd_started, resp_started;
   reg [20:0] clk_divider = CLK_DIVIDER_400kHz;
   reg [20:0] clk_counter;
@@ -101,8 +101,8 @@ module x (
       uart_buffer[uart_buffer_index++] = "b";
       cmd <= 48'h40_00_00_00_00_95;
       cmd_bits <= 0;
-      cmd_expected_bits <= 48;
-      resp_expected_bits <= 8;
+      cmd_bits_to_send <= 48;
+      resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD0_RESPONSE;
     end else if (state == STATE_GET_CMD0_RESPONSE) begin
@@ -113,14 +113,14 @@ module x (
       uart_buffer[
       uart_buffer_index++
       ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
-      state <= (resp[0:7] != 1 /* not idle */ || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
+      state <= (resp[0:7] != 1 /* not idle */ || resp_bits  > resp_bits_to_receive) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
       retry_counter <= retry_counter + 1;
     end else if (state == STATE_SEND_CMD8) begin  //interface condition
       uart_buffer[uart_buffer_index++] = "B";
       cmd <= 48'h48_00_00_01_AA_87;  //1 = support for 2.7-3.6 V, AA = check pattern
       cmd_bits <= 0;
-      cmd_expected_bits <= 48;
-      resp_expected_bits <= 40;
+      cmd_bits_to_send <= 48;
+      resp_bits_to_receive <= 40;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD8_RESPONSE;
     end else if (state == STATE_GET_CMD8_RESPONSE) begin
@@ -169,8 +169,8 @@ module x (
       uart_buffer[uart_buffer_index++] = "B";
       cmd <= 48'h7A_00_00_00_00_FD;
       cmd_bits <= 0;
-      cmd_expected_bits <= 48;
-      resp_expected_bits <= 40;
+      cmd_bits_to_send <= 48;
+      resp_bits_to_receive <= 40;
       state <= STATE_WAIT_CMD;
       next_state <= state == STATE_SEND_CMD58?STATE_GET_CMD58_RESPONSE:STATE_GET_CMD58_2_RESPONSE;
     end else if (state == STATE_GET_CMD58_RESPONSE) begin
@@ -196,8 +196,8 @@ module x (
       uart_buffer[uart_buffer_index++] = "B";
       cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards 
       cmd_bits <= 0;
-      cmd_expected_bits <= 48;
-      resp_expected_bits <= 8;
+      cmd_bits_to_send <= 48;
+      resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD41_RESPONSE;
     end else if (state == STATE_GET_CMD41_RESPONSE) begin
@@ -218,13 +218,13 @@ module x (
       end
     end else if (state == STATE_SEND_CMD17) begin  //read single block
       uart_buffer[uart_buffer_index++] = "b";
-      cmd <= 48'h51_00_00_00_00_cc;
+      cmd <= 48'h51_00_00_00_00_cc; //with this we can address max. 2 GB cards, needs to support 2 addressing schemes
       cmd_bits <= 0;
-      cmd_expected_bits <= 48;
-      resp_expected_bits <= 8;
+      cmd_bits_to_send <= 48;
+      resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
-      next_state <= STATE_GET_CMD0_RESPONSE;
-    end else if (state == STATE_GET_CMD0_RESPONSE) begin
+      next_state <= STATE_GET_CMD17_RESPONSE;
+    end else if (state == STATE_GET_CMD17_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "c";
       uart_buffer[
       uart_buffer_index++
@@ -232,7 +232,7 @@ module x (
       uart_buffer[
       uart_buffer_index++
       ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
-      state <= (resp[0:7] != 1 /* not idle */ || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
+      //state <= (resp[0:7] != 1 /* not idle */ || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
       retry_counter <= retry_counter + 1;
     end else if (state == STATE_WAIT_CMD && !sd_cclk1 && sd_cclk) begin
       if (!cmd_started) begin
@@ -243,11 +243,11 @@ module x (
         cmd_bits <= 1;
         sd_cmd <= cmd[0];
         uart_buffer[uart_buffer_index++] = cmd[0] + 48;
-      end else if (cmd_bits < cmd_expected_bits) begin
+      end else if (cmd_bits < cmd_bits_to_send) begin
         sd_cmd <= cmd[cmd_bits];
         uart_buffer[uart_buffer_index++] = cmd[cmd_bits] + 48;
         cmd_bits <= cmd_bits + 1;
-      end else if (resp_bits < resp_expected_bits) begin
+      end else if (resp_bits < resp_bits_to_receive) begin
         sd_cmd <= 1;
         if (!sd_data0 || resp_started) begin
           resp_started <= 1;
@@ -256,7 +256,7 @@ module x (
         end else begin
           resp = {0};
           timeout_counter <= timeout_counter + 1;
-          if (timeout_counter == 20) resp_bits <= resp_expected_bits + 1;
+          if (timeout_counter == 20) resp_bits <= resp_bits_to_receive + 1;
         end
       end else begin
         sd_cmd <= 0;
