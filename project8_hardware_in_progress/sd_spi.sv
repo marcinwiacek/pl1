@@ -33,6 +33,13 @@ module x (
     output bit sd_cs
 );
 
+// verilog_format:off
+/* DEBUG info */ `define HARD_DEBUG(ARG) \
+/* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
+/* DEBUG info */    uart_buffer[uart_buffer_index++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
+/* DEBUG info */    uart_buffer[uart_buffer_index++] = ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48;
+// verilog_format:on
+
   //uart
   reg [7:0] uart_buffer[0:200];
   reg [6:0] uart_buffer_index = 0;
@@ -107,12 +114,7 @@ module x (
       next_state <= STATE_GET_CMD0_RESPONSE;
     end else if (state == STATE_GET_CMD0_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "c";
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
+      `HARD_DEBUG(resp[0:7])
       state <= (resp[0:7] != 1 /* not idle */ || resp_bits  > resp_bits_to_receive) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
       retry_counter <= retry_counter + 1;
     end else if (state == STATE_SEND_CMD8) begin  //interface condition
@@ -125,41 +127,11 @@ module x (
       next_state <= STATE_GET_CMD8_RESPONSE;
     end else if (state == STATE_GET_CMD8_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "C";
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
-
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[8:15] / 16 >= 10 ? resp[8:15] / 16 + 65 - 10 : resp[8:15] / 16 + 48;
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[8:15] % 16 >= 10 ? resp[8:15] % 16 + 65 - 10 : resp[8:15] % 16 + 48;
-
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[16:23] / 16 >= 10 ? resp[16:23] / 16 + 65 - 10 : resp[16:23] / 16 + 48;
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[16:23] % 16 >= 10 ? resp[16:23] % 16 + 65 - 10 : resp[16:23] % 16 + 48;
-
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[24:31] / 16 >= 10 ? resp[24:31] / 16 + 65 - 10 : resp[24:31] / 16 + 48;
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[24:31] % 16 >= 10 ? resp[24:31] % 16 + 65 - 10 : resp[24:31] % 16 + 48;
-
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[32:39] / 16 >= 10 ? resp[32:39] / 16 + 65 - 10 : resp[32:39] / 16 + 48;
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[32:39] % 16 >= 10 ? resp[32:39] % 16 + 65 - 10 : resp[32:39] % 16 + 48;
-
+      `HARD_DEBUG(resp[0:7]);
+      `HARD_DEBUG(resp[8:15]);
+      `HARD_DEBUG(resp[16:23]);
+      `HARD_DEBUG(resp[24:31]);
+      `HARD_DEBUG(resp[32:39]);
       if (resp[0:7] == 5 /*illegal command*/ || (resp[0:7] == 1 /*idle */ && resp[24:31]==1 /*Voltage supported*/ && resp[32:39]==8'hAA)) begin
         state <= STATE_SEND_CMD58;
       end else begin
@@ -175,21 +147,11 @@ module x (
       next_state <= state == STATE_SEND_CMD58?STATE_GET_CMD58_RESPONSE:STATE_GET_CMD58_2_RESPONSE;
     end else if (state == STATE_GET_CMD58_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "C";
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
+      `HARD_DEBUG(resp[0:7]);
       state <= STATE_SEND_CMD41;
     end else if (state == STATE_GET_CMD58_2_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "K";
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
+      `HARD_DEBUG(resp[0:7]);
       clk_divider = CLK_DIVIDER_25Mhz;
       state <= STATE_INIT_OK;
     end else if (state == STATE_SEND_CMD41) begin
@@ -202,12 +164,7 @@ module x (
       next_state <= STATE_GET_CMD41_RESPONSE;
     end else if (state == STATE_GET_CMD41_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "C";
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
+      `HARD_DEBUG(resp[0:7]);
       if (resp[0:7] == 1  /*idle*/) begin
         state <= STATE_SEND_CMD41;
         //state <= STATE_INIT_ERROR;
@@ -226,12 +183,7 @@ module x (
       next_state <= STATE_GET_CMD17_RESPONSE;
     end else if (state == STATE_GET_CMD17_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "c";
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
-      uart_buffer[
-      uart_buffer_index++
-      ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
+      `HARD_DEBUG(resp[0:7]);
       //state <= (resp[0:7] != 1 /* not idle */ || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
       retry_counter <= retry_counter + 1;
     end else if (state == STATE_WAIT_CMD && !sd_cclk1 && sd_cclk) begin
