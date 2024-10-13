@@ -33,7 +33,7 @@ module x (
     output bit sd_cs
 );
 
-// verilog_format:off
+  // verilog_format:off
 /* DEBUG info */ `define HARD_DEBUG(ARG) \
 /* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
 /* DEBUG info */    uart_buffer[uart_buffer_index++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
