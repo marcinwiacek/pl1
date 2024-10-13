@@ -46,12 +46,16 @@ module x (
 
   parameter STATE_WAIT_INIT = 1;
   parameter STATE_WAIT_CMD = 2;
-  parameter STATE_SEND_CMD0 = 3;  //reset command
-  parameter STATE_GET_CMD0_RESPONSE = 4;
-  parameter STATE_SEND_CMD8 = 5;
-  parameter STATE_GET_CMD8_RESPONSE = 6;
-  parameter STATE_SEND_CMDx = 7;
-
+  parameter STATE_SEND_CMDx = 3;
+  parameter STATE_SEND_CMD0 = 4;  //reset command
+  parameter STATE_GET_CMD0_RESPONSE = 5;
+  parameter STATE_SEND_CMD8 = 6; //interface condition
+  parameter STATE_GET_CMD8_RESPONSE = 7;
+  parameter STATE_SEND_CMD41 = 8; //send operation condition
+  parameter STATE_GET_CMD41_RESPONSE = 9;  
+  parameter STATE_SEND_CMD58 = 10; //read OCR
+  parameter STATE_GET_CMD58_RESPONSE = 11;
+  
   reg [0:55] cmd;
   reg [55:0] cmd_bits, cmd_expected_bits;
   reg [0:55] resp;
@@ -142,6 +146,42 @@ module x (
       uart_buffer[
       uart_buffer_index++
       ] = resp[32:39] % 16 >= 10 ? resp[32:39] % 16 + 65 - 10 : resp[32:39] % 16 + 48;
+
+      state <= STATE_SEND_CMD58;
+   end else if (state == STATE_SEND_CMD41) begin
+      uart_buffer[uart_buffer_index++] = "B";
+      cmd <= 56'h69_40_00_00_00_77_00; //HCS = 1 -> support SDHC/SDXC cards 
+      cmd_bits <= 0;
+      cmd_expected_bits <= 32;
+      resp_expected_bits <= 8;
+      state <= STATE_WAIT_CMD;
+      next_state <= STATE_GET_CMD58_RESPONSE;
+    end else if (state == STATE_GET_CMD58_RESPONSE) begin
+      uart_buffer[uart_buffer_index++] = "C";
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
+
+      state <= STATE_SEND_CMDx;      
+    end else if (state == STATE_SEND_CMD58) begin
+      uart_buffer[uart_buffer_index++] = "B";
+      cmd <= 56'h7A_00_00_00_00_FD_00;
+      cmd_bits <= 0;
+      cmd_expected_bits <= 32;
+      resp_expected_bits <= 40;
+      state <= STATE_WAIT_CMD;
+      next_state <= STATE_GET_CMD58_RESPONSE;
+    end else if (state == STATE_GET_CMD58_RESPONSE) begin
+      uart_buffer[uart_buffer_index++] = "C";
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
 
       state <= STATE_SEND_CMDx;
     end else if (state == STATE_WAIT_CMD && !sd_cclk1 && sd_cclk) begin
