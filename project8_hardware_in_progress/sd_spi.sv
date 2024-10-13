@@ -59,14 +59,16 @@ module x (
   parameter STATE_GET_CMD0_RESPONSE = 6;
   parameter STATE_SEND_CMD8 = 7;  //interface condition
   parameter STATE_GET_CMD8_RESPONSE = 8;
-  parameter STATE_SEND_CMD41 = 9;  //send operation condition
-  parameter STATE_GET_CMD41_RESPONSE = 10;
-  parameter STATE_SEND_CMD58 = 11;  //read OCR & get voltage
-  parameter STATE_GET_CMD58_RESPONSE = 12;
-  parameter STATE_SEND_CMD58_2 = 14;  //read OCR & get card type
-  parameter STATE_GET_CMD58_2_RESPONSE = 15;
+  parameter STATE_SEND_CMD17 = 9;  //read single block
+  parameter STATE_GET_CMD17_RESPONSE = 10;
+  parameter STATE_SEND_CMD41 = 11;  //send operation condition
+  parameter STATE_GET_CMD41_RESPONSE = 12;
+  parameter STATE_SEND_CMD58 = 14;  //read OCR & get voltage
+  parameter STATE_GET_CMD58_RESPONSE = 15;
+  parameter STATE_SEND_CMD58_2 = 16;  //read OCR & get card type
+  parameter STATE_GET_CMD58_2_RESPONSE = 17;
 
-  reg [0:55] cmd;
+  reg [0:47] cmd;
   reg [55:0] cmd_bits, cmd_expected_bits;
   reg [0:55] resp;
   reg [55:0] resp_bits, resp_expected_bits;
@@ -79,6 +81,7 @@ module x (
   reg flag = 1;
   reg sd_cclk1;
 
+/* CMD format: 0, 1, 6 cmd bits, 32 bits, 7 bit CRC, 1 */
   always @(negedge clk) begin
     if (flag) begin
       state <= STATE_WAIT_INIT;
@@ -96,7 +99,7 @@ module x (
       timeout_counter <= timeout_counter + 1;
     end else if (state == STATE_SEND_CMD0) begin  //reset cmd
       uart_buffer[uart_buffer_index++] = "b";
-      cmd <= 56'h40_00_00_00_00_95_00;
+      cmd <= 48'h40_00_00_00_00_95;
       cmd_bits <= 0;
       cmd_expected_bits <= 48;
       resp_expected_bits <= 8;
@@ -114,7 +117,7 @@ module x (
       retry_counter <= retry_counter + 1;
     end else if (state == STATE_SEND_CMD8) begin  //interface condition
       uart_buffer[uart_buffer_index++] = "B";
-      cmd <= 56'h48_00_00_01_AA_87_00;  //1 = support for 2.7-3.6 V, AA = check pattern
+      cmd <= 48'h48_00_00_01_AA_87;  //1 = support for 2.7-3.6 V, AA = check pattern
       cmd_bits <= 0;
       cmd_expected_bits <= 48;
       resp_expected_bits <= 40;
@@ -164,9 +167,9 @@ module x (
       end
     end else if (state == STATE_SEND_CMD58 || state == STATE_SEND_CMD58_2) begin
       uart_buffer[uart_buffer_index++] = "B";
-      cmd <= 56'h7A_00_00_00_00_FD_00;
+      cmd <= 48'h7A_00_00_00_00_FD;
       cmd_bits <= 0;
-      cmd_expected_bits <= 32;
+      cmd_expected_bits <= 48;
       resp_expected_bits <= 40;
       state <= STATE_WAIT_CMD;
       next_state <= state == STATE_SEND_CMD58?STATE_GET_CMD58_RESPONSE:STATE_GET_CMD58_2_RESPONSE;
@@ -191,9 +194,9 @@ module x (
       state <= STATE_INIT_OK;
     end else if (state == STATE_SEND_CMD41) begin
       uart_buffer[uart_buffer_index++] = "B";
-      cmd <= 56'h69_40_00_00_00_77_00;  //HCS = 1 -> support SDHC/SDXC cards 
+      cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards 
       cmd_bits <= 0;
-      cmd_expected_bits <= 32;
+      cmd_expected_bits <= 48;
       resp_expected_bits <= 8;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD41_RESPONSE;
@@ -213,6 +216,24 @@ module x (
       end else begin
         state <= STATE_INIT_ERROR;
       end
+    end else if (state == STATE_SEND_CMD17) begin  //read single block
+      uart_buffer[uart_buffer_index++] = "b";
+      cmd <= 48'h51_00_00_00_00_cc;
+      cmd_bits <= 0;
+      cmd_expected_bits <= 48;
+      resp_expected_bits <= 8;
+      state <= STATE_WAIT_CMD;
+      next_state <= STATE_GET_CMD0_RESPONSE;
+    end else if (state == STATE_GET_CMD0_RESPONSE) begin
+      uart_buffer[uart_buffer_index++] = "c";
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[0:7] / 16 >= 10 ? resp[0:7] / 16 + 65 - 10 : resp[0:7] / 16 + 48;
+      uart_buffer[
+      uart_buffer_index++
+      ] = resp[0:7] % 16 >= 10 ? resp[0:7] % 16 + 65 - 10 : resp[0:7] % 16 + 48;
+      state <= (resp[0:7] != 1 /* not idle */ || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
+      retry_counter <= retry_counter + 1;
     end else if (state == STATE_WAIT_CMD && !sd_cclk1 && sd_cclk) begin
       if (!cmd_started) begin
         cmd_started <= 1;
