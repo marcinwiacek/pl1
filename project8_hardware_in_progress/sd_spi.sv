@@ -81,7 +81,7 @@ module x (
   reg flag = 1;
   reg sd_cclk1;
 
-/* CMD format: 0, 1, 6 cmd bits, 32 bits, 7 bit CRC, 1 */
+  /* CMD format: 0, 1, 6 cmd bits, 32 bits, 7 bit CRC, 1 */
   always @(negedge clk) begin
     if (flag) begin
       state <= STATE_WAIT_INIT;
