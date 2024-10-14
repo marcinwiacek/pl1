@@ -38,6 +38,14 @@ module x (
 /* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
 /* DEBUG info */    uart_buffer[uart_buffer_index++] = ARG/16>=10? ARG/16 + 65 - 10:ARG/16+ 48; \
 /* DEBUG info */    uart_buffer[uart_buffer_index++] = ARG%16>=10? ARG%16 + 65 - 10:ARG%16+ 48;
+/* DEBUG info */ `define SAVE_CMD(ARG, ARG2) \
+/* DEBUG info */    cmd[0:1]<= 2'b01; \
+/* DEBUG info */    cmd[2:7]<= ARG; \
+/* DEBUG info */    cmd[8:39]<= ARG2; \
+/* DEBUG info */    cmd[40:46]<= 7'b0; \
+/* DEBUG info */    cmd[47]<=1; \
+/* DEBUG info */    crc7<= {0}; \
+/* DEBUG info */    calc_crc7<=1;
 // verilog_format:on
 
   //uart
@@ -75,7 +83,7 @@ module x (
   parameter STATE_SEND_CMD58_2 = 16;  //read OCR & get card type
   parameter STATE_GET_CMD58_2_RESPONSE = 17;
 
-  reg [0:47] cmd;
+  reg [0:47] cmd, crc7;
   reg [55:0] cmd_bits, cmd_bits_to_send;
   reg [0:55] resp;
   reg [55:0] resp_bits, resp_bits_to_receive;
@@ -85,10 +93,9 @@ module x (
   reg [7:0] state, next_state;
   reg [20:0] timeout_counter;
   reg [10:0] retry_counter;
-  reg flag = 1;
+  reg flag = 1, calc_crc7;
   reg sd_cclk1;
 
-  /* CMD format: 0, 1, 6 cmd bits, 32 bits, 7 bit CRC, 1 */
   always @(negedge clk) begin
     if (flag) begin
       state <= STATE_WAIT_INIT;
@@ -98,6 +105,7 @@ module x (
       sd_cs <= 1;
       sd_cclk <= 0;
       sd_reset <= 0;
+      calc_crc7<=0;
     end else if (state == STATE_WAIT_INIT) begin
       if (timeout_counter == 1000000) begin
         state <= STATE_SEND_CMD0;
@@ -171,7 +179,7 @@ module x (
       end
     end else if (state == STATE_SEND_CMD17) begin  //read single block
       uart_buffer[uart_buffer_index++] = "b";
-      cmd <= 48'h51_00_00_00_00_cc; //with this we can address max. 2 GB cards, needs to support 2 addressing schemes
+      `SAVE_CMD(6'd17, 32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes
       cmd_bits_to_send <= 48;
       resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
