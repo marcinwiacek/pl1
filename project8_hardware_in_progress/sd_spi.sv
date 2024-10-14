@@ -44,7 +44,11 @@ module x (
 /* DEBUG info */    cmd[8:39]<= ARG2; \
 /* DEBUG info */    cmd[40:46]<= 7'b0; \
 /* DEBUG info */    cmd[47]<=1; \
-/* DEBUG info */    crc7<= {0}; \
+/* DEBUG info */    crc7[0:1]<= 2'b01; \
+/* DEBUG info */    crc7[2:7]<= ARG; \
+/* DEBUG info */    crc7[8:39]<= ARG2; \
+/* DEBUG info */    crc7[40:46]<= 7'b0; \
+/* DEBUG info */    crc7[47]<=1; \
 /* DEBUG info */    calc_crc7<=1;
 // verilog_format:on
 
@@ -106,6 +110,7 @@ module x (
       sd_cclk <= 0;
       sd_reset <= 0;
       calc_crc7<=0;
+      cmd_bits_to_send <= 48;
     end else if (state == STATE_WAIT_INIT) begin
       if (timeout_counter == 1000000) begin
         state <= STATE_SEND_CMD0;
@@ -114,8 +119,7 @@ module x (
       timeout_counter <= timeout_counter + 1;
     end else if (state == STATE_SEND_CMD0) begin  //reset cmd
       uart_buffer[uart_buffer_index++] = "b";
-      cmd <= 48'h40_00_00_00_00_95;
-      cmd_bits_to_send <= 48;
+      cmd <= 48'h40_00_00_00_00_95;      
       resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD0_RESPONSE;
@@ -127,7 +131,6 @@ module x (
     end else if (state == STATE_SEND_CMD8) begin  //interface condition
       uart_buffer[uart_buffer_index++] = "B";
       cmd <= 48'h48_00_00_01_AA_87;  //1 = support for 2.7-3.6 V, AA = check pattern
-      cmd_bits_to_send <= 48;
       resp_bits_to_receive <= 40;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD8_RESPONSE;
@@ -146,7 +149,6 @@ module x (
     end else if (state == STATE_SEND_CMD58 || state == STATE_SEND_CMD58_2) begin
       uart_buffer[uart_buffer_index++] = "B";
       cmd <= 48'h7A_00_00_00_00_FD;
-      cmd_bits_to_send <= 48;
       resp_bits_to_receive <= 40;
       state <= STATE_WAIT_CMD;
       next_state <= state == STATE_SEND_CMD58?STATE_GET_CMD58_RESPONSE:STATE_GET_CMD58_2_RESPONSE;
@@ -162,7 +164,6 @@ module x (
     end else if (state == STATE_SEND_CMD41) begin
       uart_buffer[uart_buffer_index++] = "B";
       cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards 
-      cmd_bits_to_send <= 48;
       resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD41_RESPONSE;
@@ -179,7 +180,7 @@ module x (
       end
     end else if (state == STATE_SEND_CMD17) begin  //read single block
       uart_buffer[uart_buffer_index++] = "b";
-      `SAVE_CMD(6'd17, 32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes
+      `SAVE_CMD(6'd17, 32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes      
       cmd_bits_to_send <= 48;
       resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
@@ -190,6 +191,20 @@ module x (
       //state <= (resp[0:7] != 1 /* not idle */ || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
       retry_counter <= retry_counter + 1;
     end else if (state == STATE_WAIT_CMD && !sd_cclk1 && sd_cclk) begin
+      if (calc_crc7) begin
+        if (cmd_bits == cmd_bits_to_send-8) begin
+          cmd[40:46]<=crc7[40:46];
+        end else if (cmd_bits < cmd_bits_to_send-8 && cmd[cmd_bits]==1 && cmd[0:39]!=0) begin
+          crc7[cmd_bits]<=1^crc7[cmd_bits];
+          crc7[cmd_bits+1]<=0^crc7[cmd_bits+1];
+          crc7[cmd_bits+2]<=0^crc7[cmd_bits+2];
+          crc7[cmd_bits+3]<=0^crc7[cmd_bits+3];
+          crc7[cmd_bits+4]<=1^crc7[cmd_bits+4];
+          crc7[cmd_bits+5]<=0^crc7[cmd_bits+5];
+          crc7[cmd_bits+6]<=0^crc7[cmd_bits+6];
+          crc7[cmd_bits+7]<=1^crc7[cmd_bits+7];
+        end
+      end 
       if (!cmd_started) begin
         cmd_started <= 1;
         resp_bits <= 0;
