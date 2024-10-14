@@ -89,7 +89,7 @@ module x (
 
   reg [0:47] cmd, crc7;
   reg [55:0] cmd_bits, cmd_bits_to_send;
-  reg [0:55] resp;
+  reg [0:536] resp;
   reg [55:0] resp_bits, resp_bits_to_receive;
   reg cmd_started, resp_started;
   reg [20:0] clk_divider = CLK_DIVIDER_400kHz;
@@ -99,6 +99,7 @@ module x (
   reg [10:0] retry_counter;
   reg flag = 1, calc_crc7;
   reg sd_cclk1;
+  reg sdsc;
 
   always @(negedge clk) begin
     if (flag) begin
@@ -155,6 +156,11 @@ module x (
     end else if (state == STATE_GET_CMD58_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "C";
       `HARD_DEBUG(resp[0:7]);
+      `HARD_DEBUG(resp[8:15]);
+      `HARD_DEBUG(resp[16:23]);
+      `HARD_DEBUG(resp[24:31]);
+      `HARD_DEBUG(resp[32:39]);
+      sdsc<=resp[38];//0 = sdsc, 1 = sdhc || sdxc
       state <= STATE_SEND_CMD41;
     end else if (state == STATE_GET_CMD58_2_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "K";
@@ -182,7 +188,7 @@ module x (
       uart_buffer[uart_buffer_index++] = "b";
       `SAVE_CMD(6'd17, 32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes      
       cmd_bits_to_send <= 48;
-      resp_bits_to_receive <= 8;
+      resp_bits_to_receive <= 8+512+16;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD17_RESPONSE;
     end else if (state == STATE_GET_CMD17_RESPONSE) begin
