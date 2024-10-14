@@ -107,7 +107,6 @@ module x (
     end else if (state == STATE_SEND_CMD0) begin  //reset cmd
       uart_buffer[uart_buffer_index++] = "b";
       cmd <= 48'h40_00_00_00_00_95;
-      cmd_bits <= 0;
       cmd_bits_to_send <= 48;
       resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
@@ -120,7 +119,6 @@ module x (
     end else if (state == STATE_SEND_CMD8) begin  //interface condition
       uart_buffer[uart_buffer_index++] = "B";
       cmd <= 48'h48_00_00_01_AA_87;  //1 = support for 2.7-3.6 V, AA = check pattern
-      cmd_bits <= 0;
       cmd_bits_to_send <= 48;
       resp_bits_to_receive <= 40;
       state <= STATE_WAIT_CMD;
@@ -140,7 +138,6 @@ module x (
     end else if (state == STATE_SEND_CMD58 || state == STATE_SEND_CMD58_2) begin
       uart_buffer[uart_buffer_index++] = "B";
       cmd <= 48'h7A_00_00_00_00_FD;
-      cmd_bits <= 0;
       cmd_bits_to_send <= 48;
       resp_bits_to_receive <= 40;
       state <= STATE_WAIT_CMD;
@@ -157,7 +154,6 @@ module x (
     end else if (state == STATE_SEND_CMD41) begin
       uart_buffer[uart_buffer_index++] = "B";
       cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards 
-      cmd_bits <= 0;
       cmd_bits_to_send <= 48;
       resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
@@ -176,7 +172,6 @@ module x (
     end else if (state == STATE_SEND_CMD17) begin  //read single block
       uart_buffer[uart_buffer_index++] = "b";
       cmd <= 48'h51_00_00_00_00_cc; //with this we can address max. 2 GB cards, needs to support 2 addressing schemes
-      cmd_bits <= 0;
       cmd_bits_to_send <= 48;
       resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
