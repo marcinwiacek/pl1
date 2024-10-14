@@ -195,6 +195,8 @@ module x (
         if (cmd_bits == cmd_bits_to_send-8) begin
           cmd[40:46]<=crc7[40:46];
         end else if (cmd_bits < cmd_bits_to_send-8 && cmd[cmd_bits]==1 && cmd[0:39]!=0) begin
+          //see https://en.wikipedia.org/wiki/Cyclic_redundancy_check
+          //Generator polynomial x^7 + x^3 + 1
           crc7[cmd_bits]<=1^crc7[cmd_bits];
           crc7[cmd_bits+1]<=0^crc7[cmd_bits+1];
           crc7[cmd_bits+2]<=0^crc7[cmd_bits+2];
