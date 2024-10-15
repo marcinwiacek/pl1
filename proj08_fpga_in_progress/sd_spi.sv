@@ -130,13 +130,13 @@ module x (
       state <= (resp[0:7] != 1 /* not idle */ || resp_bits  > resp_bits_to_receive) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
       retry_counter <= retry_counter + 1;
     end else if (state == STATE_SEND_CMD8) begin  //interface condition
-      uart_buffer[uart_buffer_index++] = "B";
+      uart_buffer[uart_buffer_index++] = "d";
       cmd <= 48'h48_00_00_01_AA_87;  //1 = support for 2.7-3.6 V, AA = check pattern
       resp_bits_to_receive <= 40;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD8_RESPONSE;
     end else if (state == STATE_GET_CMD8_RESPONSE) begin
-      uart_buffer[uart_buffer_index++] = "C";
+      uart_buffer[uart_buffer_index++] = "e";
       `HARD_DEBUG(resp[0:7]);
       `HARD_DEBUG(resp[8:15]);
       `HARD_DEBUG(resp[16:23]);
@@ -148,33 +148,34 @@ module x (
         state <= STATE_INIT_ERROR;
       end
     end else if (state == STATE_SEND_CMD58 || state == STATE_SEND_CMD58_2) begin
-      uart_buffer[uart_buffer_index++] = "B";
+      uart_buffer[uart_buffer_index++] = "f";
       cmd <= 48'h7A_00_00_00_00_FD;
       resp_bits_to_receive <= 40;
       state <= STATE_WAIT_CMD;
       next_state <= state == STATE_SEND_CMD58?STATE_GET_CMD58_RESPONSE:STATE_GET_CMD58_2_RESPONSE;
     end else if (state == STATE_GET_CMD58_RESPONSE) begin
-      uart_buffer[uart_buffer_index++] = "C";
+      uart_buffer[uart_buffer_index++] = "g";
       `HARD_DEBUG(resp[0:7]);
       `HARD_DEBUG(resp[8:15]);
       `HARD_DEBUG(resp[16:23]);
       `HARD_DEBUG(resp[24:31]);
       `HARD_DEBUG(resp[32:39]);
       sdsc<=resp[38];//0 = sdsc, 1 = sdhc || sdxc
-      state <= STATE_SEND_CMD41;
+      state <= resp[38]?STATE_SEND_CMD58_2:STATE_SEND_CMD41;
     end else if (state == STATE_GET_CMD58_2_RESPONSE) begin
-      uart_buffer[uart_buffer_index++] = "K";
+      uart_buffer[uart_buffer_index++] = "h";
       `HARD_DEBUG(resp[0:7]);
       clk_divider = CLK_DIVIDER_25Mhz;
-      state <= STATE_INIT_OK;
+      state <= STATE_SEND_CMD17;
+      //STATE_INIT_OK;
     end else if (state == STATE_SEND_CMD41) begin
-      uart_buffer[uart_buffer_index++] = "B";
+      uart_buffer[uart_buffer_index++] = "i";
       cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards 
       resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD41_RESPONSE;
     end else if (state == STATE_GET_CMD41_RESPONSE) begin
-      uart_buffer[uart_buffer_index++] = "C";
+      uart_buffer[uart_buffer_index++] = "j";
       `HARD_DEBUG(resp[0:7]);
       if (resp[0:7] == 1  /*idle*/) begin
         state <= STATE_SEND_CMD41;
@@ -185,17 +186,20 @@ module x (
         state <= STATE_INIT_ERROR;
       end
     end else if (state == STATE_SEND_CMD17) begin  //read single block
-      uart_buffer[uart_buffer_index++] = "b";
+      uart_buffer[uart_buffer_index++] = "k";
       `SAVE_CMD(6'd17, 32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes      
       cmd_bits_to_send <= 48;
       resp_bits_to_receive <= 8+512+16;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD17_RESPONSE;
     end else if (state == STATE_GET_CMD17_RESPONSE) begin
-      uart_buffer[uart_buffer_index++] = "c";
+      uart_buffer[uart_buffer_index++] = "l";
       `HARD_DEBUG(resp[0:7]);
-      //state <= (resp[0:7] != 1 /* not idle */ || resp_bits  > resp_expected_bits) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
-      retry_counter <= retry_counter + 1;
+      `HARD_DEBUG(resp[8:15]);
+      `HARD_DEBUG(resp[16:23]);
+      `HARD_DEBUG(resp[24:31]);
+      `HARD_DEBUG(resp[32:39]);
+      state <= STATE_INIT_OK;
     end else if (state == STATE_WAIT_CMD && !sd_cclk1 && sd_cclk) begin
       if (calc_crc7) begin
         if (cmd_bits == cmd_bits_to_send-8) begin
@@ -220,10 +224,14 @@ module x (
         timeout_counter <= 0;
         cmd_bits <= 1;
         sd_cmd <= cmd[0];
-        uart_buffer[uart_buffer_index++] = cmd[0] + 48;
+        `HARD_DEBUG(cmd[0:7]);
+        `HARD_DEBUG(cmd[8:15]);
+        `HARD_DEBUG(cmd[16:23]);
+        `HARD_DEBUG(cmd[24:31]);
+        `HARD_DEBUG(cmd[32:39]);
+        `HARD_DEBUG(cmd[40:47]);            
       end else if (cmd_bits < cmd_bits_to_send) begin
         sd_cmd <= cmd[cmd_bits];
-        uart_buffer[uart_buffer_index++] = cmd[cmd_bits] + 48;
         cmd_bits <= cmd_bits + 1;
       end else if (resp_bits < resp_bits_to_receive) begin
         sd_cmd <= 1;
