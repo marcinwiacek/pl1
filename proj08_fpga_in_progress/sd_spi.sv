@@ -93,7 +93,7 @@ module x (
   reg [0:511+16] read_block;
   reg [55:0] resp_bits, resp_bits_to_receive, read_block_bits;
   reg cmd_started, resp_started;
-  reg [20:0] clk_divider = CLK_DIVIDER_400kHz;
+  reg [20:0] clk_divider;
   reg [20:0] clk_counter;
   reg [7:0] state, next_state;
   reg [20:0] timeout_counter;
@@ -106,6 +106,7 @@ module x (
 
   always @(negedge clk) begin
     if (flag) begin
+      clk_divider <= CLK_DIVIDER_400kHz;
       state <= STATE_WAIT_INIT;
       flag  <= 0;
       uart_buffer[uart_buffer_index++] = "a";
@@ -165,7 +166,8 @@ module x (
       `HARD_DEBUG(resp[24:31]);
       `HARD_DEBUG(resp[32:39]);
       sdsc<=resp[38];//0 = sdsc, 1 = sdhc || sdxc
-      state <= resp[38]?STATE_SEND_CMD41:STATE_SEND_CMD58_2;
+      //state <= resp[38]?STATE_SEND_CMD41:STATE_SEND_CMD58_2;
+      state <= STATE_SEND_CMD41;
     end else if (state == STATE_GET_CMD58_2_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "h";
       `HARD_DEBUG(resp[0:7]);
@@ -250,7 +252,7 @@ module x (
         end else begin
           resp = {0};
           timeout_counter <= timeout_counter + 1;
-          if (timeout_counter == 20) resp_bits <= resp_bits_to_receive + 1;
+          if (timeout_counter == 40) resp_bits <= resp_bits_to_receive + 1;
         end
       end else if (read_block_available && read_block_bits<512+16+1) begin
          if (read_block_bits==0) begin
@@ -258,13 +260,13 @@ module x (
              read_block_bits<=1;
            end else begin 
              timeout_counter <= timeout_counter + 1;
-             if (timeout_counter == 20) read_block_bits<=600;
+             if (timeout_counter == 80) read_block_bits<=600;
            end
          end else begin
            read_block[read_block_bits-1]<=sd_data0;
            read_block_bits<=read_block_bits+1;
          end
-      end begin
+      end else begin
         sd_cmd <= 0;
         state <= next_state;
         cmd_started <= 0;
