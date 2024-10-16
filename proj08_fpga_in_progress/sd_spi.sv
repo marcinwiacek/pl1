@@ -82,10 +82,12 @@ module x (
   parameter STATE_GET_CMD17_RESPONSE = 10;
   parameter STATE_SEND_CMD41 = 11;  //send operation condition
   parameter STATE_GET_CMD41_RESPONSE = 12;
-  parameter STATE_SEND_CMD58 = 14;  //read OCR & get voltage
-  parameter STATE_GET_CMD58_RESPONSE = 15;
-  parameter STATE_SEND_CMD58_2 = 16;  //read OCR & get card type
-  parameter STATE_GET_CMD58_2_RESPONSE = 17;
+  parameter STATE_SEND_CMD55 = 14; 
+  parameter STATE_GET_CMD55_RESPONSE = 15;
+  parameter STATE_SEND_CMD58 = 16;  //read OCR & get voltage
+  parameter STATE_GET_CMD58_RESPONSE = 17;
+  parameter STATE_SEND_CMD58_2 = 18;  //read OCR & get card type
+  parameter STATE_GET_CMD58_2_RESPONSE = 19;
 
   reg [0:47] cmd, crc7;
   reg [55:0] cmd_bits, cmd_bits_to_send;
@@ -167,21 +169,31 @@ module x (
       `HARD_DEBUG(resp[32:39]);
       sdsc<=resp[38];//0 = sdsc, 1 = sdhc || sdxc
       //state <= resp[38]?STATE_SEND_CMD41:STATE_SEND_CMD58_2;
-      state <= STATE_SEND_CMD41;
+      state <= STATE_SEND_CMD55;
     end else if (state == STATE_GET_CMD58_2_RESPONSE) begin
       uart_buffer[uart_buffer_index++] = "h";
       `HARD_DEBUG(resp[0:7]);
       clk_divider = CLK_DIVIDER_25Mhz;
       state <= STATE_SEND_CMD17;
       //STATE_INIT_OK;
-    end else if (state == STATE_SEND_CMD41) begin
+    end else if (state == STATE_SEND_CMD55) begin
       uart_buffer[uart_buffer_index++] = "i";
+      cmd <= 48'h77_40_00_00_00_65; 
+      resp_bits_to_receive <= 8;
+      state <= STATE_WAIT_CMD;
+      next_state <= STATE_GET_CMD55_RESPONSE;
+     end else if (state == STATE_GET_CMD55_RESPONSE) begin
+      uart_buffer[uart_buffer_index++] = "j";
+      `HARD_DEBUG(resp[0:7]);
+        state <= STATE_SEND_CMD41;      
+    end else if (state == STATE_SEND_CMD41) begin
+      uart_buffer[uart_buffer_index++] = "k";
       cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards 
       resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD41_RESPONSE;
     end else if (state == STATE_GET_CMD41_RESPONSE) begin
-      uart_buffer[uart_buffer_index++] = "j";
+      uart_buffer[uart_buffer_index++] = "l";
       `HARD_DEBUG(resp[0:7]);
       if (resp[0:7] == 1  /*idle*/) begin
         state <= STATE_SEND_CMD41;
