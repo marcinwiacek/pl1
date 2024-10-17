@@ -258,7 +258,7 @@ module x (
              if (read_block[0:7]!=8'hFE) begin
                timeout_counter <= timeout_counter + 1;
                if (timeout_counter == 1000) read_block_bits<=600;
-               `HARD_DEBUG(read_block[0:7]);
+            //   `HARD_DEBUG(read_block[0:7]);
              end else begin
               read_block_started<=1;
               read_block_bits<=0;
