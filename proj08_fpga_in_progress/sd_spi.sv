@@ -79,16 +79,18 @@ module x (
   parameter STATE_GET_CMD0_RESPONSE = 6;
   parameter STATE_SEND_CMD8 = 7;  //interface condition
   parameter STATE_GET_CMD8_RESPONSE = 8;
-  parameter STATE_SEND_CMD17 = 9;  //read single block
-  parameter STATE_GET_CMD17_RESPONSE = 10;
-  parameter STATE_SEND_ACMD41 = 11;  //send operation condition
-  parameter STATE_GET_ACMD41_RESPONSE = 12;
-  parameter STATE_SEND_CMD55 = 14; 
-  parameter STATE_GET_CMD55_RESPONSE = 15;
-  parameter STATE_SEND_CMD58 = 16;  //read OCR & get voltage
-  parameter STATE_GET_CMD58_RESPONSE = 17;
-  parameter STATE_SEND_CMD58_2 = 18;  //read OCR & get card type
-  parameter STATE_GET_CMD58_2_RESPONSE = 19;
+  parameter STATE_SEND_CMD16 = 9;  //set block len
+  parameter STATE_GET_CMD16_RESPONSE = 10;
+  parameter STATE_SEND_CMD17 = 11;  //read single block
+  parameter STATE_GET_CMD17_RESPONSE = 12;
+  parameter STATE_SEND_ACMD41 = 14;  //send operation condition
+  parameter STATE_GET_ACMD41_RESPONSE = 15;
+  parameter STATE_SEND_CMD55 = 16; 
+  parameter STATE_GET_CMD55_RESPONSE = 17;
+  parameter STATE_SEND_CMD58 = 18;  //read OCR & get voltage
+  parameter STATE_GET_CMD58_RESPONSE = 19;
+  parameter STATE_SEND_CMD58_2 = 20;  //read OCR & get card type
+  parameter STATE_GET_CMD58_2_RESPONSE = 21;
 
   reg [0:47] cmd, crc7;
   reg [55:0] cmd_bits, cmd_bits_to_send;
@@ -155,7 +157,7 @@ module x (
       state <= STATE_SEND_CMD55;
     end else if (state == STATE_GET_CMD58_2_RESPONSE) begin
       clk_divider = CLK_DIVIDER_25Mhz;
-      state <= STATE_SEND_CMD17;    //STATE_INIT_OK;
+      state <= STATE_SEND_CMD16;    //STATE_INIT_OK;
     end else if (state == STATE_SEND_CMD55) begin
       cmd <= 48'h77_00_00_00_00_65; 
       resp_bits_to_receive <= 8;
@@ -176,7 +178,16 @@ module x (
         state <= STATE_SEND_CMD58_2;
       end else begin
         state <= STATE_INIT_ERROR;
-      end
+      end      
+    end else if (state == STATE_SEND_CMD16) begin
+      `SAVE_CMD(6'd16, 32'd512);    
+      cmd_bits_to_send <= 48;  
+      resp_bits_to_receive <= 8;
+      read_block_available<=0;
+      state <= STATE_WAIT_CMD;
+      next_state <= STATE_GET_CMD16_RESPONSE;
+    end else if (state == STATE_GET_CMD16_RESPONSE) begin
+      state <= STATE_SEND_CMD17;           
     end else if (state == STATE_SEND_CMD17) begin  //read single block
       `SAVE_CMD(6'd17, 32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes      
       cmd_bits_to_send <= 48;
@@ -247,6 +258,7 @@ module x (
              if (read_block[0:7]!=8'hFE) begin
                timeout_counter <= timeout_counter + 1;
                if (timeout_counter == 1000) read_block_bits<=600;
+               `HARD_DEBUG(read_block[0:7]);
              end else begin
               read_block_started<=1;
               read_block_bits<=0;
