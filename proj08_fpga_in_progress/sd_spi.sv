@@ -95,7 +95,7 @@ module x (
   reg [0:47] resp;
   reg [0:511+16] read_block;
   reg [55:0] resp_bits, resp_bits_to_receive, read_block_bits;
-  reg cmd_started, resp_started;
+  reg cmd_started, resp_started, read_block_started;
   reg [20:0] clk_divider;
   reg [20:0] clk_counter;
   reg [7:0] state, next_state;
@@ -229,6 +229,7 @@ module x (
         cmd_bits <= cmd_bits + 1;
       end else if (resp_bits < resp_bits_to_receive) begin
         sd_cmd <= 1;
+        read_block_started<=0;
         if (!sd_data0 || resp_started) begin
           resp_started <= 1;
           resp[resp_bits] <= sd_data0;
@@ -236,18 +237,21 @@ module x (
         end else begin
           resp = {0};
           timeout_counter <= timeout_counter + 1;
-          if (timeout_counter == 40) resp_bits <= resp_bits_to_receive + 1;
+          if (timeout_counter == 40) begin 
+            resp_bits <= resp_bits_to_receive + 1;
+            read_block_bits<=600;
+          end
         end
-      end else if (read_block_available && read_block_bits<512+16+1) begin
-         if (read_block_bits==0) begin
-           if (sd_data0==8'hFE) begin
-             read_block_bits<=1;
-           end else begin 
-             timeout_counter <= timeout_counter + 1;
-             if (timeout_counter == 80) read_block_bits<=600;
-           end
+      end else if (read_block_available && read_block_bits<512+16+1) begin         
+         if (read_block_bits==8 && !read_block_started) begin
+             if (read_block[0:7]!=8'hFE) begin
+               timeout_counter <= timeout_counter + 1;
+               if (timeout_counter == 80) read_block_bits<=600;
+             end else begin
+              read_block_started<=1;
+             end
          end else begin
-           read_block[read_block_bits-1]<=sd_data0;
+           read_block[read_block_bits]<=sd_data0;
            read_block_bits<=read_block_bits+1;
          end
       end else begin
