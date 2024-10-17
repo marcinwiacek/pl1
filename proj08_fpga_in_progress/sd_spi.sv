@@ -246,9 +246,10 @@ module x (
          if (read_block_bits==8 && !read_block_started) begin
              if (read_block[0:7]!=8'hFE) begin
                timeout_counter <= timeout_counter + 1;
-               if (timeout_counter == 80) read_block_bits<=600;
+               if (timeout_counter == 1000) read_block_bits<=600;
              end else begin
               read_block_started<=1;
+              read_block_bits<=0;
              end
          end else begin
            read_block[read_block_bits]<=sd_data0;
