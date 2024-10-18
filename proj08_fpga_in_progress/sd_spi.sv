@@ -122,56 +122,70 @@ module x (
       calc_crc7 <= 0;
       cmd_bits_to_send <= 48;
       read_block_available <= 0;
-    end else if (state == STATE_WAIT_INIT) begin
+    end else begin
+      case (state)
+         STATE_WAIT_INIT: begin
       if (timeout_counter == 1000000) begin
         state <= STATE_SEND_CMD0;
         sd_cs <= 0;
       end
       timeout_counter <= timeout_counter + 1;
-    end else if (state == STATE_SEND_CMD0) begin  //reset cmd
+    end
+    STATE_SEND_CMD0: begin  //reset cmd
       cmd <= 48'h40_00_00_00_00_95;
       resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD0_RESPONSE;
-    end else if (state == STATE_GET_CMD0_RESPONSE) begin
+    end
+     STATE_GET_CMD0_RESPONSE: begin
       state <= (resp[0:7] != 1 /* not idle */ || resp_bits  > resp_bits_to_receive) && retry_counter < 10 ? STATE_SEND_CMD0 : STATE_SEND_CMD8;
       retry_counter <= retry_counter + 1;
-    end else if (state == STATE_SEND_CMD8) begin  //interface condition
+    end     
+STATE_SEND_CMD8: begin  //interface condition
       cmd <= 48'h48_00_00_01_AA_87;  //1 = support for 2.7-3.6 V, AA = check pattern
       resp_bits_to_receive <= 40;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD8_RESPONSE;
-    end else if (state == STATE_GET_CMD8_RESPONSE) begin
+    end
+STATE_GET_CMD8_RESPONSE: begin
       if (resp[0:7] == 5 /*illegal command*/ || (resp[0:7] == 1 /*idle */ && resp[24:31]==1 /*Voltage supported*/ && resp[32:39]==8'hAA)) begin
         state <= STATE_SEND_CMD58;
       end else begin
         state <= STATE_INIT_ERROR;
       end
-    end else if (state == STATE_SEND_CMD58 || state == STATE_SEND_CMD58_2) begin
+    end
+     STATE_SEND_CMD58,
+    STATE_SEND_CMD58_2: begin
       cmd <= 48'h7A_00_00_00_00_FD;
       resp_bits_to_receive <= 40;
       state <= STATE_WAIT_CMD;
       next_state <= state == STATE_SEND_CMD58?STATE_GET_CMD58_RESPONSE:STATE_GET_CMD58_2_RESPONSE;
-    end else if (state == STATE_GET_CMD58_RESPONSE) begin
+    end
+    STATE_GET_CMD58_RESPONSE: begin
       sdsc  <= resp[38];  //0 = sdsc, 1 = sdhc || sdxc
       state <= STATE_SEND_CMD55;
-    end else if (state == STATE_GET_CMD58_2_RESPONSE) begin
+    end
+    STATE_GET_CMD58_2_RESPONSE: begin
       clk_divider = CLK_DIVIDER_25Mhz;
       state <= STATE_SEND_CMD16;  //STATE_INIT_OK;
-    end else if (state == STATE_SEND_CMD55) begin
+    end
+   STATE_SEND_CMD55: begin
       cmd <= 48'h77_00_00_00_00_65;
       resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD55_RESPONSE;
-    end else if (state == STATE_GET_CMD55_RESPONSE) begin
+    end
+     STATE_GET_CMD55_RESPONSE: begin
       state <= STATE_SEND_ACMD41;
-    end else if (state == STATE_SEND_ACMD41) begin
+    end 
+     STATE_SEND_ACMD41: begin
       // cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
       cmd <= 48'h69_00_00_00_00_77;  //CRC ignored ? 
       resp_bits_to_receive <= 8;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_ACMD41_RESPONSE;
-    end else if (state == STATE_GET_ACMD41_RESPONSE) begin
+    end
+     STATE_GET_ACMD41_RESPONSE: begin
       if (resp[0:7] == 1  /*idle*/) begin
         state <= STATE_SEND_CMD55;
       end else if (resp[0:7] == 0) begin
@@ -179,16 +193,19 @@ module x (
       end else begin
         state <= STATE_INIT_ERROR;
       end
-    end else if (state == STATE_SEND_CMD16) begin
+    end
+    STATE_SEND_CMD16: begin
       `SAVE_CMD(6'd16, 32'd512);
       cmd_bits_to_send <= 48;
       resp_bits_to_receive <= 8;
       read_block_available <= 0;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD16_RESPONSE;
-    end else if (state == STATE_GET_CMD16_RESPONSE) begin
+    end
+    STATE_GET_CMD16_RESPONSE: begin
       state <= STATE_SEND_CMD17;
-    end else if (state == STATE_SEND_CMD17) begin  //read single block
+    end
+    STATE_SEND_CMD17: begin  //read single block
       `SAVE_CMD(6'd17,
                 32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes      
       cmd_bits_to_send <= 48;
@@ -196,7 +213,8 @@ module x (
       read_block_available <= 1;
       state <= STATE_WAIT_CMD;
       next_state <= STATE_GET_CMD17_RESPONSE;
-    end else if (state == STATE_GET_CMD17_RESPONSE) begin
+    end
+    STATE_GET_CMD17_RESPONSE: begin
       if (read_block_bits != 600) begin
         `HARD_DEBUG(read_block[0:7]);
         `HARD_DEBUG(read_block[8:15]);
@@ -204,7 +222,9 @@ module x (
         `HARD_DEBUG(read_block[24:31]);
       end
       state <= STATE_INIT_OK;
-    end else if (state == STATE_WAIT_CMD && !sd_cclk1 && sd_cclk) begin
+    end
+     STATE_WAIT_CMD: begin 
+    if (!sd_cclk1 && sd_cclk) begin
       if (calc_crc7) begin
         if (cmd_bits == cmd_bits_to_send - 8) begin
           cmd[40:46] <= crc7[40:46];
@@ -279,6 +299,9 @@ module x (
         state <= next_state;
         cmd_started <= 0;
       end
+    end
+   end
+    endcase
     end
     if (clk_counter == clk_divider - 1) begin
       clk_counter <= 0;
