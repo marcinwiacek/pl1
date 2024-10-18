@@ -88,7 +88,8 @@ module x (
   parameter STATE_SEND_CMD55 = 16;
   parameter STATE_GET_CMD55_RESPONSE = 17;
   parameter STATE_SEND_CMD58 = 18;  //read OCR
-  parameter STATE_GET_CMD58_RESPONSE = 19;
+  parameter STATE_SEND_CMD58_2 = 19;  //read OCR
+  parameter STATE_GET_CMD58_RESPONSE = 20;
   parameter STATE_GET_CMD58_2_RESPONSE = 21;
 
   reg [0:47] cmd, crc7;
@@ -148,7 +149,8 @@ module x (
         STATE_GET_CMD8_RESPONSE: begin
           uart_buffer[uart_buffer_index++] = "z";
           if (resp[0:7] == 5 /*illegal command*/ || (resp[0:7] == 1 /*idle */ && resp[24:31]==1 /*Voltage supported*/ && resp[32:39]==8'hAA)) begin
-            state <= STATE_SEND_CMD58;
+            //state <= STATE_SEND_CMD58;
+            state <= STATE_INIT_ERROR;
           end else begin
             state <= STATE_INIT_ERROR;
           end
@@ -191,7 +193,8 @@ module x (
         STATE_GET_CMD55_RESPONSE: begin
           state <= STATE_SEND_ACMD41;
         end
-        STATE_SEND_CMD58: begin
+        STATE_SEND_CMD58,
+        STATE_SEND_CMD58_2: begin
           cmd <= 48'h7A_00_00_00_00_FD;
           resp_bits_to_receive <= 40;
           state <= STATE_WAIT_CMD;
@@ -216,7 +219,7 @@ module x (
           if (resp[0:7] == 1  /*idle*/) begin
             state <= STATE_SEND_CMD55;
           end else if (resp[0:7] == 0) begin
-            state <= STATE_SEND_CMD58;
+            state <= STATE_SEND_CMD58_2;
           end else begin
             state <= STATE_INIT_ERROR;
           end
@@ -273,15 +276,15 @@ module x (
                 end
               end
             end else if (read_block_available && read_block_bits < 512 + 16 + 1) begin
-              if (read_block_bits == 8 && !read_block_started) begin
+              if (!read_block_started && read_block_bits == 8) begin
                 if (read_block[0:7] != 8'hFE) begin
                   timeout_counter <= timeout_counter + 1;
                   if (timeout_counter == 1000) read_block_bits <= 600;
                   //   `HARD_DEBUG(read_block[0:7]);
                 end else begin
-                  read_block_started <= 1;
-                  read_block_bits <= 0;
-                end
+                  read_block_started <= 1;               
+                end 
+                read_block_bits <= 0;
               end else begin
                 read_block[read_block_bits] <= sd_data0;
                 read_block_bits <= read_block_bits + 1;
@@ -293,6 +296,8 @@ module x (
               `HARD_DEBUG(resp[16:23]);
               `HARD_DEBUG(resp[24:31]);
               `HARD_DEBUG(resp[32:39]);
+              `HARD_DEBUG(resp[40:47]);
+              uart_buffer[uart_buffer_index++] = " ";
               sd_cmd <= 0;
               state <= next_state;
               cmd_started <= 0;
