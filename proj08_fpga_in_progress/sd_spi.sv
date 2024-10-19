@@ -247,6 +247,7 @@ module x (
         end        
         STATE_WAIT_CMD: begin
           if (!sd_cclk1 && sd_cclk) begin
+            if (!cmd_started || cmd_bits < cmd_bits_to_send) begin
             if (calc_crc7) begin
               if (cmd_bits == cmd_bits_to_send - 8) begin
                 cmd[40:46] <= crc7[40:46];
@@ -263,6 +264,10 @@ module x (
                 crc7[cmd_bits+7] <= 1 ^ crc7[cmd_bits+7];
               end
             end
+            if (debug_bits == 0) begin
+                 `HARD_DEBUG(uart_buffer_index,debug);
+                 uart_buffer_index<=uart_buffer_index+2;
+              end
             if (!cmd_started) begin
               cmd_started <= 1;
               resp_started <= 0;
@@ -274,26 +279,14 @@ module x (
               sd_cmd <= cmd[0];
               debug_bits<=1;
                 debug[7]<=cmd[0];
-            end else begin
-              if (cmd_bits < cmd_bits_to_send) begin
+            end else if (cmd_bits < cmd_bits_to_send) begin
                 sd_cmd   <= cmd[cmd_bits];
                 cmd_bits <= cmd_bits + 1;
                 debug[7-debug_bits]<=cmd[cmd_bits];
                 debug_bits<=debug_bits==7?0:debug_bits+1;
-              end else begin
+                end
+            end else if (resp_bits < resp_bits_to_receive) begin
                 sd_cmd <= 1;
-                state<=STATE_WAIT_CMD2;
-              end
-              if (debug_bits == 0) begin
-                 `HARD_DEBUG(uart_buffer_index,debug);
-                 uart_buffer_index<=uart_buffer_index+2;
-              end
-            end
-         end
-       end             
-        STATE_WAIT_CMD2: begin
-          if (!sd_cclk1 && sd_cclk) begin
-            if (resp_bits < resp_bits_to_receive) begin
               if (!sd_data0 || resp_started) begin
                 resp_started <= 1;
                 resp[resp_bits] <= sd_data0;
