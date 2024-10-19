@@ -109,7 +109,7 @@ module x (
 
   reg [0:47] cmd, crc7, resp;
   reg [0:511+16] read_block;
-  reg [10:0] cmd_bits, cmd_bits_to_send, resp_bits, resp_bits_to_receive, read_block_bits;
+  reg [20:0] cmd_bits, cmd_bits_to_send, resp_bits, resp_bits_to_receive, read_block_bits;
   reg
       flag = 1,
       sd_cclk1,
@@ -125,20 +125,18 @@ module x (
   reg [7:0] debug, debug_bits;
 
   always @(posedge clk) begin
-    if (flag) begin
-      sd_cclk <= 0;
-    end else begin
-      if (clk_counter == clk_divider - 1) begin
-        clk_counter <= 0;
-        sd_cclk <= ~sd_cclk;
-      end else begin
-        clk_counter <= clk_counter + 1;
-      end
-      sd_cclk1 <= sd_cclk;
-    end
+    
   end
 
   always @(posedge clk) begin
+          if (clk_counter == clk_divider - 1) begin
+        clk_counter <= 0;
+        sd_cclk <= ~sd_cclk;       
+      end else begin
+        clk_counter <= clk_counter + 1;
+      end
+      sd_cclk1 <= sd_cclk;      
+
     case (state)
       0: begin
         clk_divider <= CLK_DIVIDER_400kHz;
@@ -154,6 +152,7 @@ module x (
         cmd_bits_to_send <= 48;
         read_block_available <= 0;
         timeout_counter<=0;
+          sd_cclk <= 0;
       end
       STATE_WAIT_INIT: begin
         if (timeout_counter == 1000000) begin
@@ -229,7 +228,7 @@ module x (
       end
       STATE_SEND_CMD16: begin
         `SAVE_CMD(6'd16, 32'd512);
-        cmd_bits_to_send <= 48;
+       
         resp_bits_to_receive <= 8;
         read_block_available <= 0;
         state <= STATE_WAIT_START;
@@ -238,7 +237,7 @@ module x (
       STATE_SEND_CMD17: begin  //read single block
         `SAVE_CMD(6'd17,
                   32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes      
-        cmd_bits_to_send <= 48;
+       
         resp_bits_to_receive <= 8;
         read_block_available <= 1;
         state <= STATE_WAIT_START;
@@ -269,7 +268,7 @@ module x (
         debug_not_processed <= 0;
       end
       STATE_WAIT_CMD: begin
-        if (!sd_cclk1 && sd_cclk) begin
+        if (clk_counter==0) begin
           if (calc_crc7) begin
             if (crc7[0:39] == 0) begin
               cmd[40:46] <= crc7[40:46];
@@ -287,27 +286,33 @@ module x (
             end
           end
           sd_cmd   <= cmd[cmd_bits];
-          cmd_bits <= cmd_bits + 1;
-          uart_buffer[uart_buffer_index] <= cmd[cmd_bits] + 48;
-          uart_buffer_index<=uart_buffer_index+1;
-          debug[7-debug_bits] <= cmd[cmd_bits];
-          debug_bits <= debug_bits == 7 ? 0 : debug_bits + 1;
+           debug[0] <= cmd[cmd_bits];
+        //  debug[7-debug_bits] <= cmd[cmd_bits];
+//          debug_bits <= debug_bits == 7 ? 0 : debug_bits + 1;
           debug_not_processed <= 1;
           if (cmd_bits == cmd_bits_to_send - 1) begin
             state <= STATE_WAIT_CMD2;
           end
+          cmd_bits <= cmd_bits + 1;         
+end else    if (debug_not_processed) begin
+    //if (debug_bits == 0 && debug_not_processed) begin
+                uart_buffer[uart_buffer_index] <= debug[0] + 48;
+                          uart_buffer_index <= uart_buffer_index + 1;
+//         `HARD_DEBUG(uart_buffer_index, debug);       
+//          uart_buffer_index <= uart_buffer_index + 2;
+      debug_not_processed <= 0;      
         end
       end
       STATE_WAIT_CMD2: begin
-        if (!sd_cclk1 && sd_cclk) begin
+        if (clk_counter==0) begin
           sd_cmd <= 0;
           if (!sd_data0 || resp_started) begin
             resp_started <= 1;
             resp[resp_bits] <= sd_data0;
-            resp_bits <= resp_bits + 1;
             if (resp_bits == resp_bits_to_receive - 1) begin
               state <= read_block_available ? STATE_WAIT_CMD3 : STATE_WAIT_END;
             end
+            resp_bits <= resp_bits + 1;
           end else begin
             timeout_counter <= timeout_counter + 1;
             if (timeout_counter == 100) begin
@@ -319,10 +324,17 @@ module x (
               state <= STATE_WAIT_END;
             end
           end
-        end
+end else    if (debug_not_processed) begin
+    //if (debug_bits == 0 && debug_not_processed) begin
+                uart_buffer[uart_buffer_index] = debug[0] + 48;
+                          uart_buffer_index = uart_buffer_index + 1;
+//         `HARD_DEBUG(uart_buffer_index, debug);       
+//          uart_buffer_index <= uart_buffer_index + 2;
+      debug_not_processed <= 0;          
+        end        
       end
       STATE_WAIT_CMD3: begin
-        if (!sd_cclk1 && sd_cclk) begin
+        if (clk_counter==0) begin
           if (!read_block_started && read_block_bits == 8) begin
             if (read_block[0:7] != 8'hFE) begin
               timeout_counter <= timeout_counter + 1;
@@ -353,11 +365,6 @@ module x (
         calc_crc7 <= 0;
       end
     endcase
-    //if (debug_bits == 0 && debug_not_processed) begin
-//         `HARD_DEBUG(uart_buffer_index, debug);       
-//          uart_buffer_index <= uart_buffer_index + 2;
-//      debug_not_processed <= 0;      
-//    end
   end
 endmodule
 
