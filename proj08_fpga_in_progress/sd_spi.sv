@@ -103,39 +103,47 @@ module x (
   parameter STATE_WAIT_END4 = 31;
   parameter STATE_WAIT_END5 = 32;
   parameter STATE_WAIT_END6 = 33;
-  parameter STATE_WAIT_CMD2 = 34;  
-  parameter STATE_WAIT_CMD3 = 35;  
-  parameter STATE_WAIT_CMD4 = 36;  
+  parameter STATE_WAIT_CMD2 = 34;
+  parameter STATE_WAIT_CMD3 = 35;
+  parameter STATE_WAIT_CMD4 = 36;
 
-  reg [0:47] cmd, crc7,resp;
+  reg [0:47] cmd, crc7, resp;
   reg [0:511+16] read_block;
   reg [10:0] cmd_bits, cmd_bits_to_send, resp_bits, resp_bits_to_receive, read_block_bits;
-  reg flag = 1, sd_cclk1,sd_sc, calc_crc7, read_block_available, cmd_started, resp_started, read_block_started;
+  reg
+      flag = 1,
+      sd_cclk1,
+      sd_sc,
+      calc_crc7,
+      read_block_available,
+      cmd_started,
+      resp_started,
+      read_block_started;
   reg [20:0] clk_divider, clk_counter, timeout_counter, retry_counter;
   reg [5:0] state, next_state;
   reg [7:0] debug, debug_bits;
 
   always @(negedge clk) begin
-   if (flag) begin
+    if (flag) begin
       sd_cclk <= 0;
-   end else begin
-    if (clk_counter == clk_divider - 1) begin
-      clk_counter <= 0;
-      sd_cclk <= ~sd_cclk;
     end else begin
-      clk_counter <= clk_counter + 1;
-    end
-    sd_cclk1 <= sd_cclk;
+      if (clk_counter == clk_divider - 1) begin
+        clk_counter <= 0;
+        sd_cclk <= ~sd_cclk;
+      end else begin
+        clk_counter <= clk_counter + 1;
+      end
+      sd_cclk1 <= sd_cclk;
     end
   end
-      
+
   always @(negedge clk) begin
     if (flag) begin
       clk_divider <= CLK_DIVIDER_400kHz;
       state <= STATE_WAIT_INIT;
       flag <= 0;
       uart_buffer[uart_buffer_index] <= "a";
-      uart_buffer_index<=1;
+      uart_buffer_index <= 1;
       sd_cmd <= 1;
       sd_cs <= 1;
       sd_reset <= 0;
@@ -159,7 +167,7 @@ module x (
         end
         STATE_GET_CMD0_RESPONSE: begin
           state <= retry_counter == 10 ? STATE_INIT_ERROR: ((resp[0:7] != 1 /* not idle */ || resp_bits  > resp_bits_to_receive) ? STATE_SEND_CMD0 : STATE_SEND_CMD8);
-          retry_counter <= retry_counter + 1;          
+          retry_counter <= retry_counter + 1;
         end
         STATE_SEND_CMD8: begin  //interface condition
           cmd <= 48'h48_00_00_01_AA_87;  //1 = support for 2.7-3.6 V, AA = check pattern
@@ -193,30 +201,29 @@ module x (
         end
         STATE_GET_CMD17_RESPONSE: begin
           if (read_block_bits != 600) begin
-          // uart_buffer[uart_buffer_index] <= "b";
-//            `HARD_DEBUG(uart_buffer_index+1,read_block[0:7]);
-//            `HARD_DEBUG(uart_buffer_index+3,read_block[8:15]);
-//            `HARD_DEBUG(uart_buffer_index+5,read_block[16:23]);
-//            `HARD_DEBUG(uart_buffer_index+7,read_block[24:31]);
-//              uart_buffer_index<=uart_buffer_index+9;
+            // uart_buffer[uart_buffer_index] <= "b";
+            //            `HARD_DEBUG(uart_buffer_index+1,read_block[0:7]);
+            //            `HARD_DEBUG(uart_buffer_index+3,read_block[8:15]);
+            //            `HARD_DEBUG(uart_buffer_index+5,read_block[16:23]);
+            //            `HARD_DEBUG(uart_buffer_index+7,read_block[24:31]);
+            //              uart_buffer_index<=uart_buffer_index+9;
           end
           state <= STATE_INIT_OK;
-        end        
+        end
         STATE_SEND_CMD55: begin
           cmd <= 48'h77_00_00_00_00_65;
           resp_bits_to_receive <= 8;
           state <= STATE_WAIT_START;
           next_state <= STATE_SEND_ACMD41;
         end
-        STATE_SEND_CMD58,
-        STATE_SEND_CMD58_2: begin
+        STATE_SEND_CMD58, STATE_SEND_CMD58_2: begin
           cmd <= 48'h7A_00_00_00_00_FD;
           resp_bits_to_receive <= 40;
           state <= STATE_WAIT_START;
           next_state <= state == STATE_SEND_CMD58?STATE_GET_CMD58_RESPONSE:STATE_GET_CMD58_2_RESPONSE;
         end
         STATE_GET_CMD58_RESPONSE: begin
-          sd_sc  <= resp[38];  //0 = sdsc, 1 = sdhc || sdxc
+          sd_sc <= resp[38];  //0 = sdsc, 1 = sdhc || sdxc
           state <= STATE_SEND_CMD55;
         end
         STATE_GET_CMD58_2_RESPONSE: begin
@@ -233,60 +240,60 @@ module x (
         STATE_GET_ACMD41_RESPONSE: begin
           if (resp[0:7] == 1  /*idle*/) begin
             retry_counter <= retry_counter + 1;
-            state <= retry_counter==10? STATE_INIT_ERROR:STATE_SEND_CMD55;   
+            state <= retry_counter == 10 ? STATE_INIT_ERROR : STATE_SEND_CMD55;
           end else if (resp[0:7] == 0) begin
             state <= STATE_SEND_CMD58_2;
           end else begin
             state <= STATE_INIT_ERROR;
           end
-        end      
+        end
         STATE_WAIT_START: begin
-              uart_buffer[uart_buffer_index] <= "s";
-                 uart_buffer_index<=uart_buffer_index+1;
-               state<=STATE_WAIT_CMD;           
-        end        
+          uart_buffer[uart_buffer_index] <= "s";
+          uart_buffer_index <= uart_buffer_index + 1;
+          state <= STATE_WAIT_CMD;
+        end
         STATE_WAIT_CMD: begin
           if (!sd_cclk1 && sd_cclk) begin
             if (!cmd_started || cmd_bits < cmd_bits_to_send) begin
-            if (calc_crc7) begin
-              if (cmd_bits == cmd_bits_to_send - 8) begin
-                cmd[40:46] <= crc7[40:46];
-              end else if (cmd_bits < cmd_bits_to_send - 8 && cmd[cmd_bits] == 1 && cmd[0:39] != 0) begin
-                //see https://en.wikipedia.org/wiki/Cyclic_redundancy_check
-                //Generator polynomial x^7 + x^3 + 1
-                crc7[cmd_bits]   <= 1 ^ crc7[cmd_bits];
-                crc7[cmd_bits+1] <= 0 ^ crc7[cmd_bits+1];
-                crc7[cmd_bits+2] <= 0 ^ crc7[cmd_bits+2];
-                crc7[cmd_bits+3] <= 0 ^ crc7[cmd_bits+3];
-                crc7[cmd_bits+4] <= 1 ^ crc7[cmd_bits+4];
-                crc7[cmd_bits+5] <= 0 ^ crc7[cmd_bits+5];
-                crc7[cmd_bits+6] <= 0 ^ crc7[cmd_bits+6];
-                crc7[cmd_bits+7] <= 1 ^ crc7[cmd_bits+7];
-              end
-            end
-            if (debug_bits == 0) begin
-                 `HARD_DEBUG(uart_buffer_index,debug);
-                 uart_buffer_index<=uart_buffer_index+2;
-              end
-            if (!cmd_started) begin
-              cmd_started <= 1;
-              resp_started <= 0;
-              read_block_started <= 0;              
-              timeout_counter <= 0;
-              read_block_bits <= 0;              
-              resp_bits <= 0;
-              cmd_bits <= 1;
-              sd_cmd <= cmd[0];
-              debug_bits<=1;
-                debug[7]<=cmd[0];
-            end else if (cmd_bits < cmd_bits_to_send) begin
-                sd_cmd   <= cmd[cmd_bits];
-                cmd_bits <= cmd_bits + 1;
-                debug[7-debug_bits]<=cmd[cmd_bits];
-                debug_bits<=debug_bits==7?0:debug_bits+1;
+              if (calc_crc7) begin
+                if (cmd_bits == cmd_bits_to_send - 8) begin
+                  cmd[40:46] <= crc7[40:46];
+                end else if (cmd_bits < cmd_bits_to_send - 8 && cmd[cmd_bits] == 1 && cmd[0:39] != 0) begin
+                  //see https://en.wikipedia.org/wiki/Cyclic_redundancy_check
+                  //Generator polynomial x^7 + x^3 + 1
+                  crc7[cmd_bits]   <= 1 ^ crc7[cmd_bits];
+                  crc7[cmd_bits+1] <= 0 ^ crc7[cmd_bits+1];
+                  crc7[cmd_bits+2] <= 0 ^ crc7[cmd_bits+2];
+                  crc7[cmd_bits+3] <= 0 ^ crc7[cmd_bits+3];
+                  crc7[cmd_bits+4] <= 1 ^ crc7[cmd_bits+4];
+                  crc7[cmd_bits+5] <= 0 ^ crc7[cmd_bits+5];
+                  crc7[cmd_bits+6] <= 0 ^ crc7[cmd_bits+6];
+                  crc7[cmd_bits+7] <= 1 ^ crc7[cmd_bits+7];
                 end
+              end
+              if (debug_bits == 0) begin
+                `HARD_DEBUG(uart_buffer_index, debug);
+                uart_buffer_index <= uart_buffer_index + 2;
+              end
+              if (!cmd_started) begin
+                cmd_started <= 1;
+                resp_started <= 0;
+                read_block_started <= 0;
+                timeout_counter <= 0;
+                read_block_bits <= 0;
+                resp_bits <= 0;
+                cmd_bits <= 1;
+                sd_cmd <= cmd[0];
+                debug_bits <= 1;
+                debug[7] <= cmd[0];
+              end else if (cmd_bits < cmd_bits_to_send) begin
+                sd_cmd <= cmd[cmd_bits];
+                cmd_bits <= cmd_bits + 1;
+                debug[7-debug_bits] <= cmd[cmd_bits];
+                debug_bits <= debug_bits == 7 ? 0 : debug_bits + 1;
+              end
             end else if (resp_bits < resp_bits_to_receive) begin
-                sd_cmd <= 1;
+              sd_cmd <= 1;
               if (!sd_data0 || resp_started) begin
                 resp_started <= 1;
                 resp[resp_bits] <= sd_data0;
@@ -306,26 +313,26 @@ module x (
                   if (timeout_counter == 1000) read_block_bits <= 600;
                   //   `HARD_DEBUG(read_block[0:7]);
                 end else begin
-                  read_block_started <= 1;               
-                end 
+                  read_block_started <= 1;
+                end
                 read_block_bits <= 0;
               end else begin
                 read_block[read_block_bits] <= sd_data0;
                 read_block_bits <= read_block_bits + 1;
               end
-            end else begin          
+            end else begin
               state <= STATE_WAIT_END;
             end
           end
         end
         STATE_WAIT_END: begin
-           uart_buffer[uart_buffer_index] <= "r";
-              //`HARD_DEBUG(uart_buffer_index+1,resp[40:47]);
-              uart_buffer_index<=uart_buffer_index+1;
-              sd_cmd <= 0;
-              state <= next_state;
-              cmd_started <= 0;
-              calc_crc7<=0;
+          uart_buffer[uart_buffer_index] <= "r";
+          //`HARD_DEBUG(uart_buffer_index+1,resp[40:47]);
+          uart_buffer_index <= uart_buffer_index + 1;
+          sd_cmd <= 0;
+          state <= next_state;
+          cmd_started <= 0;
+          calc_crc7 <= 0;
         end
       endcase
     end
