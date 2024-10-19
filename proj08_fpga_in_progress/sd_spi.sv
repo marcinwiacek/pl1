@@ -99,22 +99,32 @@ module x (
   reg [55:0] resp_bits, resp_bits_to_receive, read_block_bits;
   reg sd_cclk1,sd_sc, flag = 1, calc_crc7, read_block_available, cmd_started, resp_started, read_block_started;
   reg [20:0] clk_divider;
-  reg [20:0] clk_counter;
+  reg [20:0] clk_counter, timeout_counter, retry_counter;
   reg [7:0] state, next_state;
-  reg [20:0] timeout_counter;
-  reg [10:0] retry_counter;
 
-  integer i;
-
+  always @(negedge clk) begin
+   if (flag) begin
+      sd_cclk <= 0;
+   end else begin
+    if (clk_counter == clk_divider - 1) begin
+      clk_counter <= 0;
+      sd_cclk <= ~sd_cclk;
+    end else begin
+      clk_counter <= clk_counter + 1;
+    end
+    sd_cclk1 <= sd_cclk;
+    end
+  end
+      
   always @(negedge clk) begin
     if (flag) begin
       clk_divider <= CLK_DIVIDER_400kHz;
       state <= STATE_WAIT_INIT;
       flag <= 0;
-      uart_buffer[uart_buffer_index++] = "a";
+      uart_buffer[uart_buffer_index] <= "a";
+      uart_buffer_index<=1;
       sd_cmd <= 1;
       sd_cs <= 1;
-      sd_cclk <= 0;
       sd_reset <= 0;
       calc_crc7 <= 0;
       cmd_bits_to_send <= 48;
@@ -188,7 +198,8 @@ module x (
           next_state <= STATE_GET_CMD55_RESPONSE;
         end
         STATE_GET_CMD55_RESPONSE: begin
-          state <= STATE_SEND_ACMD41;
+         // state <= STATE_SEND_ACMD41;
+          state <= STATE_INIT_OK;
         end
         STATE_SEND_CMD58,
         STATE_SEND_CMD58_2: begin
@@ -214,15 +225,18 @@ module x (
           next_state <= STATE_GET_ACMD41_RESPONSE;
         end
         STATE_GET_ACMD41_RESPONSE: begin
-          if (resp[0:7] == 1  /*idle*/) begin
-            retry_counter <= retry_counter + 1;
+          state <= STATE_INIT_ERROR; 
+        
+          //if (resp[0:7] == 1  /*idle*/) begin
+            //retry_counter <= retry_counter + 1;
             //state <= retry_counter==10? STATE_INIT_ERROR:STATE_SEND_CMD55;   
-            state <= STATE_INIT_ERROR;         
-          end else if (resp[0:7] == 0) begin
-            state <= STATE_SEND_CMD58_2;
-          end else begin
-            state <= STATE_INIT_ERROR;
-          end
+//            state <= STATE_INIT_ERROR;         
+//          end else if (resp[0:7] == 0) begin
+//            //state <= STATE_SEND_CMD58_2;
+  //           state <= STATE_INIT_ERROR;
+//          end else begin
+//            state <= STATE_INIT_ERROR;
+//          end
         end      
         STATE_WAIT_CMD: begin
           if (!sd_cclk1 && sd_cclk) begin
@@ -307,13 +321,6 @@ module x (
         end
       endcase
     end
-    if (clk_counter == clk_divider - 1) begin
-      clk_counter <= 0;
-      sd_cclk <= ~sd_cclk;
-    end else begin
-      clk_counter <= clk_counter + 1;
-    end
-    sd_cclk1 <= sd_cclk;
   end
 endmodule
 
