@@ -121,7 +121,7 @@ module x (
       read_block_started,
       debug_not_processed;
   reg [20:0] clk_divider, clk_counter, timeout_counter, retry_counter;
-  reg [5:0] state, next_state;
+  reg [10:0] state, next_state;
   reg [7:0] debug, debug_bits;
 
   always @(negedge clk) begin
@@ -143,8 +143,8 @@ module x (
       clk_divider <= CLK_DIVIDER_400kHz;
       state <= STATE_WAIT_INIT;
       flag <= 0;
-      uart_buffer[uart_buffer_index] <= "a";
-      uart_buffer_index <= 1;
+    //  uart_buffer[uart_buffer_index] <= "a";
+//      uart_buffer_index <= 1;
       sd_cmd <= 1;
       sd_cs <= 1;
       sd_reset <= 0;
@@ -183,6 +183,52 @@ module x (
             state <= STATE_INIT_ERROR;
           end
         end
+        STATE_SEND_CMD58: begin
+          cmd <= 48'h7A_00_00_00_00_FD;
+          resp_bits_to_receive <= 40;
+          state <= STATE_WAIT_START;
+          next_state <= STATE_GET_CMD58_RESPONSE;
+        end
+        STATE_GET_CMD58_RESPONSE: begin
+          sd_sc <= resp[38];  //0 = sdsc, 1 = sdhc || sdxc
+          state <= STATE_SEND_CMD55;
+        end
+        STATE_SEND_CMD55: begin
+          cmd <= 48'h77_00_00_00_00_65;
+          resp_bits_to_receive <= 8;
+          state <= STATE_WAIT_START;
+          next_state <= STATE_GET_CMD55_RESPONSE;
+        end
+        STATE_GET_CMD55_RESPONSE: begin
+          state <= STATE_SEND_ACMD41;
+        end
+        STATE_SEND_ACMD41: begin
+          // cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
+          cmd <= 48'h69_00_00_00_00_77;  //CRC ignored ? 
+          resp_bits_to_receive <= 8;
+          state <= STATE_WAIT_START;
+          next_state <= STATE_GET_ACMD41_RESPONSE;
+        end
+        STATE_GET_ACMD41_RESPONSE: begin
+          if (resp[0:7] == 1  /*idle*/) begin
+            retry_counter <= retry_counter + 1;
+            state <= retry_counter == 10 ? STATE_INIT_ERROR : STATE_SEND_CMD55;
+          end else if (resp[0:7] == 0) begin
+            state <= STATE_SEND_CMD58_2;
+          end else begin
+            state <= STATE_INIT_ERROR;
+          end
+        end
+        STATE_SEND_CMD58_2: begin
+          cmd <= 48'h7A_00_00_00_00_FD;
+          resp_bits_to_receive <= 40;
+          state <= STATE_WAIT_START;
+          next_state <= STATE_GET_CMD58_2_RESPONSE;
+        end
+        STATE_GET_CMD58_2_RESPONSE: begin
+          clk_divider <= CLK_DIVIDER_25Mhz;
+          state <= STATE_SEND_CMD16;  //STATE_INIT_OK;
+        end        
         STATE_SEND_CMD16: begin
           `SAVE_CMD(6'd16, 32'd512);
           cmd_bits_to_send <= 48;
@@ -211,43 +257,7 @@ module x (
           end
           state <= STATE_INIT_OK;
         end
-        STATE_SEND_CMD55: begin
-          cmd <= 48'h77_00_00_00_00_65;
-          resp_bits_to_receive <= 8;
-          state <= STATE_WAIT_START;
-          next_state <= STATE_SEND_ACMD41;
-        end
-        STATE_SEND_CMD58, STATE_SEND_CMD58_2: begin
-          cmd <= 48'h7A_00_00_00_00_FD;
-          resp_bits_to_receive <= 40;
-          state <= STATE_WAIT_START;
-          next_state <= state == STATE_SEND_CMD58?STATE_GET_CMD58_RESPONSE:STATE_GET_CMD58_2_RESPONSE;
-        end
-        STATE_GET_CMD58_RESPONSE: begin
-          sd_sc <= resp[38];  //0 = sdsc, 1 = sdhc || sdxc
-          state <= STATE_SEND_CMD55;
-        end
-        STATE_GET_CMD58_2_RESPONSE: begin
-          clk_divider <= CLK_DIVIDER_25Mhz;
-          state <= STATE_SEND_CMD16;  //STATE_INIT_OK;
-        end
-        STATE_SEND_ACMD41: begin
-          // cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
-          cmd <= 48'h69_00_00_00_00_77;  //CRC ignored ? 
-          resp_bits_to_receive <= 8;
-          state <= STATE_WAIT_START;
-          next_state <= STATE_GET_ACMD41_RESPONSE;
-        end
-        STATE_GET_ACMD41_RESPONSE: begin
-          if (resp[0:7] == 1  /*idle*/) begin
-            retry_counter <= retry_counter + 1;
-            state <= retry_counter == 10 ? STATE_INIT_ERROR : STATE_SEND_CMD55;
-          end else if (resp[0:7] == 0) begin
-            state <= STATE_SEND_CMD58_2;
-          end else begin
-            state <= STATE_INIT_ERROR;
-          end
-        end
+    
         STATE_WAIT_START: begin
           uart_buffer[uart_buffer_index] <= "s";
           uart_buffer_index <= uart_buffer_index + 1;
@@ -295,6 +305,8 @@ module x (
                 resp = {0};
                 timeout_counter <= timeout_counter + 1;
                 if (timeout_counter == 100) begin
+                  uart_buffer[uart_buffer_index] <= "e";
+          uart_buffer_index <= uart_buffer_index + 1;
                   resp_bits <= resp_bits_to_receive + 1;
                   read_block_bits <= 600;
                 end
@@ -303,7 +315,11 @@ module x (
               if (!read_block_started && read_block_bits == 8) begin
                 if (read_block[0:7] != 8'hFE) begin
                   timeout_counter <= timeout_counter + 1;
-                  if (timeout_counter == 1000) read_block_bits <= 600;
+                  if (timeout_counter == 1000) begin
+                                    uart_buffer[uart_buffer_index] <= "E";
+          uart_buffer_index <= uart_buffer_index + 1;
+                    read_block_bits <= 600;
+                  end
                   //   `HARD_DEBUG(read_block[0:7]);
                 end else begin
                   read_block_started <= 1;
@@ -318,6 +334,8 @@ module x (
             end
           end else if (debug_bits == 0 && debug_not_processed) begin
             `HARD_DEBUG(uart_buffer_index, debug);
+           //uart_buffer[uart_buffer_index] <= "a";
+          // uart_buffer[uart_buffer_index+1] <= "b";
             uart_buffer_index   <= uart_buffer_index + 2;
             debug_not_processed <= 0;
           end
@@ -325,7 +343,7 @@ module x (
         STATE_WAIT_END: begin
           uart_buffer[uart_buffer_index] <= "r";
           `HARD_DEBUG(uart_buffer_index + 1, resp[0:7]);
-          uart_buffer_index <= uart_buffer_index + 1;
+          uart_buffer_index <= uart_buffer_index + 2;
           sd_cmd <= 0;
           state <= next_state;
           calc_crc7 <= 0;
