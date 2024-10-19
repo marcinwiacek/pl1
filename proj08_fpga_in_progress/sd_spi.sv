@@ -112,7 +112,7 @@ module x (
   reg [20:0] cmd_bits, cmd_bits_to_send, resp_bits, resp_bits_to_receive, read_block_bits;
   reg
       flag = 1,
-      sd_cclk1,
+      sd_cclk_prev,
       sd_sc,
       calc_crc7,
       read_block_available,
@@ -131,11 +131,12 @@ module x (
   always @(posedge clk) begin
           if (clk_counter == clk_divider - 1) begin
         clk_counter <= 0;
-        sd_cclk <= ~sd_cclk;       
+        sd_cclk <= ~sd_cclk; 
+        sd_cclk_prev <= sd_cclk;       
       end else begin
         clk_counter <= clk_counter + 1;
       end
-      sd_cclk1 <= sd_cclk;      
+           
 
     case (state)
       0: begin
@@ -227,17 +228,14 @@ module x (
         state <= STATE_SEND_CMD16;
       end
       STATE_SEND_CMD16: begin
-        `SAVE_CMD(6'd16, 32'd512);
-       
+        `SAVE_CMD(6'd16, 32'd512);       
         resp_bits_to_receive <= 8;
-        read_block_available <= 0;
         state <= STATE_WAIT_START;
         next_state <= STATE_SEND_CMD17;
       end
       STATE_SEND_CMD17: begin  //read single block
         `SAVE_CMD(6'd17,
-                  32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes      
-       
+                  32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes       
         resp_bits_to_receive <= 8;
         read_block_available <= 1;
         state <= STATE_WAIT_START;
@@ -268,7 +266,7 @@ module x (
         debug_not_processed <= 0;
       end
       STATE_WAIT_CMD: begin
-        if (clk_counter==0) begin
+        if (clk_counter==0 && sd_cclk_prev==0) begin
           if (calc_crc7) begin
             if (crc7[0:39] == 0) begin
               cmd[40:46] <= crc7[40:46];
@@ -304,7 +302,7 @@ end else    if (debug_not_processed) begin
         end
       end
       STATE_WAIT_CMD2: begin
-        if (clk_counter==0) begin
+        if (clk_counter==0 && sd_cclk_prev==0) begin
           sd_cmd <= 0;
           if (!sd_data0 || resp_started) begin
             resp_started <= 1;
@@ -334,7 +332,7 @@ end else    if (debug_not_processed) begin
         end        
       end
       STATE_WAIT_CMD3: begin
-        if (clk_counter==0) begin
+        if (clk_counter==0 && sd_cclk_prev==0) begin
           if (!read_block_started && read_block_bits == 8) begin
             if (read_block[0:7] != 8'hFE) begin
               timeout_counter <= timeout_counter + 1;
