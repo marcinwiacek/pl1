@@ -37,8 +37,8 @@ module x (
   // verilog_format:off
 /* DEBUG info */ `define HARD_DEBUG(ARG, ARG2) \
 /* DEBUG info */   //  if (reset_uart_buffer_available) uart_buffer_available = 0; \
-/* DEBUG info */    uart_buffer[ARG] = ARG2/16>=10? ARG2/16 + 65 - 10:ARG2/16+ 48; \
-/* DEBUG info */    uart_buffer[ARG+1] = ARG2%16>=10? ARG2%16 + 65 - 10:ARG2%16+ 48;
+/* DEBUG info */    uart_buffer[ARG] <= ARG2/16>=10? ARG2/16 + 65 - 10:ARG2/16+ 48; \
+/* DEBUG info */    uart_buffer[ARG+1] <= ARG2%16>=10? ARG2%16 + 65 - 10:ARG2%16+ 48;
 /* DEBUG info */ `define SAVE_CMD(ARG, ARG2) \
 /* DEBUG info */    cmd[0:1]<= 2'b01; \
 /* DEBUG info */    cmd[2:7]<= ARG; \
@@ -258,8 +258,8 @@ module x (
         cmd_bits <= 0;
         read_block_bits <= 0;
         resp_bits <= 0;
-        uart_buffer[uart_buffer_index] = "s";
-        uart_buffer_index = uart_buffer_index + 1;
+        uart_buffer[uart_buffer_index] <= "s";
+        uart_buffer_index <= uart_buffer_index + 1;
         state <= STATE_WAIT_CMD;
         debug_bits <= 0;
         debug_not_processed <= 0;
@@ -287,7 +287,8 @@ module x (
           end
           sd_cmd   <= cmd[cmd_bits];
           cmd_bits <= cmd_bits + 1;
-          uart_buffer[uart_buffer_index++] = cmd[cmd_bits] + 48;
+          uart_buffer[uart_buffer_index] <= cmd[cmd_bits] + 48;
+          uart_buffer_index<=uart_buffer_index+1;
           debug[7-debug_bits] <= cmd[cmd_bits];
           debug_bits <= debug_bits == 7 ? 0 : debug_bits + 1;
           debug_not_processed <= 1;
@@ -325,8 +326,8 @@ module x (
             if (read_block[0:7] != 8'hFE) begin
               timeout_counter <= timeout_counter + 1;
               if (timeout_counter == 1000) begin
-                uart_buffer[uart_buffer_index] = "E";
-                uart_buffer_index = uart_buffer_index + 1;
+                uart_buffer[uart_buffer_index] <= "E";
+                uart_buffer_index <= uart_buffer_index + 1;
                 read_block_bits <= 600;
                 state <= STATE_WAIT_END;
               end
@@ -343,16 +344,16 @@ module x (
         end
       end
       STATE_WAIT_END: begin
-        uart_buffer[uart_buffer_index] = "r";
+        uart_buffer[uart_buffer_index] <= "r";
         `HARD_DEBUG(uart_buffer_index + 1, resp[0:7]);
-        uart_buffer_index = uart_buffer_index + 3;
+        uart_buffer_index <= uart_buffer_index + 3;
         sd_cmd <= 0;
         state  <= next_state;
       end
     endcase
     if (debug_bits == 0 && debug_not_processed) begin
       //   `HARD_DEBUG(uart_buffer_index, debug);       
-      //    uart_buffer_index = uart_buffer_index + 2;
+      //    uart_buffer_index <= uart_buffer_index + 2;
       debug_not_processed <= 0;
       calc_crc7 <= 0;
     end
