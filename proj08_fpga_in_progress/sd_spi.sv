@@ -92,15 +92,12 @@ module x (
   parameter STATE_GET_CMD58_RESPONSE = 20;
   parameter STATE_GET_CMD58_2_RESPONSE = 21;
 
-  reg [0:47] cmd, crc7;
-  reg [55:0] cmd_bits, cmd_bits_to_send;
-  reg [0:47] resp;
+  reg [0:47] cmd, crc7,resp;
   reg [0:511+16] read_block;
-  reg [55:0] resp_bits, resp_bits_to_receive, read_block_bits;
-  reg sd_cclk1,sd_sc, flag = 1, calc_crc7, read_block_available, cmd_started, resp_started, read_block_started;
-  reg [20:0] clk_divider;
-  reg [20:0] clk_counter, timeout_counter, retry_counter;
-  reg [7:0] state, next_state;
+  reg [10:0] cmd_bits, cmd_bits_to_send, resp_bits, resp_bits_to_receive, read_block_bits;
+  reg flag = 1, sd_cclk1,sd_sc, calc_crc7, read_block_available, cmd_started, resp_started, read_block_started;
+  reg [20:0] clk_divider, clk_counter, timeout_counter, retry_counter;
+  reg [5:0] state, next_state;
 
   always @(negedge clk) begin
    if (flag) begin
@@ -195,12 +192,12 @@ module x (
           cmd <= 48'h77_00_00_00_00_65;
           resp_bits_to_receive <= 8;
           state <= STATE_WAIT_CMD;
-          next_state <= STATE_GET_CMD55_RESPONSE;
+          next_state <= STATE_SEND_ACMD41;
         end
-        STATE_GET_CMD55_RESPONSE: begin
-         // state <= STATE_SEND_ACMD41;
-          state <= STATE_INIT_OK;
-        end
+       // STATE_GET_CMD55_RESPONSE: begin
+       //   state <= STATE_SEND_ACMD41;
+         // state <= STATE_INIT_OK;
+       // end
         STATE_SEND_CMD58,
         STATE_SEND_CMD58_2: begin
           cmd <= 48'h7A_00_00_00_00_FD;
@@ -224,8 +221,8 @@ module x (
           state <= STATE_WAIT_CMD;
           next_state <= STATE_GET_ACMD41_RESPONSE;
         end
-        STATE_GET_ACMD41_RESPONSE: begin
-          state <= STATE_INIT_ERROR; 
+        //STATE_GET_ACMD41_RESPONSE: begin
+        //  state <= STATE_INIT_ERROR; 
         
           //if (resp[0:7] == 1  /*idle*/) begin
             //retry_counter <= retry_counter + 1;
@@ -237,7 +234,7 @@ module x (
 //          end else begin
 //            state <= STATE_INIT_ERROR;
 //          end
-        end      
+        //end      
         STATE_WAIT_CMD: begin
           if (!sd_cclk1 && sd_cclk) begin
             if (calc_crc7) begin
@@ -285,7 +282,7 @@ module x (
               end else begin
                 resp = {0};
                 timeout_counter <= timeout_counter + 1;
-                if (timeout_counter == 40) begin
+                if (timeout_counter == 100) begin
                   resp_bits <= resp_bits_to_receive + 1;
                   read_block_bits <= 600;
                 end
