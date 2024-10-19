@@ -153,6 +153,7 @@ module x (
         calc_crc7 <= 0;
         cmd_bits_to_send <= 48;
         read_block_available <= 0;
+        timeout_counter<=0;
       end
       STATE_WAIT_INIT: begin
         if (timeout_counter == 1000000) begin
@@ -258,14 +259,14 @@ module x (
         cmd_bits <= 0;
         read_block_bits <= 0;
         resp_bits <= 0;
+        resp_started <= 0;
+        read_block_started <= 0;
+        timeout_counter <= 0;        
         uart_buffer[uart_buffer_index] <= "s";
         uart_buffer_index <= uart_buffer_index + 1;
         state <= STATE_WAIT_CMD;
         debug_bits <= 0;
         debug_not_processed <= 0;
-        resp_started <= 0;
-        read_block_started <= 0;
-        timeout_counter <= 0;
       end
       STATE_WAIT_CMD: begin
         if (!sd_cclk1 && sd_cclk) begin
@@ -352,11 +353,11 @@ module x (
         calc_crc7 <= 0;
       end
     endcase
-    if (debug_bits == 0 && debug_not_processed) begin
-      //   `HARD_DEBUG(uart_buffer_index, debug);       
-      //    uart_buffer_index <= uart_buffer_index + 2;
-      debug_not_processed <= 0;      
-    end
+    //if (debug_bits == 0 && debug_not_processed) begin
+//         `HARD_DEBUG(uart_buffer_index, debug);       
+//          uart_buffer_index <= uart_buffer_index + 2;
+//      debug_not_processed <= 0;      
+//    end
   end
 endmodule
 
