@@ -118,7 +118,7 @@ module x (
       read_block_available,
       cmd_started,
       resp_started,
-      read_block_started;
+      read_block_started,debug_not_processed;
   reg [20:0] clk_divider, clk_counter, timeout_counter, retry_counter;
   reg [5:0] state, next_state;
   reg [7:0] debug, debug_bits;
@@ -137,7 +137,7 @@ module x (
     end
   end
 
-  always @(negedge clk) begin
+  always @(posedge clk) begin
     if (flag) begin
       clk_divider <= CLK_DIVIDER_400kHz;
       state <= STATE_WAIT_INIT;
@@ -251,14 +251,22 @@ module x (
           uart_buffer[uart_buffer_index] <= "s";
           uart_buffer_index <= uart_buffer_index + 1;
           state <= STATE_WAIT_CMD;
+cmd_bits<=0;
+debug_bits<=0;          
+debug_not_processed<=0;
+                resp_started <= 0;
+                read_block_started <= 0;
+                timeout_counter <= 0;
+                read_block_bits <= 0;
+                resp_bits <= 0;
         end
         STATE_WAIT_CMD: begin
           if (!sd_cclk1 && sd_cclk) begin
-            if (!cmd_started || cmd_bits < cmd_bits_to_send) begin
+            if (cmd_bits < cmd_bits_to_send) begin
               if (calc_crc7) begin
-                if (cmd_bits == cmd_bits_to_send - 8) begin
+                if (crc7[0:39] == 0) begin
                   cmd[40:46] <= crc7[40:46];
-                end else if (cmd_bits < cmd_bits_to_send - 8 && cmd[cmd_bits] == 1 && cmd[0:39] != 0) begin
+                end else if (cmd[cmd_bits] == 1) begin
                   //see https://en.wikipedia.org/wiki/Cyclic_redundancy_check
                   //Generator polynomial x^7 + x^3 + 1
                   crc7[cmd_bits]   <= 1 ^ crc7[cmd_bits];
@@ -270,28 +278,12 @@ module x (
                   crc7[cmd_bits+6] <= 0 ^ crc7[cmd_bits+6];
                   crc7[cmd_bits+7] <= 1 ^ crc7[cmd_bits+7];
                 end
-              end
-              if (debug_bits == 0) begin
-                `HARD_DEBUG(uart_buffer_index, debug);
-                uart_buffer_index <= uart_buffer_index + 2;
-              end
-              if (!cmd_started) begin
-                cmd_started <= 1;
-                resp_started <= 0;
-                read_block_started <= 0;
-                timeout_counter <= 0;
-                read_block_bits <= 0;
-                resp_bits <= 0;
-                cmd_bits <= 1;
-                sd_cmd <= cmd[0];
-                debug_bits <= 1;
-                debug[7] <= cmd[0];
-              end else if (cmd_bits < cmd_bits_to_send) begin
+              end            
                 sd_cmd <= cmd[cmd_bits];
                 cmd_bits <= cmd_bits + 1;
                 debug[7-debug_bits] <= cmd[cmd_bits];
                 debug_bits <= debug_bits == 7 ? 0 : debug_bits + 1;
-              end
+                debug_not_processed<=1;
             end else if (resp_bits < resp_bits_to_receive) begin
               sd_cmd <= 1;
               if (!sd_data0 || resp_started) begin
@@ -323,15 +315,18 @@ module x (
             end else begin
               state <= STATE_WAIT_END;
             end
+          end else if (debug_bits == 0 && debug_not_processed) begin
+                `HARD_DEBUG(uart_buffer_index, debug);
+                uart_buffer_index <= uart_buffer_index + 2;
+                debug_not_processed<=0;
           end
         end
         STATE_WAIT_END: begin
           uart_buffer[uart_buffer_index] <= "r";
-          //`HARD_DEBUG(uart_buffer_index+1,resp[40:47]);
+          `HARD_DEBUG(uart_buffer_index+1,resp[0:7]);
           uart_buffer_index <= uart_buffer_index + 1;
           sd_cmd <= 0;
           state <= next_state;
-          cmd_started <= 0;
           calc_crc7 <= 0;
         end
       endcase
