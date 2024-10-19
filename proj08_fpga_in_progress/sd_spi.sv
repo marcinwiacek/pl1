@@ -209,8 +209,8 @@ module x (
         end
         STATE_GET_CMD58_2_RESPONSE: begin
           clk_divider <= CLK_DIVIDER_25Mhz;
-          state <= STATE_SEND_CMD16;  //STATE_INIT_OK;
-//          state <= STATE_INIT_OK;
+//          state <= STATE_SEND_CMD16;  //STATE_INIT_OK;
+          state <= STATE_INIT_OK;
         end
         STATE_SEND_ACMD41: begin
           // cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
@@ -241,9 +241,9 @@ module x (
         STATE_WAIT_START2: begin
               `HARD_DEBUG(uart_buffer_index,cmd[16:23]);
               `HARD_DEBUG(uart_buffer_index+2,cmd[24:31]);
-              `HARD_DEBUG(uart_buffer_index+4,cmd[32:39]);
-              `HARD_DEBUG(uart_buffer_index+6,cmd[40:47]);
-               uart_buffer_index<=uart_buffer_index+8;
+             // `HARD_DEBUG(uart_buffer_index+4,cmd[32:39]);
+             // `HARD_DEBUG(uart_buffer_index+6,cmd[40:47]);
+               uart_buffer_index<=uart_buffer_index+4;
                state<=STATE_WAIT_CMD;           
         end
         STATE_WAIT_CMD: begin
@@ -307,18 +307,19 @@ module x (
             end else begin
               uart_buffer[uart_buffer_index] <= "r";
               `HARD_DEBUG(uart_buffer_index+1,resp[0:7]);
-              `HARD_DEBUG(uart_buffer_index+3,resp[8:15]);
-              uart_buffer_index<=uart_buffer_index+5;
+             
+              uart_buffer_index<=uart_buffer_index+3;
               state <= STATE_WAIT_END;
             end
           end
         end
         STATE_WAIT_END: begin
-              `HARD_DEBUG(uart_buffer_index,resp[16:23]);
-              `HARD_DEBUG(uart_buffer_index+1,resp[24:31]);
-              `HARD_DEBUG(uart_buffer_index+3,resp[32:39]);
-              `HARD_DEBUG(uart_buffer_index+5,resp[40:47]);
-              uart_buffer_index<=uart_buffer_index+7;
+         `HARD_DEBUG(uart_buffer_index,resp[8:15]);
+            //  `HARD_DEBUG(uart_buffer_index+1,resp[16:23]);
+           //   `HARD_DEBUG(uart_buffer_index+3,resp[24:31]);
+            //  `HARD_DEBUG(uart_buffer_index+3,resp[32:39]);
+            //  `HARD_DEBUG(uart_buffer_index+5,resp[40:47]);
+              uart_buffer_index<=uart_buffer_index+2;
               sd_cmd <= 0;
               state <= next_state;
               cmd_started <= 0;
