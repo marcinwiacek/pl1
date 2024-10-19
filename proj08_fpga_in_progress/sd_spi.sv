@@ -88,9 +88,9 @@ module x (
   parameter STATE_SEND_CMD55 = 16;
   parameter STATE_GET_CMD55_RESPONSE = 17;
   parameter STATE_SEND_CMD58 = 18;  //read OCR
-  parameter STATE_SEND_CMD58_2 = 19;  //read OCR
+  parameter STATE_SEND_CMD582 = 19;  //read OCR
   parameter STATE_GET_CMD58_RESPONSE = 20;
-  parameter STATE_GET_CMD58_2_RESPONSE = 21;
+  parameter STATE_GET_CMD582_RESPONSE = 21;
   parameter STATE_WAIT_START = 22;
   parameter STATE_WAIT_START2 = 23;
   parameter STATE_WAIT_START3 = 24;
@@ -139,216 +139,224 @@ module x (
   end
 
   always @(posedge clk) begin
-      case (state)
-        0: begin
-      clk_divider <= CLK_DIVIDER_400kHz;
-      state <= STATE_WAIT_INIT;
-      flag <= 0;
-    //  uart_buffer[uart_buffer_index] <= "a";
-//      uart_buffer_index <= 1;
-      sd_cmd <= 1;
-      sd_cs <= 1;
-      sd_reset <= 0;
-      calc_crc7 <= 0;
-      cmd_bits_to_send <= 48;
-      read_block_available <= 0;
+    case (state)
+      0: begin
+        clk_divider <= CLK_DIVIDER_400kHz;
+        state <= STATE_WAIT_INIT;
+        flag <= 0;
+          uart_buffer[0] <= "a";
+          uart_buffer[1] <= "a";
+              uart_buffer_index <= 2;
+        sd_cmd <= 1;
+        sd_cs <= 1;
+        sd_reset <= 0;
+        calc_crc7 <= 0;
+        cmd_bits_to_send <= 48;
+        read_block_available <= 0;
+      end
+      STATE_WAIT_INIT: begin
+        if (timeout_counter == 1000000) begin
+          state <= STATE_SEND_CMD0;
+          sd_cs <= 0;
         end
-        STATE_WAIT_INIT: begin
-          if (timeout_counter == 1000000) begin
-            state <= STATE_SEND_CMD0;
-            sd_cs <= 0;
-          end
-          timeout_counter <= timeout_counter + 1;
-        end
-        STATE_SEND_CMD0: begin  //reset cmd
-          cmd <= 48'h40_00_00_00_00_95;
-          resp_bits_to_receive <= 8;
-          state <= STATE_WAIT_START;
-          next_state <= STATE_GET_CMD0_RESPONSE;
-        end
-        STATE_GET_CMD0_RESPONSE: begin
-          state <= retry_counter == 10 ? STATE_INIT_ERROR: ((resp[0:7] != 1 /* not idle */ || resp_bits  > resp_bits_to_receive) ? STATE_SEND_CMD0 : STATE_SEND_CMD8);
+        timeout_counter <= timeout_counter + 1;
+      end
+      STATE_SEND_CMD0: begin  //reset cmd
+        cmd <= 48'h40_00_00_00_00_95;
+        resp_bits_to_receive <= 8;
+        state <= STATE_WAIT_START;
+        next_state <= STATE_GET_CMD0_RESPONSE;
+      end
+      STATE_GET_CMD0_RESPONSE: begin
+        state <= retry_counter == 10 ? STATE_INIT_ERROR: ((resp[0:7] != 1 /* not idle */ || resp_bits  > resp_bits_to_receive) ? STATE_SEND_CMD0 : STATE_SEND_CMD8);
+        retry_counter <= retry_counter + 1;
+      end
+      STATE_SEND_CMD8: begin  //interface condition
+        cmd <= 48'h48_00_00_01_AA_87;  //1 = support for 2.7-3.6 V, AA = check pattern
+        resp_bits_to_receive <= 40;
+        state <= STATE_WAIT_START;
+        next_state <= STATE_GET_CMD8_RESPONSE;
+      end
+      STATE_GET_CMD8_RESPONSE: begin
+        state <= (resp[0:7] == 5 /*illegal command*/ || (resp[0:7] == 1 /*idle */ && resp[24:31]==1 /*Voltage supported*/ && resp[32:39]==8'hAA))?
+           STATE_SEND_CMD58:STATE_INIT_ERROR;
+      end
+      STATE_SEND_CMD58: begin
+        cmd <= 48'h7A_00_00_00_00_FD;
+        resp_bits_to_receive <= 40;
+        state <= STATE_WAIT_START;
+        next_state <= STATE_GET_CMD58_RESPONSE;
+      end
+      STATE_GET_CMD58_RESPONSE: begin
+        sd_sc <= resp[38];  //0 = sdsc, 1 = sdhc || sdxc
+        state <= STATE_SEND_CMD55;
+      end
+      STATE_SEND_CMD55: begin
+        cmd <= 48'h77_00_00_00_00_65;
+        resp_bits_to_receive <= 8;
+        state <= STATE_WAIT_START;
+        next_state <= STATE_GET_CMD55_RESPONSE;
+      end
+      STATE_GET_CMD55_RESPONSE: begin
+        state <= STATE_SEND_ACMD41;
+      end
+      STATE_SEND_ACMD41: begin
+        // cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
+        cmd <= 48'h69_00_00_00_00_77;  //CRC ignored ?
+        calc_crc7<=1; 
+        resp_bits_to_receive <= 8;
+        state <= STATE_WAIT_START;
+        next_state <= STATE_GET_ACMD41_RESPONSE;
+      end
+      STATE_GET_ACMD41_RESPONSE: begin
+        if (resp[0:7] == 1  /*idle*/) begin
           retry_counter <= retry_counter + 1;
+          state <= retry_counter == 10 ? STATE_INIT_ERROR : STATE_SEND_CMD55;
+        end else begin
+          state <= resp[0:7] == 0?STATE_SEND_CMD582:STATE_INIT_ERROR;
         end
-        STATE_SEND_CMD8: begin  //interface condition
-          cmd <= 48'h48_00_00_01_AA_87;  //1 = support for 2.7-3.6 V, AA = check pattern
-          resp_bits_to_receive <= 40;
-          state <= STATE_WAIT_START;
-          next_state <= STATE_GET_CMD8_RESPONSE;
+      end
+      STATE_SEND_CMD582: begin
+        cmd <= 48'h7A_00_00_00_00_FD;
+        resp_bits_to_receive <= 40;
+        state <= STATE_WAIT_START;
+        next_state <= STATE_GET_CMD582_RESPONSE;
+      end
+      STATE_GET_CMD582_RESPONSE: begin
+        clk_divider <= CLK_DIVIDER_25Mhz;
+        state <= STATE_SEND_CMD16;
+      end
+      STATE_SEND_CMD16: begin
+        `SAVE_CMD(6'd16, 32'd512);
+        cmd_bits_to_send <= 48;
+        resp_bits_to_receive <= 8;
+        read_block_available <= 0;
+        state <= STATE_WAIT_START;
+        next_state <= STATE_SEND_CMD17;
+      end
+      STATE_SEND_CMD17: begin  //read single block
+        `SAVE_CMD(6'd17,
+                  32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes      
+        cmd_bits_to_send <= 48;
+        resp_bits_to_receive <= 8;
+        read_block_available <= 1;
+        state <= STATE_WAIT_START;
+        next_state <= STATE_GET_CMD17_RESPONSE;
+      end
+      STATE_GET_CMD17_RESPONSE: begin
+        if (read_block_bits != 600) begin
+          // uart_buffer[uart_buffer_index] <= "b";
+          //            `HARD_DEBUG(uart_buffer_index+1,read_block[0:7]);
+          //            `HARD_DEBUG(uart_buffer_index+3,read_block[8:15]);
+          //            `HARD_DEBUG(uart_buffer_index+5,read_block[16:23]);
+          //            `HARD_DEBUG(uart_buffer_index+7,read_block[24:31]);
+          //              uart_buffer_index<=uart_buffer_index+9;
         end
-        STATE_GET_CMD8_RESPONSE: begin
-          if (resp[0:7] == 5 /*illegal command*/ || (resp[0:7] == 1 /*idle */ && resp[24:31]==1 /*Voltage supported*/ && resp[32:39]==8'hAA)) begin
-            state <= STATE_SEND_CMD58;
-          end else begin
-            state <= STATE_INIT_ERROR;
-          end
-        end
-        STATE_SEND_CMD58: begin
-          cmd <= 48'h7A_00_00_00_00_FD;
-          resp_bits_to_receive <= 40;
-          state <= STATE_WAIT_START;
-          next_state <= STATE_GET_CMD58_RESPONSE;
-        end
-        STATE_GET_CMD58_RESPONSE: begin
-          sd_sc <= resp[38];  //0 = sdsc, 1 = sdhc || sdxc
-          state <= STATE_SEND_CMD55;
-        end
-        STATE_SEND_CMD55: begin
-          cmd <= 48'h77_00_00_00_00_65;
-          resp_bits_to_receive <= 8;
-          state <= STATE_WAIT_START;
-          next_state <= STATE_GET_CMD55_RESPONSE;
-        end
-        STATE_GET_CMD55_RESPONSE: begin
-          state <= STATE_SEND_ACMD41;
-        end
-        STATE_SEND_ACMD41: begin
-          // cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
-          cmd <= 48'h69_00_00_00_00_77;  //CRC ignored ? 
-          resp_bits_to_receive <= 8;
-          state <= STATE_WAIT_START;
-          next_state <= STATE_GET_ACMD41_RESPONSE;
-        end
-        STATE_GET_ACMD41_RESPONSE: begin
-          if (resp[0:7] == 1  /*idle*/) begin
-            retry_counter <= retry_counter + 1;
-            state <= retry_counter == 10 ? STATE_INIT_ERROR : STATE_SEND_CMD55;
-          end else if (resp[0:7] == 0) begin
-            state <= STATE_SEND_CMD58_2;
-          end else begin
-            state <= STATE_INIT_ERROR;
-          end
-        end
-        STATE_SEND_CMD58_2: begin
-          cmd <= 48'h7A_00_00_00_00_FD;
-          resp_bits_to_receive <= 40;
-          state <= STATE_WAIT_START;
-          next_state <= STATE_GET_CMD58_2_RESPONSE;
-        end
-        STATE_GET_CMD58_2_RESPONSE: begin
-          clk_divider <= CLK_DIVIDER_25Mhz;
-          state <= STATE_SEND_CMD16;  //STATE_INIT_OK;
-        end        
-        STATE_SEND_CMD16: begin
-          `SAVE_CMD(6'd16, 32'd512);
-          cmd_bits_to_send <= 48;
-          resp_bits_to_receive <= 8;
-          read_block_available <= 0;
-          state <= STATE_WAIT_START;
-          next_state <= STATE_SEND_CMD17;
-        end
-        STATE_SEND_CMD17: begin  //read single block
-          `SAVE_CMD(6'd17,
-                    32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes      
-          cmd_bits_to_send <= 48;
-          resp_bits_to_receive <= 8;
-          read_block_available <= 1;
-          state <= STATE_WAIT_START;
-          next_state <= STATE_GET_CMD17_RESPONSE;
-        end
-        STATE_GET_CMD17_RESPONSE: begin
-          if (read_block_bits != 600) begin
-            // uart_buffer[uart_buffer_index] <= "b";
-            //            `HARD_DEBUG(uart_buffer_index+1,read_block[0:7]);
-            //            `HARD_DEBUG(uart_buffer_index+3,read_block[8:15]);
-            //            `HARD_DEBUG(uart_buffer_index+5,read_block[16:23]);
-            //            `HARD_DEBUG(uart_buffer_index+7,read_block[24:31]);
-            //              uart_buffer_index<=uart_buffer_index+9;
-          end
-          state <= STATE_INIT_OK;
-        end    
-        STATE_WAIT_START: begin
-          cmd_bits <= 0;
-          read_block_bits <= 0;
-          resp_bits <= 0;
-          uart_buffer[uart_buffer_index] = "s";
-          uart_buffer_index = uart_buffer_index + 1;
-          state <= STATE_WAIT_CMD;
-          debug_bits <= 0;
-          debug_not_processed <= 0;
-          resp_started <= 0;
-          read_block_started <= 0;
-          timeout_counter <= 0;         
-        end
-        STATE_WAIT_CMD: begin
-          if (!sd_cclk1 && sd_cclk) begin
-            if (cmd_bits < cmd_bits_to_send) begin
-              if (calc_crc7) begin
-                if (crc7[0:39] == 0) begin
-                  cmd[40:46] <= crc7[40:46];
-                end else if (cmd[cmd_bits] == 1) begin
-                  //see https://en.wikipedia.org/wiki/Cyclic_redundancy_check
-                  //Generator polynomial x^7 + x^3 + 1
-                  crc7[cmd_bits]   <= 1 ^ crc7[cmd_bits];
-                  crc7[cmd_bits+1] <= 0 ^ crc7[cmd_bits+1];
-                  crc7[cmd_bits+2] <= 0 ^ crc7[cmd_bits+2];
-                  crc7[cmd_bits+3] <= 0 ^ crc7[cmd_bits+3];
-                  crc7[cmd_bits+4] <= 1 ^ crc7[cmd_bits+4];
-                  crc7[cmd_bits+5] <= 0 ^ crc7[cmd_bits+5];
-                  crc7[cmd_bits+6] <= 0 ^ crc7[cmd_bits+6];
-                  crc7[cmd_bits+7] <= 1 ^ crc7[cmd_bits+7];
-                end
+        state <= STATE_INIT_OK;
+      end
+      STATE_WAIT_START: begin
+        cmd_bits <= 0;
+        read_block_bits <= 0;
+        resp_bits <= 0;
+        uart_buffer[uart_buffer_index] = "s";
+        uart_buffer_index = uart_buffer_index + 1;
+        state <= STATE_WAIT_CMD;
+        debug_bits <= 0;
+        debug_not_processed <= 0;
+        resp_started <= 0;
+        read_block_started <= 0;
+        timeout_counter <= 0;
+      end
+      STATE_WAIT_CMD: begin
+        if (!sd_cclk1 && sd_cclk) begin
+            if (calc_crc7) begin
+              if (crc7[0:39] == 0) begin
+                cmd[40:46] <= crc7[40:46];
+              end else if (cmd[cmd_bits] == 1) begin
+                //see https://en.wikipedia.org/wiki/Cyclic_redundancy_check
+                //Generator polynomial x^7 + x^3 + 1
+                crc7[cmd_bits]   <= 1 ^ crc7[cmd_bits];
+                crc7[cmd_bits+1] <= 0 ^ crc7[cmd_bits+1];
+                crc7[cmd_bits+2] <= 0 ^ crc7[cmd_bits+2];
+                crc7[cmd_bits+3] <= 0 ^ crc7[cmd_bits+3];
+                crc7[cmd_bits+4] <= 1 ^ crc7[cmd_bits+4];
+                crc7[cmd_bits+5] <= 0 ^ crc7[cmd_bits+5];
+                crc7[cmd_bits+6] <= 0 ^ crc7[cmd_bits+6];
+                crc7[cmd_bits+7] <= 1 ^ crc7[cmd_bits+7];
               end
-              sd_cmd <= cmd[cmd_bits];
-              cmd_bits <= cmd_bits + 1;
-              debug[7-debug_bits] <= cmd[cmd_bits];
-              debug_bits <= debug_bits == 7 ? 0 : debug_bits + 1;
-              debug_not_processed <= 1;
-            end else if (resp_bits < resp_bits_to_receive) begin
-              sd_cmd <= 1;
-              if (!sd_data0 || resp_started) begin
-                resp_started <= 1;
-                resp[resp_bits] <= sd_data0;
-                resp_bits <= resp_bits + 1;
-              end else begin
-                resp = {0};
-                timeout_counter <= timeout_counter + 1;
-                if (timeout_counter == 100) begin
-                  uart_buffer[uart_buffer_index] <= "e";
-          uart_buffer_index <= uart_buffer_index + 1;
-                  resp_bits <= resp_bits_to_receive + 1;
-                  read_block_bits <= 600;
-                end
-              end
-            end else if (read_block_available && read_block_bits < 512 + 16 + 1) begin
-              if (!read_block_started && read_block_bits == 8) begin
-                if (read_block[0:7] != 8'hFE) begin
-                  timeout_counter <= timeout_counter + 1;
-                  if (timeout_counter == 1000) begin
-                                    uart_buffer[uart_buffer_index] = "E";
-          uart_buffer_index = uart_buffer_index + 1;
-                    read_block_bits <= 600;
-                  end
-                  //   `HARD_DEBUG(read_block[0:7]);
-                end else begin
-                  read_block_started <= 1;
-                end
-                read_block_bits <= 0;
-              end else begin
-                read_block[read_block_bits] <= sd_data0;
-                read_block_bits <= read_block_bits + 1;
+            end
+            sd_cmd <= cmd[cmd_bits];
+            cmd_bits <= cmd_bits + 1;
+            uart_buffer[uart_buffer_index++] = cmd[cmd_bits]+48;
+            debug[7-debug_bits] <= cmd[cmd_bits];
+            debug_bits <= debug_bits == 7 ? 0 : debug_bits + 1;
+            debug_not_processed <= 1;
+            if (cmd_bits == cmd_bits_to_send-1) begin               
+               state<= STATE_WAIT_CMD2;
+            end
+          end
+       end
+      STATE_WAIT_CMD2: begin
+        if (!sd_cclk1 && sd_cclk) begin
+            sd_cmd <= 1;            
+            if (!sd_data0 || resp_started) begin
+              resp_started <= 1;
+              resp[resp_bits] <= sd_data0;
+              resp_bits <= resp_bits + 1;
+              if (resp_bits == resp_bits_to_receive -1) begin
+                state<= read_block_available?STATE_WAIT_CMD3:STATE_WAIT_END;                
               end
             end else begin
-              state <= STATE_WAIT_END;
+              timeout_counter <= timeout_counter + 1;
+              if (timeout_counter == 100) begin
+                resp = {0};              
+                uart_buffer[uart_buffer_index] <= "e";
+                uart_buffer_index <= uart_buffer_index + 1;
+                resp_bits <= resp_bits_to_receive + 1;
+                read_block_bits <= 600;
+                state<=STATE_WAIT_END;
+              end
             end
-          end else if (debug_bits == 0 && debug_not_processed) begin
-            `HARD_DEBUG(uart_buffer_index, debug);
-           //uart_buffer[uart_buffer_index] <= "a";
-          // uart_buffer[uart_buffer_index+1] <= "b";
-            uart_buffer_index   = uart_buffer_index + 2;
-            debug_not_processed <= 0;
+         end
+       end
+        STATE_WAIT_CMD3: begin
+          if (!sd_cclk1 && sd_cclk) begin          
+            if (!read_block_started && read_block_bits == 8) begin
+              if (read_block[0:7] != 8'hFE) begin
+                timeout_counter <= timeout_counter + 1;
+                if (timeout_counter == 1000) begin
+                  uart_buffer[uart_buffer_index] = "E";
+                  uart_buffer_index = uart_buffer_index + 1;
+                  read_block_bits <= 600;
+                  state<=STATE_WAIT_END;
+                end
+                //   `HARD_DEBUG(read_block[0:7]);
+              end else begin
+                read_block_started <= 1;
+              end
+              read_block_bits <= 0;
+            end else begin
+              read_block[read_block_bits] <= sd_data0;
+              read_block_bits <= read_block_bits + 1;
+              if (read_block_bits==511) state <= STATE_WAIT_END;
+            end
           end
-        end
-        STATE_WAIT_END: begin
-          uart_buffer[uart_buffer_index] = "r";
-          `HARD_DEBUG(uart_buffer_index + 1, resp[0:7]);
-          uart_buffer_index = uart_buffer_index + 3;
-          sd_cmd <= 0;
-          state <= next_state;
-          calc_crc7 <= 0;
-        end
-      endcase
-    end
+       end
+      STATE_WAIT_END: begin
+        uart_buffer[uart_buffer_index] = "r";
+        `HARD_DEBUG(uart_buffer_index + 1, resp[0:7]);
+        uart_buffer_index = uart_buffer_index + 3;
+        sd_cmd <= 0;
+        state <= next_state;
+      end
+    endcase
+    if (debug_bits == 0 && debug_not_processed) begin
+       //   `HARD_DEBUG(uart_buffer_index, debug);       
+      //    uart_buffer_index = uart_buffer_index + 2;
+          debug_not_processed <= 0;
+          calc_crc7<=0;
+      end 
+      end   
 endmodule
 
 module uartx_tx_with_buffer (
@@ -378,7 +386,7 @@ module uartx_tx_with_buffer (
       .uarttx(tx)
   );
 
-  always @(posedge clk) begin
+  always @(negedge clk) begin
     if (uart_buffer_state == 0) begin
       if (uart_buffer_available > 0 && uart_buffer_processed < uart_buffer_available) begin
         input_data <= uart_buffer[uart_buffer_processed];
@@ -422,7 +430,7 @@ module uart_tx (
   assign uarttx = uart_tx_state == STATE_IDLE || uart_tx_state == STATE_STOP_BIT ? 1:(uart_tx_state == STATE_START_BIT ? 0:input_data[uart_tx_state-STATE_DATA_BIT_0]);
   assign complete = uart_tx_state == STATE_IDLE;
 
-  always @(negedge clk) begin
+  always @(posedge clk) begin
     if (uart_tx_state == STATE_IDLE) begin
       uart_tx_state <= start ? STATE_START_BIT : STATE_IDLE;
     end else begin
