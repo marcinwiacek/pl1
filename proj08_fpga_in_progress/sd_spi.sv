@@ -299,7 +299,7 @@ module x (
       end
       STATE_WAIT_CMD2: begin
         if (!sd_cclk1 && sd_cclk) begin
-          sd_cmd <= 1;
+          sd_cmd <= 0;
           if (!sd_data0 || resp_started) begin
             resp_started <= 1;
             resp[resp_bits] <= sd_data0;
@@ -347,15 +347,15 @@ module x (
         uart_buffer[uart_buffer_index] <= "r";
         `HARD_DEBUG(uart_buffer_index + 1, resp[0:7]);
         uart_buffer_index <= uart_buffer_index + 3;
-        sd_cmd <= 0;
+        sd_cmd <= 1;
         state  <= next_state;
+        calc_crc7 <= 0;
       end
     endcase
     if (debug_bits == 0 && debug_not_processed) begin
       //   `HARD_DEBUG(uart_buffer_index, debug);       
       //    uart_buffer_index <= uart_buffer_index + 2;
-      debug_not_processed <= 0;
-      calc_crc7 <= 0;
+      debug_not_processed <= 0;      
     end
   end
 endmodule
