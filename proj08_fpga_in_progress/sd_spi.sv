@@ -118,7 +118,8 @@ module x (
       read_block_available,
       cmd_started,
       resp_started,
-      read_block_started,debug_not_processed;
+      read_block_started,
+      debug_not_processed;
   reg [20:0] clk_divider, clk_counter, timeout_counter, retry_counter;
   reg [5:0] state, next_state;
   reg [7:0] debug, debug_bits;
@@ -251,14 +252,14 @@ module x (
           uart_buffer[uart_buffer_index] <= "s";
           uart_buffer_index <= uart_buffer_index + 1;
           state <= STATE_WAIT_CMD;
-cmd_bits<=0;
-debug_bits<=0;          
-debug_not_processed<=0;
-                resp_started <= 0;
-                read_block_started <= 0;
-                timeout_counter <= 0;
-                read_block_bits <= 0;
-                resp_bits <= 0;
+          cmd_bits <= 0;
+          debug_bits <= 0;
+          debug_not_processed <= 0;
+          resp_started <= 0;
+          read_block_started <= 0;
+          timeout_counter <= 0;
+          read_block_bits <= 0;
+          resp_bits <= 0;
         end
         STATE_WAIT_CMD: begin
           if (!sd_cclk1 && sd_cclk) begin
@@ -278,12 +279,12 @@ debug_not_processed<=0;
                   crc7[cmd_bits+6] <= 0 ^ crc7[cmd_bits+6];
                   crc7[cmd_bits+7] <= 1 ^ crc7[cmd_bits+7];
                 end
-              end            
-                sd_cmd <= cmd[cmd_bits];
-                cmd_bits <= cmd_bits + 1;
-                debug[7-debug_bits] <= cmd[cmd_bits];
-                debug_bits <= debug_bits == 7 ? 0 : debug_bits + 1;
-                debug_not_processed<=1;
+              end
+              sd_cmd <= cmd[cmd_bits];
+              cmd_bits <= cmd_bits + 1;
+              debug[7-debug_bits] <= cmd[cmd_bits];
+              debug_bits <= debug_bits == 7 ? 0 : debug_bits + 1;
+              debug_not_processed <= 1;
             end else if (resp_bits < resp_bits_to_receive) begin
               sd_cmd <= 1;
               if (!sd_data0 || resp_started) begin
@@ -316,14 +317,14 @@ debug_not_processed<=0;
               state <= STATE_WAIT_END;
             end
           end else if (debug_bits == 0 && debug_not_processed) begin
-                `HARD_DEBUG(uart_buffer_index, debug);
-                uart_buffer_index <= uart_buffer_index + 2;
-                debug_not_processed<=0;
+            `HARD_DEBUG(uart_buffer_index, debug);
+            uart_buffer_index   <= uart_buffer_index + 2;
+            debug_not_processed <= 0;
           end
         end
         STATE_WAIT_END: begin
           uart_buffer[uart_buffer_index] <= "r";
-          `HARD_DEBUG(uart_buffer_index+1,resp[0:7]);
+          `HARD_DEBUG(uart_buffer_index + 1, resp[0:7]);
           uart_buffer_index <= uart_buffer_index + 1;
           sd_cmd <= 0;
           state <= next_state;
