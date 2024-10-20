@@ -190,15 +190,15 @@ module x (
         state <= resp[0:7] == 1? STATE_SEND_CMD55:STATE_INIT_ERROR;
       end
       STATE_SEND_CMD55: begin
-        cmd <= 48'h77_00_00_00_00_65;        
-        calc_crc7 <= 1;
+        cmd <= 48'h77_00_00_00_00_65;       
         resp_bits_to_receive <= 8;
         state <= STATE_WAIT_START;
         next_state <= STATE_GET_CMD55_RESPONSE;
         timeout_counter<=0;
       end
       STATE_GET_CMD55_RESPONSE: begin
-      if (timeout_counter == 100000) begin
+        //I get here 0x05 in the response...
+        if (timeout_counter == 100000) begin
           state <= STATE_SEND_ACMD41;
         end
         sd_cmd <= 1;
