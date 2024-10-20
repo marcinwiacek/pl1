@@ -208,7 +208,7 @@ module x (
       STATE_SEND_ACMD41: begin
         cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
         //cmd <= 48'h69_00_00_00_00_01;
-       // calc_crc7 <= 1;
+        // calc_crc7 <= 1;
         resp_bits_to_receive <= 8;
         state <= STATE_WAIT_START;
         next_state <= STATE_GET_ACMD41_RESPONSE;
@@ -247,13 +247,13 @@ module x (
       end
       STATE_GET_CMD17_RESPONSE: begin
         if (read_block_bits != 600) begin
-         uart_buffer[uart_buffer_index] <= "y";
-                    `HARD_DEBUG(uart_buffer_index+1,read_block[0:7]);
-                    `HARD_DEBUG(uart_buffer_index+3,read_block[8:15]);
-                    `HARD_DEBUG(uart_buffer_index+5,read_block[16:23]);
-                    `HARD_DEBUG(uart_buffer_index+7,read_block[24:31]);
-                     `HARD_DEBUG(uart_buffer_index+9,read_block[32:39]);
-                      uart_buffer_index<=uart_buffer_index+11;
+          uart_buffer[uart_buffer_index] <= "y";
+          `HARD_DEBUG(uart_buffer_index + 1, read_block[0:7]);
+          `HARD_DEBUG(uart_buffer_index + 3, read_block[8:15]);
+          `HARD_DEBUG(uart_buffer_index + 5, read_block[16:23]);
+          `HARD_DEBUG(uart_buffer_index + 7, read_block[24:31]);
+          `HARD_DEBUG(uart_buffer_index + 9, read_block[32:39]);
+          uart_buffer_index <= uart_buffer_index + 11;
         end
         state <= STATE_INIT_OK;
       end
