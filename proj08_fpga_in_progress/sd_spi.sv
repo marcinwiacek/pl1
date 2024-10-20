@@ -252,7 +252,8 @@ module x (
                     `HARD_DEBUG(uart_buffer_index+3,read_block[8:15]);
                     `HARD_DEBUG(uart_buffer_index+5,read_block[16:23]);
                     `HARD_DEBUG(uart_buffer_index+7,read_block[24:31]);
-                      uart_buffer_index<=uart_buffer_index+9;
+                     `HARD_DEBUG(uart_buffer_index+9,read_block[32:39]);
+                      uart_buffer_index<=uart_buffer_index+11;
         end
         state <= STATE_INIT_OK;
       end
