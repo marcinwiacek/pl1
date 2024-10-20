@@ -45,11 +45,6 @@ module x (
 /* DEBUG info */    cmd[8:39]<= ARG2; \
 /* DEBUG info */    cmd[40:46]<= 7'b0; \
 /* DEBUG info */    cmd[47]<=1; \
-/* DEBUG info */    crc7[0:1]<= 2'b01; \
-/* DEBUG info */    crc7[2:7]<= ARG; \
-/* DEBUG info */    crc7[8:39]<= ARG2; \
-/* DEBUG info */    crc7[40:46]<= 7'b0; \
-/* DEBUG info */    crc7[47]<=1; \
 /* DEBUG info */    calc_crc7<=1;
 // verilog_format:on
 
@@ -107,9 +102,10 @@ module x (
   parameter STATE_WAIT_CMD3 = 35;
   parameter STATE_WAIT_CMD4 = 36;
 
-  reg [0:47] cmd, crc7, resp;
+  reg [0:47] cmd, resp;
+  reg [0:7] crc7;
   reg [0:511+16] read_block;
-  reg [20:0] cmd_bits, cmd_bits_to_send, resp_bits, resp_bits_to_receive, read_block_bits;
+  reg [20:0] cmd_bits, resp_bits, resp_bits_to_receive, read_block_bits;
   reg
       flag = 1,
       sd_cclk_prev,
@@ -121,7 +117,7 @@ module x (
       read_block_started,
       debug_not_processed;
   reg [20:0] clk_divider, clk_counter, timeout_counter, retry_counter;
-  reg [10:0] state, next_state;
+  reg [20:0] state, next_state;
   reg [7:0] debug, debug_bits;
 
   always @(posedge clk) begin
@@ -149,7 +145,6 @@ module x (
         sd_cs <= 1;
         sd_reset <= 0;
         calc_crc7 <= 0;
-        cmd_bits_to_send <= 48;
         read_block_available <= 0;
         timeout_counter <= 0;
       end
@@ -189,7 +184,7 @@ module x (
       end
       STATE_GET_CMD58_RESPONSE: begin
         sd_sc <= resp[38];  //0 = sdsc, 1 = sdhc || sdxc
-        state <= STATE_SEND_CMD55;
+        state <= resp[0:7] == 1? STATE_SEND_CMD55:STATE_INIT_ERROR;
       end
       STATE_SEND_CMD55: begin
         cmd <= 48'h77_00_00_00_00_65;
@@ -201,9 +196,9 @@ module x (
         state <= STATE_SEND_ACMD41;
       end
       STATE_SEND_ACMD41: begin
-        cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
-        //cmd <= 48'h69_00_00_00_00_77;  //CRC ignored ?
-      //  calc_crc7 <= 1;
+        //cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
+        cmd <= 48'h69_00_00_00_00_00;
+        calc_crc7 <= 1;
         resp_bits_to_receive <= 8;
         state <= STATE_WAIT_START;
         next_state <= STATE_GET_ACMD41_RESPONSE;
@@ -266,27 +261,21 @@ module x (
       end
       STATE_WAIT_CMD: begin
         if (clk_counter == 0 && sd_cclk_prev == 0) begin
-          if (calc_crc7) begin          
-            if (cmd_bits == cmd_bits_to_send - 8) begin
-              cmd[40:46] <= crc7[40:46];
-            end else if (cmd_bits < cmd_bits_to_send - 8 && cmd[cmd_bits] == 1 && cmd[0:39] != 0) begin
-              //see https://en.wikipedia.org/wiki/Cyclic_redundancy_check
+          if (calc_crc7 && cmd_bits < 40) begin
               //Generator polynomial x^7 + x^3 + 1
-              crc7[cmd_bits]   <= 1 ^ crc7[cmd_bits];
-              crc7[cmd_bits+1] <= 0 ^ crc7[cmd_bits+1];
-              crc7[cmd_bits+2] <= 0 ^ crc7[cmd_bits+2];
-              crc7[cmd_bits+3] <= 0 ^ crc7[cmd_bits+3];
-              crc7[cmd_bits+4] <= 1 ^ crc7[cmd_bits+4];
-              crc7[cmd_bits+5] <= 0 ^ crc7[cmd_bits+5];
-              crc7[cmd_bits+6] <= 0 ^ crc7[cmd_bits+6];
-              crc7[cmd_bits+7] <= 1 ^ crc7[cmd_bits+7];
-            end
+               cmd[46] = cmd[45];
+               cmd[45] = cmd[44];
+               cmd[44] = cmd[43];
+               cmd[43] = cmd[42] ^ (cmd[cmd_bits] ^ cmd[46]);
+               cmd[42] = cmd[41];
+               cmd[41] = cmd[40];
+               cmd[40] = cmd[cmd_bits] ^ cmd[46];
           end
           sd_cmd <= cmd[cmd_bits];         
           debug[7-debug_bits] <= cmd[cmd_bits];
           debug_bits <= debug_bits == 7 ? 0 : debug_bits + 1;
           debug_not_processed <= 1;
-          if (cmd_bits == cmd_bits_to_send - 1) begin
+          if (cmd_bits == 48 - 1) begin
             state <= STATE_WAIT_CMD2;
           end
           cmd_bits <= cmd_bits + 1;
