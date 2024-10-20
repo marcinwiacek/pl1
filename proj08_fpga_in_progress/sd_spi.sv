@@ -265,15 +265,15 @@ module x (
         if (clk_counter == 0 && sd_cclk_prev == 0) begin
           if (calc_crc7 && cmd_bits < 40) begin
               //Generator polynomial x^7 + x^3 + 1
-               cmd[40] = cmd[41];
-               cmd[41] = cmd[42];
-               cmd[42] = cmd[43];
-               cmd[43] = cmd[44] ^ (cmd[start_crc+start_crc2] ^ cmd[40]);
-               cmd[44] = cmd[45];
-               cmd[45] = cmd[46];
-               cmd[46] = cmd[start_crc+start_crc2] ^ cmd[40];
+               cmd[46] <= cmd[45];
+               cmd[45] <= cmd[44];
+               cmd[44] <= cmd[43];
+               cmd[43] <= cmd[42] ^ (cmd[start_crc+start_crc2] ^ cmd[46]);
+               cmd[42] <= cmd[41];
+               cmd[41] <= cmd[40];
+               cmd[40] <= cmd[start_crc+start_crc2] ^ cmd[46];
                if (start_crc2==0) begin
-                 start_crc2<=0;
+                 start_crc2<=7;
                  start_crc<=start_crc+8;
                end else begin
                  start_crc2<=start_crc2-1;
