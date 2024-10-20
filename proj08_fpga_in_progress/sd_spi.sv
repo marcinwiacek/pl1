@@ -206,9 +206,9 @@ module x (
         timeout_counter <= timeout_counter + 1;
       end
       STATE_SEND_ACMD41: begin
-        //cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
-        cmd <= 48'h69_00_00_00_00_01;
-        calc_crc7 <= 1;
+        cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
+        //cmd <= 48'h69_00_00_00_00_01;
+       // calc_crc7 <= 1;
         resp_bits_to_receive <= 8;
         state <= STATE_WAIT_START;
         next_state <= STATE_GET_ACMD41_RESPONSE;
@@ -246,14 +246,14 @@ module x (
         next_state <= STATE_GET_CMD17_RESPONSE;
       end
       STATE_GET_CMD17_RESPONSE: begin
-        //if (read_block_bits != 600) begin
-        // uart_buffer[uart_buffer_index] <= "b";
-        //            `HARD_DEBUG(uart_buffer_index+1,read_block[0:7]);
-        //            `HARD_DEBUG(uart_buffer_index+3,read_block[8:15]);
-        //            `HARD_DEBUG(uart_buffer_index+5,read_block[16:23]);
-        //            `HARD_DEBUG(uart_buffer_index+7,read_block[24:31]);
-        //              uart_buffer_index<=uart_buffer_index+9;
-        //end
+        if (read_block_bits != 600) begin
+         uart_buffer[uart_buffer_index] <= "y";
+                    `HARD_DEBUG(uart_buffer_index+1,read_block[0:7]);
+                    `HARD_DEBUG(uart_buffer_index+3,read_block[8:15]);
+                    `HARD_DEBUG(uart_buffer_index+5,read_block[16:23]);
+                    `HARD_DEBUG(uart_buffer_index+7,read_block[24:31]);
+                      uart_buffer_index<=uart_buffer_index+9;
+        end
         state <= STATE_INIT_OK;
       end
       STATE_WAIT_START: begin
@@ -348,12 +348,16 @@ module x (
         end
       end
       STATE_WAIT_END: begin
-        uart_buffer[uart_buffer_index] <= "r";
-        `HARD_DEBUG(uart_buffer_index + 1, resp[0:7]);
-        uart_buffer_index <= uart_buffer_index + 3;
-        //sd_cmd <= 0;
-        state <= next_state;
-        calc_crc7 <= 0;
+        if (clk_counter == 0 && sd_cclk_prev == 0) begin
+          uart_buffer[uart_buffer_index] <= "r";
+          `HARD_DEBUG(uart_buffer_index + 1, resp[0:7]);
+          `HARD_DEBUG(uart_buffer_index + 3, resp[8:15]);
+          `HARD_DEBUG(uart_buffer_index + 5, resp[16:23]);
+          uart_buffer_index <= uart_buffer_index + 7;
+          //sd_cmd <= 0;
+          state <= next_state;
+          calc_crc7 <= 0;
+        end
       end
     endcase
   end
