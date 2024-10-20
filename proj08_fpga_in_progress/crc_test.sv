@@ -13,7 +13,7 @@ integer i;
 initial begin
     //$dumpfile("x_async.vcd");
     //$dumpvars(0,x_async_test);
-    cmd = 48'h40_00_00_00_00_01;
+    cmd = 48'h77_00_00_00_00_01;
     #1
     for (i=0;i<40;i=i+1) begin
    //Generator polynomial x^7 + x^3 + 1
