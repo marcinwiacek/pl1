@@ -281,21 +281,17 @@ module x (
               crc7[cmd_bits+7] <= 1 ^ crc7[cmd_bits+7];
             end
           end
-          sd_cmd <= cmd[cmd_bits];
-        //  debug[0] <= cmd[cmd_bits];
-          //  debug[7-debug_bits] <= cmd[cmd_bits];
-          //          debug_bits <= debug_bits == 7 ? 0 : debug_bits + 1;
+          sd_cmd <= cmd[cmd_bits];         
+          debug[7-debug_bits] <= cmd[cmd_bits];
+          debug_bits <= debug_bits == 7 ? 0 : debug_bits + 1;
           debug_not_processed <= 1;
           if (cmd_bits == cmd_bits_to_send - 1) begin
             state <= STATE_WAIT_CMD2;
           end
           cmd_bits <= cmd_bits + 1;
-        end else if (debug_not_processed) begin
-          //if (debug_bits == 0 && debug_not_processed) begin
-          //uart_buffer[uart_buffer_index] <= debug[0] + 48;
-          //uart_buffer_index <= uart_buffer_index + 1;
-          //         `HARD_DEBUG(uart_buffer_index, debug);       
-          //          uart_buffer_index <= uart_buffer_index + 2;
+        end else if (debug_bits == 0 && debug_not_processed) begin
+          `HARD_DEBUG(uart_buffer_index, debug);       
+          uart_buffer_index <= uart_buffer_index + 2;
           debug_not_processed <= 0;
         end
       end
@@ -320,12 +316,9 @@ module x (
               state <= STATE_WAIT_END;
             end
           end
-        end else if (debug_not_processed) begin
-          //if (debug_bits == 0 && debug_not_processed) begin
-          //uart_buffer[uart_buffer_index] <= debug[0] + 48;
-          //uart_buffer_index <= uart_buffer_index + 1;
-          //         `HARD_DEBUG(uart_buffer_index, debug);       
-          //          uart_buffer_index <= uart_buffer_index + 2;
+        end else if (debug_bits == 0 && debug_not_processed) begin
+          `HARD_DEBUG(uart_buffer_index, debug);       
+          uart_buffer_index <= uart_buffer_index + 2;
           debug_not_processed <= 0;
         end
       end
@@ -356,7 +349,7 @@ module x (
         uart_buffer[uart_buffer_index] <= "r";
         `HARD_DEBUG(uart_buffer_index + 1, resp[0:7]);
         uart_buffer_index <= uart_buffer_index + 3;
-        sd_cmd <= 0;
+        //sd_cmd <= 0;
         state <= next_state;
         calc_crc7 <= 0;
       end
