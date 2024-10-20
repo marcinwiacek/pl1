@@ -125,17 +125,18 @@ module x (
   reg [7:0] debug, debug_bits;
 
   always @(posedge clk) begin
-
-  end
-
-  always @(posedge clk) begin
-    if (clk_counter == clk_divider - 1) begin
+    if (state == 0) begin
+      sd_cclk <= 0;
+    end else if (clk_counter == clk_divider - 1) begin
       clk_counter <= 0;
       sd_cclk <= ~sd_cclk;
       sd_cclk_prev <= sd_cclk;
     end else begin
       clk_counter <= clk_counter + 1;
     end
+  end
+  
+  always @(posedge clk) begin
     case (state)
       0: begin
         clk_divider <= CLK_DIVIDER_400kHz;
@@ -151,7 +152,6 @@ module x (
         cmd_bits_to_send <= 48;
         read_block_available <= 0;
         timeout_counter <= 0;
-        sd_cclk <= 0;
       end
       STATE_WAIT_INIT: begin
         if (timeout_counter == 1000000) begin
@@ -322,8 +322,8 @@ module x (
           end
         end else if (debug_not_processed) begin
           //if (debug_bits == 0 && debug_not_processed) begin
-          uart_buffer[uart_buffer_index] = debug[0] + 48;
-          uart_buffer_index = uart_buffer_index + 1;
+          uart_buffer[uart_buffer_index] <= debug[0] + 48;
+          uart_buffer_index <= uart_buffer_index + 1;
           //         `HARD_DEBUG(uart_buffer_index, debug);       
           //          uart_buffer_index <= uart_buffer_index + 2;
           debug_not_processed <= 0;
