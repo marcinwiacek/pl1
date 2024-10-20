@@ -110,7 +110,8 @@ module x (
       flag = 1,
       sd_cclk_prev,
       sd_sc,
-      calc_crc7,      
+      calc_crc7,
+      temp_crc7,
       read_block_available,
       cmd_started,
       resp_started,
@@ -118,7 +119,7 @@ module x (
       debug_not_processed;
   reg [20:0] clk_divider, clk_counter, timeout_counter, retry_counter;
   reg [20:0] state, next_state;
-  reg [7:0] debug, debug_bits, start_crc, start_crc2;
+  reg [7:0] debug, debug_bits;
 
   always @(posedge clk) begin
     if (state == 0) begin
@@ -156,7 +157,9 @@ module x (
         timeout_counter <= timeout_counter + 1;
       end
       STATE_SEND_CMD0: begin  //reset cmd
-        cmd <= 48'h40_00_00_00_00_95;
+        //cmd <= 48'h40_00_00_00_00_95;
+        cmd <= 48'h40_00_00_00_00_01;
+        calc_crc7 <= 1;
         resp_bits_to_receive <= 8;
         state <= STATE_WAIT_START;
         next_state <= STATE_GET_CMD0_RESPONSE;
@@ -196,8 +199,8 @@ module x (
         state <= STATE_SEND_ACMD41;
       end
       STATE_SEND_ACMD41: begin
-        cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
-        //cmd <= 48'h69_00_00_00_00_01;
+        //cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
+        cmd <= 48'h69_00_00_00_00_01;
         calc_crc7 <= 1;
         resp_bits_to_receive <= 8;
         state <= STATE_WAIT_START;
@@ -206,7 +209,7 @@ module x (
       STATE_GET_ACMD41_RESPONSE: begin
         if (resp[0:7] == 1  /*idle*/) begin
           retry_counter <= retry_counter + 1;
-          state <= retry_counter == 10 ? STATE_INIT_ERROR : STATE_SEND_CMD55;
+          state <= retry_counter == 20 ? STATE_INIT_ERROR : STATE_SEND_CMD55;
         end else begin
           state <= resp[0:7] == 0 ? STATE_SEND_CMD582 : STATE_INIT_ERROR;
         end
@@ -258,20 +261,20 @@ module x (
         state <= STATE_WAIT_CMD;
         debug_bits <= 0;
         debug_not_processed <= 0;
-        start_crc <=0;
-        start_crc2<=7;
+        temp_crc7 <= cmd[40];
       end
       STATE_WAIT_CMD: begin
         if (clk_counter == 0 && sd_cclk_prev == 0) begin
           if (calc_crc7 && cmd_bits < 40) begin
                //Generator polynomial x^7 + x^3 + 1
-               cmd[40] <= cmd[cmd_bits] ^ cmd[46];
-               cmd[41] <= cmd[40];
-               cmd[42] <= cmd[41];
-               cmd[43] <= cmd[42] ^ cmd[cmd_bits] ^ cmd[46];
-               cmd[44] <= cmd[43];
-               cmd[45] <= cmd[44];
-               cmd[46] <= cmd[45];
+               temp_crc7 <= cmd[41];
+               cmd[40] <= cmd[41];
+               cmd[41] <= cmd[42];
+               cmd[42] <= cmd[43];
+               cmd[43] <= cmd[44]^(cmd[cmd_bits] ^ temp_crc7);
+               cmd[44] <= cmd[45];
+               cmd[45] <= cmd[46];
+               cmd[46] <= cmd[cmd_bits] ^ temp_crc7;
           end
           sd_cmd <= cmd[cmd_bits];         
           debug[7-debug_bits] <= cmd[cmd_bits];
