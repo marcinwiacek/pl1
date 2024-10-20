@@ -187,7 +187,8 @@ module x (
       end
       STATE_GET_CMD58_RESPONSE: begin
         sd_sc <= resp[38];  //0 = sdsc, 1 = sdhc || sdxc
-        state <= resp[0:7] == 1? STATE_SEND_CMD55:STATE_INIT_ERROR;
+        //state <= resp[0:7] == 1? STATE_SEND_CMD55:STATE_INIT_ERROR;
+        state <= resp[0:7] == 1? STATE_SEND_CMD55:STATE_INIT_ERROR; //we should use 55 first
       end
       STATE_SEND_CMD55: begin
         cmd <= 48'h77_00_00_00_00_65;       
@@ -201,7 +202,7 @@ module x (
         if (timeout_counter == 100000) begin
           state <= STATE_SEND_ACMD41;
         end
-        sd_cmd <= 1;
+      //  sd_cmd <= 1;
         timeout_counter <= timeout_counter + 1;        
       end
       STATE_SEND_ACMD41: begin
@@ -213,11 +214,11 @@ module x (
         next_state <= STATE_GET_ACMD41_RESPONSE;
       end
       STATE_GET_ACMD41_RESPONSE: begin
-        if (resp[0:7] == 1  /*idle*/) begin
+        if (resp[0:7] != 0) begin
           retry_counter <= retry_counter + 1;
           state <= retry_counter == 20 ? STATE_INIT_ERROR : STATE_SEND_CMD55;
         end else begin
-          state <= resp[0:7] == 0 ? STATE_SEND_CMD582 : STATE_INIT_ERROR;
+          state <= STATE_SEND_CMD582;
         end
       end
       STATE_SEND_CMD582: begin
