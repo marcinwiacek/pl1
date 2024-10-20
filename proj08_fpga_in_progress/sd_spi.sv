@@ -167,7 +167,8 @@ module x (
         next_state <= STATE_GET_CMD0_RESPONSE;
       end
       STATE_GET_CMD0_RESPONSE: begin
-        state <= retry_counter == 10 ? STATE_INIT_ERROR: ((resp[0:7] != 1 /* not idle */ || resp_bits  > resp_bits_to_receive) ? STATE_SEND_CMD0 : STATE_SEND_CMD8);
+        state <= retry_counter == 10 ? STATE_INIT_ERROR: ((resp[0:7] != 1 /* not idle */ || resp_bits  > resp_bits_to_receive) ? 
+          STATE_SEND_CMD0 : STATE_SEND_CMD8);
         retry_counter <= retry_counter + 1;
       end
       STATE_SEND_CMD8: begin  //interface condition
@@ -200,9 +201,9 @@ module x (
         state <= STATE_SEND_ACMD41;
       end
       STATE_SEND_ACMD41: begin
-        // cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
-        cmd <= 48'h69_00_00_00_00_77;  //CRC ignored ?
-        calc_crc7 <= 1;
+        cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
+        //cmd <= 48'h69_00_00_00_00_77;  //CRC ignored ?
+      //  calc_crc7 <= 1;
         resp_bits_to_receive <= 8;
         state <= STATE_WAIT_START;
         next_state <= STATE_GET_ACMD41_RESPONSE;
@@ -265,10 +266,10 @@ module x (
       end
       STATE_WAIT_CMD: begin
         if (clk_counter == 0 && sd_cclk_prev == 0) begin
-          if (calc_crc7) begin
-            if (crc7[0:39] == 0) begin
+          if (calc_crc7) begin          
+            if (cmd_bits == cmd_bits_to_send - 8) begin
               cmd[40:46] <= crc7[40:46];
-            end else if (cmd[cmd_bits] == 1) begin
+            end else if (cmd_bits < cmd_bits_to_send - 8 && cmd[cmd_bits] == 1 && cmd[0:39] != 0) begin
               //see https://en.wikipedia.org/wiki/Cyclic_redundancy_check
               //Generator polynomial x^7 + x^3 + 1
               crc7[cmd_bits]   <= 1 ^ crc7[cmd_bits];
@@ -370,10 +371,11 @@ module uartx_tx_with_buffer (
   bit [6:0] uart_buffer_processed = 0;
   bit [3:0] uart_buffer_state = 0;
   bit start;
+  bit [7:0] uart_buffer_available_old;
   wire complete;
 
-  assign reset_uart_buffer_available = uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
-  assign uart_buffer_full = uart_buffer_available == 199 ? 1 : 0;
+  assign reset_uart_buffer_available = uart_buffer_available_old != 0 && uart_buffer_available_old == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
+  assign uart_buffer_full = uart_buffer_available_old == 199 ? 1 : 0;
   assign start = uart_buffer_state == 1;
 
   uart_tx uart_tx (
@@ -385,12 +387,13 @@ module uartx_tx_with_buffer (
   );
 
   always @(negedge clk) begin
+    uart_buffer_available_old<=uart_buffer_available;
     if (uart_buffer_state == 0) begin
-      if (uart_buffer_available > 0 && uart_buffer_processed < uart_buffer_available) begin
+      if (uart_buffer_available_old > 0 && uart_buffer_processed < uart_buffer_available_old) begin
         input_data <= uart_buffer[uart_buffer_processed];
         uart_buffer_state <= uart_buffer_state + 1;
         uart_buffer_processed <= uart_buffer_processed + 1;
-      end else if (uart_buffer_processed > uart_buffer_available) begin
+      end else if (uart_buffer_processed > uart_buffer_available_old) begin
         uart_buffer_processed <= 0;
       end
     end else if (uart_buffer_state == 1) begin
