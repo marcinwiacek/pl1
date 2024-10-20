@@ -196,8 +196,8 @@ module x (
         state <= STATE_SEND_ACMD41;
       end
       STATE_SEND_ACMD41: begin
-        //cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
-        cmd <= 48'h69_00_00_00_00_00;
+        cmd <= 48'h69_40_00_00_00_77;  //HCS = 1 -> support SDHC/SDXC cards
+        //cmd <= 48'h69_00_00_00_00_01;
         calc_crc7 <= 1;
         resp_bits_to_receive <= 8;
         state <= STATE_WAIT_START;
