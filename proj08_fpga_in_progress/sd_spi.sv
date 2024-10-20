@@ -110,7 +110,7 @@ module x (
       flag = 1,
       sd_cclk_prev,
       sd_sc,
-      calc_crc7,
+      calc_crc7,      
       read_block_available,
       cmd_started,
       resp_started,
@@ -118,7 +118,7 @@ module x (
       debug_not_processed;
   reg [20:0] clk_divider, clk_counter, timeout_counter, retry_counter;
   reg [20:0] state, next_state;
-  reg [7:0] debug, debug_bits;
+  reg [7:0] debug, debug_bits, start_crc, start_crc2;
 
   always @(posedge clk) begin
     if (state == 0) begin
@@ -258,18 +258,26 @@ module x (
         state <= STATE_WAIT_CMD;
         debug_bits <= 0;
         debug_not_processed <= 0;
+        start_crc <=0;
+        start_crc2<=7;
       end
       STATE_WAIT_CMD: begin
         if (clk_counter == 0 && sd_cclk_prev == 0) begin
           if (calc_crc7 && cmd_bits < 40) begin
               //Generator polynomial x^7 + x^3 + 1
-               cmd[46] = cmd[45];
-               cmd[45] = cmd[44];
-               cmd[44] = cmd[43];
-               cmd[43] = cmd[42] ^ (cmd[cmd_bits] ^ cmd[46]);
-               cmd[42] = cmd[41];
-               cmd[41] = cmd[40];
-               cmd[40] = cmd[cmd_bits] ^ cmd[46];
+               cmd[40] = cmd[41];
+               cmd[41] = cmd[42];
+               cmd[42] = cmd[43];
+               cmd[43] = cmd[44] ^ (cmd[start_crc+start_crc2] ^ cmd[40]);
+               cmd[44] = cmd[45];
+               cmd[45] = cmd[46];
+               cmd[46] = cmd[start_crc+start_crc2] ^ cmd[40];
+               if (start_crc2==0) begin
+                 start_crc2<=0;
+                 start_crc<=start_crc+8;
+               end else begin
+                 start_crc2<=start_crc2-1;
+               end
           end
           sd_cmd <= cmd[cmd_bits];         
           debug[7-debug_bits] <= cmd[cmd_bits];
