@@ -1,11 +1,16 @@
 # News
 
+Oct 2024: CPU core can input/output text with RS-232, additionally there is nice separate code
+for initializing SD card (SPI mode now, sd_spi.sv) and RS-232 input/output (rs232_rxtx.sv)
+
 Sep 2024: first working milestone / gen with project 9
 (including MMU, process creating, deleting & interrupts)
 and totally new MMU with complexity access equal n (n=number of assigned process pages
 divided by single MMU page size, which gives 1 with small processes) with project 10.
 
-June 2024: first work with real FPGA (Artix-7 Nexys Video)
+June 2024: first work with real FPGA (Artix-7 Nexys Video), for example writing text on RS-232 (pozdro.sv)
+
+![Status from 16 June 2024](202406.png)
 
 18 May 2024: there was prepared quite advanced System Verilog code with majority of things
 (unfortunately not compatible with Vidado) and there is prepared realistic System Verilog compatible
@@ -16,7 +21,7 @@ describing, where it can go. Now I need to go into drawing board and make it muc
 
 18 Feb 2024: example from work done in first project days:
 
-![Screenshot from 18 Feb 2024](screen2.png)
+![Screenshot from 18 Feb 2024](202402.png)
 
 # This project
 

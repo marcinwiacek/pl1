@@ -67,7 +67,6 @@ module x (
   parameter CLK_DIVIDER_25Mhz = 100000000 / 25000000;  //100 Mhz / 25 Mhz
 
   parameter STATE_WAIT_INIT = 1;
-  parameter STATE_WAIT_CMD = 2;
   parameter STATE_INIT_OK = 3;
   parameter STATE_INIT_ERROR = 4;
   parameter STATE_WAIT_START = 5;
@@ -96,8 +95,7 @@ module x (
   reg [0:7] crc7;
   reg [0:511+16] read_block;
   reg [10:0] cmd_bits, resp_bits, resp_bits_to_receive, read_block_bits;
-  reg
-      flag = 1,
+  reg flag = 1,
       sd_cclk_prev,
       sd_sdsc,
       calc_crc7,
@@ -186,7 +184,7 @@ module x (
         timeout_counter <= 0;
       end
       STATE_GET_CMD55_RESPONSE: begin
-        if (timeout_counter == 1000) begin
+        if (timeout_counter == 100000) begin
           state <= STATE_SEND_ACMD41;
         end
         timeout_counter <= timeout_counter + 1;
@@ -251,7 +249,7 @@ module x (
         timeout_counter <= 0;
         uart_buffer[uart_buffer_index] <= "s";
         uart_buffer_index <= uart_buffer_index + 1;
-        state <= STATE_WAIT_CMD;
+        state <= STATE_WAIT_SEND_CMD;
         debug_bits <= 0;
         debug_not_processed <= 0;
         temp_crc7 <= cmd[40];
