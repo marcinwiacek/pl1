@@ -1,7 +1,9 @@
 # News
 
-Oct 2024: CPU core can input/output text with RS-232, additionally there is nice separate code
+Oct 2024: CPU core can input/output text with RS-232 with rewritten MMU (should be faster), additionally there is nice separate code
 for initializing SD card (SPI mode now, sd_spi.sv) and RS-232 input/output (rs232_rxtx.sv)
+
+![Oct 2024](202410.png)
 
 Sep 2024: first working milestone / gen with project 9
 (including MMU, process creating, deleting & interrupts)
