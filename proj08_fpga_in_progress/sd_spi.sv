@@ -70,55 +70,44 @@ module x (
   parameter STATE_WAIT_CMD = 2;
   parameter STATE_INIT_OK = 3;
   parameter STATE_INIT_ERROR = 4;
-  parameter STATE_SEND_CMD0 = 5;  //reset command
-  parameter STATE_GET_CMD0_RESPONSE = 6;
-  parameter STATE_SEND_CMD8 = 7;  //interface condition
-  parameter STATE_GET_CMD8_RESPONSE = 8;
-  parameter STATE_SEND_CMD16 = 9;  //set block len
-  parameter STATE_GET_CMD16_RESPONSE = 10;
-  parameter STATE_SEND_CMD17 = 11;  //read single block
-  parameter STATE_GET_CMD17_RESPONSE = 12;
-  parameter STATE_SEND_ACMD41 = 14;  //send operation condition
-  parameter STATE_GET_ACMD41_RESPONSE = 15;
-  parameter STATE_SEND_CMD55 = 16;
-  parameter STATE_GET_CMD55_RESPONSE = 17;
-  parameter STATE_SEND_CMD58 = 18;  //read OCR
-  parameter STATE_SEND_CMD582 = 19;  //read OCR
-  parameter STATE_GET_CMD58_RESPONSE = 20;
-  parameter STATE_GET_CMD582_RESPONSE = 21;
-  parameter STATE_WAIT_START = 22;
-  parameter STATE_WAIT_START2 = 23;
-  parameter STATE_WAIT_START3 = 24;
-  parameter STATE_WAIT_START4 = 25;
-  parameter STATE_WAIT_START5 = 26;
-  parameter STATE_WAIT_START6 = 27;
-  parameter STATE_WAIT_END = 28;
-  parameter STATE_WAIT_END2 = 29;
-  parameter STATE_WAIT_END3 = 30;
-  parameter STATE_WAIT_END4 = 31;
-  parameter STATE_WAIT_END5 = 32;
-  parameter STATE_WAIT_END6 = 33;
-  parameter STATE_WAIT_CMD2 = 34;
-  parameter STATE_WAIT_CMD3 = 35;
-  parameter STATE_WAIT_CMD4 = 36;
+  parameter STATE_WAIT_START = 5;
+  parameter STATE_WAIT_SEND_CMD = 6;
+  parameter STATE_WAIT_GET_RESPONSE = 7;
+  parameter STATE_WAIT_GET_BLOCK = 8;
+  parameter STATE_WAIT_END = 9;
+  parameter STATE_SEND_CMD0 = 10;  //reset command
+  parameter STATE_GET_CMD0_RESPONSE = 11;
+  parameter STATE_SEND_CMD8 = 12;  //interface condition
+  parameter STATE_GET_CMD8_RESPONSE = 14;
+  parameter STATE_SEND_CMD16 = 15;  //set block len
+  parameter STATE_GET_CMD16_RESPONSE = 16;
+  parameter STATE_SEND_CMD17 = 17;  //read single block
+  parameter STATE_GET_CMD17_RESPONSE = 18;
+  parameter STATE_SEND_ACMD41 = 19;  //send operation condition
+  parameter STATE_GET_ACMD41_RESPONSE = 20;
+  parameter STATE_SEND_CMD55 = 21;
+  parameter STATE_GET_CMD55_RESPONSE = 22;
+  parameter STATE_SEND_CMD58 = 23;  //read OCR
+  parameter STATE_GET_CMD58_RESPONSE = 24;
+  parameter STATE_SEND_CMD58_2 = 25;  //read OCR
+  parameter STATE_GET_CMD58_2_RESPONSE = 26;
 
   reg [0:47] cmd, resp;
   reg [0:7] crc7;
   reg [0:511+16] read_block;
-  reg [20:0] cmd_bits, resp_bits, resp_bits_to_receive, read_block_bits;
+  reg [10:0] cmd_bits, resp_bits, resp_bits_to_receive, read_block_bits;
   reg
       flag = 1,
       sd_cclk_prev,
-      sd_sc,
+      sd_sdsc,
       calc_crc7,
-      temp_crc7,
-      read_block_available,
-      cmd_started,
+      temp_crc7,           
       resp_started,
+      read_block_available,
       read_block_started,
       debug_not_processed;
   reg [20:0] clk_divider, clk_counter, timeout_counter, retry_counter;
-  reg [20:0] state, next_state;
+  reg [8:0] state, next_state;
   reg [7:0] debug, debug_bits;
 
   always @(posedge clk) begin
@@ -186,9 +175,8 @@ module x (
         next_state <= STATE_GET_CMD58_RESPONSE;
       end
       STATE_GET_CMD58_RESPONSE: begin
-        sd_sc <= resp[38];  //0 = sdsc, 1 = sdhc || sdxc
-        //state <= resp[0:7] == 1? STATE_SEND_CMD55:STATE_INIT_ERROR;
-        state <= resp[0:7] == 1 ? STATE_SEND_CMD55 : STATE_INIT_ERROR;  //we should use 55 first
+        sd_sdsc <= resp[38];  //0 = sdsc, 1 = sdhc || sdxc
+        state <= resp[0:7] == 1 ? STATE_SEND_CMD55 : STATE_INIT_ERROR;
       end
       STATE_SEND_CMD55: begin
         cmd <= 48'h77_00_00_00_00_65;
@@ -198,11 +186,9 @@ module x (
         timeout_counter <= 0;
       end
       STATE_GET_CMD55_RESPONSE: begin
-        //I get here 0x05 in the response...
-        if (timeout_counter == 100000) begin
+        if (timeout_counter == 1000) begin
           state <= STATE_SEND_ACMD41;
         end
-        //  sd_cmd <= 1;
         timeout_counter <= timeout_counter + 1;
       end
       STATE_SEND_ACMD41: begin
@@ -218,16 +204,16 @@ module x (
           retry_counter <= retry_counter + 1;
           state <= retry_counter == 20 ? STATE_INIT_ERROR : STATE_SEND_CMD55;
         end else begin
-          state <= STATE_SEND_CMD582;
+          state <= STATE_SEND_CMD58_2;
         end
       end
-      STATE_SEND_CMD582: begin
+      STATE_SEND_CMD58_2: begin
         cmd <= 48'h7A_00_00_00_00_FD;
         resp_bits_to_receive <= 40;
         state <= STATE_WAIT_START;
-        next_state <= STATE_GET_CMD582_RESPONSE;
+        next_state <= STATE_GET_CMD58_2_RESPONSE;
       end
-      STATE_GET_CMD582_RESPONSE: begin
+      STATE_GET_CMD58_2_RESPONSE: begin
         clk_divider <= CLK_DIVIDER_25Mhz;
         state <= STATE_SEND_CMD16;
       end
@@ -238,8 +224,7 @@ module x (
         next_state <= STATE_SEND_CMD17;
       end
       STATE_SEND_CMD17: begin  //read single block
-        `SAVE_CMD(6'd17,
-                  32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes       
+        `SAVE_CMD(6'd17, 32'b0);//with this we can address max. 2 GB cards, needs to support 2 addressing schemes       
         resp_bits_to_receive <= 8;
         read_block_available <= 1;
         state <= STATE_WAIT_START;
@@ -271,7 +256,7 @@ module x (
         debug_not_processed <= 0;
         temp_crc7 <= cmd[40];
       end
-      STATE_WAIT_CMD: begin
+      STATE_WAIT_SEND_CMD: begin
         if (clk_counter == 0 && sd_cclk_prev == 0) begin
           if (calc_crc7 && cmd_bits < 40) begin
             //Generator polynomial x^7 + x^3 + 1
@@ -289,7 +274,7 @@ module x (
           debug_bits <= debug_bits == 7 ? 0 : debug_bits + 1;
           debug_not_processed <= 1;
           if (cmd_bits == 48 - 1) begin
-            state <= STATE_WAIT_CMD2;
+            state <= STATE_WAIT_GET_RESPONSE;
           end
           cmd_bits <= cmd_bits + 1;
         end else if (debug_bits == 0 && debug_not_processed) begin
@@ -298,14 +283,14 @@ module x (
           debug_not_processed <= 0;
         end
       end
-      STATE_WAIT_CMD2: begin
+      STATE_WAIT_GET_RESPONSE: begin
         if (clk_counter == 0 && sd_cclk_prev == 0) begin
           sd_cmd <= 1;
           if (!sd_data0 || resp_started) begin
             resp_started <= 1;
             resp[resp_bits] <= sd_data0;
             if (resp_bits == resp_bits_to_receive - 1) begin
-              state <= read_block_available ? STATE_WAIT_CMD3 : STATE_WAIT_END;
+              state <= read_block_available ? STATE_WAIT_GET_BLOCK : STATE_WAIT_END;
             end
             resp_bits <= resp_bits + 1;
           end else begin
@@ -325,7 +310,7 @@ module x (
           debug_not_processed <= 0;
         end
       end
-      STATE_WAIT_CMD3: begin
+      STATE_WAIT_GET_BLOCK: begin
         if (clk_counter == 0 && sd_cclk_prev == 0) begin
           if (!read_block_started && read_block_bits == 8) begin
             if (read_block[0:7] != 8'hFE) begin
@@ -336,7 +321,6 @@ module x (
                 read_block_bits <= 600;
                 state <= STATE_WAIT_END;
               end
-              //   `HARD_DEBUG(read_block[0:7]);
             end else begin
               read_block_started <= 1;
             end
@@ -355,7 +339,6 @@ module x (
           `HARD_DEBUG(uart_buffer_index + 3, resp[8:15]);
           `HARD_DEBUG(uart_buffer_index + 5, resp[16:23]);
           uart_buffer_index <= uart_buffer_index + 7;
-          //sd_cmd <= 0;
           state <= next_state;
           calc_crc7 <= 0;
         end
