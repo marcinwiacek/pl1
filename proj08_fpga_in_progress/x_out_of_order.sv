@@ -7,7 +7,8 @@ parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 
 
 module x_out_of_order(
-input clk
+input clk,
+output reg x
     );    
     
       bit write_enabled = 0;
@@ -50,32 +51,35 @@ reg[7:0] readram_q_length;
   instr instruction_q[0:10]; 
   reg[7:0] instruction_q_length;
   
+  reg x0;
        
   always @(posedge clk) begin
     if (rst) begin
-     readram_q_length = 2;
-     readram_q[0].read_ram_address = 52;
-     readram_q[0].instr_num = 0;
-     readram_q[1].read_ram_address = 54;
-     readram_q[1].instr_num = 1;
+     readram_q_length <= 2;
+     readram_q[0].read_ram_address <= 52;
+     readram_q[0].instr_num <= 0;
+     readram_q[1].read_ram_address <= 54;
+     readram_q[1].instr_num <= 1;
 
-     instruction_q_length = 2;
-     instruction_q[0].read_ram_address = 52;
-     instruction_q[0].state = INSTRUCTION_STATE_FETCH;
-     read_address = instruction_q[0].read_ram_address;
+     instruction_q_length <= 2;
+     instruction_q[0].read_ram_address <= 52;
+     instruction_q[0].state <= INSTRUCTION_STATE_FETCH;
+     read_address <= instruction_q[0].read_ram_address;
 
-     instruction_q[1].read_ram_address = 54;
-     instruction_q[1].state = INSTRUCTION_STATE_FETCH;
+     instruction_q[1].read_ram_address <= 54;
+     instruction_q[1].state <= INSTRUCTION_STATE_FETCH;
      
-     rst=0;
+     rst<=0;
     end else begin
       if (readram_q_length!=0) begin
-        instruction_q[readram_q[0].instr_num].read_ram_value = read_value;
-        instruction_q[readram_q[0].instr_num].state = instruction_q[readram_q[0].instr_num].state + 1;
-        readram_q = {readram_q[1:10],readram_q[0]};
-        readram_q_length = readram_q_length - 1;        
+        instruction_q[readram_q[0].instr_num].read_ram_value <= read_value;
+        instruction_q[readram_q[0].instr_num].state <= instruction_q[readram_q[0].instr_num].state + 1;
+        readram_q <= {readram_q[1:10],readram_q[0]};
+        readram_q_length <= readram_q_length - 1;        
         $display($time, " ",read_address,"=",read_value);
-          read_address = readram_q[0].read_ram_address;
+          read_address <= readram_q[1].read_ram_address;
+          x0 <= read_value;
+          x <= x0;
       end
     end
   end

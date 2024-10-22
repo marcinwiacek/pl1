@@ -3,10 +3,11 @@
 module x_out_of_order_test;
 
 reg clk = 0;
+reg x;
 
 
 x_out_of_order x_out_of_order (
-    .clk(clk)
+    .clk(clk), .x(x)
 );
 
 always #1 clk = ~clk;
