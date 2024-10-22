@@ -1,17 +1,19 @@
 `timescale 1ns / 1ps
 
+//#set_property IOSTANDARD LVCMOS12 [get_ports "x"] ;
+//#output delay constraint
+
 parameter HARDWARE_DEBUG = 0;
 
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 
+module x_out_of_order (
+    input clk,
+    output reg x
+);
 
-module x_out_of_order(
-input clk,
-output reg x
-    );    
-    
-      bit write_enabled = 0;
+  bit write_enabled = 0;
   bit [15:0] write_address;
   bit [15:0] write_value;
   bit [15:0] read_address;
@@ -29,59 +31,65 @@ output reg x
       .read_address2(read_address2),
       .read_value2(read_value2)
   );
-  
+
   reg rst = 1;
-  
+
   typedef struct {
-    reg[15:0] read_ram_address;
-    reg[7:0] instr_num;
+    reg [15:0] read_ram_address;
+    reg [7:0]  instr_num;
   } readram;
 
-readram readram_q[0:10];
-reg[7:0] readram_q_length;
+  readram readram_q[0:10];
+  reg [7:0] readram_q_length;
 
-  parameter INSTRUCTION_STATE_FETCH=1;
+  parameter INSTRUCTION_STATE_FETCH = 1;
 
   typedef struct {
-    reg[15:0] read_ram_address;
-    reg[15:0] read_ram_value;
-    reg[5:0] state;  
+    reg [15:0] read_ram_address;
+    reg [15:0] read_ram_value;
+    reg [5:0]  state;
   } instr;
-  
-  instr instruction_q[0:10]; 
-  reg[7:0] instruction_q_length;
-  
+
+  instr instruction_q[0:10];
+  reg [7:0] instruction_q_length;
+
   reg x0;
-       
+
   always @(posedge clk) begin
     if (rst) begin
-     readram_q_length <= 2;
-     readram_q[0].read_ram_address <= 52;
-     readram_q[0].instr_num <= 0;
-     readram_q[1].read_ram_address <= 54;
-     readram_q[1].instr_num <= 1;
+      readram_q_length <= 2;
+      readram_q[0].read_ram_address <= 52;
+      readram_q[0].instr_num <= 0;
+      readram_q[1].read_ram_address <= 54;
+      readram_q[1].instr_num <= 1;
 
-     instruction_q_length <= 2;
-     instruction_q[0].read_ram_address <= 52;
-     instruction_q[0].state <= INSTRUCTION_STATE_FETCH;
-     read_address <= instruction_q[0].read_ram_address;
+      instruction_q_length <= 2;
+      instruction_q[0].read_ram_address <= 52;
+      instruction_q[0].state <= INSTRUCTION_STATE_FETCH;
+      read_address <= instruction_q[0].read_ram_address;
 
-     instruction_q[1].read_ram_address <= 54;
-     instruction_q[1].state <= INSTRUCTION_STATE_FETCH;
-     
-     rst<=0;
+      instruction_q[1].read_ram_address <= 54;
+      instruction_q[1].state <= INSTRUCTION_STATE_FETCH;
+
+      rst <= 0;
     end else begin
-      if (readram_q_length!=0) begin
+      if (readram_q_length != 0) begin
         instruction_q[readram_q[0].instr_num].read_ram_value <= read_value;
         instruction_q[readram_q[0].instr_num].state <= instruction_q[readram_q[0].instr_num].state + 1;
-        readram_q <= {readram_q[1:10],readram_q[0]};
-        readram_q_length <= readram_q_length - 1;        
-        $display($time, " ",read_address,"=",read_value);
-          read_address <= readram_q[1].read_ram_address;
-          x <= read_value;
+        readram_q <= {readram_q[1:10], readram_q[0]};
+        readram_q_length <= readram_q_length - 1;
+        $display($time, " ", read_address, "=", read_value);
+        read_address <= readram_q[1].read_ram_address;
+        x <= read_value;
       end
     end
   end
+endmodule
+
+module decoder (
+    input clk
+);
+
 endmodule
 
 module single_blockram (
