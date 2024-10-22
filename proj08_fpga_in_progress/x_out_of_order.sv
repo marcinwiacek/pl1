@@ -29,8 +29,23 @@ input clk
       .read_value2(read_value2)
   );
   
+  reg rst = 1;
+  
+  typedef struct {
+    reg[15:0] read_ram_address [0:10];
+    reg[7:0] length;
+  } instruction_q;
+  
+  read_ram_q read_ram_queue; 
+  
   always @(posedge clk) begin
-    
+    if (rst) begin
+     read_ram_queue.length = {1};
+     read_ram_queue.read_ram_address[0] = 52;
+    end else begin
+      $display(read_address,"=",read_value);
+      if (read_value
+    end
   end
 endmodule
 
