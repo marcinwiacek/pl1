@@ -78,8 +78,7 @@ reg[7:0] readram_q_length;
         readram_q_length <= readram_q_length - 1;        
         $display($time, " ",read_address,"=",read_value);
           read_address <= readram_q[1].read_ram_address;
-          x0 <= read_value;
-          x <= x0;
+          x <= read_value;
       end
     end
   end
