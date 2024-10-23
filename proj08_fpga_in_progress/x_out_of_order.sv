@@ -13,11 +13,30 @@ module x_out_of_order (
     output reg x
 );
 
+//--------------------------------------------------------- mmu ----------------------------
+
+wire mmu_ready;
+
+mmu mmu(
+      .clk(clk),.ready(mmu_ready)
+);
+
+//---------------------------------------------------------decoder--------------------------
+
 wire decoder_ready;
 
 decoder decoder(
       .clk(clk),.ready(decoder_ready)
 );
+
+typedef struct {
+    reg [7:0]  instr_num;
+  } decoder_q;
+
+  decoder_q decoder_queue[0:10];
+  reg [7:0] decoder_queue_length;
+
+//------------------------------------------------------------ram---------------------------
 
   bit write_enabled = 0;
   bit [15:0] write_address;
@@ -48,6 +67,7 @@ decoder decoder(
   readram readram_q[0:10];
   reg [7:0] readram_q_length;
 
+//----------------------------------------------------- instructions --------------
   parameter INSTRUCTION_STATE_FETCH = 1;
   parameter INSTRUCTION_STATE_DECODE = 2;
   parameter INSTRUCTION_STATE_MMU_RAM = 3;
@@ -55,7 +75,8 @@ decoder decoder(
   parameter INSTRUCTION_STATE_SAVE_RAM = 5;
 
   typedef struct {
-    reg [15:0] read_ram_address;
+    reg [15:0] start_ram_address;
+    reg [15:0] end_ram_address;
     reg [15:0] read_ram_value;
     reg [5:0]  state;
   } instr;
@@ -63,15 +84,13 @@ decoder decoder(
   instr instruction_q[0:10];
   reg [7:0] instruction_q_length;
 
-  reg x0;
-
   always @(posedge clk) begin
     if (rst) begin
       readram_q_length <= 2;
       readram_q[0].read_ram_address <= 52;
+      readram_q[1].read_ram_address <= 53;
       readram_q[0].instr_num <= 0;
-      readram_q[1].read_ram_address <= 54;
-      readram_q[1].instr_num <= 1;
+      readram_q[1].instr_num <= 0;
 
       instruction_q_length <= 2;
       instruction_q[0].read_ram_address <= 52;
@@ -97,6 +116,19 @@ decoder decoder(
 endmodule
 
 module decoder (
+    input clk,
+    input [5:0] instr_num,
+    output bit ready,
+    output bit[5:0] instr_num2
+);
+
+ always @(posedge clk) begin
+ 
+ end
+ 
+endmodule
+
+module mmu (
     input clk,
     output bit ready
 );
