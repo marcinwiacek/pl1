@@ -13,6 +13,8 @@ module x_out_of_order (
     output reg x
 );
 
+reg [15:0] registers[0:31]; // = {'z};
+
 //--------------------------------------------------------- mmu ----------------------------
 
 wire mmu_ready;
@@ -60,7 +62,6 @@ typedef struct {
   reg rst = 1;
 
   typedef struct {
-    reg [15:0] read_ram_address;
     reg [7:0]  instr_num;
   } readram;
 
@@ -76,7 +77,7 @@ typedef struct {
 
   typedef struct {
     reg [15:0] start_ram_address;
-    reg [15:0] end_ram_address;
+    reg [15:0] length;
     reg [15:0] read_ram_value;
     reg [5:0]  state;
   } instr;
@@ -86,20 +87,15 @@ typedef struct {
 
   always @(posedge clk) begin
     if (rst) begin
-      readram_q_length <= 2;
-      readram_q[0].read_ram_address <= 52;
-      readram_q[1].read_ram_address <= 53;
+      readram_q_length <= 1;
       readram_q[0].instr_num <= 0;
-      readram_q[1].instr_num <= 0;
 
       instruction_q_length <= 2;
-      instruction_q[0].read_ram_address <= 52;
+      instruction_q[0].start_ram_address <= 52;
       instruction_q[0].state <= INSTRUCTION_STATE_FETCH;
       read_address <= instruction_q[0].read_ram_address;
-
-      instruction_q[1].read_ram_address <= 54;
-      instruction_q[1].state <= INSTRUCTION_STATE_FETCH;
-
+      read_address <= instruction_q[0].read_ram_address+1;
+      
       rst <= 0;
     end else begin
       if (readram_q_length != 0) begin
@@ -118,12 +114,13 @@ endmodule
 module decoder (
     input clk,
     input [5:0] instr_num,
+    reg [15:0] instruction1, instruction2,
     output bit ready,
     output bit[5:0] instr_num2
 );
 
  always @(posedge clk) begin
- 
+   
  end
  
 endmodule
