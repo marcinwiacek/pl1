@@ -13,6 +13,12 @@ module x_out_of_order (
     output reg x
 );
 
+wire decoder_ready;
+
+decoder decoder(
+      .clk(clk),.ready(decoder_ready)
+);
+
   bit write_enabled = 0;
   bit [15:0] write_address;
   bit [15:0] write_value;
@@ -43,6 +49,10 @@ module x_out_of_order (
   reg [7:0] readram_q_length;
 
   parameter INSTRUCTION_STATE_FETCH = 1;
+  parameter INSTRUCTION_STATE_DECODE = 2;
+  parameter INSTRUCTION_STATE_MMU_RAM = 3;
+  parameter INSTRUCTION_STATE_MMU_REG = 4;
+  parameter INSTRUCTION_STATE_SAVE_RAM = 5;
 
   typedef struct {
     reg [15:0] read_ram_address;
@@ -87,7 +97,8 @@ module x_out_of_order (
 endmodule
 
 module decoder (
-    input clk
+    input clk,
+    output bit ready
 );
 
 endmodule
