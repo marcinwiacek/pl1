@@ -99,6 +99,10 @@ module x_out_of_order (
 
   instr instruction_q[0:10];
   reg [7:0] instruction_q_length;
+  
+  reg jmp_stall_exists = 0;
+  reg [15:0] pc = 52;
+  reg [7:0] instr_num=0;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -109,32 +113,46 @@ module x_out_of_order (
       instruction_q[0].start_ram_address <= 52;
       instruction_q[0].state <= INSTRUCTION_STATE_FETCH;
       read_address <= 52;
-      read_address <= 53;
+      read_address2 <= 53;
 
       rst <= 0;
-    end else begin
+    end else if (instr_num<20) begin
       if (readram_q_length != 0) begin
         if (instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_FETCH) begin
-          decoder_instr_num <= readram_q[0].instr_num;
-          decoder_instruction1 <= read_value;
-          decoder_instruction2 <= read_value2;
+          decoder_instr_num = readram_q[0].instr_num;
+          decoder_instruction1 = read_value;
+          decoder_instruction2 = read_value2;
           $display($time, " fetch ", read_address, "=", read_value, " ", read_address2, "=",
                    read_value2);
-          decoder_inp <= 1;
+          decoder_inp = 1;
         end else begin
-          decoder_inp <= 0;
+          decoder_inp = 0;
         end
-        instruction_q[readram_q[0].instr_num].read_ram_value <= read_value;
-        instruction_q[readram_q[0].instr_num].state <= instruction_q[readram_q[0].instr_num].state + 1;
-        readram_q <= {readram_q[1:10], readram_q[0]};
-        readram_q_length <= readram_q_length - 1;
-        read_address <= instruction_q[readram_q[1].instr_num].start_ram_address;
-        read_address <= instruction_q[readram_q[1].instr_num].start_ram_address + 1;
-        x <= read_value;
+        instruction_q[readram_q[0].instr_num].read_ram_value = read_value;
+        instruction_q[readram_q[0].instr_num].state = instruction_q[readram_q[0].instr_num].state + 1;
+        readram_q = {readram_q[1:10], readram_q[0]};
+        readram_q_length = readram_q_length - 1;
+        read_address = instruction_q[readram_q[1].instr_num].start_ram_address;
+        read_address = instruction_q[readram_q[1].instr_num].start_ram_address + 1;
+        x = read_value;
       end else begin
-        decoder_inp <= 0;
+        decoder_inp = 0;
       end
       if (decoder_ready) begin
+        instr_num = instr_num+1;
+      end
+      if (!jmp_stall_exists && instruction_q_length<10) begin
+         $display($time, " adding");                
+          readram_q[readram_q_length].instr_num <= instruction_q_length;             
+          readram_q_length = readram_q_length+1;
+
+         instruction_q_length =instruction_q_length+1;
+         pc = pc + 2;
+         instruction_q[instruction_q_length].start_ram_address <= pc;
+         instruction_q[instruction_q_length].state <= INSTRUCTION_STATE_FETCH;
+         read_address = pc;
+         read_address2 = pc+1; 
+         
       end
     end
   end
@@ -203,7 +221,7 @@ module decoder (
   //parameter OPCODE_REG_INT_NON_BLOCKING =33; //int number (8 bit), address to jump in case of int
 
   always @(posedge clk) begin
-    if (inp) $display($time, "decoder ");
+    if (inp) $display($time, " decoder");
     case (instruction1_1)
       //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
       OPCODE_RAM2REG: begin
