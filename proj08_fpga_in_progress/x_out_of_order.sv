@@ -8,6 +8,21 @@ parameter HARDWARE_DEBUG = 0;
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 
+  parameter ERROR_NONE = 0;
+  parameter ERROR_WRONG_ADDRESS = 1;
+  parameter ERROR_DIVIDE_BY_ZERO = 2;
+  parameter ERROR_WRONG_REG_NUM = 3;
+  parameter ERROR_WRONG_OPCODE = 4;
+  
+    //offsets for process info in segment 0
+  parameter ADDRESS_NEXT_PROCESS = 0;
+  parameter ADDRESS_PC = 4;
+  parameter ADDRESS_REG_USED = 8;
+  parameter ADDRESS_REG = 10;
+  parameter ADDRESS_MMU_LEN = ADDRESS_REG + 32;
+  parameter ADDRESS_MMU_NEXT_SEGMENT = ADDRESS_REG + 32 + 7;
+  parameter ADDRESS_PROGRAM = ADDRESS_REG + 32 + 7 + 1;
+  
 module x_out_of_order (
     input clk,
     output reg x
@@ -90,7 +105,7 @@ typedef struct {
       readram_q_length <= 1;
       readram_q[0].instr_num <= 0;
 
-      instruction_q_length <= 2;
+      instruction_q_length <= 1;
       instruction_q[0].start_ram_address <= 52;
       instruction_q[0].state <= INSTRUCTION_STATE_FETCH;
       read_address <= instruction_q[0].read_ram_address;
@@ -116,11 +131,85 @@ module decoder (
     input [5:0] instr_num,
     reg [15:0] instruction1, instruction2,
     output bit ready,
-    output bit[5:0] instr_num2
+    output bit[5:0] instr_num2,
+    output bit [3:0] error_code
 );
 
+ bit [7:0] instruction1_1;
+  bit [7:0] instruction1_2;
+  bit [4:0] instruction1_2_1;
+  bit [2:0] instruction1_2_2;
+  bit [7:0] instruction2_1;
+  bit [7:0] instruction2_2;
+
+  assign instruction1_1   = instruction1[15:8];
+  assign instruction1_2   = instruction1[7:0];
+  assign instruction1_2_1 = instruction1[4:0];
+  assign instruction1_2_2 = instruction1[7:5];
+  assign instruction2_1   = instruction2[15:8];
+  assign instruction2_2   = instruction2[7:0];
+
+  parameter OPCODE_JMP = 1;  //24 bit target address
+  parameter OPCODE_JMP16 = 2;  //x, register num with target addr (we read one reg)
+  //  parameter OPCODE_JMP32 = 3;  //x, first register num with target addr (we read two reg)
+  //  parameter OPCODE_JMP64 = 4;  //x, first register num with target addr (we read four reg)  
+  parameter OPCODE_JMP_PLUS = 5;  //x, 16 bit how many instructions
+  parameter OPCODE_JMP_PLUS16 = 6;  //x, register num with info (we read one reg)
+  parameter OPCODE_JMP_MINUS = 7;  //x, 16 bit how many instructions  
+  parameter OPCODE_JMP_MINUS16 = 8;  //x, register num with info (we read one reg)
+  parameter OPCODE_RAM2REG = 9;  //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
+  parameter OPCODE_RAM2REG16 = 'ha; //start register num, how many registers, register num with source addr (we read one reg), //ram -> reg  
+  //  parameter OPCODE_RAM2REG32 = 11; //start register num, how many registers, first register num with source addr (we read two reg), //ram -> reg
+  //  parameter OPCODE_RAM2REG64 = 12; //start register num, how many registers, first register num with source addr (we read four reg), //ram -> reg
+  parameter OPCODE_REG2RAM = 'he; //14 //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
+  parameter OPCODE_REG2RAM16 = 'hf; //15 //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
+  //  parameter OPCODE_REG2RAM32 = 16; //start register num, how many registers, first register num with target addr (we read two reg), //reg -> ram
+  //  parameter OPCODE_REG2RAM64 = 17; //start register num, how many registers, first register num with target addr (we read four reg), //reg -> ram
+  parameter OPCODE_NUM2REG = 'h12; //18;  //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
+  parameter OPCODE_REG_PLUS = 'h14;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
+  parameter OPCODE_REG_MINUS = 'h15; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+  parameter OPCODE_REG_MUL = 'h16; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
+  parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
+  parameter OPCODE_EXIT = 'h18;  //exit process
+  parameter OPCODE_PROC = 'h19;  //new process //how many pages, start page number (16 bit)
+  parameter OPCODE_REG_INT = 'h1a;  //int number (8 bit), start memory page, end memory page 
+  parameter OPCODE_INT = 'h1b;  //int number (8 bit), start memory page, end memory page
+  parameter OPCODE_INT_RET = 'h1c;  //int number
+  parameter OPCODE_RAM2OUT = 'h1d;  //port number, 16 bit source address
+  parameter OPCODE_REG_IN2RAM = 'h1e;  //port number, 16 bit source address
+  parameter OPCODE_IN2RAM_RET = 'h1f;
+
+  parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions (8 bit value) // do..while
+  parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions (8 bit value) //do..while
+  parameter OPCODE_LOOP = 25;  //x, x, how many instructions (8 bit value) //for...
+  parameter OPCODE_FREE = 31;  //free ram pages x-y 
+  parameter OPCODE_FREE_LEVEL =32; //free ram pages allocated after page x (or pages with concrete level)
+  //parameter OPCODE_REG_INT_NON_BLOCKING =33; //int number (8 bit), address to jump in case of int
+  
  always @(posedge clk) begin
-   
+   case (instruction1_1)
+    //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
+            OPCODE_RAM2REG: begin
+ if (instruction1_2_1 + instruction1_2_2 >= 32) begin
+                error_code <= ERROR_WRONG_REG_NUM;
+              end else if (instruction2 < ADDRESS_PROGRAM) begin
+                error_code <= ERROR_WRONG_ADDRESS;
+              end else begin
+                  $display(  //DEBUG info
+                      $time,  //DEBUG info
+                      " opcode = ram2reg read value from address ",  //DEBUG info
+                      instruction2,  //DEBUG info
+                      "+ to reg ",  //DEBUG info
+                      instruction1_2_1,  //DEBUG info
+                      "-",  //DEBUG info
+                      (instruction1_2_1 + instruction1_2_2)  //DEBUG info
+                  );  //DEBUG info
+                ram_read_save_reg_start <= instruction1_2_1;
+                ram_read_save_reg_end   <= instruction1_2_1 + instruction1_2_2;
+                `MAKE_MMU_SEARCH(read_value2, STAGE_GET_RAM_BYTE);
+              end           
+            end
+            endcase 
  end
  
 endmodule
