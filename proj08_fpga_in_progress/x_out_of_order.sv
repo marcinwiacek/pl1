@@ -28,15 +28,17 @@ module x_out_of_order (
     output reg x
 );
 
-  reg [15:0] registers[0:31];  // = {'z};
-
   //--------------------------------------------------------- mmu ----------------------------
 
   wire mmu_ready;
+reg [15:0] mmu_adress_to_translate;
+    wire [15:0] mmu_adress_translated;
 
   mmu mmu (
       .clk  (clk),
-      .ready(mmu_ready)
+      .ready(mmu_ready),
+      .adress_to_translate(mmu_adress_to_translate),
+      .adress_translated(mmu_adress_translated)      
   );
 
   //---------------------------------------------------------decoder--------------------------
@@ -100,7 +102,10 @@ module x_out_of_order (
   instr instruction_q[0:10];
   reg [7:0] instruction_q_length;
   
+  //--------------------------------------------------------------------process------------------
+  
   reg jmp_stall_exists = 0;
+  reg [15:0] registers[0:31];  // = {'z};
   reg [15:0] pc = 52;
   reg [7:0] instr_num=0;
 
@@ -151,8 +156,7 @@ module x_out_of_order (
          instruction_q[instruction_q_length].start_ram_address <= pc;
          instruction_q[instruction_q_length].state <= INSTRUCTION_STATE_FETCH;
          read_address = pc;
-         read_address2 = pc+1; 
-         
+         read_address2 = pc+1;          
       end
     end
   end
@@ -221,7 +225,7 @@ module decoder (
   //parameter OPCODE_REG_INT_NON_BLOCKING =33; //int number (8 bit), address to jump in case of int
 
   always @(posedge clk) begin
-    if (inp) $display($time, " decoder");
+    if (inp) $display($time, " decoder ",instruction1);
     case (instruction1_1)
       //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
       OPCODE_RAM2REG: begin
@@ -251,8 +255,13 @@ endmodule
 
 module mmu (
     input clk,
-    output bit ready
+    output bit ready,
+    input reg [15:0] adress_to_translate,
+    output reg [15:0] adress_translated
 );
+
+ always @(posedge clk) begin
+ end
 
 endmodule
 
