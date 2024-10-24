@@ -31,14 +31,14 @@ module x_out_of_order (
   //--------------------------------------------------------- mmu ----------------------------
 
   wire mmu_ready;
-reg [15:0] mmu_adress_to_translate;
-    wire [15:0] mmu_adress_translated;
+  reg [15:0] mmu_adress_to_translate;
+  wire [15:0] mmu_adress_translated;
 
   mmu mmu (
-      .clk  (clk),
+      .clk(clk),
       .ready(mmu_ready),
       .adress_to_translate(mmu_adress_to_translate),
-      .adress_translated(mmu_adress_translated)      
+      .adress_translated(mmu_adress_translated)
   );
 
   //---------------------------------------------------------decoder--------------------------
@@ -101,13 +101,13 @@ reg [15:0] mmu_adress_to_translate;
 
   instr instruction_q[0:10];
   reg [7:0] instruction_q_length;
-  
+
   //--------------------------------------------------------------------process------------------
-  
+
   reg jmp_stall_exists = 0;
   reg [15:0] registers[0:31];  // = {'z};
   reg [15:0] pc = 52;
-  reg [7:0] instr_num=0;
+  reg [7:0] instr_num = 0;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -121,7 +121,7 @@ reg [15:0] mmu_adress_to_translate;
       read_address2 <= 53;
 
       rst <= 0;
-    end else if (instr_num<20) begin
+    end else if (instr_num < 20) begin
       if (readram_q_length != 0) begin
         if (instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_FETCH) begin
           decoder_instr_num = readram_q[0].instr_num;
@@ -144,19 +144,19 @@ reg [15:0] mmu_adress_to_translate;
         decoder_inp = 0;
       end
       if (decoder_ready) begin
-        instr_num = instr_num+1;
+        instr_num = instr_num + 1;
       end
-      if (!jmp_stall_exists && instruction_q_length<10) begin
-         $display($time, " adding");                
-          readram_q[readram_q_length].instr_num <= instruction_q_length;             
-          readram_q_length = readram_q_length+1;
+      if (!jmp_stall_exists && instruction_q_length < 10) begin
+        $display($time, " adding");
+        readram_q[readram_q_length].instr_num <= instruction_q_length;
+        readram_q_length = readram_q_length + 1;
 
-         instruction_q_length =instruction_q_length+1;
-         pc = pc + 2;
-         instruction_q[instruction_q_length].start_ram_address <= pc;
-         instruction_q[instruction_q_length].state <= INSTRUCTION_STATE_FETCH;
-         read_address = pc;
-         read_address2 = pc+1;          
+        instruction_q_length = instruction_q_length + 1;
+        pc = pc + 2;
+        instruction_q[instruction_q_length].start_ram_address <= pc;
+        instruction_q[instruction_q_length].state <= INSTRUCTION_STATE_FETCH;
+        read_address  = pc;
+        read_address2 = pc + 1;
       end
     end
   end
@@ -225,7 +225,7 @@ module decoder (
   //parameter OPCODE_REG_INT_NON_BLOCKING =33; //int number (8 bit), address to jump in case of int
 
   always @(posedge clk) begin
-    if (inp) $display($time, " decoder ",instruction1);
+    if (inp) $display($time, " decoder ", instruction1);
     case (instruction1_1)
       //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
       OPCODE_RAM2REG: begin
@@ -260,8 +260,8 @@ module mmu (
     output reg [15:0] adress_translated
 );
 
- always @(posedge clk) begin
- end
+  always @(posedge clk) begin
+  end
 
 endmodule
 
