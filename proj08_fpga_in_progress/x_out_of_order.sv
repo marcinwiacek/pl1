@@ -40,18 +40,19 @@ mmu mmu(
 
 //---------------------------------------------------------decoder--------------------------
 
+reg [5:0] decoder_instr_num;
+reg [15:0] decoder_instruction1, decoder_instruction2;
+reg decoder_inp;
 wire decoder_ready;
 
 decoder decoder(
-      .clk(clk),.ready(decoder_ready)
+      .clk(clk),
+      .instr_num(decoder_instr_num),
+      .instruction1(decoder_instruction1),
+      .instruction2(decoder_instruction2),
+    .inp(decoder_inp),
+    .ready(decoder_ready)      
 );
-
-typedef struct {
-    reg [7:0]  instr_num;
-  } decoder_q;
-
-  decoder_q decoder_queue[0:10];
-  reg [7:0] decoder_queue_length;
 
 //------------------------------------------------------------ram---------------------------
 
@@ -108,19 +109,32 @@ typedef struct {
       instruction_q_length <= 1;
       instruction_q[0].start_ram_address <= 52;
       instruction_q[0].state <= INSTRUCTION_STATE_FETCH;
-      read_address <= instruction_q[0].read_ram_address;
-      read_address <= instruction_q[0].read_ram_address+1;
+      read_address <= 52;
+      read_address <= 53;
       
       rst <= 0;
     end else begin
       if (readram_q_length != 0) begin
+        if (instruction_q[readram_q[0].instr_num].state==INSTRUCTION_STATE_FETCH) begin
+            decoder_instr_num<=readram_q[0].instr_num;
+            decoder_instruction1<=read_value;
+            decoder_instruction2<=read_value2;
+            $display($time," fetch ",read_address,"=",read_value," ",read_address2,"=",read_value2);
+            decoder_inp <= 1;
+        end else begin
+            decoder_inp <= 0;                            
+        end        
         instruction_q[readram_q[0].instr_num].read_ram_value <= read_value;
         instruction_q[readram_q[0].instr_num].state <= instruction_q[readram_q[0].instr_num].state + 1;
         readram_q <= {readram_q[1:10], readram_q[0]};
         readram_q_length <= readram_q_length - 1;
-        $display($time, " ", read_address, "=", read_value);
-        read_address <= readram_q[1].read_ram_address;
+        read_address <= instruction_q[readram_q[1].instr_num].start_ram_address;
+        read_address <= instruction_q[readram_q[1].instr_num].start_ram_address+1;
         x <= read_value;
+      end else begin
+            decoder_inp <= 0;
+      end
+      if (decoder_ready) begin
       end
     end
   end
@@ -129,7 +143,8 @@ endmodule
 module decoder (
     input clk,
     input [5:0] instr_num,
-    reg [15:0] instruction1, instruction2,
+    input reg [15:0] instruction1, instruction2,
+    input bit inp,
     output bit ready,
     output bit[5:0] instr_num2,
     output bit [3:0] error_code
@@ -187,6 +202,7 @@ module decoder (
   //parameter OPCODE_REG_INT_NON_BLOCKING =33; //int number (8 bit), address to jump in case of int
   
  always @(posedge clk) begin
+if (inp) $display($time, "decoder ");
    case (instruction1_1)
     //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
             OPCODE_RAM2REG: begin
@@ -204,9 +220,9 @@ module decoder (
                       "-",  //DEBUG info
                       (instruction1_2_1 + instruction1_2_2)  //DEBUG info
                   );  //DEBUG info
-                ram_read_save_reg_start <= instruction1_2_1;
-                ram_read_save_reg_end   <= instruction1_2_1 + instruction1_2_2;
-                `MAKE_MMU_SEARCH(read_value2, STAGE_GET_RAM_BYTE);
+                //ram_read_save_reg_start <= instruction1_2_1;
+                //ram_read_save_reg_end   <= instruction1_2_1 + instruction1_2_2;
+                //`MAKE_MMU_SEARCH(read_value2, STAGE_GET_RAM_BYTE);
               end           
             end
             endcase 
