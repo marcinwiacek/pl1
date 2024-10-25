@@ -104,7 +104,7 @@ module x_out_of_order (
 
   typedef struct {reg [7:0] instr_num;} readram;
 
-  readram readram_q[0:100];
+  readram readram_q[0:10];
   reg [7:0] readram_q_length;
 
   //----------------------------------------------------- instructions --------------
@@ -156,7 +156,7 @@ module x_out_of_order (
         end
         // instruction_q[readram_q[0].instr_num].read_ram_value = read_value;
         instruction_q[readram_q[0].instr_num].state = instruction_q[readram_q[0].instr_num].state + 1;
-        readram_q = {readram_q[1:100], readram_q[0]};
+        readram_q = {readram_q[1:10], readram_q[0]};
         readram_q_length = readram_q_length - 1;
         read_address = instruction_q[readram_q[1].instr_num].start_ram_address;
         read_address = instruction_q[readram_q[1].instr_num].start_ram_address + 1;
