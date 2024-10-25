@@ -58,14 +58,14 @@ module x_out_of_order (
 
   reg [5:0] decoder_instr_num;
   reg [15:0] decoder_instruction1, decoder_instruction2;
-  reg  decoder_inp;
+  reg decoder_inp;
   wire decoder_ready;
   wire [5:0] decoder_state;
-    wire [3:0] decoder_error_code;
-    wire [15:0] decoder_start_ram_address;
-    wire [15:0] decoder_length;
-    wire [10:0] decoder_register;
-  
+  wire [3:0] decoder_error_code;
+  wire [15:0] decoder_start_ram_address;
+  wire [15:0] decoder_length;
+  wire [10:0] decoder_register;
+
   decoder decoder (
       .clk(clk),
       .instr_num(decoder_instr_num),
@@ -73,13 +73,13 @@ module x_out_of_order (
       .instruction2(decoder_instruction2),
       .inp(decoder_inp),
       .ready(decoder_ready),
-        .state(decoder_state),
-    .error_code(decoder_error_code),
-    .start_ram_address(decoder_start_ram_address),
-    .length(decoder_length),
-    .register(decoder_register)
+      .state(decoder_state),
+      .error_code(decoder_error_code),
+      .start_ram_address(decoder_start_ram_address),
+      .length(decoder_length),
+      .register(decoder_register)
   );
-  
+
   //------------------------------------------------------------ram---------------------------
 
   bit write_enabled = 0;
@@ -127,7 +127,7 @@ module x_out_of_order (
   reg [15:0] pc = 52;
   reg [7:0] instr_num = 0;
 
-integer i;
+  integer i;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -167,20 +167,19 @@ integer i;
       end
       if (decoder_ready) begin
         instr_num = instr_num + 1;
-mmu_input= 1;
-mmu_adress_to_translate = decoder_start_ram_address;
- end
-      if (mmu_ready) begin
-for (i=0;i<32;i=i+1) begin
-end      
+        mmu_input = 1;
+        mmu_adress_to_translate = decoder_start_ram_address;
       end
-        /* state <= INSTRUCTION_STATE_MMU_RAM_2_REG;
+      if (mmu_ready) begin
+        for (i = 0; i < 32; i = i + 1) begin
+        end
+      end
+      /* state <= INSTRUCTION_STATE_MMU_RAM_2_REG;
     error_code<=0;
     start_ram_address<=instruction2;
     length<=instruction1_2_2;
     register<=instruction1_2_1;          
 */
-      end
       if (!jmp_stall_exists && instruction_q_length < 11) begin
         $display($time, " adding ", pc);
         readram_q[readram_q_length].instr_num <= instruction_q_length;
@@ -325,7 +324,7 @@ module mmu (
 
   always @(posedge clk) begin
     ready <= inp;
-    adress_translated<=adress_to_translate;
+    adress_translated <= adress_to_translate;
   end
 
 endmodule
