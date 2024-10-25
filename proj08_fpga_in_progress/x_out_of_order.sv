@@ -110,7 +110,8 @@ module x_out_of_order (
   //----------------------------------------------------- instructions --------------
 
   typedef struct {
-    reg [15:0] start_ram_address;
+    reg [15:0] start_ram_address_logical;
+    reg [15:0] start_ram_address_physical;    
     reg [15:0] length;
     reg [10:0] register;
     reg [5:0]  state;
@@ -134,7 +135,7 @@ module x_out_of_order (
       readram_q[0].instr_num <= 0;
 
       instruction_q_length <= 1;
-      instruction_q[0].start_ram_address <= 52;
+      instruction_q[0].start_ram_address_physical <= 52;
       instruction_q[0].state <= INSTRUCTION_STATE_FETCH;
       read_address <= 52;
       read_address2 <= 53;
@@ -158,14 +159,19 @@ module x_out_of_order (
         instruction_q[readram_q[0].instr_num].state = instruction_q[readram_q[0].instr_num].state + 1;
         readram_q = {readram_q[1:10], readram_q[0]};
         readram_q_length = readram_q_length - 1;
-        read_address = instruction_q[readram_q[1].instr_num].start_ram_address;
-        read_address = instruction_q[readram_q[1].instr_num].start_ram_address + 1;
+        read_address = instruction_q[readram_q[1].instr_num].start_ram_address_physical;
+        read_address = instruction_q[readram_q[1].instr_num].start_ram_address_physical + 1;
         x = read_value;
       end else begin
         decoder_inp = 0;
       end
       if (decoder_ready) begin
-        instr_num = instr_num + 1;
+        instr_num = instr_num + 1; 
+        instruction_q[decoder_instr_num].state = decoder_state;
+        instruction_q[decoder_instr_num].start_ram_address_logical=decoder_start_ram_address;
+        instruction_q[decoder_instr_num].length=decoder_length;
+        instruction_q[decoder_instr_num].register=decoder_register;
+
         mmu_input = 1;
         mmu_adress_to_translate = decoder_start_ram_address;
       end
@@ -173,19 +179,15 @@ module x_out_of_order (
         for (i = 0; i < 32; i = i + 1) begin
         end
       end
-      /* state <= INSTRUCTION_STATE_MMU_RAM_2_REG;
-    error_code<=0;
-    start_ram_address<=instruction2;
-    length<=instruction1_2_2;
-    register<=instruction1_2_1;          
-*/
+   
       if (!jmp_stall_exists && instruction_q_length < 11) begin
         $display($time, " adding ", pc);
         readram_q[readram_q_length].instr_num <= instruction_q_length;
         readram_q_length = readram_q_length + 1;
 
         instruction_q_length = instruction_q_length + 1;
-        instruction_q[instruction_q_length].start_ram_address = pc;
+        instruction_q[instruction_q_length].start_ram_address_logical = pc;
+        instruction_q[instruction_q_length].start_ram_address_physical = pc;
         instruction_q[instruction_q_length].state = INSTRUCTION_STATE_FETCH;
         read_address = pc;
         read_address2 = pc + 1;
