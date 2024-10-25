@@ -23,7 +23,7 @@ parameter ADDRESS_MMU_LEN = ADDRESS_REG + 32;
 parameter ADDRESS_MMU_NEXT_SEGMENT = ADDRESS_REG + 32 + 7;
 parameter ADDRESS_PROGRAM = ADDRESS_REG + 32 + 7 + 1;
 
-module x_out_of_order (
+    module x_out_of_order (
     input clk,
     output reg x
 );
@@ -147,16 +147,16 @@ module x_out_of_order (
         instr_num = instr_num + 1;
       end
       if (!jmp_stall_exists && instruction_q_length < 11) begin
-        $display($time, " adding");
+        $display($time, " adding ",pc);
         readram_q[readram_q_length].instr_num <= instruction_q_length;
         readram_q_length = readram_q_length + 1;
 
         instruction_q_length = instruction_q_length + 1;
-        pc = pc + 2;
-        instruction_q[instruction_q_length].start_ram_address <= pc;
-        instruction_q[instruction_q_length].state <= INSTRUCTION_STATE_FETCH;
+        instruction_q[instruction_q_length].start_ram_address = pc;
+        instruction_q[instruction_q_length].state = INSTRUCTION_STATE_FETCH;
         read_address  = pc;
         read_address2 = pc + 1;
+        pc = pc + 2;
       end
     end
   end
@@ -225,7 +225,29 @@ module decoder (
   //parameter OPCODE_REG_INT_NON_BLOCKING =33; //int number (8 bit), address to jump in case of int
 
   always @(posedge clk) begin
-    if (inp) $display($time, " decoder ", instruction1);
+    if (inp) $display(  //DEBUG info
+                $time,  //DEBUG info
+                " decoder ",                
+                " b1 %c",  //DEBUG info
+                instruction1_1 / 16 >= 10 ? instruction1_1 / 16 + 65 - 10 : instruction1_1 / 16 + 48, //DEBUG info
+                "%c",  //DEBUG info
+                instruction1_1 % 16 >= 10 ? instruction1_1 % 16 + 65 - 10 : instruction1_1 % 16 + 48, //DEBUG info
+                "%c",  //DEBUG info
+                instruction1_2 / 16 >= 10 ? instruction1_2 / 16 + 65 - 10 : instruction1_2 / 16 + 48, //DEBUG info
+                "%c",  //DEBUG info
+                instruction1_2 % 16 >= 10 ? instruction1_2 % 16 + 65 - 10 : instruction1_2 % 16 + 48, //DEBUG info
+                "h (",  //DEBUG info
+                instruction1_2_1,  //DEBUG info
+                "-",  //DEBUG info
+                instruction1_2_2,  //DEBUG info
+                ") b2 ",  //DEBUG info
+                instruction2,  //DEBUG info
+                " (",
+                instruction2_1,
+                "-",
+                instruction2_2,
+                ")"
+            );  //DEBUG info
     case (instruction1_1)
       //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
       OPCODE_RAM2REG: begin
