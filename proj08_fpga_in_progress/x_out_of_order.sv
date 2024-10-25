@@ -23,6 +23,11 @@ parameter ADDRESS_MMU_LEN = ADDRESS_REG + 32;
 parameter ADDRESS_MMU_NEXT_SEGMENT = ADDRESS_REG + 32 + 7;
 parameter ADDRESS_PROGRAM = ADDRESS_REG + 32 + 7 + 1;
 
+  parameter INSTRUCTION_STATE_FETCH = 1;
+  parameter INSTRUCTION_STATE_DECODE = 2;
+  parameter INSTRUCTION_STATE_MMU_RAM_2_REG = 3;
+  parameter INSTRUCTION_STATE_RAM_2_REG = 4;
+  
 module x_out_of_order (
     input clk,
     output reg x
@@ -30,16 +35,23 @@ module x_out_of_order (
 
   //--------------------------------------------------------- mmu ----------------------------
 
+  reg mmu_input;
   wire mmu_ready;
   reg [15:0] mmu_adress_to_translate;
   wire [15:0] mmu_adress_translated;
 
   mmu mmu (
       .clk(clk),
+      .inp(mmu_input),
       .ready(mmu_ready),
       .adress_to_translate(mmu_adress_to_translate),
       .adress_translated(mmu_adress_translated)
   );
+  
+    typedef struct {reg [7:0] instr_num;} mmuqueue;
+
+   mmuqueue  mmuqueue_q[0:10];
+  reg [7:0]  mmuqueue_q_length;
 
   //---------------------------------------------------------decoder--------------------------
 
@@ -86,11 +98,6 @@ module x_out_of_order (
   reg [7:0] readram_q_length;
 
   //----------------------------------------------------- instructions --------------
-  parameter INSTRUCTION_STATE_FETCH = 1;
-  parameter INSTRUCTION_STATE_DECODE = 2;
-  parameter INSTRUCTION_STATE_MMU_RAM = 3;
-  parameter INSTRUCTION_STATE_MMU_REG = 4;
-  parameter INSTRUCTION_STATE_SAVE_RAM = 5;
 
   typedef struct {
     reg [15:0] start_ram_address;
@@ -120,6 +127,8 @@ module x_out_of_order (
       read_address <= 52;
       read_address2 <= 53;
 
+mmuqueue_q_length<=0;
+
       rst <= 0;
     end else if (instr_num < 20) begin
       if (readram_q_length != 0) begin
@@ -145,6 +154,14 @@ module x_out_of_order (
       end
       if (decoder_ready) begin
         instr_num = instr_num + 1;
+        
+                  state <= INSTRUCTION_STATE_MMU_RAM_2_REG;
+    error_code<=0;
+    start_ram_address<=instruction2;
+    length<=instruction1_2_2;
+    register<=instruction1_2_1;          
+
+
       end
       if (!jmp_stall_exists && instruction_q_length < 11) begin
         $display($time, " adding ", pc);
@@ -169,8 +186,12 @@ module decoder (
     instruction2,
     input bit inp,
     output bit ready,
-    output bit [5:0] instr_num2,
-    output bit [3:0] error_code
+    output bit [5:0] state,
+    output bit [3:0] error_code,
+    output bit [15:0] start_ram_address,
+    output bit [15:0] length,
+    output bit [10:0] register,
+    output bit [5:0] instr_num2    
 );
 
   bit [7:0] instruction1_1;
@@ -249,6 +270,7 @@ module decoder (
           instruction2_2,
           ")"
       );  //DEBUG info
+      instr_num2<=instr_num;
     case (instruction1_1)
       //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
       OPCODE_RAM2REG: begin
@@ -266,9 +288,11 @@ module decoder (
               "-",  //DEBUG info
               (instruction1_2_1 + instruction1_2_2)  //DEBUG info
           );  //DEBUG info
-          //ram_read_save_reg_start <= instruction1_2_1;
-          //ram_read_save_reg_end   <= instruction1_2_1 + instruction1_2_2;
-          //`MAKE_MMU_SEARCH(read_value2, STAGE_GET_RAM_BYTE);
+          state <= INSTRUCTION_STATE_MMU_RAM_2_REG;
+    error_code<=0;
+    start_ram_address<=instruction2;
+    length<=instruction1_2_2;
+    register<=instruction1_2_1;          
         end
       end
     endcase
