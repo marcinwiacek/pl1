@@ -146,7 +146,7 @@ module x_out_of_order (
       if (decoder_ready) begin
         instr_num = instr_num + 1;
       end
-      if (!jmp_stall_exists && instruction_q_length < 10) begin
+      if (!jmp_stall_exists && instruction_q_length < 11) begin
         $display($time, " adding");
         readram_q[readram_q_length].instr_num <= instruction_q_length;
         readram_q_length = readram_q_length + 1;
