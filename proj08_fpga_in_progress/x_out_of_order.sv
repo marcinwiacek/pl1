@@ -68,7 +68,6 @@ module x_out_of_order (
 
   decoder decoder (
       .clk(clk),
-      .instr_num(decoder_instr_num),
       .instruction1(decoder_instruction1),
       .instruction2(decoder_instruction2),
       .inp(decoder_inp),
@@ -157,7 +156,7 @@ module x_out_of_order (
         end
         // instruction_q[readram_q[0].instr_num].read_ram_value = read_value;
         instruction_q[readram_q[0].instr_num].state = instruction_q[readram_q[0].instr_num].state + 1;
-        readram_q = {readram_q[1:10], readram_q[0]};
+        readram_q = {readram_q[1:100], readram_q[0]};
         readram_q_length = readram_q_length - 1;
         read_address = instruction_q[readram_q[1].instr_num].start_ram_address;
         read_address = instruction_q[readram_q[1].instr_num].start_ram_address + 1;
