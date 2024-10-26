@@ -175,11 +175,11 @@ module x_out_of_order (
         end
         mmuqueue_q = {mmuqueue_q[1:MMU_QUEUE_LEN], mmuqueue_q[0]};
         mmuqueue_q_new_pos = mmuqueue_q_new_pos - 1;
-        mmuqueue_q_empty = mmuqueue_q_new_pos==0;
+        mmuqueue_q_empty = mmuqueue_q_new_pos == 0;
       end
       if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
-        mmu_address_logical = (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) ? pc_logical:0;
+        mmu_address_logical = (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) ? pc_logical : 0;
         mmu_instr_num = mmuqueue_q[0].instr_num;
       end
       if (!jmp_stall_exists && instruction_q_new_pos < 11 && pc_physical != 0) begin
