@@ -25,15 +25,14 @@ parameter ADDRESS_PROGRAM = ADDRESS_REG + 32 + 7 + 1;
 
 parameter INSTRUCTION_STATE_FETCH = 1;
 parameter INSTRUCTION_STATE_DECODE = 2;
-parameter INSTRUCTION_STATE_MMU_RAM_2_REG = 3;
 parameter INSTRUCTION_STATE_RAM_2_REG = 4;
+parameter INSTRUCTION_STATE_REG_ADD = 6;
+parameter INSTRUCTION_STATE_REG_DEC = 8;
+parameter INSTRUCTION_STATE_REG_SET = 10;
 
 parameter MMU_QUEUE_LEN = 10;
 parameter READRAM_QUEUE_LEN = 20;
 parameter INST_QUEUE_LEN = 10;
-
-parameter ALU_ADD = 1;
-parameter ALU_DEC = 2;
 
 module x_out_of_order (
     input clk,
@@ -142,7 +141,7 @@ module x_out_of_order (
   //----------------------------------------------------- instructions --------------
 
   typedef struct {
-    reg [15:0] start_ram_address_logical;
+    reg [15:0] start_ram_address_logical_or_numeric;
     reg [15:0] start_ram_address_physical;
     reg [15:0] length;
     reg [10:0] register;
@@ -156,7 +155,8 @@ module x_out_of_order (
   //--------------------------------------------------------------------process------------------
 
   reg jmp_stall_exists = 0;
-  reg [15:0] registers[0:31];  // = {'z};
+  reg [15:0] registers[0:31];
+  reg registers_init[0:31] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};    
   reg [15:0] pc_logical;
   reg [15:0] pc_physical, pc_physical_min_page, pc_physical_max_page;
   reg [7:0] instr_num = 0;
@@ -188,20 +188,18 @@ module x_out_of_order (
       rst <= 0;
     end else if (instr_num < 20) begin
       if (mmu_ready) begin
-        if (mmuqueue_q[mmuqueue_q_new_pos].instr_num == MMU_QUEUE_PC_INSTR_NUM) begin
+        if (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) begin
           pc_physical_min_page = mmu_address_physical_min_in_the_same_page;
           pc_physical_max_page = mmu_address_physical_max_in_the_same_page;
           pc_physical = mmu_address_physical;
-        end else begin
+        end else if (decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) begin
+          instruction_q[mmuqueue_q[0].instr_num].start_ram_address_physical = mmu_address_physical; 
+          readram_q[readram_q_new_pos].instr_num = mmuqueue_q[0].instr_num;
+          readram_q_new_pos = readram_q_new_pos + 1;          
         end
         mmuqueue_q = {mmuqueue_q[1:MMU_QUEUE_LEN], mmuqueue_q[0]};
         mmuqueue_q_new_pos = mmuqueue_q_new_pos - 1;
         mmuqueue_q_empty = mmuqueue_q_new_pos == 0;
-      end
-      if (!mmuqueue_q_empty && mmu_ready) begin
-        mmu_input = 1;
-        mmu_address_logical = (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) ? pc_logical : 0;
-        mmu_instr_num = mmuqueue_q[0].instr_num;
       end
       if (!jmp_stall_exists && instruction_q_new_pos < 11 && pc_physical != 0) begin
         readram_q[readram_q_new_pos].instr_num = instruction_q_new_pos;
@@ -209,7 +207,7 @@ module x_out_of_order (
                  readram_q_new_pos);
         readram_q_new_pos = readram_q_new_pos + 1;
 
-        instruction_q[instruction_q_new_pos].start_ram_address_logical = pc_logical;
+        instruction_q[instruction_q_new_pos].start_ram_address_logical_or_numeric = pc_logical;
         instruction_q[instruction_q_new_pos].start_ram_address_physical = pc_physical;
         instruction_q[instruction_q_new_pos].state = INSTRUCTION_STATE_FETCH;
         instruction_q_new_pos = instruction_q_new_pos + 1;
@@ -226,9 +224,20 @@ module x_out_of_order (
       if (decoder_ready) begin
         instr_num = instr_num + 1;
         instruction_q[decoder_instr_num].state = decoder_state;
-        instruction_q[decoder_instr_num].start_ram_address_logical = decoder_start_ram_address;
+        instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = decoder_start_ram_address;
         instruction_q[decoder_instr_num].length = decoder_length;
         instruction_q[decoder_instr_num].register = decoder_register;
+        if ((decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) && !registers_init[decoder_register]) begin
+          instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = 0+ADDRESS_REG+decoder_register;
+          mmuqueue_q[mmuqueue_q_new_pos].instr_num = decoder_instr_num;
+          mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
+          mmuqueue_q_empty = 0;         
+        end
+      end
+      if (!mmuqueue_q_empty && mmu_ready) begin
+        mmu_input = 1;
+        mmu_address_logical = (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) ? pc_logical : 0;
+        mmu_instr_num = mmuqueue_q[0].instr_num;
       end
       if (!readram_q_empty) begin
         instruction_q[readram_q[0].instr_num].state = instruction_q[readram_q[0].instr_num].state + 1;
@@ -242,6 +251,9 @@ module x_out_of_order (
                    read_address2, "=", read_value2);
           decoder_instr_num = readram_q[0].instr_num;
           decoder_inp = 1;
+        end else if (instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_REG_ADD || instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_REG_DEC) begin
+          registers[instruction_q[readram_q[0].instr_num].register] = read_value;
+          registers_init[instruction_q[readram_q[0].instr_num].register]=1;
         end else begin
           decoder_inp = 0;
         end
@@ -354,7 +366,7 @@ module decoder (
                 "-",  //DEBUG info
                 (instruction1_2_1 + instruction1_2_2)  //DEBUG info
             );  //DEBUG info
-            state <= INSTRUCTION_STATE_MMU_RAM_2_REG;
+            state <= INSTRUCTION_STATE_RAM_2_REG;
             error_code <= 0;
             start_ram_address <= instruction2;
             length <= instruction1_2_2;
@@ -402,8 +414,8 @@ module alu (
     ready <= inp;
     if (inp) begin
       case (op)
-        ALU_ADD: value = arg1 + arg2;
-        ALU_DEC: value = arg1 - arg2;
+        INSTRUCTION_STATE_REG_ADD: value = arg1 + arg2;
+        INSTRUCTION_STATE_REG_DEC: value = arg1 - arg2;
       endcase
       $display($time, " alu ", arg1, " ", arg2);
     end
