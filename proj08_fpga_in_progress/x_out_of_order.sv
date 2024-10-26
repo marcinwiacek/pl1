@@ -50,7 +50,6 @@ module x_out_of_order (
       .clk(clk),
       .inp(mmu_input),
       .ready(mmu_ready),
-      .address_max_in_the_same_page(mmu_address_max_in_the_same_page),
       .address_logical(mmu_address_logical),
       .address_physical(mmu_address_physical),
       .address_physical_max_in_the_same_page(mmu_address_physical_max_in_the_same_page),
@@ -175,10 +174,17 @@ module x_out_of_order (
         end else begin
         end
         mmuqueue_q = {mmuqueue_q[1:MMU_QUEUE_LEN], mmuqueue_q[0]};
+        mmuqueue_q_new_pos = mmuqueue_q_new_pos - 1;
+        mmuqueue_q_empty = mmuqueue_q_new_pos==0;
+      end
+      if (!mmuqueue_q_empty && mmu_ready) begin
+        mmu_input = 1;
+        mmu_address_logical = (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) ? pc_logical:0;
+        mmu_instr_num = mmuqueue_q[0].instr_num;
       end
       if (!jmp_stall_exists && instruction_q_new_pos < 11 && pc_physical != 0) begin
         readram_q[readram_q_new_pos].instr_num = instruction_q_new_pos;
-        $display($time, pc, " adding fetch to slot ", instruction_q_new_pos, " ram slot ",
+        $display($time, pc_logical, " adding fetch to slot ", instruction_q_new_pos, " ram slot ",
                  readram_q_new_pos);
         readram_q_new_pos = readram_q_new_pos + 1;
 
@@ -344,19 +350,20 @@ module mmu (
     input clk,
     input inp,
     output bit ready = 1,
-    input reg [15:0] mmu_address_logical,
-    output reg [15:0] mmu_address_physical,
-    output reg [15:0] mmu_address_physical_max_in_the_same_page,
-    output reg [15:0] mmu_address_physical_min_in_the_same_page
+    input reg [15:0] address_logical,
+    output reg [15:0] address_physical,
+    output reg [15:0] address_physical_max_in_the_same_page,
+    output reg [15:0] address_physical_min_in_the_same_page
 );
 
   always @(posedge clk) begin
     ready <= inp;
-    mmu_address_physical <= mmu_address_logical;
-    mmu_address_physical_max_in_the_same_page <= 99;
-    mmu_address_physical_min_in_the_same_page <= 0;
-
-    $display($time, " mmu ", mmu_address_logical, " -> ", mmu_address_physical);
+    if (inp) begin
+      address_physical <= address_logical;
+      address_physical_max_in_the_same_page <= 99;
+      address_physical_min_in_the_same_page <= 0;
+      $display($time, " mmu ", address_logical, " -> ", address_physical);
+    end
   end
 
 endmodule
