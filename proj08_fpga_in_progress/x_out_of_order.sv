@@ -248,13 +248,29 @@ module x_out_of_order (
             end
           end
           //remove instruction          
-        end else if ((decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) && !registers_init[decoder_register]) begin
-          instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = 0+ADDRESS_REG+decoder_register;
-          mmuqueue_q[mmuqueue_q_new_pos].instr_num = decoder_instr_num;
-          mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
-          mmuqueue_q_empty = 0;
-        end else if ((decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) && registers_init[decoder_register]) begin
-          //alu
+        end else if (decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) begin
+          for(i=0;i<32;i=i+1) begin
+            if (instruction_q[decoder_instr_num].register ==i) begin
+              if (!registers_init[instruction_q[decoder_instr_num].register]) begin
+                instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = 0+ADDRESS_REG+instruction_q[decoder_instr_num].register;
+                mmuqueue_q[mmuqueue_q_new_pos].instr_num = decoder_instr_num;
+                mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
+                mmuqueue_q_empty = 0;
+              end else begin
+                case (decoder_state)
+        INSTRUCTION_STATE_REG_ADD:     registers[i] = registers[i]+decoder_start_ram_address;
+        INSTRUCTION_STATE_REG_DEC:                 registers[i] = registers[i]-decoder_start_ram_address;
+                endcase
+                registers_init[i] = 1;
+              end
+                if (instruction_q[decoder_instr_num].length>0) begin
+                  instruction_q[decoder_instr_num].register = instruction_q[decoder_instr_num].register+1;
+                  instruction_q[decoder_instr_num].length = instruction_q[decoder_instr_num].length-1;
+                end else begin
+                  //remove instruction
+                end
+            end
+          end
         end
       end
       if (!mmuqueue_q_empty && mmu_ready) begin
