@@ -37,9 +37,9 @@ module x_out_of_order (
 
   reg mmu_input;
   wire mmu_ready;
-  reg [15:0] mmu_adress_to_translate;
-  wire [15:0] mmu_adress_translated;
-  wire [15:0] mmu_address_max_in_the_same_page;
+  reg [15:0] mmu_adress_logical;
+  wire [15:0] mmu_adress_physical;
+  wire [15:0] mmu_address_physical_max_in_the_same_page, mmu_address_physical_min_in_the_same_page;
   reg [5:0] mmu_instr_num;
 
   mmu mmu (
@@ -47,14 +47,17 @@ module x_out_of_order (
       .inp(mmu_input),
       .ready(mmu_ready),
       .address_max_in_the_same_page(mmu_address_max_in_the_same_page),
-      .adress_to_translate(mmu_adress_to_translate),
-      .adress_translated(mmu_adress_translated)
+      .adress_logical(mmu_adress_logical),
+      .adress_physical(mmu_adress_physical),
+      .address_physical_max_in_the_same_page(mmu_address_physical_max_in_the_same_page),
+      .address_physical_min_in_the_same_page(mmu_address_physical_min_in_the_same_page)
   );
 
   typedef struct {reg [7:0] instr_num;} mmuqueue;
 
   mmuqueue mmuqueue_q[0:10];
-  reg [7:0] mmuqueue_q_length;
+  reg [7:0] mmuqueue_q_new_pos;
+  reg mmuqueue_q_empty;
 
   //---------------------------------------------------------decoder--------------------------
 
@@ -128,7 +131,8 @@ module x_out_of_order (
 
   reg jmp_stall_exists = 0;
   reg [15:0] registers[0:31];  // = {'z};
-  reg [15:0] pc;
+  reg [15:0] pc_logical;
+  reg [15:0] pc_physical, pc_physical_min_page, pc_physical_max_page;
   reg [7:0] instr_num = 0;
 
   integer i;
@@ -146,10 +150,14 @@ module x_out_of_order (
       read_address2 <= 53;
       decoder_inp <= 1;
       decoder_instr_num <= 0;
-      pc <= 54;
+      pc_logical <= 54;
+      pc_physical <=54;
+      pc_physical_min_page <=0;
+      pc_physical_max_page <=99;
       instruction_q_empty <= 0;
 
-      mmuqueue_q_length <= 0;
+      mmuqueue_q_new_pos <= 0;
+      mmuqueue_q_empty <= 0;
 
       rst <= 0;
     end else if (instr_num < 20) begin
@@ -159,12 +167,20 @@ module x_out_of_order (
                  readram_q_new_pos);
         readram_q_new_pos = readram_q_new_pos + 1;
 
-        instruction_q[instruction_q_new_pos].start_ram_address_logical = pc;
-        instruction_q[instruction_q_new_pos].start_ram_address_physical = pc;
+        instruction_q[instruction_q_new_pos].start_ram_address_logical = pc_logical;
+        instruction_q[instruction_q_new_pos].start_ram_address_physical = pc_physical;
         instruction_q[instruction_q_new_pos].state = INSTRUCTION_STATE_FETCH;
         instruction_q_new_pos = instruction_q_new_pos + 1;
 
-        pc = pc + 2;
+        pc_logical = pc_logical + 2;
+        pc_physical = pc_physical+2;
+        if (pc_physical>pc_physical_max_page) begin
+
+           mmuqueue_q[mmuqueue_q_new_pos].instr_num = 20; 
+  mmuqueue_q_new_pos = mmuqueue_q_new_pos+1;
+  mmuqueue_q_empty=0;
+        
+        end
       end
       if (decoder_ready) begin
         instr_num = instr_num + 1;
@@ -172,13 +188,8 @@ module x_out_of_order (
         instruction_q[decoder_instr_num].start_ram_address_logical = decoder_start_ram_address;
         instruction_q[decoder_instr_num].length = decoder_length;
         instruction_q[decoder_instr_num].register = decoder_register;
-
-        mmu_input = 1;
-        mmu_adress_to_translate = decoder_start_ram_address;
       end
       if (mmu_ready) begin
-        for (i = 0; i < 32; i = i + 1) begin
-        end
       end
       if (!readram_q_empty) begin
         instruction_q[readram_q[0].instr_num].state = instruction_q[readram_q[0].instr_num].state + 1;
@@ -321,15 +332,17 @@ module mmu (
     input clk,
     input inp,
     output bit ready,
-    input reg [15:0] adress_to_translate,
-    output reg [15:0] adress_translated,
-    output reg [15:0] address_max_in_the_same_page
+    input reg [15:0] mmu_adress_logical,
+      output reg [15:0] mmu_adress_physical,
+  output reg [15:0] mmu_address_physical_max_in_the_same_page, 
+  output reg [15:0] mmu_address_physical_min_in_the_same_page
 );
 
   always @(posedge clk) begin
     ready <= inp;
-    adress_translated <= adress_to_translate;
-    address_max_in_the_same_page <= 100;
+    mmu_adress_physical <= mmu_adress_logical;
+    mmu_address_physical_max_in_the_same_page <= 99;
+    mmu_address_physical_min_in_the_same_page<=0;
   end
 
 endmodule
