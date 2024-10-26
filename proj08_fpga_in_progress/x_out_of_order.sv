@@ -33,6 +33,7 @@ parameter INSTRUCTION_STATE_REG_SET = 10;
 parameter MMU_QUEUE_LEN = 10;
 parameter READRAM_QUEUE_LEN = 20;
 parameter INST_QUEUE_LEN = 10;
+parameter ALU_QUEUE_LEN = 10;
 
 module x_out_of_order (
     input clk,
@@ -56,6 +57,12 @@ module x_out_of_order (
       .arg2(alu_arg2),
       .value(alu_value)
   );
+  
+   typedef struct {reg [7:0] instr_num;} aluqueue;
+
+  aluqueue aluqueue_q[0:ALU_QUEUE_LEN];
+  reg [7:0] aluqueue_q_new_pos;
+  reg aluqueue_q_empty;
 
   //--------------------------------------------------------- mmu ----------------------------
 
@@ -246,12 +253,16 @@ module x_out_of_order (
           mmuqueue_q[mmuqueue_q_new_pos].instr_num = decoder_instr_num;
           mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
           mmuqueue_q_empty = 0;
+        end else if ((decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) && registers_init[decoder_register]) begin
+          //alu
         end
       end
       if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
         mmu_address_logical = (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) ? pc_logical : 0;
         mmu_instr_num = mmuqueue_q[0].instr_num;
+      end
+      if (!aluqueue_q_empty && alu_ready) begin
       end
       if (!readram_q_empty) begin
         instruction_q[readram_q[0].instr_num].state = instruction_q[readram_q[0].instr_num].state + 1;
