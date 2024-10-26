@@ -66,7 +66,7 @@ module x_out_of_order (
   wire [10:0] decoder_register;
 
   decoder decoder (
-  .address(read_address),
+      .address(read_address),
       .clk(clk),
       .instruction1(read_value),
       .instruction2(read_value2),
@@ -112,7 +112,7 @@ module x_out_of_order (
 
   typedef struct {
     reg [15:0] start_ram_address_logical;
-    reg [15:0] start_ram_address_physical;    
+    reg [15:0] start_ram_address_physical;
     reg [15:0] length;
     reg [10:0] register;
     reg [5:0]  state;
@@ -135,17 +135,17 @@ module x_out_of_order (
     if (rst) begin
       readram_q_new_pos <= 1;
       readram_q[0].instr_num <= 0;
-      readram_q_empty<=0;
+      readram_q_empty <= 0;
 
       instruction_q_new_pos <= 1;
       instruction_q[0].start_ram_address_physical <= 52;
       instruction_q[0].state <= INSTRUCTION_STATE_FETCH;
       read_address <= 52;
       read_address2 <= 53;
-      decoder_inp<=1;
-       decoder_instr_num <= 0;
-       pc<=54;
-instruction_q_empty<=0;
+      decoder_inp <= 1;
+      decoder_instr_num <= 0;
+      pc <= 54;
+      instruction_q_empty <= 0;
 
       mmuqueue_q_length <= 0;
 
@@ -153,32 +153,32 @@ instruction_q_empty<=0;
     end else if (instr_num < 20) begin
       if (!readram_q_empty) begin
         if (instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_FETCH) begin
-          $display($time, read_address, " fetch ", read_address, "=", read_value, " ", read_address2, "=",
-                   read_value2);
+          $display($time, read_address, " fetch ", read_address, "=", read_value, " ",
+                   read_address2, "=", read_value2);
         end
         // instruction_q[readram_q[0].instr_num].read_ram_value = read_value;
         instruction_q[readram_q[0].instr_num].state = instruction_q[readram_q[0].instr_num].state + 1;
         readram_q = {readram_q[1:20], readram_q[0]};
         readram_q_new_pos = readram_q_new_pos - 1;
-        
+
         read_address = instruction_q[readram_q[0].instr_num].start_ram_address_physical;
         read_address2 = instruction_q[readram_q[0].instr_num].start_ram_address_physical + 1;
- if (instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_FETCH) begin
+        if (instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_FETCH) begin
           decoder_instr_num = readram_q[0].instr_num;
-          decoder_inp=1;
+          decoder_inp = 1;
         end else begin
           decoder_inp = 0;
         end
-                x = read_value;        
+        x = read_value;
       end else begin
         decoder_inp = 0;
       end
       if (decoder_ready) begin
-        instr_num = instr_num + 1; 
+        instr_num = instr_num + 1;
         instruction_q[decoder_instr_num].state = decoder_state;
-        instruction_q[decoder_instr_num].start_ram_address_logical=decoder_start_ram_address;
-        instruction_q[decoder_instr_num].length=decoder_length;
-        instruction_q[decoder_instr_num].register=decoder_register;
+        instruction_q[decoder_instr_num].start_ram_address_logical = decoder_start_ram_address;
+        instruction_q[decoder_instr_num].length = decoder_length;
+        instruction_q[decoder_instr_num].register = decoder_register;
 
         mmu_input = 1;
         mmu_adress_to_translate = decoder_start_ram_address;
@@ -187,12 +187,12 @@ instruction_q_empty<=0;
         for (i = 0; i < 32; i = i + 1) begin
         end
       end
-   
+
       if (!jmp_stall_exists && instruction_q_new_pos < 11) begin
 
         readram_q[readram_q_new_pos].instr_num = instruction_q_new_pos;
         readram_q_new_pos = readram_q_new_pos + 1;
-        $display($time, pc, " adding fetch to slot ",instruction_q_new_pos);
+        $display($time, pc, " adding fetch to slot ", instruction_q_new_pos);
 
         instruction_q[instruction_q_new_pos].start_ram_address_logical = pc;
         instruction_q[instruction_q_new_pos].start_ram_address_physical = pc;
@@ -209,7 +209,7 @@ endmodule
 
 module decoder (
     input clk,
-     input reg [15:0] address,
+    input reg [15:0] address,
     input reg [15:0] instruction1,
     instruction2,
     input bit inp,
@@ -276,53 +276,46 @@ module decoder (
     if (inp) begin
       $display(  //DEBUG info
           $time,  //DEBUG info
-          address, 
-          " decoder ",
-          " b1 %c",  //DEBUG info
-          instruction1_1 / 16 >= 10 ? instruction1_1 / 16 + 65 - 10 : instruction1_1 / 16 + 48, //DEBUG info
+          address, " decoder ", " b1 %c",  //DEBUG info
+          instruction1_1 / 16 >= 10 ? instruction1_1 / 16 + 65 - 10 : instruction1_1 / 16 + 48,  //DEBUG info
           "%c",  //DEBUG info
-          instruction1_1 % 16 >= 10 ? instruction1_1 % 16 + 65 - 10 : instruction1_1 % 16 + 48, //DEBUG info
+          instruction1_1 % 16 >= 10 ? instruction1_1 % 16 + 65 - 10 : instruction1_1 % 16 + 48,  //DEBUG info
           "%c",  //DEBUG info
-          instruction1_2 / 16 >= 10 ? instruction1_2 / 16 + 65 - 10 : instruction1_2 / 16 + 48, //DEBUG info
+          instruction1_2 / 16 >= 10 ? instruction1_2 / 16 + 65 - 10 : instruction1_2 / 16 + 48,  //DEBUG info
           "%c",  //DEBUG info
-          instruction1_2 % 16 >= 10 ? instruction1_2 % 16 + 65 - 10 : instruction1_2 % 16 + 48, //DEBUG info
+          instruction1_2 % 16 >= 10 ? instruction1_2 % 16 + 65 - 10 : instruction1_2 % 16 + 48,  //DEBUG info
           "h (",  //DEBUG info
           instruction1_2_1,  //DEBUG info
           "-",  //DEBUG info
           instruction1_2_2,  //DEBUG info
           ") b2 ",  //DEBUG info
           instruction2,  //DEBUG info
-          " (",
-          instruction2_1,
-          "-",
-          instruction2_2,
-          ")"
-      );  //DEBUG info
-    case (instruction1_1)
-      //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
-      OPCODE_RAM2REG: begin
-        if (instruction1_2_1 + instruction1_2_2 >= 32) begin
-          error_code <= ERROR_WRONG_REG_NUM;
-        end else if (instruction2 < ADDRESS_PROGRAM) begin
-          error_code <= ERROR_WRONG_ADDRESS;
-        end else begin
-          $display(  //DEBUG info
-              $time,  //DEBUG info
-              " opcode = ram2reg read value from address ",  //DEBUG info
-              instruction2,  //DEBUG info
-              "+ to reg ",  //DEBUG info
-              instruction1_2_1,  //DEBUG info
-              "-",  //DEBUG info
-              (instruction1_2_1 + instruction1_2_2)  //DEBUG info
-          );  //DEBUG info
-          state <= INSTRUCTION_STATE_MMU_RAM_2_REG;
-          error_code <= 0;
-          start_ram_address <= instruction2;
-          length <= instruction1_2_2;
-          register <= instruction1_2_1;
+          " (", instruction2_1, "-", instruction2_2, ")");  //DEBUG info
+      case (instruction1_1)
+        //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
+        OPCODE_RAM2REG: begin
+          if (instruction1_2_1 + instruction1_2_2 >= 32) begin
+            error_code <= ERROR_WRONG_REG_NUM;
+          end else if (instruction2 < ADDRESS_PROGRAM) begin
+            error_code <= ERROR_WRONG_ADDRESS;
+          end else begin
+            $display(  //DEBUG info
+                $time,  //DEBUG info
+                " opcode = ram2reg read value from address ",  //DEBUG info
+                instruction2,  //DEBUG info
+                "+ to reg ",  //DEBUG info
+                instruction1_2_1,  //DEBUG info
+                "-",  //DEBUG info
+                (instruction1_2_1 + instruction1_2_2)  //DEBUG info
+            );  //DEBUG info
+            state <= INSTRUCTION_STATE_MMU_RAM_2_REG;
+            error_code <= 0;
+            start_ram_address <= instruction2;
+            length <= instruction1_2_2;
+            register <= instruction1_2_1;
+          end
         end
-      end
-    endcase
+      endcase
     end
   end
 
