@@ -32,9 +32,30 @@ parameter MMU_QUEUE_LEN = 10;
 parameter READRAM_QUEUE_LEN = 20;
 parameter INST_QUEUE_LEN = 10;
 
+parameter ALU_ADD = 1;
+parameter ALU_DEC = 2;
+
 module x_out_of_order (
     input clk,
     output reg x
+);
+
+//-------------------------------------------------------alu---------------------------------
+
+   reg alu_inp;
+   wire alu_ready;
+     reg [5:0] alu_op;
+   reg [15:0] alu_arg1,alu_arg2;
+    wire [15:0] value;
+
+alu alu (
+    .clk(clk),
+    .inp(alu_inp),
+    .ready(alu_ready),
+    .op(alu_op),
+    .arg1(alu_arg1),
+    .arg2(alu_arg2),
+    .value(alu_value)
 );
 
   //--------------------------------------------------------- mmu ----------------------------
@@ -365,7 +386,27 @@ module mmu (
       $display($time, " mmu ", address_logical, " -> ", address_physical);
     end
   end
+endmodule
 
+module alu (
+    input clk,
+    input inp,
+    output bit ready = 1,
+    input reg [5:0] op,
+    input reg [15:0] arg1,arg2,
+    output reg [15:0] value
+);
+
+  always @(posedge clk) begin
+    ready <= inp;
+    if (inp) begin
+      case (op)
+      ALU_ADD: value = arg1+arg2;
+      ALU_DEC: value = arg1-arg2;
+      endcase      
+      $display($time, " alu ", arg1, " ",arg2);
+    end
+  end
 endmodule
 
 module single_blockram (
