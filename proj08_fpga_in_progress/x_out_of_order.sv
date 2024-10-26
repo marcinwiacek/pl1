@@ -136,25 +136,57 @@ module x_out_of_order (
       readram_q_new_pos <= 1;
       readram_q[0].instr_num <= 0;
       readram_q_empty <= 0;
-      read_address <= 52;
-      read_address2 <= 53;
-      decoder_inp <= 1;
-      decoder_instr_num <= 0;
 
       instruction_q_new_pos <= 1;
       instruction_q[0].start_ram_address_physical <= 52;
       instruction_q[0].state <= INSTRUCTION_STATE_FETCH;
+      read_address <= 52;
+      read_address2 <= 53;
+      decoder_inp <= 1;
+      decoder_instr_num <= 0;
+      pc <= 54;
       instruction_q_empty <= 0;
 
-      pc <= 54;
+      mmuqueue_q_length <= 0;
 
       rst <= 0;
     end else if (instr_num < 20) begin
+ if (!jmp_stall_exists && instruction_q_new_pos < 11) begin
+
+        readram_q[readram_q_new_pos].instr_num = instruction_q_new_pos;
+        $display($time, pc, " adding fetch to slot ", instruction_q_new_pos, " ram slot ",readram_q_new_pos);
+        readram_q_new_pos = readram_q_new_pos + 1;
+        
+        instruction_q[instruction_q_new_pos].start_ram_address_logical = pc;
+        instruction_q[instruction_q_new_pos].start_ram_address_physical = pc;
+        instruction_q[instruction_q_new_pos].state = INSTRUCTION_STATE_FETCH;
+        instruction_q_new_pos = instruction_q_new_pos + 1;
+
+        pc = pc + 2;
+      end
+      
+      
+      if (decoder_ready) begin
+        instr_num = instr_num + 1;
+        instruction_q[decoder_instr_num].state = decoder_state;
+        instruction_q[decoder_instr_num].start_ram_address_logical = decoder_start_ram_address;
+        instruction_q[decoder_instr_num].length = decoder_length;
+        instruction_q[decoder_instr_num].register = decoder_register;
+
+        mmu_input = 1;
+        mmu_adress_to_translate = decoder_start_ram_address;
+      end
+      if (mmu_ready) begin
+        for (i = 0; i < 32; i = i + 1) begin
+        end
+      end
+
       if (!readram_q_empty) begin
         if (instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_FETCH) begin
           $display($time, read_address, " fetch ", read_address, "=", read_value, " ",
                    read_address2, "=", read_value2);
-        end       
+        end
+       
         instruction_q[readram_q[0].instr_num].state = instruction_q[readram_q[0].instr_num].state + 1;
         readram_q = {readram_q[1:20], readram_q[0]};
         readram_q_new_pos = readram_q_new_pos - 1;
@@ -171,35 +203,7 @@ module x_out_of_order (
       end else begin
         decoder_inp = 0;
       end
-      if (decoder_ready) begin
-        instr_num = instr_num + 1;
-        instruction_q[decoder_instr_num].state = decoder_state;
-        instruction_q[decoder_instr_num].start_ram_address_logical = decoder_start_ram_address;
-        instruction_q[decoder_instr_num].length = decoder_length;
-        instruction_q[decoder_instr_num].register = decoder_register;
-
-        mmu_input = 1;
-        mmu_adress_to_translate = decoder_start_ram_address;
-      end
-      if (mmu_ready) begin
-        for (i = 0; i < 32; i = i + 1) begin
-        end
-      end
-
-      if (!jmp_stall_exists && instruction_q_new_pos < 11) begin
-        readram_q[readram_q_new_pos].instr_num = instruction_q_new_pos;
-        readram_q_new_pos = readram_q_new_pos + 1;
-        $display($time, pc, " adding fetch to slot ", instruction_q_new_pos);
-
-        instruction_q[instruction_q_new_pos].start_ram_address_logical = pc;
-        instruction_q[instruction_q_new_pos].start_ram_address_physical = pc;
-        instruction_q[instruction_q_new_pos].state = INSTRUCTION_STATE_FETCH;
-        instruction_q_new_pos = instruction_q_new_pos + 1;
-
-        read_address = pc;
-        read_address2 = pc + 1;
-        pc = pc + 2;
-      end
+   
     end
   end
 endmodule
