@@ -229,7 +229,19 @@ module x_out_of_order (
         instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = decoder_start_ram_address;
         instruction_q[decoder_instr_num].length = decoder_length;
         instruction_q[decoder_instr_num].register = decoder_register;
-        if ((decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) && !registers_init[decoder_register]) begin
+        if (decoder_state==INSTRUCTION_STATE_REG_SET) begin
+          for(i=0;i<32;i=i+1) begin
+            if (instruction_q[decoder_instr_num].register ==i) begin
+              registers[i] = decoder_start_ram_address;
+              registers_init[i] = 1;
+              if (instruction_q[decoder_instr_num].length>0) begin
+                instruction_q[decoder_instr_num].register = instruction_q[decoder_instr_num].register+1;
+                instruction_q[decoder_instr_num].length = instruction_q[decoder_instr_num].length-1;
+              end
+            end
+          end
+          //remove instruction          
+        end else if ((decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) && !registers_init[decoder_register]) begin
           instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = 0+ADDRESS_REG+decoder_register;
           mmuqueue_q[mmuqueue_q_new_pos].instr_num = decoder_instr_num;
           mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
