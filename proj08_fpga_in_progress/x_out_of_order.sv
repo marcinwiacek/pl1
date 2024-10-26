@@ -156,7 +156,9 @@ module x_out_of_order (
 
   reg jmp_stall_exists = 0;
   reg [15:0] registers[0:31];
-  reg registers_init[0:31] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};    
+  reg registers_init[0:31] = {
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+  };
   reg [15:0] pc_logical;
   reg [15:0] pc_physical, pc_physical_min_page, pc_physical_max_page;
   reg [7:0] instr_num = 0;
@@ -193,9 +195,9 @@ module x_out_of_order (
           pc_physical_max_page = mmu_address_physical_max_in_the_same_page;
           pc_physical = mmu_address_physical;
         end else if (decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) begin
-          instruction_q[mmuqueue_q[0].instr_num].start_ram_address_physical = mmu_address_physical; 
+          instruction_q[mmuqueue_q[0].instr_num].start_ram_address_physical = mmu_address_physical;
           readram_q[readram_q_new_pos].instr_num = mmuqueue_q[0].instr_num;
-          readram_q_new_pos = readram_q_new_pos + 1;          
+          readram_q_new_pos = readram_q_new_pos + 1;
         end
         mmuqueue_q = {mmuqueue_q[1:MMU_QUEUE_LEN], mmuqueue_q[0]};
         mmuqueue_q_new_pos = mmuqueue_q_new_pos - 1;
@@ -231,7 +233,7 @@ module x_out_of_order (
           instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = 0+ADDRESS_REG+decoder_register;
           mmuqueue_q[mmuqueue_q_new_pos].instr_num = decoder_instr_num;
           mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
-          mmuqueue_q_empty = 0;         
+          mmuqueue_q_empty = 0;
         end
       end
       if (!mmuqueue_q_empty && mmu_ready) begin
@@ -253,7 +255,7 @@ module x_out_of_order (
           decoder_inp = 1;
         end else if (instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_REG_ADD || instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_REG_DEC) begin
           registers[instruction_q[readram_q[0].instr_num].register] = read_value;
-          registers_init[instruction_q[readram_q[0].instr_num].register]=1;
+          registers_init[instruction_q[readram_q[0].instr_num].register] = 1;
         end else begin
           decoder_inp = 0;
         end
