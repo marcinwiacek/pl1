@@ -32,6 +32,7 @@ parameter INSTRUCTION_STATE_REG_SET = 10;
 
 parameter MMU_QUEUE_LEN = 10;
 parameter READRAM_QUEUE_LEN = 20;
+parameter SAVERAM_QUEUE_LEN = 20;
 parameter INST_QUEUE_LEN = 10;
 parameter ALU_QUEUE_LEN = 10;
 
@@ -141,9 +142,15 @@ module x_out_of_order (
 
   typedef struct {reg [7:0] instr_num;} readram;
 
-  readram readram_q[0:20];
+  readram readram_q[0:READRAM_QUEUE_LEN];
   reg [7:0] readram_q_new_pos;
   reg readram_q_empty;
+  
+   typedef struct {reg [7:0] instr_num;} saveram;
+
+  saveram saveram_q[0:SAVERAM_QUEUE_LEN];
+  reg [7:0] saveram_q_new_pos;
+  reg saveram_q_empty;
 
   //----------------------------------------------------- instructions --------------
 
@@ -155,7 +162,7 @@ module x_out_of_order (
     reg [5:0]  state;
   } instr;
 
-  instr instruction_q[0:20];
+  instr instruction_q[0:INST_QUEUE_LEN];
   reg [7:0] instruction_q_new_pos;
   reg instruction_q_empty;
 
