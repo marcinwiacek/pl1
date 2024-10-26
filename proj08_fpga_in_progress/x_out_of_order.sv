@@ -57,7 +57,7 @@ module x_out_of_order (
       .address_physical_min_in_the_same_page(mmu_address_physical_min_in_the_same_page)
   );
 
-parameter MMU_QUEUE_PC_INSTR_NUM = INST_QUEUE_LEN + 1;
+  parameter MMU_QUEUE_PC_INSTR_NUM = INST_QUEUE_LEN + 1;
 
   typedef struct {reg [7:0] instr_num;} mmuqueue;
 
@@ -157,9 +157,9 @@ parameter MMU_QUEUE_PC_INSTR_NUM = INST_QUEUE_LEN + 1;
       decoder_inp <= 1;
       decoder_instr_num <= 0;
       pc_logical <= 54;
-      pc_physical <=54;
-      pc_physical_min_page <=0;
-      pc_physical_max_page <=99;
+      pc_physical <= 54;
+      pc_physical_min_page <= 0;
+      pc_physical_max_page <= 99;
       instruction_q_empty <= 0;
 
       mmuqueue_q_new_pos <= 0;
@@ -168,14 +168,14 @@ parameter MMU_QUEUE_PC_INSTR_NUM = INST_QUEUE_LEN + 1;
       rst <= 0;
     end else if (instr_num < 20) begin
       if (mmu_ready) begin
-         if (mmuqueue_q[mmuqueue_q_new_pos].instr_num == MMU_QUEUE_PC_INSTR_NUM) begin
-            pc_physical_min_page = mmu_address_physical_min_in_the_same_page;
-            pc_physical_max_page =mmu_address_physical_max_in_the_same_page;
-            pc_physical = mmu_address_physical; 
-         end else begin
-         end
-         mmuqueue_q = {mmuqueue_q[1:MMU_QUEUE_LEN], mmuqueue_q[0]};         
-      end    
+        if (mmuqueue_q[mmuqueue_q_new_pos].instr_num == MMU_QUEUE_PC_INSTR_NUM) begin
+          pc_physical_min_page = mmu_address_physical_min_in_the_same_page;
+          pc_physical_max_page = mmu_address_physical_max_in_the_same_page;
+          pc_physical = mmu_address_physical;
+        end else begin
+        end
+        mmuqueue_q = {mmuqueue_q[1:MMU_QUEUE_LEN], mmuqueue_q[0]};
+      end
       if (!jmp_stall_exists && instruction_q_new_pos < 11 && pc_physical != 0) begin
         readram_q[readram_q_new_pos].instr_num = instruction_q_new_pos;
         $display($time, pc, " adding fetch to slot ", instruction_q_new_pos, " ram slot ",
@@ -188,12 +188,12 @@ parameter MMU_QUEUE_PC_INSTR_NUM = INST_QUEUE_LEN + 1;
         instruction_q_new_pos = instruction_q_new_pos + 1;
 
         pc_logical = pc_logical + 2;
-        pc_physical = pc_physical+2;
-        if (pc_physical>pc_physical_max_page) begin
-           mmuqueue_q[mmuqueue_q_new_pos].instr_num = MMU_QUEUE_PC_INSTR_NUM; //we have to calculate MMU for PC 
-  mmuqueue_q_new_pos = mmuqueue_q_new_pos+1;
-  mmuqueue_q_empty=0;  
-  pc_physical = 0;     
+        pc_physical = pc_physical + 2;
+        if (pc_physical > pc_physical_max_page) begin
+          mmuqueue_q[mmuqueue_q_new_pos].instr_num = MMU_QUEUE_PC_INSTR_NUM; //we have to calculate MMU for PC 
+          mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
+          mmuqueue_q_empty = 0;
+          pc_physical = 0;
         end
       end
       if (decoder_ready) begin
@@ -202,7 +202,7 @@ parameter MMU_QUEUE_PC_INSTR_NUM = INST_QUEUE_LEN + 1;
         instruction_q[decoder_instr_num].start_ram_address_logical = decoder_start_ram_address;
         instruction_q[decoder_instr_num].length = decoder_length;
         instruction_q[decoder_instr_num].register = decoder_register;
-      end            
+      end
       if (!readram_q_empty) begin
         instruction_q[readram_q[0].instr_num].state = instruction_q[readram_q[0].instr_num].state + 1;
         readram_q = {readram_q[1:20], readram_q[0]};
@@ -343,20 +343,20 @@ endmodule
 module mmu (
     input clk,
     input inp,
-    output bit ready=1,
+    output bit ready = 1,
     input reg [15:0] mmu_address_logical,
-      output reg [15:0] mmu_address_physical,
-  output reg [15:0] mmu_address_physical_max_in_the_same_page, 
-  output reg [15:0] mmu_address_physical_min_in_the_same_page
+    output reg [15:0] mmu_address_physical,
+    output reg [15:0] mmu_address_physical_max_in_the_same_page,
+    output reg [15:0] mmu_address_physical_min_in_the_same_page
 );
 
   always @(posedge clk) begin
     ready <= inp;
     mmu_address_physical <= mmu_address_logical;
     mmu_address_physical_max_in_the_same_page <= 99;
-    mmu_address_physical_min_in_the_same_page<=0;
-    
-    $display($time, " mmu ",mmu_address_logical," -> ",mmu_address_physical);
+    mmu_address_physical_min_in_the_same_page <= 0;
+
+    $display($time, " mmu ", mmu_address_logical, " -> ", mmu_address_physical);
   end
 
 endmodule
