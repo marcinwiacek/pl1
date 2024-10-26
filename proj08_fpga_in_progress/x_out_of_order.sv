@@ -57,8 +57,8 @@ module x_out_of_order (
       .arg2(alu_arg2),
       .value(alu_value)
   );
-  
-   typedef struct {reg [7:0] instr_num;} aluqueue;
+
+  typedef struct {reg [7:0] instr_num;} aluqueue;
 
   aluqueue aluqueue_q[0:ALU_QUEUE_LEN];
   reg [7:0] aluqueue_q_new_pos;
@@ -236,12 +236,12 @@ module x_out_of_order (
         instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = decoder_start_ram_address;
         instruction_q[decoder_instr_num].length = decoder_length;
         instruction_q[decoder_instr_num].register = decoder_register;
-        if (decoder_state==INSTRUCTION_STATE_REG_SET) begin
-          for(i=0;i<32;i=i+1) begin
-            if (instruction_q[decoder_instr_num].register ==i) begin
+        if (decoder_state == INSTRUCTION_STATE_REG_SET) begin
+          for (i = 0; i < 32; i = i + 1) begin
+            if (instruction_q[decoder_instr_num].register == i) begin
               registers[i] = decoder_start_ram_address;
               registers_init[i] = 1;
-              if (instruction_q[decoder_instr_num].length>0) begin
+              if (instruction_q[decoder_instr_num].length > 0) begin
                 instruction_q[decoder_instr_num].register = instruction_q[decoder_instr_num].register+1;
                 instruction_q[decoder_instr_num].length = instruction_q[decoder_instr_num].length-1;
               end
@@ -249,8 +249,8 @@ module x_out_of_order (
           end
           //remove instruction          
         end else if (decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) begin
-          for(i=0;i<32;i=i+1) begin
-            if (instruction_q[decoder_instr_num].register ==i) begin
+          for (i = 0; i < 32; i = i + 1) begin
+            if (instruction_q[decoder_instr_num].register == i) begin
               if (!registers_init[instruction_q[decoder_instr_num].register]) begin
                 instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = 0+ADDRESS_REG+instruction_q[decoder_instr_num].register;
                 mmuqueue_q[mmuqueue_q_new_pos].instr_num = decoder_instr_num;
@@ -258,17 +258,19 @@ module x_out_of_order (
                 mmuqueue_q_empty = 0;
               end else begin
                 case (decoder_state)
-        INSTRUCTION_STATE_REG_ADD:     registers[i] = registers[i]+decoder_start_ram_address;
-        INSTRUCTION_STATE_REG_DEC:                 registers[i] = registers[i]-decoder_start_ram_address;
+                  INSTRUCTION_STATE_REG_ADD:
+                  registers[i] = registers[i] + decoder_start_ram_address;
+                  INSTRUCTION_STATE_REG_DEC:
+                  registers[i] = registers[i] - decoder_start_ram_address;
                 endcase
                 registers_init[i] = 1;
               end
-                if (instruction_q[decoder_instr_num].length>0) begin
-                  instruction_q[decoder_instr_num].register = instruction_q[decoder_instr_num].register+1;
-                  instruction_q[decoder_instr_num].length = instruction_q[decoder_instr_num].length-1;
-                end else begin
-                  //remove instruction
-                end
+              if (instruction_q[decoder_instr_num].length > 0) begin
+                instruction_q[decoder_instr_num].register = instruction_q[decoder_instr_num].register+1;
+                instruction_q[decoder_instr_num].length = instruction_q[decoder_instr_num].length-1;
+              end else begin
+                //remove instruction
+              end
             end
           end
         end
