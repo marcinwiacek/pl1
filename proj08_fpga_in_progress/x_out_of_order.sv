@@ -39,12 +39,14 @@ module x_out_of_order (
   wire mmu_ready;
   reg [15:0] mmu_adress_to_translate;
   wire [15:0] mmu_adress_translated;
+  wire [15:0] mmu_address_max_in_the_same_page;
   reg [5:0] mmu_instr_num;
 
   mmu mmu (
       .clk(clk),
       .inp(mmu_input),
       .ready(mmu_ready),
+      .address_max_in_the_same_page(mmu_address_max_in_the_same_page),
       .adress_to_translate(mmu_adress_to_translate),
       .adress_translated(mmu_adress_translated)
   );
@@ -152,7 +154,6 @@ module x_out_of_order (
       rst <= 0;
     end else if (instr_num < 20) begin
       if (!jmp_stall_exists && instruction_q_new_pos < 11) begin
-
         readram_q[readram_q_new_pos].instr_num = instruction_q_new_pos;
         $display($time, pc, " adding fetch to slot ", instruction_q_new_pos, " ram slot ",
                  readram_q_new_pos);
@@ -165,8 +166,6 @@ module x_out_of_order (
 
         pc = pc + 2;
       end
-
-
       if (decoder_ready) begin
         instr_num = instr_num + 1;
         instruction_q[decoder_instr_num].state = decoder_state;
@@ -181,13 +180,7 @@ module x_out_of_order (
         for (i = 0; i < 32; i = i + 1) begin
         end
       end
-
       if (!readram_q_empty) begin
-        if (instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_FETCH) begin
-          $display($time, read_address, " fetch ", read_address, "=", read_value, " ",
-                   read_address2, "=", read_value2);
-        end
-
         instruction_q[readram_q[0].instr_num].state = instruction_q[readram_q[0].instr_num].state + 1;
         readram_q = {readram_q[1:20], readram_q[0]};
         readram_q_new_pos = readram_q_new_pos - 1;
@@ -195,6 +188,8 @@ module x_out_of_order (
         read_address = instruction_q[readram_q[0].instr_num].start_ram_address_physical;
         read_address2 = instruction_q[readram_q[0].instr_num].start_ram_address_physical + 1;
         if (instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_FETCH) begin
+          $display($time, read_address, " fetch ", read_address, "=", read_value, " ",
+                   read_address2, "=", read_value2);
           decoder_instr_num = readram_q[0].instr_num;
           decoder_inp = 1;
         end else begin
@@ -204,7 +199,6 @@ module x_out_of_order (
       end else begin
         decoder_inp = 0;
       end
-
     end
   end
 endmodule
@@ -328,12 +322,14 @@ module mmu (
     input inp,
     output bit ready,
     input reg [15:0] adress_to_translate,
-    output reg [15:0] adress_translated
+    output reg [15:0] adress_translated,
+    output reg [15:0] address_max_in_the_same_page
 );
 
   always @(posedge clk) begin
     ready <= inp;
     adress_translated <= adress_to_translate;
+    address_max_in_the_same_page <= 100;
   end
 
 endmodule
@@ -348,12 +344,6 @@ module single_blockram (
     output bit [15:0] read_value,
     read_value2
 );
-
-  /*  reg [15:0] ram[0:67];
-      initial begin  //DEBUG info
-        $readmemh("rom4.mem", ram);  //DEBUG info
-      end  //DEBUG info
-*/
 
   // verilog_format:off
    //(* ram_style = "block" *)
