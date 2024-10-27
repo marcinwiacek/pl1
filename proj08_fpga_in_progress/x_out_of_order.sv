@@ -105,7 +105,7 @@ module x_out_of_order (
   wire decoder_ready;
   wire [5:0] decoder_state;
   wire [3:0] decoder_error_code;
-  wire [15:0] decoder_start_ram_address;
+  wire [15:0] decoder_start_ram_address_or_numeric;
   wire [15:0] decoder_length;
   wire [10:0] decoder_register;
 
@@ -118,7 +118,7 @@ module x_out_of_order (
       .ready(decoder_ready),
       .state(decoder_state),
       .error_code(decoder_error_code),
-      .start_ram_address(decoder_start_ram_address),
+      .start_ram_address_or_numeric(decoder_start_ram_address_or_numeric),
       .length(decoder_length),
       .register(decoder_register)
   );
@@ -172,6 +172,7 @@ module x_out_of_order (
 
   //--------------------------------------------------------------------process------------------
 
+  reg [15:0] process_hardware_address = 0;
   reg jmp_stall_exists = 0;
   reg [15:0] registers[0:31];
   reg registers_init[0:31] = {
@@ -241,29 +242,34 @@ module x_out_of_order (
       if (decoder_ready) begin
         instr_num = instr_num + 1;
         instruction_q[decoder_instr_num].state = decoder_state;
-        instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = decoder_start_ram_address;
+        instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = decoder_start_ram_address_or_numeric;
         instruction_q[decoder_instr_num].length = decoder_length;
         instruction_q[decoder_instr_num].register = decoder_register;
-        if (decoder_state == INSTRUCTION_STATE_REG_SET || decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) begin
           for (i = 0; i < 32; i = i + 1) begin
             if (instruction_q[decoder_instr_num].register == i) begin
-              if (!registers_init[instruction_q[decoder_instr_num].register]) begin
-                instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = 0+ADDRESS_REG+instruction_q[decoder_instr_num].register;
-                mmuqueue_q[mmuqueue_q_new_pos].instr_num = decoder_instr_num;
-                mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
-                mmuqueue_q_empty = 0;
-              end else begin
-                case (decoder_state)
-                  INSTRUCTION_STATE_REG_ADD:
-                  registers[i] = registers[i] + decoder_start_ram_address;
-                  INSTRUCTION_STATE_REG_DEC:
-                  registers[i] = registers[i] - decoder_start_ram_address;
-                  INSTRUCTION_STATE_REG_SET: begin
-                    registers[i] = decoder_start_ram_address;
+              if (decoder_state == INSTRUCTION_STATE_REG_SET) begin
+                    registers[i] = decoder_start_ram_address_or_numeric;
                     registers_init[i] = 1;
-                  end
-                endcase
-                registers_init[i] = 1;
+              end else begin
+                if (!registers_init[instruction_q[decoder_instr_num].register]) begin
+                  instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = process_hardware_address+ADDRESS_REG+instruction_q[decoder_instr_num].register;
+                  
+                  
+                  mmuqueue_q[mmuqueue_q_new_pos].instr_num = decoder_instr_num;
+                  mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
+                  mmuqueue_q_empty = 0;
+                end else begin
+                  case (decoder_state)
+                    INSTRUCTION_STATE_REG_ADD:
+                    registers[i] = registers[i] + decoder_start_ram_address;
+                    INSTRUCTION_STATE_REG_DEC:
+                    registers[i] = registers[i] - decoder_start_ram_address;
+                    INSTRUCTION_STATE_REG_SET: begin
+                      registers[i] = decoder_start_ram_address;
+                      registers_init[i] = 1;
+                    end
+                  endcase
+                end
               end
               if (instruction_q[decoder_instr_num].length > 0) begin
                 instruction_q[decoder_instr_num].register = instruction_q[decoder_instr_num].register+1;
@@ -273,6 +279,9 @@ module x_out_of_order (
               end
             end
           end
+                  
+        if (decoder_state == INSTRUCTION_STATE_REG_SET || decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) begin
+          
         end
       end
       if (!mmuqueue_q_empty && mmu_ready) begin
@@ -319,7 +328,7 @@ module decoder (
     output bit ready,
     output bit [5:0] state,
     output bit [3:0] error_code,
-    output bit [15:0] start_ram_address,
+    output bit [15:0] start_ram_address_or_numeric,
     output bit [15:0] length,
     output bit [10:0] register
 );
@@ -404,7 +413,7 @@ module decoder (
           end else begin
             $display(  //DEBUG info
                 $time,  //DEBUG info
-                " opcode = ram2reg read value from address ",  //DEBUG info
+                " opcode = ram2reg read value from logical address ",  //DEBUG info
                 instruction2,  //DEBUG info
                 "+ to reg ",  //DEBUG info
                 instruction1_2_1,  //DEBUG info
@@ -431,17 +440,51 @@ module decoder (
                 instruction1_2_1,  //DEBUG info
                 "-",  //DEBUG info
                 (instruction1_2_1 + instruction1_2_2),  //DEBUG info
-                " to ram address ",  //DEBUG info
+                " to ram logical address ",  //DEBUG info
                 instruction2,  //DEBUG info
                 "+"  //DEBUG info
             );  //DEBUG info
             state             <= INSTRUCTION_STATE_REG_2_RAM;
             error_code        <= 0;
-            start_ram_address <= instruction2;
+            start_ram_address_or_numeric <= instruction2;
             length            <= instruction1_2_2;
             register          <= instruction1_2_1;
           end
         end
+        //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
+            OPCODE_NUM2REG: begin
+                $display(  //DEBUG info
+                    $time,  //DEBUG info
+                    " opcode = num2reg save value ",  //DEBUG info
+                    instruction2,  //DEBUG info
+                    " to reg ",  //DEBUG info
+                    instruction1_2_1,  //DEBUG info
+                    "-",  //DEBUG info
+                    (instruction1_2_1 + instruction1_2_2)  //DEBUG info
+                );  //DEBUG info
+            state             <= INSTRUCTION_STATE_REG_SET;
+            error_code        <= 0;
+            start_ram_address_or_numeric <= instruction2;
+            length            <= instruction1_2_2;
+            register          <= instruction1_2_1;
+         end
+            //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
+            OPCODE_REG_PLUS: begin
+                $display(  //DEBUG info
+                    $time,  //DEBUG info
+                    " opcode = regplus add value ",  //DEBUG info
+                    instruction2,  //DEBUG info
+                    " to reg ",  //DEBUG info
+                    instruction1_2_1,  //DEBUG info
+                    "-",  //DEBUG info
+                    (instruction1_2_1 + instruction1_2_2)  //DEBUG info
+                );  //DEBUG info
+            state             <= INSTRUCTION_STATE_REG_ADD;
+            error_code        <= 0;
+            start_ram_address <= instruction2;
+            length            <= instruction1_2_2;
+            register          <= instruction1_2_1;
+            end
       endcase
     end
   end
