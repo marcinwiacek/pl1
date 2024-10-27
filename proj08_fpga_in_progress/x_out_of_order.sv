@@ -155,7 +155,7 @@ module x_out_of_order (
   saveram saveram_q[0:SAVERAM_QUEUE_LEN];
   reg [7:0] saveram_q_new_pos;
   reg saveram_q_empty;
-
+  
   //----------------------------------------------------- instructions --------------
 
   typedef struct {
@@ -252,22 +252,16 @@ module x_out_of_order (
                     registers_init[i] = 1;
               end else begin
                 if (!registers_init[instruction_q[decoder_instr_num].register]) begin
-                  instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = process_hardware_address+ADDRESS_REG+instruction_q[decoder_instr_num].register;
-                  
-                  
+                  instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = process_hardware_address+ADDRESS_REG+instruction_q[decoder_instr_num].register;                                    
                   mmuqueue_q[mmuqueue_q_new_pos].instr_num = decoder_instr_num;
                   mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
                   mmuqueue_q_empty = 0;
                 end else begin
                   case (decoder_state)
                     INSTRUCTION_STATE_REG_ADD:
-                    registers[i] = registers[i] + decoder_start_ram_address;
+                    registers[i] = registers[i] + decoder_start_ram_address_or_numeric;
                     INSTRUCTION_STATE_REG_DEC:
-                    registers[i] = registers[i] - decoder_start_ram_address;
-                    INSTRUCTION_STATE_REG_SET: begin
-                      registers[i] = decoder_start_ram_address;
-                      registers_init[i] = 1;
-                    end
+                    registers[i] = registers[i] - decoder_start_ram_address_or_numeric;                    
                   endcase
                 end
               end
@@ -278,11 +272,9 @@ module x_out_of_order (
                 //remove instruction
               end
             end
-          end
-                  
-        if (decoder_state == INSTRUCTION_STATE_REG_SET || decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) begin
-          
-        end
+          end                  
+//        if (decoder_state == INSTRUCTION_STATE_REG_SET || decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) begin          
+//        end
       end
       if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
@@ -422,7 +414,7 @@ module decoder (
             );  //DEBUG info
             state <= INSTRUCTION_STATE_RAM_2_REG;
             error_code <= 0;
-            start_ram_address <= instruction2;
+            start_ram_address_or_numeric <= instruction2;
             length <= instruction1_2_2;
             register <= instruction1_2_1;
           end
@@ -481,7 +473,7 @@ module decoder (
                 );  //DEBUG info
             state             <= INSTRUCTION_STATE_REG_ADD;
             error_code        <= 0;
-            start_ram_address <= instruction2;
+            start_ram_address_or_numeric <= instruction2;
             length            <= instruction1_2_2;
             register          <= instruction1_2_1;
             end
