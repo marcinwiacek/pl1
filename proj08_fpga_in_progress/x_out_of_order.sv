@@ -25,10 +25,11 @@ parameter ADDRESS_PROGRAM = ADDRESS_REG + 32 + 7 + 1;
 
 parameter INSTRUCTION_STATE_FETCH = 1;
 parameter INSTRUCTION_STATE_DECODE = 2;
-parameter INSTRUCTION_STATE_RAM_2_REG = 4;
-parameter INSTRUCTION_STATE_REG_ADD = 6;
-parameter INSTRUCTION_STATE_REG_DEC = 8;
-parameter INSTRUCTION_STATE_REG_SET = 10;
+parameter INSTRUCTION_STATE_RAM_2_REG = 3;
+parameter INSTRUCTION_STATE_REG_ADD = 4;
+parameter INSTRUCTION_STATE_REG_DEC = 5;
+parameter INSTRUCTION_STATE_REG_SET = 6;
+parameter INSTRUCTION_STATE_REG_2_RAM = 7;
 
 parameter MMU_QUEUE_LEN = 10;
 parameter READRAM_QUEUE_LEN = 20;
@@ -40,6 +41,11 @@ module x_out_of_order (
     input clk,
     output reg x
 );
+
+  reg rst = 1;
+  reg [7:0] instr_num = 0;
+
+  integer i;
 
   //-------------------------------------------------------alu---------------------------------
 
@@ -138,8 +144,6 @@ module x_out_of_order (
       .read_value2(read_value2)
   );
 
-  reg rst = 1;
-
   typedef struct {reg [7:0] instr_num;} readram;
 
   readram readram_q[0:READRAM_QUEUE_LEN];
@@ -175,9 +179,6 @@ module x_out_of_order (
   };
   reg [15:0] pc_logical;
   reg [15:0] pc_physical, pc_physical_min_page, pc_physical_max_page;
-  reg [7:0] instr_num = 0;
-
-  integer i;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -242,20 +243,8 @@ module x_out_of_order (
         instruction_q[decoder_instr_num].state = decoder_state;
         instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = decoder_start_ram_address;
         instruction_q[decoder_instr_num].length = decoder_length;
-        instruction_q[decoder_instr_num].register = decoder_register;
-        if (decoder_state == INSTRUCTION_STATE_REG_SET) begin
-          for (i = 0; i < 32; i = i + 1) begin
-            if (instruction_q[decoder_instr_num].register == i) begin
-              registers[i] = decoder_start_ram_address;
-              registers_init[i] = 1;
-              if (instruction_q[decoder_instr_num].length > 0) begin
-                instruction_q[decoder_instr_num].register = instruction_q[decoder_instr_num].register+1;
-                instruction_q[decoder_instr_num].length = instruction_q[decoder_instr_num].length-1;
-              end
-            end
-          end
-          //remove instruction          
-        end else if (decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) begin
+        instruction_q[decoder_instr_num].register = decoder_register;           
+        if (decoder_state == INSTRUCTION_STATE_REG_SET || decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) begin
           for (i = 0; i < 32; i = i + 1) begin
             if (instruction_q[decoder_instr_num].register == i) begin
               if (!registers_init[instruction_q[decoder_instr_num].register]) begin
@@ -269,6 +258,10 @@ module x_out_of_order (
                   registers[i] = registers[i] + decoder_start_ram_address;
                   INSTRUCTION_STATE_REG_DEC:
                   registers[i] = registers[i] - decoder_start_ram_address;
+                      INSTRUCTION_STATE_REG_SET: begin
+                  registers[i] = decoder_start_ram_address;
+              registers_init[i] = 1;
+              end
                 endcase
                 registers_init[i] = 1;
               end
@@ -296,17 +289,20 @@ module x_out_of_order (
 
         read_address = instruction_q[readram_q[0].instr_num].start_ram_address_physical;
         read_address2 = instruction_q[readram_q[0].instr_num].start_ram_address_physical + 1;
-        if (instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_FETCH) begin
+        case (instruction_q[readram_q[0].instr_num].state)
+        INSTRUCTION_STATE_FETCH: begin
           $display($time, read_address, " fetch ", read_address, "=", read_value, " ",
                    read_address2, "=", read_value2);
           decoder_instr_num = readram_q[0].instr_num;
           decoder_inp = 1;
-        end else if (instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_REG_ADD || instruction_q[readram_q[0].instr_num].state == INSTRUCTION_STATE_REG_DEC) begin
+        end
+        INSTRUCTION_STATE_REG_ADD, INSTRUCTION_STATE_REG_DEC: begin
           registers[instruction_q[readram_q[0].instr_num].register] = read_value;
           registers_init[instruction_q[readram_q[0].instr_num].register] = 1;
-        end else begin
-          decoder_inp = 0;
         end
+        default:
+          decoder_inp = 0;
+        endcase
         x = read_value;
       end else begin
         decoder_inp = 0;
@@ -423,10 +419,33 @@ module decoder (
             register <= instruction1_2_1;
           end
         end
+ //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
+            OPCODE_REG2RAM: begin
+              if (instruction1_2_1 + instruction1_2_2 >= 32) begin
+                error_code <= ERROR_WRONG_REG_NUM;
+              end else if (instruction2 < ADDRESS_PROGRAM) begin
+                error_code <= ERROR_WRONG_ADDRESS;
+              end else begin
+                  $display(  //DEBUG info
+                      $time,  //DEBUG info
+                      " opcode = reg2ram save reg ",  //DEBUG info
+                      instruction1_2_1,  //DEBUG info
+                      "-",  //DEBUG info
+                      (instruction1_2_1 + instruction1_2_2),  //DEBUG info
+                      " to ram address ",  //DEBUG info
+                      instruction2,  //DEBUG info
+                      "+"  //DEBUG info
+                  );  //DEBUG info
+            state <=                   INSTRUCTION_STATE_REG_2_RAM;
+            error_code <= 0;
+            start_ram_address <= instruction2;
+            length <= instruction1_2_2;
+            register <= instruction1_2_1;                        
+              end
+            end        
       endcase
     end
   end
-
 endmodule
 
 module mmu (
@@ -463,10 +482,8 @@ module alu (
   always @(posedge clk) begin
     ready <= inp;
     if (inp) begin
-      case (op)
-        INSTRUCTION_STATE_REG_ADD: value = arg1 + arg2;
-        INSTRUCTION_STATE_REG_DEC: value = arg1 - arg2;
-      endcase
+//      case (op)     
+//      endcase
       $display($time, " alu ", arg1, " ", arg2);
     end
   end
