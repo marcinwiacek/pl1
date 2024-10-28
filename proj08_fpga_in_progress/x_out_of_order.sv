@@ -32,7 +32,7 @@ parameter INSTRUCTION_STATE_REG_SET = 6;
 parameter INSTRUCTION_STATE_REG_2_RAM = 7;
 
 parameter MMU_QUEUE_LEN = 10;
-parameter READRAM_QUEUE_LEN = 20;
+parameter READRAM_QUEUE_LEN = 100;
 parameter SAVERAM_QUEUE_LEN = 20;
 parameter INST_QUEUE_LEN = 10;
 parameter ALU_QUEUE_LEN = 10;
@@ -65,11 +65,11 @@ module x_out_of_order (
       .value(alu_value)
   );
 
-  typedef struct {reg [7:0] instr_num;} aluqueue;
+  /*typedef struct {reg [7:0] instr_num;} aluqueue;
 
   aluqueue aluqueue_q[0:ALU_QUEUE_LEN];
   reg [7:0] aluqueue_q_new_pos;
-  reg aluqueue_q_empty;
+  reg aluqueue_q_empty;*/
 
   //--------------------------------------------------------- mmu ----------------------------
 
@@ -92,11 +92,11 @@ module x_out_of_order (
 
   parameter MMU_QUEUE_PC_INSTR_NUM = INST_QUEUE_LEN + 1;
 
-  typedef struct {reg [7:0] instr_num;} mmuqueue;
+ /* typedef struct {reg [7:0] instr_num;} mmuqueue;
 
   mmuqueue mmuqueue_q[0:MMU_QUEUE_LEN];
   reg [7:0] mmuqueue_q_new_pos;
-  reg mmuqueue_q_empty;
+  reg mmuqueue_q_empty;*/
 
   //---------------------------------------------------------decoder--------------------------
 
@@ -144,31 +144,14 @@ module x_out_of_order (
       .read_value2(read_value2)
   );
 
-  typedef struct {reg [7:0] instr_num;} readram;
+  typedef struct {reg [7:0] regnum; reg[15:0] value; reg[15:0] address; reg fetch; reg mmu; reg alu;} readsaveram;
 
-  readram readram_q[0:READRAM_QUEUE_LEN];
-  reg [7:0] readram_q_new_pos;
-  reg readram_q_empty;
-
-  typedef struct {reg [7:0] instr_num;} saveram;
-
-  saveram saveram_q[0:SAVERAM_QUEUE_LEN];
-  reg [7:0] saveram_q_new_pos;
-  reg saveram_q_empty;
+  readram readsaveram_q[0:READRAM_QUEUE_LEN];
+  reg [7:0] readsaveram_q_new_pos;
+  reg readsaveram_q_empty;
 
   //----------------------------------------------------- instructions --------------
 
-  typedef struct {
-    reg [15:0] start_ram_address_logical_or_numeric;
-    reg [15:0] start_ram_address_physical;
-    reg [15:0] length;
-    reg [10:0] register;
-    reg [5:0]  state;
-  } instr;
-
-  instr instruction_q[0:INST_QUEUE_LEN];
-  reg [7:0] instruction_q_new_pos;
-  reg instruction_q_empty;
 
   //--------------------------------------------------------------------process------------------
 
@@ -183,7 +166,7 @@ module x_out_of_order (
 
   always @(posedge clk) begin
     if (rst) begin
-      readram_q_new_pos <= 1;
+      readsaveram_q_new_pos <= 1;
       readram_q[0].instr_num <= 0;
       readram_q_empty <= 0;
 
