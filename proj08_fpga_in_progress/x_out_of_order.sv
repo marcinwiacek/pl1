@@ -182,7 +182,7 @@ module x_out_of_order (
   reg [15:0] pc_logical;
   reg [15:0] pc_physical, pc_physical_min_page, pc_physical_max_page;
 
-  always @(posedge clk) begin
+  always @(clk) begin
     if (rst) begin
       readram_q_new_pos <= 1;
       readram_q[0].instr_num <= 0;
