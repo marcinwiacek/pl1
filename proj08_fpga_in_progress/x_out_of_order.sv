@@ -30,6 +30,7 @@ parameter INSTRUCTION_STATE_REG_ADD = 4;
 parameter INSTRUCTION_STATE_REG_DEC = 5;
 parameter INSTRUCTION_STATE_REG_SET = 6;
 parameter INSTRUCTION_STATE_REG_2_RAM = 7;
+parameter INSTRUCTION_STATE_REG_MUL = 8;
 
 parameter MMU_QUEUE_LEN = 10;
 parameter READRAM_QUEUE_LEN = 20;
@@ -261,6 +262,8 @@ module x_out_of_order (
                   registers[i] = registers[i] + decoder_start_ram_address_or_numeric;
                   INSTRUCTION_STATE_REG_DEC:
                   registers[i] = registers[i] - decoder_start_ram_address_or_numeric;
+                   INSTRUCTION_STATE_REG_MUL:
+                  registers[i] = registers[i] * decoder_start_ram_address_or_numeric;
                 endcase
               end            
             if (instruction_q[decoder_instr_num].length > 0) begin
@@ -475,6 +478,23 @@ module decoder (
           length                       <= instruction1_2_2;
           register                     <= instruction1_2_1;
         end
+        //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
+        OPCODE_REG_MUL: begin
+          $display(  //DEBUG info
+              $time,  //DEBUG info
+              " opcode = regmul add value ",  //DEBUG info
+              instruction2,  //DEBUG info
+              " to reg ",  //DEBUG info
+              instruction1_2_1,  //DEBUG info
+              "-",  //DEBUG info
+              (instruction1_2_1 + instruction1_2_2)  //DEBUG info
+          );  //DEBUG info
+          state                        <= INSTRUCTION_STATE_REG_MUL;
+          error_code                   <= 0;
+          start_ram_address_or_numeric <= instruction2;
+          length                       <= instruction1_2_2;
+          register                     <= instruction1_2_1;
+        end
       endcase
     end
   end
@@ -565,13 +585,13 @@ module single_blockram (
       16'h1210, 16'd2613, //value to reg // not used for anything usefull, just for debugging
       16'h0e10, 16'd0290, //save to ram // not used for anything usefull, just for debugging
       16'h0911, 16'd0100, //ram to reg // not used for anything usefull, just for debugging
+      16'h1611, 16'd0100, //mul // not used for anything usefull, just for debugging
       16'h0e10, 16'd0212, //save to ram // not used for anything usefull, just for debugging
       16'h0c01, 16'h0001, //unknown // not used for anything usefull, just for debugging
       16'h0c01, 16'h0002, //unknown // not used for anything usefull, just for debugging
       16'h1202, 16'h0003, //num2reg // not used for anything usefull, just for debugging
       16'h1800, 16'h0007, //process end
       16'hfb00, 16'h0000,
-      16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
