@@ -250,11 +250,11 @@ module x_out_of_order (
             if (decoder_state == INSTRUCTION_STATE_REG_SET) begin
               registers[i] = decoder_start_ram_address_or_numeric;
               registers_init[i] = 1;
-            end else if (!registers_init[instruction_q[decoder_instr_num].register]) begin
-                instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = process_hardware_address+ADDRESS_REG+instruction_q[decoder_instr_num].register;
-                mmuqueue_q[mmuqueue_q_new_pos].instr_num = decoder_instr_num;
-                mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
-                mmuqueue_q_empty = 0;
+  //          end else if (!registers_init[instruction_q[decoder_instr_num].register]) begin
+           //     instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = process_hardware_address+ADDRESS_REG+instruction_q[decoder_instr_num].register;
+//                mmuqueue_q[mmuqueue_q_new_pos].instr_num = decoder_instr_num;
+//                mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
+//                mmuqueue_q_empty = 0;
               end else begin
                 case (decoder_state)
                   INSTRUCTION_STATE_REG_ADD:
