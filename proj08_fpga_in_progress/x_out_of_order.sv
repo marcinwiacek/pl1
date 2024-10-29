@@ -250,7 +250,7 @@ module x_out_of_order (
       end
       // $display($time, " executor state1 ",execute_state, " ",decoder_ready);
       if (decoder_ready || execute_state != EXECUTE_STATE_NONE) begin
-        $display($time, " executor state ",execute_state);
+        $display($time, " executor state ", execute_state);
         if (execute_state == EXECUTE_STATE_NONE) begin
           instr_num = instr_num + 1;
           instruction_q[decoder_instr_num].state = decoder_state;
@@ -262,12 +262,14 @@ module x_out_of_order (
           if (instruction_q[decoder_instr_num].register2 != 0) begin
             registers[instruction_q[decoder_instr_num].register2] = read_value;
             registers_init[instruction_q[decoder_instr_num].register2] = 1;
-            $display($time, " updating register ",instruction_q[decoder_instr_num].register2," to ",read_value);
+            $display($time, " updating register ", instruction_q[decoder_instr_num].register2,
+                     " to ", read_value);
           end
           if (!registers_init[instruction_q[decoder_instr_num].register]) begin
             registers[instruction_q[decoder_instr_num].register] = read_value2;
             registers_init[instruction_q[decoder_instr_num].register] = 1;
-            $display($time, " updating register ",instruction_q[decoder_instr_num].register," to ",read_value2);
+            $display($time, " updating register ", instruction_q[decoder_instr_num].register,
+                     " to ", read_value2);
           end
           execute_state = EXECUTE_STATE_NONE;
         end
@@ -284,7 +286,7 @@ module x_out_of_order (
               if (instruction_q[decoder_instr_num].register2 == 0) begin
                 read_address = process_hardware_address+ADDRESS_REG+instruction_q[decoder_instr_num].register;
                 instruction_q[decoder_instr_num].register2=instruction_q[decoder_instr_num].register;
-                execute_state = EXECUTE_STATE_READ_REG;                
+                execute_state = EXECUTE_STATE_READ_REG;
                 if (instruction_q[decoder_instr_num].length > 0) begin
                   instruction_q[decoder_instr_num].register = instruction_q[decoder_instr_num].register+1;
                   instruction_q[decoder_instr_num].length = instruction_q[decoder_instr_num].length - 1;
@@ -411,7 +413,7 @@ module decoder (
   //parameter OPCODE_REG_INT_NON_BLOCKING =33; //int number (8 bit), address to jump in case of int
 
   always @(posedge clk) begin
-      ready<=inp;
+    ready <= inp;
     if (inp) begin
       $display(  //DEBUG info
           $time,  //DEBUG info
