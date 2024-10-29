@@ -206,7 +206,7 @@ module x_out_of_order (
 
       rst <= 0;
     end else if (instr_num < 20) begin
-      if (mmu_ready) begin
+     /* if (mmu_ready) begin
         if (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) begin
           pc_physical_min_page = mmu_address_physical_min_in_the_same_page;
           pc_physical_max_page = mmu_address_physical_max_in_the_same_page;
@@ -220,6 +220,7 @@ module x_out_of_order (
         mmuqueue_q_new_pos = mmuqueue_q_new_pos - 1;
         mmuqueue_q_empty = mmuqueue_q_new_pos == 0;
       end
+      */
       if (!jmp_stall_exists && instruction_q_new_pos < 11 && pc_physical != 0) begin
         readram_q[readram_q_new_pos].instr_num = instruction_q_new_pos;
         $display($time, pc_logical, " adding fetch to slot ", instruction_q_new_pos, " ram slot ",
@@ -233,7 +234,7 @@ module x_out_of_order (
 
         pc_logical = pc_logical + 2;
         pc_physical = pc_physical + 2;
-        if (pc_physical > pc_physical_max_page) begin
+        if (pc_physical > pc_physical_max_page || pc_physical < pc_physical_min_page) begin
           mmuqueue_q[mmuqueue_q_new_pos].instr_num = MMU_QUEUE_PC_INSTR_NUM; //we have to calculate MMU for PC 
           mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
           mmuqueue_q_empty = 0;
@@ -277,13 +278,13 @@ module x_out_of_order (
         //        if (decoder_state == INSTRUCTION_STATE_REG_SET || decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) begin          
         //        end
       end
-      if (!mmuqueue_q_empty && mmu_ready) begin
+   /*   if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
         mmu_address_logical = (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) ? pc_logical : 0;
         mmu_instr_num = mmuqueue_q[0].instr_num;
       end
       if (!aluqueue_q_empty && alu_ready) begin
-      end
+      end*/
       if (!readram_q_empty) begin
         instruction_q[readram_q[0].instr_num].state = instruction_q[readram_q[0].instr_num].state + 1;
         readram_q = {readram_q[1:20], readram_q[0]};
