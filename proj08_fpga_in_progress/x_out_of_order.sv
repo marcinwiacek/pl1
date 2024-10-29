@@ -178,7 +178,7 @@ module x_out_of_order (
   reg jmp_stall_exists = 0;
   reg [15:0] registers[0:31];
   reg registers_init[0:31] = {
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };
   reg [15:0] pc_logical;
   reg [15:0] pc_physical, pc_physical_min_page, pc_physical_max_page;
@@ -212,8 +212,6 @@ module x_out_of_order (
       mmuqueue_q_empty <= 0;
 
       rst <= 0;
-    end else
-    if (execute_state != EXECUTE_STATE_NONE) begin
     end else if (instr_num < 20) begin
       /* if (mmu_ready) begin
         if (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) begin
@@ -250,7 +248,8 @@ module x_out_of_order (
           pc_physical = 0;
         end
       end
-      if (decoder_ready) begin
+      // $display($time, " executor state1 ",execute_state, " ",decoder_ready);
+      if (decoder_ready || execute_state != EXECUTE_STATE_NONE) begin
         $display($time, " executor state ",execute_state);
         if (execute_state == EXECUTE_STATE_NONE) begin
           instr_num = instr_num + 1;
