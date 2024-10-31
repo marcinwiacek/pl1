@@ -186,6 +186,7 @@ reg [10:0] register_to_init[0:1];
   //--------------------------------------------------------------------execute------------------
   parameter EXECUTE_STATE_NONE = 0;
   parameter EXECUTE_STATE_READ_REG = 1;
+  parameter EXECUTE_STATE_READ_TWO_REG = 2;
 
   reg [5:0] execute_state = 0;
 
@@ -259,12 +260,12 @@ reg [10:0] register_to_init[0:1];
           instruction_q[decoder_instr_num].register = decoder_register;
           read_address = 0;
           read_address2 = 0;
-        end else if (execute_state == EXECUTE_STATE_READ_REG) begin
+        end else if (execute_state == EXECUTE_STATE_READ_REG || execute_state == EXECUTE_STATE_READ_TWO_REG) begin
             registers[register_to_init[0]] = read_value;
             registers_init[register_to_init[0]] = 1;
             $display($time, " updating register ", register_to_init[0],
                      " to ", read_value);
-          if (read_value2!=0) begin
+          if (execute_state == EXECUTE_STATE_READ_TWO_REG) begin
             registers[register_to_init[1]] = read_value2;
             registers_init[register_to_init[1]] = 1;
             $display($time, " updating register ", register_to_init[1],
@@ -272,18 +273,25 @@ reg [10:0] register_to_init[0:1];
           end
           execute_state = EXECUTE_STATE_NONE;
         end
-        for (i = 0; i < 32; i = i + 1) begin
-          if (instruction_q[decoder_instr_num].register == i) begin
-            if (!registers_init[instruction_q[decoder_instr_num].register]) begin
-                if (read_address==0) begin
-                   register_to_init[0] = instruction_q[decoder_instr_num].register;
-                   read_address = process_hardware_address+ADDRESS_REG+register_to_init[0];
-                end else begin
-                  register_to_init[1] = instruction_q[decoder_instr_num].register;
-                  read_address2 = process_hardware_address+ADDRESS_REG+register_to_init[1];
-                  execute_state = EXECUTE_STATE_READ_REG;
+        for (i = 0; i < 32; i = i + 1) begin          
+            if (instruction_q[decoder_instr_num].register == i && !registers_init[i]) begin
+                case (execute_state)
+                EXECUTE_STATE_NONE: begin
+                   register_to_init[0] = i;
+                   read_address = process_hardware_address+ADDRESS_REG+i;
+                   execute_state = EXECUTE_STATE_READ_REG;
+                   if (instruction_q[decoder_instr_num].length != 0) begin
+                     instruction_q[decoder_instr_num].register = i+1;
+                     instruction_q[decoder_instr_num].length = instruction_q[decoder_instr_num].length - 1;
+                   end
                 end
-            end else begin
+                EXECUTE_STATE_READ_REG: begin                   
+                  register_to_init[1] = i;
+                  read_address2 = process_hardware_address+ADDRESS_REG+i;
+                  execute_state = EXECUTE_STATE_READ_TWO_REG;
+                end
+                endcase
+            end else if (instruction_q[decoder_instr_num].register == i) begin
               case (decoder_state)
                 INSTRUCTION_STATE_REG_SET: begin
                   registers[i] = decoder_start_ram_address_or_numeric;
@@ -296,14 +304,12 @@ reg [10:0] register_to_init[0:1];
                 INSTRUCTION_STATE_REG_MUL:
                 registers[i] = registers[i] * decoder_start_ram_address_or_numeric;
               endcase
-            end
-            if (instruction_q[decoder_instr_num].length > 0 && execute_state == EXECUTE_STATE_NONE) begin
-              instruction_q[decoder_instr_num].register = instruction_q[decoder_instr_num].register+1;
-              instruction_q[decoder_instr_num].length = instruction_q[decoder_instr_num].length - 1;
-            end
+                   if (instruction_q[decoder_instr_num].length != 0) begin
+                     instruction_q[decoder_instr_num].register = i+1;
+                     instruction_q[decoder_instr_num].length = instruction_q[decoder_instr_num].length - 1;
+                   end            
           end
         end
-        if (read_address != 0) execute_state = EXECUTE_STATE_READ_REG;
       end
       /*   if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
@@ -550,6 +556,7 @@ module mmu (
   end
 endmodule
 
+/*
 module alu (
     input clk,
     input inp,
@@ -569,6 +576,7 @@ module alu (
     end
   end
 endmodule
+*/
 
 module single_blockram (
     input clk,
