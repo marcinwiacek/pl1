@@ -279,7 +279,7 @@ module x_out_of_order (
           end
         endcase
         if (decoder_state == INSTRUCTION_STATE_REG_SET) begin
-          for (i = instruction_q[decoder_instr_num].register; i < 32; i = i + 1) begin
+          for (i = 0; i < 32; i = i + 1) begin
             if (instruction_q[decoder_instr_num].register == i) begin
               registers[i] = decoder_start_ram_address_or_numeric;
               registers_init[i] = 1;
@@ -326,7 +326,6 @@ module x_out_of_order (
             end
           end
         end
-
       end
       /*   if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
