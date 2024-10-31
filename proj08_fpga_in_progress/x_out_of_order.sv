@@ -252,7 +252,8 @@ reg [10:0] register_to_init[0:1];
       // $display($time, " executor state1 ",execute_state, " ",decoder_ready);
       if (decoder_ready || execute_state != EXECUTE_STATE_NONE) begin
         $display($time, " executor state ", execute_state);
-        if (execute_state == EXECUTE_STATE_NONE) begin
+        case (execute_state)
+        EXECUTE_STATE_NONE: begin
           instr_num = instr_num + 1;
           instruction_q[decoder_instr_num].state = decoder_state;
           instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = decoder_start_ram_address_or_numeric;
@@ -260,19 +261,26 @@ reg [10:0] register_to_init[0:1];
           instruction_q[decoder_instr_num].register = decoder_register;
           read_address = 0;
           read_address2 = 0;
-        end else if (execute_state == EXECUTE_STATE_READ_REG || execute_state == EXECUTE_STATE_READ_TWO_REG) begin
+        end
+        EXECUTE_STATE_READ_REG: begin
             registers[register_to_init[0]] = read_value;
             registers_init[register_to_init[0]] = 1;
             $display($time, " updating register ", register_to_init[0],
                      " to ", read_value);
-          if (execute_state == EXECUTE_STATE_READ_TWO_REG) begin
+          execute_state = EXECUTE_STATE_NONE;
+        end
+        EXECUTE_STATE_READ_TWO_REG: begin
+            registers[register_to_init[0]] = read_value;
+            registers_init[register_to_init[0]] = 1;
+            $display($time, " updating register ", register_to_init[0],
+                     " to ", read_value);
             registers[register_to_init[1]] = read_value2;
             registers_init[register_to_init[1]] = 1;
             $display($time, " updating register ", register_to_init[1],
                      " to ", read_value2);
-          end
           execute_state = EXECUTE_STATE_NONE;
         end
+        endcase
         for (i = 0; i < 32; i = i + 1) begin          
             if (instruction_q[decoder_instr_num].register == i && !registers_init[i]) begin
                 case (execute_state)
@@ -291,7 +299,11 @@ reg [10:0] register_to_init[0:1];
                   execute_state = EXECUTE_STATE_READ_TWO_REG;
                 end
                 endcase
-            end else if (instruction_q[decoder_instr_num].register == i) begin
+            end
+        end
+        if (execute_state == EXECUTE_STATE_NONE) begin
+        for (i = 0; i < 32; i = i + 1) begin          
+            if (instruction_q[decoder_instr_num].register == i && registers_init[i]) begin
               case (decoder_state)
                 INSTRUCTION_STATE_REG_SET: begin
                   registers[i] = decoder_start_ram_address_or_numeric;
@@ -310,6 +322,7 @@ reg [10:0] register_to_init[0:1];
                    end            
           end
         end
+      end
       end
       /*   if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
