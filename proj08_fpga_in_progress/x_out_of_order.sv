@@ -163,8 +163,7 @@ module x_out_of_order (
     reg [15:0] start_ram_address_logical_or_numeric;
     reg [15:0] start_ram_address_physical;
     reg [15:0] length;
-    reg [10:0] register;
-    reg [10:0] register2;
+    reg [10:0] register;    
     reg [5:0]  state;
   } instr;
 
@@ -182,6 +181,7 @@ module x_out_of_order (
   };
   reg [15:0] pc_logical;
   reg [15:0] pc_physical, pc_physical_min_page, pc_physical_max_page;
+reg [10:0] register_to_init[0:1];    
 
   //--------------------------------------------------------------------execute------------------
   parameter EXECUTE_STATE_NONE = 0;
@@ -257,18 +257,17 @@ module x_out_of_order (
           instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = decoder_start_ram_address_or_numeric;
           instruction_q[decoder_instr_num].length = decoder_length;
           instruction_q[decoder_instr_num].register = decoder_register;
-          instruction_q[decoder_instr_num].register2 = 0;
+          read_address = 0;
+          read_address2 = 0;
         end else if (execute_state == EXECUTE_STATE_READ_REG) begin
-          if (instruction_q[decoder_instr_num].register2 != 0) begin
-            registers[instruction_q[decoder_instr_num].register2] = read_value;
-            registers_init[instruction_q[decoder_instr_num].register2] = 1;
-            $display($time, " updating register ", instruction_q[decoder_instr_num].register2,
+            registers[register_to_init[0]] = read_value;
+            registers_init[register_to_init[0]] = 1;
+            $display($time, " updating register ", register_to_init[0],
                      " to ", read_value);
-          end
-          if (!registers_init[instruction_q[decoder_instr_num].register]) begin
-            registers[instruction_q[decoder_instr_num].register] = read_value2;
-            registers_init[instruction_q[decoder_instr_num].register] = 1;
-            $display($time, " updating register ", instruction_q[decoder_instr_num].register,
+          if (read_value2!=0) begin
+            registers[register_to_init[1]] = read_value2;
+            registers_init[register_to_init[1]] = 1;
+            $display($time, " updating register ", register_to_init[1],
                      " to ", read_value2);
           end
           execute_state = EXECUTE_STATE_NONE;
@@ -276,13 +275,14 @@ module x_out_of_order (
         for (i = 0; i < 32; i = i + 1) begin
           if (instruction_q[decoder_instr_num].register == i) begin
             if (!registers_init[instruction_q[decoder_instr_num].register]) begin
-              if (instruction_q[decoder_instr_num].register2 == 0) begin
-                read_address = process_hardware_address+ADDRESS_REG+instruction_q[decoder_instr_num].register;
-                instruction_q[decoder_instr_num].register2=instruction_q[decoder_instr_num].register;
-              end else begin
-                read_address2 = process_hardware_address+ADDRESS_REG+instruction_q[decoder_instr_num].register;
-                execute_state = EXECUTE_STATE_READ_REG;
-              end
+                if (read_address==0) begin
+                   register_to_init[0] = instruction_q[decoder_instr_num].register;
+                   read_address = process_hardware_address+ADDRESS_REG+register_to_init[0];
+                end else begin
+                  register_to_init[1] = instruction_q[decoder_instr_num].register;
+                  read_address2 = process_hardware_address+ADDRESS_REG+register_to_init[1];
+                  execute_state = EXECUTE_STATE_READ_REG;
+                end
             end else begin
               case (decoder_state)
                 INSTRUCTION_STATE_REG_SET: begin
@@ -303,7 +303,7 @@ module x_out_of_order (
             end
           end
         end
-        if (instruction_q[decoder_instr_num].register2 != 0) execute_state = EXECUTE_STATE_READ_REG;
+        if (read_address != 0) execute_state = EXECUTE_STATE_READ_REG;
       end
       /*   if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
