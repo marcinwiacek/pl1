@@ -281,8 +281,21 @@ reg [10:0] register_to_init[0:1];
           execute_state = EXECUTE_STATE_NONE;
         end
         endcase
+        if (decoder_state==INSTRUCTION_STATE_REG_SET) begin
+        for (i = instruction_q[decoder_instr_num].register; i < 32; i = i + 1) begin          
+            if (instruction_q[decoder_instr_num].register == i) begin
+                  registers[i] = decoder_start_ram_address_or_numeric;
+                  registers_init[i] = 1;
+                   if (instruction_q[decoder_instr_num].length != 0) begin
+                     instruction_q[decoder_instr_num].register = i+1;
+                     instruction_q[decoder_instr_num].length = instruction_q[decoder_instr_num].length - 1;
+                   end            
+            end
+        end
+        end else begin
         for (i = 0; i < 32; i = i + 1) begin          
-            if (instruction_q[decoder_instr_num].register == i && !registers_init[i]) begin
+            if (instruction_q[decoder_instr_num].register == i) begin
+            if (!registers_init[i]) begin
                 case (execute_state)
                 EXECUTE_STATE_NONE: begin
                    register_to_init[0] = i;
@@ -300,15 +313,8 @@ reg [10:0] register_to_init[0:1];
                 end
                 endcase
             end
-        end
-        if (execute_state == EXECUTE_STATE_NONE) begin
-        for (i = 0; i < 32; i = i + 1) begin          
-            if (instruction_q[decoder_instr_num].register == i && registers_init[i]) begin
+           else begin
               case (decoder_state)
-                INSTRUCTION_STATE_REG_SET: begin
-                  registers[i] = decoder_start_ram_address_or_numeric;
-                  registers_init[i] = 1;
-                end
                 INSTRUCTION_STATE_REG_ADD:
                 registers[i] = registers[i] + decoder_start_ram_address_or_numeric;
                 INSTRUCTION_STATE_REG_DEC:
@@ -323,6 +329,8 @@ reg [10:0] register_to_init[0:1];
           end
         end
       end
+        end
+                
       end
       /*   if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
