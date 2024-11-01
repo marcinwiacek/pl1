@@ -122,7 +122,7 @@ module x_out_of_order (
       .start_ram_address_or_numeric(decoder_start_ram_address_or_numeric),
       .register_start(decoder_start),
       .register_end(decoder_register_end)
-);
+  );
 
   //------------------------------------------------------------ram---------------------------
 
@@ -151,7 +151,10 @@ module x_out_of_order (
   reg [7:0] readram_q_new_pos;
   reg readram_q_empty;
 
-  typedef struct {reg [15:0] address; reg [15:0] value;} saveram;
+  typedef struct {
+    reg [15:0] address;
+    reg [15:0] value;
+  } saveram;
 
   saveram saveram_q[0:SAVERAM_QUEUE_LEN];
   reg [7:0] saveram_q_new_pos;
@@ -210,9 +213,9 @@ module x_out_of_order (
         mmuqueue_q_empty = mmuqueue_q_new_pos == 0;
       end
       */
-      if (!jmp_stall_exists && pc_physical != 0 && execute_state==EXECUTE_STATE_NONE) begin
+      if (!jmp_stall_exists && pc_physical != 0 && execute_state == EXECUTE_STATE_NONE) begin
         readram_q[readram_q_new_pos].address = pc_physical;
-        $display($time, pc_logical, " adding fetch with physical address ",pc_physical);
+        $display($time, pc_logical, " adding fetch with physical address ", pc_physical);
         readram_q_new_pos = readram_q_new_pos + 1;
 
         pc_logical = pc_logical + 2;
@@ -261,7 +264,7 @@ module x_out_of_order (
                 execute_state = EXECUTE_STATE_READ_TWO_REG;
               end
             endcase
-          end else if (i>=decoder_register_start && i<=decoder_register_end) begin
+          end else if (i >= decoder_register_start && i <= decoder_register_end) begin
             case (decoder_state)
               INSTRUCTION_STATE_REG_SET: begin
                 registers[i] = decoder_start_ram_address_or_numeric;
@@ -276,7 +279,7 @@ module x_out_of_order (
             endcase
           end
         end
-        if (execute_state==EXECUTE_STATE_NONE) instr_num = instr_num + 1;
+        if (execute_state == EXECUTE_STATE_NONE) instr_num = instr_num + 1;
       end
       /*   if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
@@ -288,14 +291,14 @@ module x_out_of_order (
       if (!readram_q_empty && execute_state == EXECUTE_STATE_NONE) begin
         readram_q = {readram_q[1:20], readram_q[0]};
         readram_q_new_pos = readram_q_new_pos - 1;
-        readram_q_empty = readram_q_new_pos==0;
+        readram_q_empty = readram_q_new_pos == 0;
 
         read_address = readram_q[0].address;
-        read_address2 = readram_q[0].address+1;
-            $display($time, read_address, " fetch ", read_address, "=", read_value, " ",
-                     read_address2, "=", read_value2);            
-            decoder_inp = 1;
-        x = read_value; //just to have some output signal from cpu. Not used for anything useful
+        read_address2 = readram_q[0].address + 1;
+        $display($time, read_address, " fetch ", read_address, "=", read_value, " ", read_address2,
+                 "=", read_value2);
+        decoder_inp = 1;
+        x = read_value;  //just to have some output signal from cpu. Not used for anything useful
       end else begin
         decoder_inp = 0;
       end
@@ -409,7 +412,7 @@ module decoder (
             error_code <= 0;
             start_ram_address_or_numeric <= instruction2;
             register_start <= instruction1_2_1;
-            register_end <= instruction1_2_1+instruction1_2_2;
+            register_end <= instruction1_2_1 + instruction1_2_2;
           end
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
@@ -432,8 +435,8 @@ module decoder (
             state                        <= INSTRUCTION_STATE_REG_2_RAM;
             error_code                   <= 0;
             start_ram_address_or_numeric <= instruction2;
-            register_start <= instruction1_2_1;
-            register_end <= instruction1_2_1+instruction1_2_2;
+            register_start               <= instruction1_2_1;
+            register_end                 <= instruction1_2_1 + instruction1_2_2;
           end
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
@@ -450,8 +453,8 @@ module decoder (
           state                        <= INSTRUCTION_STATE_REG_SET;
           error_code                   <= 0;
           start_ram_address_or_numeric <= instruction2;
-            register_start <= instruction1_2_1;
-            register_end <= instruction1_2_1+instruction1_2_2;
+          register_start               <= instruction1_2_1;
+          register_end                 <= instruction1_2_1 + instruction1_2_2;
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
         OPCODE_REG_PLUS: begin
@@ -467,8 +470,8 @@ module decoder (
           state                        <= INSTRUCTION_STATE_REG_ADD;
           error_code                   <= 0;
           start_ram_address_or_numeric <= instruction2;
-            register_start <= instruction1_2_1;
-            register_end <= instruction1_2_1+instruction1_2_2;
+          register_start               <= instruction1_2_1;
+          register_end                 <= instruction1_2_1 + instruction1_2_2;
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
         OPCODE_REG_MUL: begin
@@ -484,8 +487,8 @@ module decoder (
           state                        <= INSTRUCTION_STATE_REG_MUL;
           error_code                   <= 0;
           start_ram_address_or_numeric <= instruction2;
-            register_start <= instruction1_2_1;
-            register_end <= instruction1_2_1+instruction1_2_2;
+          register_start               <= instruction1_2_1;
+          register_end                 <= instruction1_2_1 + instruction1_2_2;
         end
       endcase
     end
