@@ -46,7 +46,7 @@ module x_out_of_order (
   reg rst = 1;
   reg [7:0] instr_num = 0;
 
-  integer i;
+  integer i,j,k;
 
   //-------------------------------------------------------alu---------------------------------
 
@@ -255,12 +255,12 @@ module x_out_of_order (
         case (execute_state)
           EXECUTE_STATE_NONE: begin
             instr_num = instr_num + 1;
-            instruction_q[decoder_instr_num].state = decoder_state;
-            instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = decoder_start_ram_address_or_numeric;
-            instruction_q[decoder_instr_num].length = decoder_register+decoder_length;
-            instruction_q[decoder_instr_num].register = decoder_register;
-            read_address = 0;
-            read_address2 = 0;
+//            instruction_q[decoder_instr_num].state = decoder_state;
+//            instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = decoder_start_ram_address_or_numeric;
+//            instruction_q[decoder_instr_num].length = decoder_register+decoder_length;
+//            instruction_q[decoder_instr_num].register = decoder_register;
+//            read_address = 0;
+//            read_address2 = 0;
           end
           EXECUTE_STATE_READ_REG: begin
             registers[register_to_init[0]] = read_value;
@@ -278,17 +278,8 @@ module x_out_of_order (
             execute_state = EXECUTE_STATE_NONE;
           end
         endcase
-        if (decoder_state == INSTRUCTION_STATE_REG_SET) begin
           for (i = 0; i < 32; i = i + 1) begin
-             if (i>=instruction_q[decoder_instr_num].register && i<= instruction_q[decoder_instr_num].length) begin
-              registers[i] = decoder_start_ram_address_or_numeric;
-              registers_init[i] = 1;
-             end
-          end
-        end else begin
-          for (i = 0; i < 32; i = i + 1) begin
-            if (i>=instruction_q[decoder_instr_num].register && i<= instruction_q[decoder_instr_num].length) begin
-              if (!registers_init[i]) begin
+            if (i>=decoder_register && i<=decoder_register+decoder_length  && !registers_init[i] && decoder_state != INSTRUCTION_STATE_REG_SET) begin
                 case (execute_state)
                   EXECUTE_STATE_NONE: begin
                     register_to_init[0] = i;
@@ -301,8 +292,12 @@ module x_out_of_order (
                     execute_state = EXECUTE_STATE_READ_TWO_REG;
                   end
                 endcase
-              end else begin
+              end else if (i>=decoder_register && i<=decoder_register+decoder_length) begin
                 case (decoder_state)
+                  INSTRUCTION_STATE_REG_SET: begin
+              registers[i] = decoder_start_ram_address_or_numeric;
+              registers_init[i] = 1;
+                  end
                   INSTRUCTION_STATE_REG_ADD:
                   registers[i] = registers[i] + decoder_start_ram_address_or_numeric;
                   INSTRUCTION_STATE_REG_DEC:
@@ -311,8 +306,6 @@ module x_out_of_order (
                   registers[i] = registers[i] * decoder_start_ram_address_or_numeric;
                 endcase                
               end
-            end
-          end
         end
       end
       /*   if (!mmuqueue_q_empty && mmu_ready) begin
