@@ -107,8 +107,9 @@ module x_out_of_order (
   wire [5:0] decoder_state;
   wire [3:0] decoder_error_code;
   wire [15:0] decoder_start_ram_address_or_numeric;
-  wire [15:0] decoder_length;
-  wire [10:0] decoder_register;
+  wire [15:0] decoder_register_end;
+  wire [10:0] decoder_start;
+  reg [10:0] decoder_register_start;
 
   decoder decoder (
       .address(read_address),
@@ -120,9 +121,9 @@ module x_out_of_order (
       .state(decoder_state),
       .error_code(decoder_error_code),
       .start_ram_address_or_numeric(decoder_start_ram_address_or_numeric),
-      .length(decoder_length),
-      .register(decoder_register)
-  );
+      .register_start(decoder_start),
+      .register_end(decoder_register_end)
+);
 
   //------------------------------------------------------------ram---------------------------
 
@@ -255,6 +256,7 @@ module x_out_of_order (
         case (execute_state)
           EXECUTE_STATE_NONE: begin
             instr_num = instr_num + 1;
+            decoder_register_start = decoder_start;
             //            instruction_q[decoder_instr_num].state = decoder_state;
             //            instruction_q[decoder_instr_num].start_ram_address_logical_or_numeric = decoder_start_ram_address_or_numeric;
             //            instruction_q[decoder_instr_num].length = decoder_register+decoder_length;
@@ -279,7 +281,7 @@ module x_out_of_order (
           end
         endcase
         for (i = 0; i < 32; i = i + 1) begin
-          if (i>=decoder_register && i<=decoder_register+decoder_length  && !registers_init[i] && decoder_state != INSTRUCTION_STATE_REG_SET) begin
+          if (i>=decoder_register_start && i<=decoder_register_end  && !registers_init[i] && decoder_state != INSTRUCTION_STATE_REG_SET) begin
             case (execute_state)
               EXECUTE_STATE_NONE: begin
                 register_to_init[0] = i;
@@ -292,7 +294,7 @@ module x_out_of_order (
                 execute_state = EXECUTE_STATE_READ_TWO_REG;
               end
             endcase
-          end else if (i >= decoder_register && i <= decoder_register + decoder_length) begin
+          end else if (i>=decoder_register_start && i<=decoder_register_end) begin
             case (decoder_state)
               INSTRUCTION_STATE_REG_SET: begin
                 registers[i] = decoder_start_ram_address_or_numeric;
@@ -353,8 +355,8 @@ module decoder (
     output bit [5:0] state,
     output bit [3:0] error_code,
     output bit [15:0] start_ram_address_or_numeric,
-    output bit [15:0] length,
-    output bit [10:0] register
+    output bit [15:0] register_end,
+    output bit [10:0] register_start
 );
 
   bit [7:0] instruction1_1;
@@ -448,8 +450,8 @@ module decoder (
             state <= INSTRUCTION_STATE_RAM_2_REG;
             error_code <= 0;
             start_ram_address_or_numeric <= instruction2;
-            length <= instruction1_2_2;
-            register <= instruction1_2_1;
+            register_start <= instruction1_2_1;
+            register_end <= instruction1_2_1+instruction1_2_2;
           end
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
@@ -472,8 +474,8 @@ module decoder (
             state                        <= INSTRUCTION_STATE_REG_2_RAM;
             error_code                   <= 0;
             start_ram_address_or_numeric <= instruction2;
-            length                       <= instruction1_2_2;
-            register                     <= instruction1_2_1;
+            register_start <= instruction1_2_1;
+            register_end <= instruction1_2_1+instruction1_2_2;
           end
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
@@ -490,8 +492,8 @@ module decoder (
           state                        <= INSTRUCTION_STATE_REG_SET;
           error_code                   <= 0;
           start_ram_address_or_numeric <= instruction2;
-          length                       <= instruction1_2_2;
-          register                     <= instruction1_2_1;
+            register_start <= instruction1_2_1;
+            register_end <= instruction1_2_1+instruction1_2_2;
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
         OPCODE_REG_PLUS: begin
@@ -507,8 +509,8 @@ module decoder (
           state                        <= INSTRUCTION_STATE_REG_ADD;
           error_code                   <= 0;
           start_ram_address_or_numeric <= instruction2;
-          length                       <= instruction1_2_2;
-          register                     <= instruction1_2_1;
+            register_start <= instruction1_2_1;
+            register_end <= instruction1_2_1+instruction1_2_2;
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
         OPCODE_REG_MUL: begin
@@ -524,8 +526,8 @@ module decoder (
           state                        <= INSTRUCTION_STATE_REG_MUL;
           error_code                   <= 0;
           start_ram_address_or_numeric <= instruction2;
-          length                       <= instruction1_2_2;
-          register                     <= instruction1_2_1;
+            register_start <= instruction1_2_1;
+            register_end <= instruction1_2_1+instruction1_2_2;
         end
       endcase
     end
