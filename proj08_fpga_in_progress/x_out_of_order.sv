@@ -33,7 +33,7 @@ parameter INSTRUCTION_STATE_REG_2_RAM = 7;
 parameter INSTRUCTION_STATE_REG_MUL = 8;
 
 parameter MMU_QUEUE_LEN = 10;
-parameter READRAM_QUEUE_LEN = 20;
+parameter READRAM_QUEUE_LEN = 32;
 parameter SAVERAM_QUEUE_LEN = 20;
 parameter INST_QUEUE_LEN = 10;
 parameter ALU_QUEUE_LEN = 10;
@@ -146,7 +146,7 @@ module x_out_of_order (
       .read_value2(read_value2)
   );
 
-  typedef struct {reg [15:0] address;} readram;
+  typedef struct {reg [15:0] address; reg [5:0] reg_num;} readram;
 
   readram readram_q[0:READRAM_QUEUE_LEN];
   reg [7:0] readram_q_new_pos;
@@ -171,21 +171,23 @@ module x_out_of_order (
   };
   reg [15:0] pc_logical;
   reg [15:0] pc_physical, pc_physical_min_page, pc_physical_max_page;
-  reg [10:0] register_to_init[0:1];
-  reg register_to_init_inside[0:1];
+  reg [10:0] register_to_init, register_to_init2;
+  reg register_to_init_inside,register_to_init_inside2;
 
   //--------------------------------------------------------------------execute------------------
   parameter EXECUTE_STATE_NONE = 0;
   parameter EXECUTE_STATE_READ_REG = 1;
   parameter EXECUTE_STATE_READ_REG_INSIDE = 2;
+  parameter EXECUTE_STATE_EXECUTE = 3;
 
   reg [5:0] execute_state = 0;
 
   always @(posedge clk) begin
     if (rst) begin
-      readram_q_new_pos <= 1;
-      readram_q[0].address <= 52;
-      readram_q_empty <= 0;
+//      readram_q_new_pos <= 1;
+//      readram_q[0].address <= 52;
+//      readram_q[0].len <= 2;
+//      readram_q_empty <= 0;
 
       read_address <= 52;
       read_address2 <= 53;
@@ -217,58 +219,45 @@ module x_out_of_order (
         mmuqueue_q_empty = mmuqueue_q_new_pos == 0;
       end
       */
-      if (decoder_ready || execute_state != EXECUTE_STATE_NONE) begin
+  
+      if (!readram_q_empty) begin
+                $display($time, " updating register ", readram_q[0].reg_num,
+                         " to ", read_value);
+        registers[readram_q[0].reg_num] = read_value;
+        registers[readram_q[0].reg_num].init = 1;                
+        readram_q = {readram_q[1:READRAM_QUEUE_LEN], readram_q[0]};
+        readram_q_new_pos = readram_q_new_pos - 1;        
+        readram_q_empty = readram_q_new_pos == 0;
+        if (readram_q_empty) execute_state = EXECUTE_STATE_EXECUTE;
+      end
+      if (!readram_q_empty) begin
+                $display($time, " updating register ", readram_q[0].reg_num,
+                         " to ", read_value2);
+        registers[readram_q[0].reg_num] = read_value2;
+        registers[readram_q[0].reg_num].init = 1;                
+        readram_q = {readram_q[1:READRAM_QUEUE_LEN], readram_q[0]};
+        readram_q_new_pos = readram_q_new_pos - 1;        
+        readram_q_empty = readram_q_new_pos == 0;
+        if (readram_q_empty) execute_state = EXECUTE_STATE_EXECUTE;
+      end
+      read_address = readram_q[0].address;     
+      read_address2 = readram_q[1].address;     
+      if (decoder_ready || execute_state == EXECUTE_STATE_EXECUTE) begin
         decoder_inp = 0;
         $display($time, decoder_address, " executor state ", execute_state);
-        case (execute_state)
-          EXECUTE_STATE_NONE: begin
+         if (execute_state==EXECUTE_STATE_NONE) begin
             decoder_register_start = decoder_start;
              instr_num = instr_num + 1;           
           end
-          EXECUTE_STATE_READ_REG, EXECUTE_STATE_READ_REG_INSIDE: begin
-              if (register_to_init[0] != 100) begin
-                registers[register_to_init[0]] = read_value;
-                registers_init[register_to_init[0]] = 1;
-                $display($time, decoder_address, " updating register ", register_to_init[0],
-                         " to ", read_value);
-              end
-              if (register_to_init[1] != 100) begin
-                registers[register_to_init[1]] = read_value2;
-                registers_init[register_to_init[1]] = 1;
-                $display($time, decoder_address, " updating register ", register_to_init[1],
-                         " to ", read_value2);
-              end
-          end
-        endcase
-        if (execute_state == EXECUTE_STATE_NONE || execute_state == EXECUTE_STATE_READ_REG_INSIDE) begin
-          execute_state = EXECUTE_STATE_NONE;
-          register_to_init_inside[0] = 0;
-          register_to_init_inside[1] = 0;
-          register_to_init[0] = 100;
-          register_to_init[1] = 100;
           for (i = 0; i < 32; i = i + 1) begin
-            if (!registers_init[i]) begin
-              if ((i >= decoder_register_start && i <= decoder_register_end && !register_to_init_inside[0]) || register_to_init[0] == 100) begin
-                register_to_init[0] = i;
-                register_to_init_inside[0] = i >= decoder_register_start && i <= decoder_register_end;
-                read_address = process_hardware_address + ADDRESS_REG + i;
-                if (register_to_init_inside[0]) begin
-                  execute_state = EXECUTE_STATE_READ_REG_INSIDE;
-                  decoder_register_start = i;
-                end
-              end
-              if ((i >= decoder_register_start && i <= decoder_register_end && !register_to_init_inside[1]) || register_to_init[1] == 100) begin
-                register_to_init[1] = i;
-                register_to_init_inside[1] = i >= decoder_register_start && i <= decoder_register_end;
-                read_address2 = process_hardware_address + ADDRESS_REG + i;
-                if (register_to_init_inside[1]) begin
-                  execute_state = EXECUTE_STATE_READ_REG_INSIDE;
-                  decoder_register_start = i;
-                end
-              end
-            end else if (execute_state == EXECUTE_STATE_NONE && i >= decoder_register_start && i <= decoder_register_end) begin
+            if (i >= decoder_register_start && i <= decoder_register_end) begin
+            if (!registers_init[i] && decoder_state!=INSTRUCTION_STATE_REG_SET) begin
+              readram_q[readram_q_new_pos].address = process_hardware_address + ADDRESS_REG + i;
+              readram_q[readram_q_new_pos].reg_num = i;
+              readram_q_new_pos = readram_q_new_pos + 1;
+            end else begin
               case (decoder_state)
-                INSTRUCTION_STATE_RAM_2_REG: registers_init[i] = 0;
+            //    INSTRUCTION_STATE_RAM_2_REG: registers_init[i] = 0;
                 INSTRUCTION_STATE_REG_SET: begin
                   registers[i] = decoder_start_ram_address_or_numeric;
                   registers_init[i] = 1;
@@ -282,9 +271,7 @@ module x_out_of_order (
               endcase
             end
           end
-        end else begin
-          execute_state = EXECUTE_STATE_NONE;
-        end
+          execute_state = readram_q_empty? EXECUTE_STATE_NONE:EXECUTE_STATE_EXECUTE;
       end
       /*   if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
@@ -293,10 +280,14 @@ module x_out_of_order (
       end
       if (!aluqueue_q_empty && alu_ready) begin
       end*/
-      if (!jmp_stall_exists && pc_physical != 0 && execute_state == EXECUTE_STATE_NONE) begin
-        readram_q[readram_q_new_pos].address = pc_physical;
-        readram_q_new_pos = readram_q_new_pos + 1;
-        $display($time, pc_logical, " adding fetch");
+      if (!jmp_stall_exists && pc_physical != 0 && readram_q_empty) begin
+        read_address = pc_physical;
+        read_address2 = pc_physical+1;
+        $display($time, pc_logical, " starting fetch");
+
+        decoder_address = pc_physical;
+        decoder_inp = 1;
+        x = read_value;  //just to have some output signal from cpu. Not used for anything useful
 
         pc_logical  = pc_logical + 2;
         pc_physical = pc_physical + 2;
@@ -306,24 +297,12 @@ module x_out_of_order (
           mmuqueue_q_empty = 0;
           pc_physical = 0;
         end
-      end
-      if (!readram_q_empty && execute_state == EXECUTE_STATE_NONE) begin
-        readram_q = {readram_q[1:READRAM_QUEUE_LEN], readram_q[0]};
-        readram_q_new_pos = readram_q_new_pos - 1;
-        // readram_q_empty = readram_q_new_pos == 0;
-
-        read_address = readram_q[0].address;
-        read_address2 = readram_q[0].address + 1;
-        $display($time, read_address, " starting fetch ");
-
-        decoder_address = readram_q[0].address;
-        decoder_inp = 1;
-        x = read_value;  //just to have some output signal from cpu. Not used for anything useful
       end else begin
         decoder_inp = 0;
       end
     end else begin
         decoder_inp = 0;
+    end
     end
   end
 endmodule
