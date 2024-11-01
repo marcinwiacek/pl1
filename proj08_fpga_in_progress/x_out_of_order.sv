@@ -274,36 +274,36 @@ module x_out_of_order (
           end
           execute_state = readram_q_empty ? EXECUTE_STATE_NONE : EXECUTE_STATE_EXECUTE;
         end
-        /*   if (!mmuqueue_q_empty && mmu_ready) begin
+      end
+      /*   if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
         mmu_address_logical = (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) ? pc_logical : 0;
         mmu_instr_num = mmuqueue_q[0].instr_num;
       end
       if (!aluqueue_q_empty && alu_ready) begin
       end*/
-        if (!jmp_stall_exists && pc_physical != 0 && readram_q_empty) begin
-          read_address  = pc_physical;
-          read_address2 = pc_physical + 1;
-          $display($time, pc_logical, " starting fetch");
+      if (!jmp_stall_exists && pc_physical != 0 && readram_q_empty) begin
+        read_address  = pc_physical;
+        read_address2 = pc_physical + 1;
+        $display($time, pc_logical, " starting fetch");
 
-          decoder_address = pc_physical;
-          decoder_inp = 1;
-          x = read_value;  //just to have some output signal from cpu. Not used for anything useful
+        decoder_address = pc_physical;
+        decoder_inp = 1;
+        x = read_value;  //just to have some output signal from cpu. Not used for anything useful
 
-          pc_logical = pc_logical + 2;
-          pc_physical = pc_physical + 2;
-          if (pc_physical > pc_physical_max_page || pc_physical < pc_physical_min_page) begin
-            mmuqueue_q[mmuqueue_q_new_pos].instr_num = MMU_QUEUE_PC_INSTR_NUM; //we have to calculate MMU for PC 
-            mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
-            mmuqueue_q_empty = 0;
-            pc_physical = 0;
-          end
-        end else begin
-          decoder_inp = 0;
+        pc_logical = pc_logical + 2;
+        pc_physical = pc_physical + 2;
+        if (pc_physical > pc_physical_max_page || pc_physical < pc_physical_min_page) begin
+          mmuqueue_q[mmuqueue_q_new_pos].instr_num = MMU_QUEUE_PC_INSTR_NUM; //we have to calculate MMU for PC 
+          mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
+          mmuqueue_q_empty = 0;
+          pc_physical = 0;
         end
       end else begin
         decoder_inp = 0;
       end
+    end else begin
+      decoder_inp = 0;
     end
   end
 endmodule
