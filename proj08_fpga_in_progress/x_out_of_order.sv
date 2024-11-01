@@ -101,7 +101,7 @@ module x_out_of_order (
 
   //---------------------------------------------------------decoder--------------------------
 
-reg [15:0] decoder_input_address;
+  reg [15:0] decoder_input_address;
   reg decoder_inp;
   wire decoder_ready;
   wire [5:0] decoder_state;
@@ -182,17 +182,17 @@ reg [15:0] decoder_input_address;
   reg [15:0] executor_register_end;
   reg [10:0] executor_register_start;
   reg [15:0] executor_start_ram_address_or_numeric;
-  
+
   always @(posedge clk) begin
     if (rst) begin
-            readram_q_new_pos <= 0;
+      readram_q_new_pos <= 0;
       //      readram_q[0].address <= 52;
       //      readram_q[0].len <= 2;
 
       read_address <= 52;
       read_address2 <= 53;
       decoder_inp <= 1;
-      decoder_input_address<=52;
+      decoder_input_address <= 52;
       $display($time, "   52 starting initial fetch ");
       pc_logical <= 54;
       pc_physical <= 54;
@@ -201,8 +201,8 @@ reg [15:0] decoder_input_address;
 
       mmuqueue_q_new_pos <= 0;
       mmuqueue_q_empty <= 0;
-      
-      executor_state<=0;
+
+      executor_state <= 0;
 
       rst <= 0;
     end else if (instr_num < 10) begin
@@ -222,48 +222,50 @@ reg [15:0] decoder_input_address;
       end
       */
 
-         // $display($time, decoder_ready ," ", executor_state);
+      // $display($time, decoder_ready ," ", executor_state);
 
-case (executor_state)
-  EXECUTE_STATE_NONE: begin
-      if (decoder_ready) begin
-         // $display($time, " we have execution input ",decoder_address);
-          decoder_inp = 0;       
-          executor_instruction_state = decoder_state;
-          executor_register_start = decoder_start;
-          executor_register_end = decoder_register_end;
-          executor_start_ram_address_or_numeric=decoder_start_ram_address_or_numeric;
-          instr_num = instr_num + 1;
-          executor_state = EXECUTE_STATE_PROCESS;
-      end
-      end
-      EXECUTE_STATE_EXECUTE: begin
-        readram_q_new_pos = readram_q_new_pos - 1;
-        $display($time, " updating register ", readram_q[readram_q_new_pos].reg_num, " to ", read_value);
-        registers[readram_q[readram_q_new_pos].reg_num] = read_value;
-        registers_init[readram_q[readram_q_new_pos].reg_num] = 1; 
-        x = read_value;  //just to have some output signal from cpu. Not used for anything useful
-        if (readram_q_new_pos!=0) begin
-          readram_q_new_pos = readram_q_new_pos - 1;
-          $display($time, " updating register2 ", readram_q[readram_q_new_pos].reg_num, " to ", read_value2);
-          registers[readram_q[readram_q_new_pos].reg_num] = read_value2;
-          registers_init[readram_q[readram_q_new_pos].reg_num] = 1;
-        end else begin
-          executor_state = EXECUTE_STATE_PROCESS;
+      case (executor_state)
+        EXECUTE_STATE_NONE: begin
+          if (decoder_ready) begin
+            // $display($time, " we have execution input ",decoder_address);
+            decoder_inp = 0;
+            executor_instruction_state = decoder_state;
+            executor_register_start = decoder_start;
+            executor_register_end = decoder_register_end;
+            executor_start_ram_address_or_numeric = decoder_start_ram_address_or_numeric;
+            instr_num = instr_num + 1;
+            executor_state = EXECUTE_STATE_PROCESS;
+          end
         end
-      end
+        EXECUTE_STATE_EXECUTE: begin
+          readram_q_new_pos = readram_q_new_pos - 1;
+          $display($time, " updating register ", readram_q[readram_q_new_pos].reg_num, " to ",
+                   read_value);
+          registers[readram_q[readram_q_new_pos].reg_num] = read_value;
+          registers_init[readram_q[readram_q_new_pos].reg_num] = 1;
+          x = read_value;  //just to have some output signal from cpu. Not used for anything useful
+          if (readram_q_new_pos != 0) begin
+            readram_q_new_pos = readram_q_new_pos - 1;
+            $display($time, " updating register2 ", readram_q[readram_q_new_pos].reg_num, " to ",
+                     read_value2);
+            registers[readram_q[readram_q_new_pos].reg_num] = read_value2;
+            registers_init[readram_q[readram_q_new_pos].reg_num] = 1;
+          end else begin
+            executor_state = EXECUTE_STATE_PROCESS;
+          end
+        end
       endcase
       if (executor_state == EXECUTE_STATE_PROCESS) begin
-        executor_state = EXECUTE_STATE_NONE;        
-        $display($time, " executor state ", executor_state, executor_register_start ," ", 
-            executor_register_end," ",executor_start_ram_address_or_numeric);
+        executor_state = EXECUTE_STATE_NONE;
+        $display($time, " executor state ", executor_state, executor_register_start, " ",
+                 executor_register_end, " ", executor_start_ram_address_or_numeric);
         for (i = 0; i < 32; i = i + 1) begin
           if (i >= executor_register_start && i <= executor_register_end) begin
             if (!registers_init[i] && executor_instruction_state != INSTRUCTION_STATE_REG_SET) begin
               readram_q[readram_q_new_pos].address = process_hardware_address + ADDRESS_REG + i;
               readram_q[readram_q_new_pos].reg_num = i;
-              readram_q_new_pos = readram_q_new_pos + 1;     
-              executor_state = EXECUTE_STATE_EXECUTE;        
+              readram_q_new_pos = readram_q_new_pos + 1;
+              executor_state = EXECUTE_STATE_EXECUTE;
             end else begin
               case (executor_instruction_state)
                 //    INSTRUCTION_STATE_RAM_2_REG: registers_init[i] = 0;
@@ -279,12 +281,12 @@ case (executor_state)
                 registers[i] = registers[i] * executor_start_ram_address_or_numeric;
               endcase
             end
-          end          
+          end
         end
       end
-      if (readram_q_new_pos>0) read_address  = readram_q[readram_q_new_pos-1].address;
-      if (readram_q_new_pos>1) read_address2  = readram_q[readram_q_new_pos-2].address;
-    
+      if (readram_q_new_pos > 0) read_address = readram_q[readram_q_new_pos-1].address;
+      if (readram_q_new_pos > 1) read_address2 = readram_q[readram_q_new_pos-2].address;
+
       /*   if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
         mmu_address_logical = (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) ? pc_logical : 0;
@@ -292,7 +294,7 @@ case (executor_state)
       end
       if (!aluqueue_q_empty && alu_ready) begin
       end*/
-      if (!jmp_stall_exists && pc_physical != 0 && readram_q_new_pos==0) begin
+      if (!jmp_stall_exists && pc_physical != 0 && readram_q_new_pos == 0) begin
         read_address  = pc_physical;
         read_address2 = pc_physical + 1;
         $display($time, pc_logical, " starting fetch");
