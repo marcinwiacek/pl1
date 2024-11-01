@@ -102,7 +102,6 @@ module x_out_of_order (
   //---------------------------------------------------------decoder--------------------------
 
 reg [15:0] decoder_input_address;
-  wire [15:0] decoder_address;
   reg decoder_inp;
   wire decoder_ready;
   wire [5:0] decoder_state;
@@ -113,7 +112,6 @@ reg [15:0] decoder_input_address;
 
   decoder decoder (
       .address(decoder_input_address),
-      .address2(decoder_address),
       .clk(clk),
       .instruction1(read_value),
       .instruction2(read_value2),
@@ -170,7 +168,7 @@ reg [15:0] decoder_input_address;
   reg jmp_stall_exists = 0;
   reg [15:0] registers[0:31];
   reg registers_init[0:31] = {
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };
   reg [15:0] pc_logical;
   reg [15:0] pc_physical, pc_physical_min_page, pc_physical_max_page;
@@ -181,7 +179,6 @@ reg [15:0] decoder_input_address;
   parameter EXECUTE_STATE_EXECUTE = 3;
 
   reg [5:0] executor_state, executor_instruction_state;
-  reg [15:0] executor_address; 
   reg [15:0] executor_register_end;
   reg [10:0] executor_register_start;
   reg [15:0] executor_start_ram_address_or_numeric;
@@ -227,10 +224,11 @@ reg [15:0] decoder_input_address;
 
          // $display($time, decoder_ready ," ", executor_state);
 
-      if (decoder_ready && executor_state == EXECUTE_STATE_NONE) begin
+case (executor_state)
+  EXECUTE_STATE_NONE: begin
+      if (decoder_ready) begin
          // $display($time, " we have execution input ",decoder_address);
-          decoder_inp = 0;
-          executor_address = decoder_address;
+          decoder_inp = 0;       
           executor_instruction_state = decoder_state;
           executor_register_start = decoder_start;
           executor_register_end = decoder_register_end;
@@ -238,24 +236,26 @@ reg [15:0] decoder_input_address;
           instr_num = instr_num + 1;
           executor_state = EXECUTE_STATE_PROCESS;
       end
-      if (readram_q_new_pos!=0) begin
+      end
+      EXECUTE_STATE_EXECUTE: begin
         readram_q_new_pos = readram_q_new_pos - 1;
         $display($time, " updating register ", readram_q[readram_q_new_pos].reg_num, " to ", read_value);
         registers[readram_q[readram_q_new_pos].reg_num] = read_value;
-        registers_init[readram_q[readram_q_new_pos].reg_num] = 1;
+        registers_init[readram_q[readram_q_new_pos].reg_num] = 1; 
+        x = read_value;  //just to have some output signal from cpu. Not used for anything useful
+        if (readram_q_new_pos!=0) begin
+          readram_q_new_pos = readram_q_new_pos - 1;
+          $display($time, " updating register2 ", readram_q[readram_q_new_pos].reg_num, " to ", read_value2);
+          registers[readram_q[readram_q_new_pos].reg_num] = read_value2;
+          registers_init[readram_q[readram_q_new_pos].reg_num] = 1;
+        end else begin
+          executor_state = EXECUTE_STATE_PROCESS;
+        end
       end
-      if (readram_q_new_pos!=0) begin
-        readram_q_new_pos = readram_q_new_pos - 1;
-        $display($time, " updating register2 ", readram_q[readram_q_new_pos].reg_num, " to ", read_value2);
-        registers[readram_q[readram_q_new_pos].reg_num] = read_value2;
-        registers_init[readram_q[readram_q_new_pos].reg_num] = 1;
-      end
-      if (readram_q_new_pos==0 && executor_state == EXECUTE_STATE_EXECUTE) begin      
-        executor_state = EXECUTE_STATE_PROCESS;
-      end
+      endcase
       if (executor_state == EXECUTE_STATE_PROCESS) begin
         executor_state = EXECUTE_STATE_NONE;        
-        $display($time, executor_address, " executor state ", executor_state, executor_register_start ," ", 
+        $display($time, " executor state ", executor_state, executor_register_start ," ", 
             executor_register_end," ",executor_start_ram_address_or_numeric);
         for (i = 0; i < 32; i = i + 1) begin
           if (i >= executor_register_start && i <= executor_register_end) begin
@@ -329,8 +329,7 @@ module decoder (
     output bit [3:0] error_code,
     output bit [15:0] start_ram_address_or_numeric,
     output bit [15:0] register_end,
-    output bit [10:0] register_start,
-        output bit [15:0] address2
+    output bit [10:0] register_start
 );
 
   bit [7:0] instruction1_1;
@@ -387,7 +386,6 @@ module decoder (
   always @(posedge clk) begin
     ready <= inp;
     if (inp) begin
-    address2<=address;
       $display(  //DEBUG info
           $time,  //DEBUG info
           address, " decoder ", " b1 %c",  //DEBUG info
