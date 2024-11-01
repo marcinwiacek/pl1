@@ -215,8 +215,8 @@ module x_out_of_order (
       */
       if (!jmp_stall_exists && pc_physical != 0 && execute_state == EXECUTE_STATE_NONE) begin
         readram_q[readram_q_new_pos].address = pc_physical;
-        $display($time, pc_logical, " adding fetch with physical address ", pc_physical);
         readram_q_new_pos = readram_q_new_pos + 1;
+        $display($time, pc_logical, " adding fetch with physical address ", pc_physical);
 
         pc_logical = pc_logical + 2;
         pc_physical = pc_physical + 2;
@@ -233,6 +233,7 @@ module x_out_of_order (
         case (execute_state)
           EXECUTE_STATE_NONE: begin
             decoder_register_start = decoder_start;
+            instr_num = instr_num + 1;
           end
           EXECUTE_STATE_READ_REG: begin
             registers[register_to_init[0]] = read_value;
@@ -278,8 +279,7 @@ module x_out_of_order (
               registers[i] = registers[i] * decoder_start_ram_address_or_numeric;
             endcase
           end
-        end
-        if (execute_state == EXECUTE_STATE_NONE) instr_num = instr_num + 1;
+        end        
       end
       /*   if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
@@ -289,9 +289,9 @@ module x_out_of_order (
       if (!aluqueue_q_empty && alu_ready) begin
       end*/
       if (!readram_q_empty && execute_state == EXECUTE_STATE_NONE) begin
-        readram_q = {readram_q[1:20], readram_q[0]};
+        readram_q = {readram_q[1:READRAM_QUEUE_LEN], readram_q[0]};
         readram_q_new_pos = readram_q_new_pos - 1;
-        readram_q_empty = readram_q_new_pos == 0;
+       // readram_q_empty = readram_q_new_pos == 0;
 
         read_address = readram_q[0].address;
         read_address2 = readram_q[0].address + 1;
