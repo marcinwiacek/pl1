@@ -182,6 +182,8 @@ module x_out_of_order (
   reg [15:0] executor_register_end;
   reg [10:0] executor_register_start;
   reg [15:0] executor_start_ram_address_or_numeric;
+  
+  reg[15:0] register1, register2;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -241,15 +243,15 @@ module x_out_of_order (
           readram_q_new_pos = readram_q_new_pos - 1;
           $display($time, " updating register ", readram_q[readram_q_new_pos].reg_num, " to ",
                    read_value);
-          registers[readram_q[readram_q_new_pos].reg_num] = read_value;
-          registers_init[readram_q[readram_q_new_pos].reg_num] = 1;
+          registers[register1] = read_value;
+          registers_init[register1] = 1;
           x = read_value;  //just to have some output signal from cpu. Not used for anything useful
           if (readram_q_new_pos != 0) begin
             readram_q_new_pos = readram_q_new_pos - 1;
             $display($time, " updating register2 ", readram_q[readram_q_new_pos].reg_num, " to ",
                      read_value2);
-            registers[readram_q[readram_q_new_pos].reg_num] = read_value2;
-            registers_init[readram_q[readram_q_new_pos].reg_num] = 1;
+            registers[register2] = read_value2;
+            registers_init[register2] = 1;
           end else begin
             executor_state = EXECUTE_STATE_PROCESS;
           end
@@ -284,8 +286,14 @@ module x_out_of_order (
           end
         end
       end
-      if (readram_q_new_pos > 0) read_address = readram_q[readram_q_new_pos-1].address;
-      if (readram_q_new_pos > 1) read_address2 = readram_q[readram_q_new_pos-2].address;
+      if (readram_q_new_pos > 0) begin
+         register1 = readram_q[readram_q_new_pos-1].reg_num;
+         read_address = readram_q[readram_q_new_pos-1].address;
+      end
+      if (readram_q_new_pos > 1) begin
+               register2 = readram_q[readram_q_new_pos-2].reg_num;
+         read_address2 = readram_q[readram_q_new_pos-2].address;
+      end
 
       /*   if (!mmuqueue_q_empty && mmu_ready) begin
         mmu_input = 1;
