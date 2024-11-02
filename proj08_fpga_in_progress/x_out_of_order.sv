@@ -273,22 +273,27 @@ module x_out_of_order (
           end
           executor_state =register_inside[0] || register_inside[1]?EXECUTE_STATE_READ_EXECUTE:EXECUTE_STATE_NONE;
         end
-        if(executor_state == EXECUTE_STATE_NONE && executor_instruction_state==INSTRUCTION_STATE_REG_2_RAM) begin
-          executor_state=SAVERAM_QUEUE_LEN-saveram_q_new_pos<executor_register_end-executor_register_start?
-             EXECUTE_STATE_SAVE_WAIT:EXECUTE_STATE_NONE;
-        end
         if (executor_state == EXECUTE_STATE_NONE) begin
-          for (i = 0; i < 32; i = i + 1) begin
-            if (i >= executor_register_start && i <= executor_register_end) begin
-              case (executor_instruction_state)
-                INSTRUCTION_STATE_REG_2_RAM: begin
-                  saveram_q[saveram_q_new_pos].address = executor_start_ram_address_or_numeric+i-executor_register_start;
-                  saveram_q[saveram_q_new_pos].value = registers[i];
-                  $display($time, " adding writing ", saveram_q[saveram_q_new_pos].address, "=",
-                           saveram_q[saveram_q_new_pos].value);
+          if (executor_instruction_state == INSTRUCTION_STATE_REG_2_RAM) begin
+            if (SAVERAM_QUEUE_LEN-saveram_q_new_pos<executor_register_end-executor_register_start) begin
+              executor_state = EXECUTE_STATE_SAVE_WAIT;
+            end else begin
+              for (i = 0; i < 32; i = i + 1) begin
+                if (i >= executor_register_start && i <= executor_register_end) begin
+                  saveram_q = {saveram_q[0], saveram_q[0:SAVERAM_QUEUE_LEN-1]};
+                  saveram_q[0].address = executor_start_ram_address_or_numeric+i-executor_register_start;
+                  saveram_q[0].value = registers[i];
+                  $display($time, " adding writing ", saveram_q[0].address, "=",
+                           saveram_q[0].value);
                   saveram_q_new_pos = saveram_q_new_pos + 1;
                 end
-                /* INSTRUCTION_STATE_RAM_2_REG: begin
+              end
+            end
+          end else begin
+            for (i = 0; i < 32; i = i + 1) begin
+              if (i >= executor_register_start && i <= executor_register_end) begin
+                case (executor_instruction_state)                 
+                  /* INSTRUCTION_STATE_RAM_2_REG: begin
                   registers_init[i] = 0;
                   for (j=0;j<SAVERAM_QUEUE_LEN;j=j+1) begin
                     if (executor_start_ram_address_or_numeric+i == saveram_q[j].address) begin
@@ -302,19 +307,20 @@ module x_out_of_order (
                     readram_q_new_pos = readram_q_new_pos+1;
                   end
                 end*/
-                INSTRUCTION_STATE_REG_SET: begin
-                  registers[i] = executor_start_ram_address_or_numeric;
-                  registers_init[i] = 1;
-                end
-                INSTRUCTION_STATE_REG_ADD:
-                registers[i] = registers[i] + executor_start_ram_address_or_numeric;
-                INSTRUCTION_STATE_REG_DEC:
-                registers[i] = registers[i] - executor_start_ram_address_or_numeric;
-                INSTRUCTION_STATE_REG_MUL:
-                registers[i] = registers[i] * executor_start_ram_address_or_numeric;
-                INSTRUCTION_STATE_REG_DIV:
-                registers[i] = registers[i] / executor_start_ram_address_or_numeric;
-              endcase
+                  INSTRUCTION_STATE_REG_SET: begin
+                    registers[i] = executor_start_ram_address_or_numeric;
+                    registers_init[i] = 1;
+                  end
+                  INSTRUCTION_STATE_REG_ADD:
+                  registers[i] = registers[i] + executor_start_ram_address_or_numeric;
+                  INSTRUCTION_STATE_REG_DEC:
+                  registers[i] = registers[i] - executor_start_ram_address_or_numeric;
+                  INSTRUCTION_STATE_REG_MUL:
+                  registers[i] = registers[i] * executor_start_ram_address_or_numeric;
+                  INSTRUCTION_STATE_REG_DIV:
+                  registers[i] = registers[i] / executor_start_ram_address_or_numeric;
+                endcase
+              end
             end
           end
         end
@@ -329,10 +335,11 @@ module x_out_of_order (
       end*/
       write_enabled = saveram_q_new_pos != 0 ? 1 : 0;
       if (saveram_q_new_pos != 0) begin
-        saveram_q_new_pos = saveram_q_new_pos - 1;
-        write_address = saveram_q[saveram_q_new_pos].address;
-        write_value = saveram_q[saveram_q_new_pos].value;
+        write_address = saveram_q[0].address;
+        write_value   = saveram_q[0].value;
         $display($time, " writing ", write_address, "=", write_value);
+        saveram_q = {saveram_q[1:SAVERAM_QUEUE_LEN], saveram_q[0]};
+        saveram_q_new_pos = saveram_q_new_pos - 1;
       end
       if (!jmp_stall_exists && pc_physical != 0 && executor_state == EXECUTE_STATE_NONE) begin
         read_address  = pc_physical;
