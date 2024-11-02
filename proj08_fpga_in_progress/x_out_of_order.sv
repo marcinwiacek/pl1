@@ -177,7 +177,7 @@ module x_out_of_order (
   parameter EXECUTE_STATE_NONE = 0;
   parameter EXECUTE_STATE_READ_EXECUTE = 1;
   parameter EXECUTE_STATE_SAVE_WAIT = 2;
-parameter EXECUTE_STATE_SAVE_EXECUTE = 3;
+  parameter EXECUTE_STATE_SAVE_EXECUTE = 3;
 
   reg [5:0] executor_state, executor_instruction_state;
   reg [15:0] executor_register_end;
@@ -188,9 +188,9 @@ parameter EXECUTE_STATE_SAVE_EXECUTE = 3;
   reg [15:0] register_inside[0:1];
 
   always @(posedge clk) begin
-    if (rst) begin      
-      saveram_q_new_pos<=0;
-      readram_q_new_pos<=0;
+    if (rst) begin
+      saveram_q_new_pos <= 0;
+      readram_q_new_pos <= 0;
 
       read_address <= 52;
       read_address2 <= 53;
@@ -229,8 +229,8 @@ parameter EXECUTE_STATE_SAVE_EXECUTE = 3;
 
       if (decoder_ready) begin
         case (executor_state)
-          EXECUTE_STATE_NONE: begin            
-  //          decoder_inp = 0;
+          EXECUTE_STATE_NONE: begin
+            //          decoder_inp = 0;
             executor_instruction_state = decoder_state;
             executor_register_start = decoder_start;
             executor_register_end = decoder_register_end;
@@ -250,9 +250,9 @@ parameter EXECUTE_STATE_SAVE_EXECUTE = 3;
             end
           end
         endcase
-        $display($time, " executor ",executor_instruction_state," ",executor_register_start," ",
-          executor_register_end," ",executor_start_ram_address_or_numeric);
-        if (executor_instruction_state!=                INSTRUCTION_STATE_REG_SET) begin
+        $display($time, " executor ", executor_instruction_state, " ", executor_register_start,
+                 " ", executor_register_end, " ", executor_start_ram_address_or_numeric);
+        if (executor_instruction_state != INSTRUCTION_STATE_REG_SET) begin
           register_inside = {0, 0};
           read_address = 0;
           read_address2 = 0;
@@ -274,7 +274,7 @@ parameter EXECUTE_STATE_SAVE_EXECUTE = 3;
         if(executor_state == EXECUTE_STATE_NONE && executor_instruction_state==INSTRUCTION_STATE_REG_2_RAM) begin
           executor_state=SAVERAM_QUEUE_LEN-saveram_q_new_pos<executor_register_end-executor_register_start?
              EXECUTE_STATE_SAVE_WAIT:EXECUTE_STATE_NONE;
-          end
+        end
         if (executor_state == EXECUTE_STATE_NONE) begin
           for (i = 0; i < 32; i = i + 1) begin
             if (i >= executor_register_start && i <= executor_register_end) begin
@@ -282,10 +282,11 @@ parameter EXECUTE_STATE_SAVE_EXECUTE = 3;
                 INSTRUCTION_STATE_REG_2_RAM: begin
                   saveram_q[saveram_q_new_pos].address = executor_start_ram_address_or_numeric+i-executor_register_start;
                   saveram_q[saveram_q_new_pos].value = registers[i];
-                 $display($time, " adding writing ",saveram_q[saveram_q_new_pos].address,"=",saveram_q[saveram_q_new_pos].value);
-                  saveram_q_new_pos = saveram_q_new_pos+1;
-                end              
-               /* INSTRUCTION_STATE_RAM_2_REG: begin
+                  $display($time, " adding writing ", saveram_q[saveram_q_new_pos].address, "=",
+                           saveram_q[saveram_q_new_pos].value);
+                  saveram_q_new_pos = saveram_q_new_pos + 1;
+                end
+                /* INSTRUCTION_STATE_RAM_2_REG: begin
                   registers_init[i] = 0;
                   for (j=0;j<SAVERAM_QUEUE_LEN;j=j+1) begin
                     if (executor_start_ram_address_or_numeric+i == saveram_q[j].address) begin
@@ -310,7 +311,7 @@ parameter EXECUTE_STATE_SAVE_EXECUTE = 3;
                 INSTRUCTION_STATE_REG_MUL:
                 registers[i] = registers[i] * executor_start_ram_address_or_numeric;
                 INSTRUCTION_STATE_REG_DIV:
-                registers[i] = registers[i] / executor_start_ram_address_or_numeric;                
+                registers[i] = registers[i] / executor_start_ram_address_or_numeric;
               endcase
             end
           end
@@ -324,12 +325,12 @@ parameter EXECUTE_STATE_SAVE_EXECUTE = 3;
       end
       if (!aluqueue_q_empty && alu_ready) begin
       end*/
-      write_enabled = saveram_q_new_pos!=0?1:0;
-      if (saveram_q_new_pos!=0) begin
-                  saveram_q_new_pos = saveram_q_new_pos-1;
+      write_enabled = saveram_q_new_pos != 0 ? 1 : 0;
+      if (saveram_q_new_pos != 0) begin
+        saveram_q_new_pos = saveram_q_new_pos - 1;
         write_address = saveram_q[saveram_q_new_pos].address;
         write_value = saveram_q[saveram_q_new_pos].value;
-         $display($time, " writing ",write_address,"=",write_value);
+        $display($time, " writing ", write_address, "=", write_value);
       end
       if (!jmp_stall_exists && pc_physical != 0 && executor_state == EXECUTE_STATE_NONE) begin
         read_address  = pc_physical;
@@ -425,7 +426,7 @@ module decoder (
   always @(posedge clk) begin
 
     if (inp) begin
-      ready <= inp;      
+      ready <= inp;
       $display(  //DEBUG info
           $time,  //DEBUG info
           address, " decoder ", " b1 %c",  //DEBUG info
