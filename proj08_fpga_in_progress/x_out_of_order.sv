@@ -32,7 +32,7 @@ parameter INSTRUCTION_STATE_REG_SET = 6;
 parameter INSTRUCTION_STATE_REG_2_RAM = 7;
 parameter INSTRUCTION_STATE_REG_MUL = 8;
 parameter INSTRUCTION_STATE_REG_DIV = 9;
-parameter INSTRUCTION_STATE_REG_UNKNOWN=10;
+parameter INSTRUCTION_STATE_REG_UNKNOWN = 10;
 
 parameter MMU_QUEUE_LEN = 10;
 parameter READRAM_QUEUE_LEN = 32;
@@ -251,8 +251,9 @@ module x_out_of_order (
             end
           end
         endcase
-        $display($time, " executor ", executor_state, " ",executor_instruction_state, " ", executor_register_start,
-                 " ", executor_register_end, " ", executor_start_ram_address_or_numeric);
+        $display($time, " executor ", executor_state, " ", executor_instruction_state, " ",
+                 executor_register_start, " ", executor_register_end, " ",
+                 executor_start_ram_address_or_numeric);
         if (executor_instruction_state != INSTRUCTION_STATE_REG_SET) begin
           register_inside = {0, 0};
           read_address = 0;
@@ -356,7 +357,7 @@ module x_out_of_order (
     end else begin
       decoder_inp = 0;
     end
-   // $display($time, " decoder_inp ",decoder_inp);
+    // $display($time, " decoder_inp ",decoder_inp);
   end
 endmodule
 
@@ -428,7 +429,7 @@ module decoder (
   always @(posedge clk) begin
 
     if (inp) begin
-     ready <= inp; 
+      ready <= inp;
       $display(  //DEBUG info
           $time,  //DEBUG info
           address, " decoder ", " b1 %c",  //DEBUG info
@@ -563,7 +564,7 @@ module decoder (
           register_end                 <= instruction1_2_1 + instruction1_2_2;
         end
         default: begin
-          state                        <= INSTRUCTION_STATE_REG_UNKNOWN;
+          state <= INSTRUCTION_STATE_REG_UNKNOWN;
         end
       endcase
     end
