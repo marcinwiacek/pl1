@@ -226,9 +226,9 @@ module x_out_of_order (
 
       // $display($time, decoder_ready ," ", executor_state);
 
+if (decoder_ready) begin
       case (executor_state)
-        EXECUTE_STATE_NONE: begin
-          if (decoder_ready) begin
+        EXECUTE_STATE_NONE: begin          
             // $display($time, " we have execution input ",decoder_address);
             decoder_inp = 0;
             executor_instruction_state = decoder_state;
@@ -236,8 +236,6 @@ module x_out_of_order (
             executor_register_end = decoder_register_end;
             executor_start_ram_address_or_numeric = decoder_start_ram_address_or_numeric;
             instr_num = instr_num + 1;
-            executor_state = EXECUTE_STATE_PROCESS;
-          end
         end
         EXECUTE_STATE_EXECUTE: begin
           readram_q_new_pos = readram_q_new_pos - 1;
@@ -252,12 +250,10 @@ module x_out_of_order (
                      read_value2);
             registers[register2] = read_value2;
             registers_init[register2] = 1;
-          end else begin
-            executor_state = EXECUTE_STATE_PROCESS;
           end
         end
       endcase
-      if (executor_state == EXECUTE_STATE_PROCESS) begin
+      if (executor_state == EXECUTE_STATE_NONE || readram_q_new_pos == 0) begin
         executor_state = EXECUTE_STATE_NONE;
         $display($time, " executor state ", executor_state, executor_register_start, " ",
                  executor_register_end, " ", executor_start_ram_address_or_numeric);
@@ -288,11 +284,13 @@ module x_out_of_order (
       end
       if (readram_q_new_pos > 0) begin
          register1 = readram_q[readram_q_new_pos-1].reg_num;
-         read_address = readram_q[readram_q_new_pos-1].address;
-      end
-      if (readram_q_new_pos > 1) begin
+         read_address = readram_q[readram_q_new_pos-1].address; 
+         if (readram_q_new_pos > 1) begin
                register2 = readram_q[readram_q_new_pos-2].reg_num;
          read_address2 = readram_q[readram_q_new_pos-2].address;
+      end
+      end
+     
       end
 
       /*   if (!mmuqueue_q_empty && mmu_ready) begin
@@ -394,8 +392,8 @@ module decoder (
   //parameter OPCODE_REG_INT_NON_BLOCKING =33; //int number (8 bit), address to jump in case of int
 
   always @(posedge clk) begin
-    ready <= inp;
-    if (inp) begin
+    if (inp) begin 
+       ready <= inp;
       $display(  //DEBUG info
           $time,  //DEBUG info
           address, " decoder ", " b1 %c",  //DEBUG info
