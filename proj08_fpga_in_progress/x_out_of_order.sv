@@ -145,7 +145,7 @@ module x_out_of_order (
       .read_value2(read_value2)
   );
 
-/*
+  /*
   typedef struct {
     reg [15:0] address;
     reg [5:0]  reg_num;
@@ -187,7 +187,7 @@ module x_out_of_order (
 
   reg [15:0] register[0:1];
   reg [15:0] register_inside[0:1];
-  
+
   always @(posedge clk) begin
     if (rst) begin
       //      readram_q[0].address <= 52;
@@ -229,8 +229,8 @@ module x_out_of_order (
       // $display($time, decoder_ready ," ", executor_state);
 
       if (decoder_ready) begin
-                case (executor_state) 
-       EXECUTE_STATE_NONE: begin
+        case (executor_state)
+          EXECUTE_STATE_NONE: begin
             // $display($time, " we have execution input ",decoder_address);
             decoder_inp = 0;
             executor_instruction_state = decoder_state;
@@ -240,56 +240,56 @@ module x_out_of_order (
             instr_num = instr_num + 1;
           end
           EXECUTE_STATE_EXECUTE: begin
-            if (read_address!=0) begin
-            $display($time, " updating register ", register[0], " to ", read_value);
-            registers[register[0]] = read_value;
-            registers_init[register[0]] = 1;              
+            if (read_address != 0) begin
+              $display($time, " updating register ", register[0], " to ", read_value);
+              registers[register[0]] = read_value;
+              registers_init[register[0]] = 1;
             end
-            if (read_address2!=0) begin
-            $display($time, " updating register ", register[1], " to ", read_value2);
-            registers[register[1]] = read_value2;
-            registers_init[register[1]] = 1;              
+            if (read_address2 != 0) begin
+              $display($time, " updating register ", register[1], " to ", read_value2);
+              registers[register[1]] = read_value2;
+              registers_init[register[1]] = 1;
             end
           end
-          endcase
-          if (executor_instruction_state != INSTRUCTION_STATE_REG_SET) begin
-          register_inside = {0,0};
-          read_address=0;
-          read_address2=0;
-            for (i = 0; i < 32; i = i + 1) begin
-              if (!registers_init[i]) begin             
-                   if (!register_inside[0]) begin
-                                  read_address = process_hardware_address + ADDRESS_REG + i;
-                                  register[0] = i;
-                                  register_inside[0]=i >= executor_register_start && i <= executor_register_end;
-                   end else if (!register_inside[1]) begin
-                                  read_address2 = process_hardware_address + ADDRESS_REG + i;
-                                  register[1] = i;
-                                  register_inside[1]=i >= executor_register_start && i <= executor_register_end;
-                   end
-              end
-            end
-            executor_state =register_inside[0] || register_inside[1]?EXECUTE_STATE_EXECUTE:EXECUTE_STATE_NONE; 
-          end
-              if (executor_state == EXECUTE_STATE_NONE) begin
-            for (i = 0; i < 32; i = i + 1) begin         
-              if (i >= executor_register_start && i <= executor_register_end) begin
-                case (executor_instruction_state)
-                  //    INSTRUCTION_STATE_RAM_2_REG: registers_init[i] = 0;
-                  INSTRUCTION_STATE_REG_SET: begin
-                    registers[i] = executor_start_ram_address_or_numeric;
-                    registers_init[i] = 1;
-                  end
-                  INSTRUCTION_STATE_REG_ADD:
-                  registers[i] = registers[i] + executor_start_ram_address_or_numeric;
-                  INSTRUCTION_STATE_REG_DEC:
-                  registers[i] = registers[i] - executor_start_ram_address_or_numeric;
-                  INSTRUCTION_STATE_REG_MUL:
-                  registers[i] = registers[i] * executor_start_ram_address_or_numeric;
-                endcase
+        endcase
+        if (executor_instruction_state != INSTRUCTION_STATE_REG_SET) begin
+          register_inside = {0, 0};
+          read_address = 0;
+          read_address2 = 0;
+          for (i = 0; i < 32; i = i + 1) begin
+            if (!registers_init[i]) begin
+              if (!register_inside[0]) begin
+                read_address = process_hardware_address + ADDRESS_REG + i;
+                register[0] = i;
+                register_inside[0] = i >= executor_register_start && i <= executor_register_end;
+              end else if (!register_inside[1]) begin
+                read_address2 = process_hardware_address + ADDRESS_REG + i;
+                register[1] = i;
+                register_inside[1] = i >= executor_register_start && i <= executor_register_end;
               end
             end
           end
+          executor_state =register_inside[0] || register_inside[1]?EXECUTE_STATE_EXECUTE:EXECUTE_STATE_NONE;
+        end
+        if (executor_state == EXECUTE_STATE_NONE) begin
+          for (i = 0; i < 32; i = i + 1) begin
+            if (i >= executor_register_start && i <= executor_register_end) begin
+              case (executor_instruction_state)
+                //    INSTRUCTION_STATE_RAM_2_REG: registers_init[i] = 0;
+                INSTRUCTION_STATE_REG_SET: begin
+                  registers[i] = executor_start_ram_address_or_numeric;
+                  registers_init[i] = 1;
+                end
+                INSTRUCTION_STATE_REG_ADD:
+                registers[i] = registers[i] + executor_start_ram_address_or_numeric;
+                INSTRUCTION_STATE_REG_DEC:
+                registers[i] = registers[i] - executor_start_ram_address_or_numeric;
+                INSTRUCTION_STATE_REG_MUL:
+                registers[i] = registers[i] * executor_start_ram_address_or_numeric;
+              endcase
+            end
+          end
+        end
       end
 
       /*   if (!mmuqueue_q_empty && mmu_ready) begin
