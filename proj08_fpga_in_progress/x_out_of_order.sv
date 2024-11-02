@@ -31,6 +31,7 @@ parameter INSTRUCTION_STATE_REG_DEC = 5;
 parameter INSTRUCTION_STATE_REG_SET = 6;
 parameter INSTRUCTION_STATE_REG_2_RAM = 7;
 parameter INSTRUCTION_STATE_REG_MUL = 8;
+parameter INSTRUCTION_STATE_REG_DIV = 9;
 
 parameter MMU_QUEUE_LEN = 10;
 parameter READRAM_QUEUE_LEN = 32;
@@ -230,8 +231,7 @@ module x_out_of_order (
 
       if (decoder_ready) begin
         case (executor_state)
-          EXECUTE_STATE_NONE: begin
-            // $display($time, " we have execution input ",decoder_address);
+          EXECUTE_STATE_NONE: begin            
             decoder_inp = 0;
             executor_instruction_state = decoder_state;
             executor_register_start = decoder_start;
@@ -286,6 +286,8 @@ module x_out_of_order (
                 registers[i] = registers[i] - executor_start_ram_address_or_numeric;
                 INSTRUCTION_STATE_REG_MUL:
                 registers[i] = registers[i] * executor_start_ram_address_or_numeric;
+                INSTRUCTION_STATE_REG_DIV:
+                registers[i] = registers[i] / executor_start_ram_address_or_numeric;                
               endcase
             end
           end
@@ -496,7 +498,7 @@ module decoder (
         OPCODE_REG_MUL: begin
           $display(  //DEBUG info
               $time,  //DEBUG info
-              " opcode = regmul add value ",  //DEBUG info
+              " opcode = regmul mul value ",  //DEBUG info
               instruction2,  //DEBUG info
               " to reg ",  //DEBUG info
               instruction1_2_1,  //DEBUG info
@@ -504,6 +506,23 @@ module decoder (
               (instruction1_2_1 + instruction1_2_2)  //DEBUG info
           );  //DEBUG info
           state                        <= INSTRUCTION_STATE_REG_MUL;
+          error_code                   <= 0;
+          start_ram_address_or_numeric <= instruction2;
+          register_start               <= instruction1_2_1;
+          register_end                 <= instruction1_2_1 + instruction1_2_2;
+        end
+        //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
+        OPCODE_REG_DIV: begin
+          $display(  //DEBUG info
+              $time,  //DEBUG info
+              " opcode = regdiv div value ",  //DEBUG info
+              instruction2,  //DEBUG info
+              " to reg ",  //DEBUG info
+              instruction1_2_1,  //DEBUG info
+              "-",  //DEBUG info
+              (instruction1_2_1 + instruction1_2_2)  //DEBUG info
+          );  //DEBUG info
+          state                        <= INSTRUCTION_STATE_REG_DIV;
           error_code                   <= 0;
           start_ram_address_or_numeric <= instruction2;
           register_start               <= instruction1_2_1;
