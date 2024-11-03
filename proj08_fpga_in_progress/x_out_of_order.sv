@@ -166,6 +166,7 @@ module x_out_of_order (
   reg jmp_stall_exists = 0;
   reg [15:0] registers[0:31];
   reg [15:0] registers_src_address[0:31];
+  reg registers_src_ram[0:31];  
   reg registers_init[0:31] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };
@@ -219,7 +220,8 @@ module x_out_of_order (
       rst <= 0;
 
       for (i = 0; i < 32; i = i + 1) begin
-        registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
+        registers_src_ram[i] <=0;
+        //registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
       end
     end else if (instr_num < 10) begin
       /*if (mmu_ready) begin
@@ -266,6 +268,7 @@ module x_out_of_order (
                 for (i = 0; i < 32; i = i + 1) begin
                   if (i >= executor_register_start && i <= executor_register_end) begin
                     registers_src_address[i] = mmu_address_physical + i - executor_register_start;
+                    registers_src_ram[i] = 1;
                     registers_init[i] = 0;
                   end
                 end
@@ -290,17 +293,17 @@ module x_out_of_order (
             read_address = 0;
             read_address2 = 0;
             for (i = 0; i < 32; i = i + 1) begin
-              if (!registers_init[i]) begin
-                if (!register_inside[0]) begin
+              if (!registers_init[i] && !register_inside[0]) begin
                   register_inside[0] = i >= executor_register_start && i <= executor_register_end && !registers_init[i];
-                  read_address = registers_src_address[i];
+                  read_address = registers_src_ram[i]?registers_src_address[i]:process_hardware_address + ADDRESS_REG + i;
+                  registers_src_ram[i] = 0;
                   register[0] = i;
-                end else if (!register_inside[1]) begin
+                end else if (!registers_init[i] && !register_inside[1]) begin
                   register_inside[1] = i >= executor_register_start && i <= executor_register_end && !registers_init[i];
-                  read_address2 = registers_src_address[i];
+                  read_address2 = registers_src_ram[i]?registers_src_address[i]:process_hardware_address + ADDRESS_REG + i;
+                  registers_src_ram[i] = 0;
                   register[1] = i;
                 end
-              end
             end
             executor_state =register_inside[0] || register_inside[1]?EXECUTE_STATE_READ_EXECUTE:EXECUTE_STATE_NONE;
           end
