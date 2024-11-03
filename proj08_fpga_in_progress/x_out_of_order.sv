@@ -42,7 +42,7 @@ parameter ALU_QUEUE_LEN = 10;
 
 module x_out_of_order (
     input clk,
-    output reg x
+    output bit x
 );
 
   reg rst = 1;
@@ -93,12 +93,12 @@ module x_out_of_order (
       .address_physical_min_in_the_same_page(mmu_address_physical_min_in_the_same_page)
   );
 
-  parameter MMU_QUEUE_PC_INSTR_NUM = READRAM_QUEUE_LEN + 1;
+  /*parameter MMU_QUEUE_PC_INSTR_NUM = READRAM_QUEUE_LEN + 1;
 
   typedef struct {reg [15:0] addr;} mmuqueue;
 
   mmuqueue mmuqueue_q[0:MMU_QUEUE_LEN];
-  reg [10:0] mmuqueue_q_new_pos = 0;
+  reg [10:0] mmuqueue_q_new_pos = 0;*/
 
   //---------------------------------------------------------decoder--------------------------
 
@@ -155,10 +155,10 @@ module x_out_of_order (
   reg [7:0] readram_q_new_pos;
 */
 
-  typedef struct {reg [7:0] instr_num;} saveram;
+  /*typedef struct {reg [7:0] instr_num;} saveram;
 
   saveram saveram_q[0:SAVERAM_QUEUE_LEN];
-  reg [7:0] saveram_q_new_pos;
+  reg [7:0] saveram_q_new_pos;*/
 
   //--------------------------------------------------------------------process------------------
 
@@ -186,18 +186,18 @@ module x_out_of_order (
   reg [15:0] register[0:1];
   reg [15:0] register_inside[0:1];
 
-  typedef struct {
+ /* typedef struct {
     reg [15:0] address;
     reg [15:0] value_or_reg;
   } savereadram;
 
   savereadram savereadram_q[0:40];
-  reg [7:0] savereadram_q_new_pos;
+  reg [7:0] savereadram_q_new_pos;*/
 
   always @(posedge clk) begin
     if (rst) begin
-      saveram_q_new_pos <= 0;
-      savereadram_q_new_pos <= 0;
+      //saveram_q_new_pos <= 0;
+      //savereadram_q_new_pos <= 0;
 
       read_address <= 52;
       read_address2 <= 53;
@@ -281,18 +281,28 @@ module x_out_of_order (
           read_address = 0;
           read_address2 = 0;
           for (i = 0; i < 32; i = i + 1) begin
-            if (!registers_init[i]) begin
+            if (i >= executor_register_start && i <= executor_register_end && !registers_init[i]) begin
               if (!register_inside[0]) begin
-                register_inside[0] = i >= executor_register_start && i <= executor_register_end;
-                read_address = executor_instruction_state == INSTRUCTION_STATE_RAM_2_REG && register_inside[0] ? 
+                register_inside[0] = 1;
+                read_address = executor_instruction_state == INSTRUCTION_STATE_RAM_2_REG ? 
                     mmu_address_physical+i-executor_register_start:
                     process_hardware_address + ADDRESS_REG + i;
                 register[0] = i;
               end else if (!register_inside[1]) begin
-                register_inside[1] = i >= executor_register_start && i <= executor_register_end;
-                read_address2 = executor_instruction_state == INSTRUCTION_STATE_RAM_2_REG && register_inside[1] ? 
+                register_inside[1] = 1;
+                read_address2 = executor_instruction_state == INSTRUCTION_STATE_RAM_2_REG ? 
                     mmu_address_physical+i-executor_register_start:
                     process_hardware_address + ADDRESS_REG + i;
+                register[1] = i;
+              end
+            end else if (!registers_init[i]) begin
+              if (!register_inside[0]) begin
+                register_inside[0] = 0;
+                read_address = process_hardware_address + ADDRESS_REG + i;
+                register[0] = i;
+              end else if (!register_inside[1]) begin
+                register_inside[1] = 0;
+                read_address2 = process_hardware_address + ADDRESS_REG + i;
                 register[1] = i;
               end
             end
@@ -607,7 +617,6 @@ module mmu (
 );
 
   always @(posedge clk) begin
-
     if (inp) begin
       ready <= inp;
       address_physical <= address_logical;
