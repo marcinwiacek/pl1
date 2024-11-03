@@ -155,13 +155,17 @@ module x_out_of_order (
   readram readram_q[0:READRAM_QUEUE_LEN];
   reg [7:0] readram_q_new_pos;
 
-  typedef struct {
-    reg [15:0] address;
-    reg [15:0] value;
-  } saveram;
+  //typedef struct {
+//    reg [15:0] address;
+//    reg [15:0] value;
+//  } saveram;
 
-  saveram saveram_q[0:SAVERAM_QUEUE_LEN];
+  //saveram saveram_q[0:SAVERAM_QUEUE_LEN];
   reg [7:0] saveram_q_new_pos;
+  reg [15:0] saveram_address[0:SAVERAM_QUEUE_LEN];
+  reg [15:0] saveram_value[0:SAVERAM_QUEUE_LEN];
+  
+  
 
   //--------------------------------------------------------------------process------------------
 
@@ -187,6 +191,15 @@ module x_out_of_order (
 
   reg [15:0] register[0:1];
   reg [15:0] register_inside[0:1];
+  
+  always @(posedge clk) begin
+  write_enabled = saveram_q_new_pos != 0 ? 1 : 0;
+      if (saveram_q_new_pos != 0) begin
+        write_address = saveram_address[saveram_q_new_pos-1];
+        write_value   = saveram_value[saveram_q_new_pos-1];
+        $display($time, " writing ", write_address, "=", write_value);
+      end
+  end
 
   always @(posedge clk) begin
     if (rst) begin
@@ -280,11 +293,11 @@ module x_out_of_order (
             end else begin
               for (i = 0; i < 32; i = i + 1) begin
                 if (i >= executor_register_start && i <= executor_register_end) begin
-                  saveram_q = {saveram_q[0], saveram_q[0:SAVERAM_QUEUE_LEN-1]};
-                  saveram_q[0].address = executor_start_ram_address_or_numeric+i-executor_register_start;
-                  saveram_q[0].value = registers[i];
-                  $display($time, " adding writing ", saveram_q[0].address, "=",
-                           saveram_q[0].value);
+                 // saveram_q = {saveram_q[0], saveram_q[0:SAVERAM_QUEUE_LEN-1]};
+                  saveram_address[saveram_q_new_pos] = executor_start_ram_address_or_numeric+i-executor_register_start;
+                  saveram_value[saveram_q_new_pos] = registers[i];
+                  $display($time, " adding writing ", saveram_address[saveram_q_new_pos], "=",
+                           saveram_address[saveram_q_new_pos]);
                   saveram_q_new_pos = saveram_q_new_pos + 1;
                 end
               end
@@ -333,14 +346,7 @@ module x_out_of_order (
       end
       if (!aluqueue_q_empty && alu_ready) begin
       end*/
-      write_enabled = saveram_q_new_pos != 0 ? 1 : 0;
-      if (saveram_q_new_pos != 0) begin
-        write_address = saveram_q[0].address;
-        write_value   = saveram_q[0].value;
-        $display($time, " writing ", write_address, "=", write_value);
-        saveram_q = {saveram_q[1:SAVERAM_QUEUE_LEN], saveram_q[0]};
-        saveram_q_new_pos = saveram_q_new_pos - 1;
-      end
+      if (write_enabled) saveram_q_new_pos = saveram_q_new_pos - 1;
       if (!jmp_stall_exists && pc_physical != 0 && executor_state == EXECUTE_STATE_NONE) begin
         read_address  = pc_physical;
         read_address2 = pc_physical + 1;
