@@ -165,6 +165,7 @@ module x_out_of_order (
   reg [15:0] process_hardware_address = 0;
   reg jmp_stall_exists = 0;
   reg [15:0] registers[0:31];
+  reg [15:0] registers_src_address[0:31];  
   reg registers_init[0:31] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };
@@ -216,6 +217,10 @@ module x_out_of_order (
       mmu_input <= 0;
 
       rst <= 0;
+      
+      for (i = 0; i < 32; i = i + 1) begin                
+                  registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;                
+              end
     end else if (instr_num < 10) begin
       /*if (mmu_ready) begin
         if (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) begin
@@ -239,15 +244,12 @@ module x_out_of_order (
             executor_register_end = decoder_register_end;
             executor_start_ram_address_or_numeric = decoder_start_ram_address_or_numeric;
             instr_num = instr_num + 1;
-            if (executor_instruction_state == INSTRUCTION_STATE_RAM_2_REG) begin
-              for (i = 0; i < 32; i = i + 1) begin
-                if (i >= executor_register_start && i <= executor_register_end) begin
-                  registers_init[i] = 0;
-                end
-              end
+                    x = read_value;  //just to have some output signal from cpu. Not used for anything useful
+
+            if (executor_instruction_state == INSTRUCTION_STATE_RAM_2_REG) begin              
               $display($time, " adding mmu ");
               mmu_input = 1;
-              mmu_address_logical = executor_start_ram_address_or_numeric;
+              mmu_address_logical = decoder_start_ram_address_or_numeric;
               executor_state = EXECUTE_STATE_WAIT_RAM_2_REG_MMU;
             end
           end
@@ -270,42 +272,35 @@ module x_out_of_order (
               $display($time, " we have mmu ");
               executor_state = EXECUTE_STATE_NONE;
               mmu_input = 0;
+              for (i = 0; i < 32; i = i + 1) begin
+                if (i >= executor_register_start && i <= executor_register_end) begin
+                  registers_src_address[i] = mmu_address_physical+i-executor_register_start;
+                  registers_init[i] = 0;
+                end
+              end
             end
           end
         endcase
         $display($time, " executor ", executor_state, " ", executor_instruction_state, " ",
                  executor_register_start, " ", executor_register_end, " ",
                  executor_start_ram_address_or_numeric);
-        if (executor_state!= EXECUTE_STATE_WAIT_RAM_2_REG_MMU && executor_instruction_state != INSTRUCTION_STATE_REG_SET) begin
+        if (executor_instruction_state != INSTRUCTION_STATE_RAM_2_REG) begin
+          if (executor_instruction_state != INSTRUCTION_STATE_REG_SET) begin
           register_inside = {0, 0};
           read_address = 0;
           read_address2 = 0;
           for (i = 0; i < 32; i = i + 1) begin
-            if (i >= executor_register_start && i <= executor_register_end && !registers_init[i]) begin
+              if (!registers_init[i]) begin
               if (!register_inside[0]) begin
-                register_inside[0] = 1;
-                read_address = executor_instruction_state == INSTRUCTION_STATE_RAM_2_REG ? 
-                    mmu_address_physical+i-executor_register_start:
-                    process_hardware_address + ADDRESS_REG + i;
+                register_inside[0] = i >= executor_register_start && i <= executor_register_end && !registers_init[i];
+                read_address = registers_src_address[i];
                 register[0] = i;
               end else if (!register_inside[1]) begin
-                register_inside[1] = 1;
-                read_address2 = executor_instruction_state == INSTRUCTION_STATE_RAM_2_REG ? 
-                    mmu_address_physical+i-executor_register_start:
-                    process_hardware_address + ADDRESS_REG + i;
+                register_inside[1] = i >= executor_register_start && i <= executor_register_end && !registers_init[i];
+                read_address2 = registers_src_address[i];
                 register[1] = i;
               end
-            end else if (!registers_init[i]) begin
-              if (!register_inside[0]) begin
-                register_inside[0] = 0;
-                read_address = process_hardware_address + ADDRESS_REG + i;
-                register[0] = i;
-              end else if (!register_inside[1]) begin
-                register_inside[1] = 0;
-                read_address2 = process_hardware_address + ADDRESS_REG + i;
-                register[1] = i;
               end
-            end
           end
           executor_state =register_inside[0] || register_inside[1]?EXECUTE_STATE_READ_EXECUTE:EXECUTE_STATE_NONE;
         end
@@ -347,6 +342,7 @@ module x_out_of_order (
           end
           //          end
         end
+        end
       end
 
       /*        $display($time, " ",mmuqueue_q_new_pos , " ", mmu_ready);
@@ -377,7 +373,6 @@ module x_out_of_order (
 
         decoder_input_address = pc_logical;
         decoder_inp = 1;
-        x = read_value;  //just to have some output signal from cpu. Not used for anything useful
 
         pc_logical = pc_logical + 2;
         pc_physical = pc_physical + 2;
@@ -693,7 +688,7 @@ module single_blockram (
       16'h1210, 16'd2613, //value to reg // not used for anything usefull, just for debugging
       16'h0e10, 16'd0290, //save to ram // not used for anything usefull, just for debugging
       16'h0911, 16'd0100, //ram to reg // not used for anything usefull, just for debugging
-      16'h1611, 16'd0100, //mul // not used for anything usefull, just for debugging
+      16'h1611, 16'd0101, //mul // not used for anything usefull, just for debugging
       16'h0e10, 16'd0212, //save to ram // not used for anything usefull, just for debugging
       16'h0c01, 16'h0001, //unknown // not used for anything usefull, just for debugging
       16'h0c01, 16'h0002, //unknown // not used for anything usefull, just for debugging
