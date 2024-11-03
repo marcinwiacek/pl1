@@ -244,7 +244,7 @@ module x_out_of_order (
             executor_register_end = decoder_register_end;
             executor_start_ram_address_or_numeric = decoder_start_ram_address_or_numeric;
             instr_num = instr_num + 1;
-                    x = read_value;  //just to have some output signal from cpu. Not used for anything useful
+                    x = mmu_input;  //just to have some output signal from cpu. Not used for anything useful
 
             if (executor_instruction_state == INSTRUCTION_STATE_RAM_2_REG) begin              
               $display($time, " adding mmu ");
