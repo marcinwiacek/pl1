@@ -165,7 +165,7 @@ module x_out_of_order (
   reg [15:0] process_hardware_address = 0;
   reg jmp_stall_exists = 0;
   reg [15:0] registers[0:31];
-  reg [15:0] registers_src_address[0:31];  
+  reg [15:0] registers_src_address[0:31];
   reg registers_init[0:31] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };
@@ -187,7 +187,7 @@ module x_out_of_order (
   reg [15:0] register[0:1];
   reg [15:0] register_inside[0:1];
 
- /* typedef struct {
+  /* typedef struct {
     reg [15:0] address;
     reg [15:0] value_or_reg;
   } savereadram;
@@ -217,10 +217,10 @@ module x_out_of_order (
       mmu_input <= 0;
 
       rst <= 0;
-      
-      for (i = 0; i < 32; i = i + 1) begin                
-                  registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;                
-              end
+
+      for (i = 0; i < 32; i = i + 1) begin
+        registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
+      end
     end else if (instr_num < 10) begin
       /*if (mmu_ready) begin
         if (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) begin
@@ -236,55 +236,55 @@ module x_out_of_order (
         mmuqueue_q_new_pos = mmuqueue_q_new_pos - 1;
       end*/
       if (decoder_ready) begin
-        if (executor_state==EXECUTE_STATE_NONE) begin
-            //          decoder_inp = 0;
-            executor_instruction_state = decoder_state;
-            executor_register_start = decoder_start;
-            executor_register_end = decoder_register_end;
-            executor_start_ram_address_or_numeric = decoder_start_ram_address_or_numeric;
-            instr_num = instr_num + 1;
-                    x = mmu_input;  //just to have some output signal from cpu. Not used for anything useful
-                    read_address=0;
-                    read_address2=0;
+        if (executor_state == EXECUTE_STATE_NONE) begin
+          //          decoder_inp = 0;
+          executor_instruction_state = decoder_state;
+          executor_register_start = decoder_start;
+          executor_register_end = decoder_register_end;
+          executor_start_ram_address_or_numeric = decoder_start_ram_address_or_numeric;
+          instr_num = instr_num + 1;
+          x = mmu_input;  //just to have some output signal from cpu. Not used for anything useful
+          read_address = 0;
+          read_address2 = 0;
         end
         $display($time, " executor ", executor_state, " ", executor_instruction_state, " ",
                  executor_register_start, " ", executor_register_end, " ",
                  executor_start_ram_address_or_numeric);
         if (executor_instruction_state == INSTRUCTION_STATE_RAM_2_REG) begin
           case (executor_state)
-          EXECUTE_STATE_NONE: begin
+            EXECUTE_STATE_NONE: begin
               $display($time, " adding mmu ");
               mmu_input = 1;
               mmu_address_logical = decoder_start_ram_address_or_numeric;
               executor_state = EXECUTE_STATE_WAIT_RAM_2_REG_MMU;
-          end
-          EXECUTE_STATE_WAIT_RAM_2_REG_MMU: begin
-            if (mmu_ready) begin
-              $display($time, " we have mmu ");
-              executor_state = EXECUTE_STATE_NONE;
-              mmu_input = 0;
-              for (i = 0; i < 32; i = i + 1) begin
-                if (i >= executor_register_start && i <= executor_register_end) begin
-                  registers_src_address[i] = mmu_address_physical+i-executor_register_start;
-                  registers_init[i] = 0;
+            end
+            EXECUTE_STATE_WAIT_RAM_2_REG_MMU: begin
+              if (mmu_ready) begin
+                $display($time, " we have mmu ");
+                executor_state = EXECUTE_STATE_NONE;
+                mmu_input = 0;
+                for (i = 0; i < 32; i = i + 1) begin
+                  if (i >= executor_register_start && i <= executor_register_end) begin
+                    registers_src_address[i] = mmu_address_physical + i - executor_register_start;
+                    registers_init[i] = 0;
+                  end
                 end
               end
             end
-            end
           endcase
         end else begin
-            if (read_address != 0) begin
-              $display($time, " updating register ", register[0], " to ", read_value, " addr",
-                       read_address);
-              registers[register[0]] = read_value;
-              registers_init[register[0]] = 1;
-            end
-            if (read_address2 != 0) begin
-              $display($time, " updating register ", register[1], " to ", read_value2, " addr",
-                       read_address2);
-              registers[register[1]] = read_value2;
-              registers_init[register[1]] = 1;
-            end
+          if (read_address != 0) begin
+            $display($time, " updating register ", register[0], " to ", read_value, " addr",
+                     read_address);
+            registers[register[0]] = read_value;
+            registers_init[register[0]] = 1;
+          end
+          if (read_address2 != 0) begin
+            $display($time, " updating register ", register[1], " to ", read_value2, " addr",
+                     read_address2);
+            registers[register[1]] = read_value2;
+            registers_init[register[1]] = 1;
+          end
           if (executor_instruction_state != INSTRUCTION_STATE_REG_SET) begin
             register_inside = {0, 0};
             read_address = 0;
@@ -304,46 +304,29 @@ module x_out_of_order (
             end
             executor_state =register_inside[0] || register_inside[1]?EXECUTE_STATE_READ_EXECUTE:EXECUTE_STATE_NONE;
           end
-          
           if (executor_state == EXECUTE_STATE_NONE) begin
-          /*          if (executor_instruction_state == INSTRUCTION_STATE_REG_2_RAM) begin
-            //            if (SAVERAM_QUEUE_LEN-saveram_q_new_pos<executor_register_end-executor_register_start) begin
-            //              executor_state = EXECUTE_STATE_SAVE_WAIT;
-            //            end else begin
-            for (i = 0; i < 32; i = i + 1) begin
-              if (i >= executor_register_start && i <= executor_register_end) begin
-                mmuqueue_q[mmuqueue_q_new_pos].instr_num = savereadram_q_new_pos;
-                mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
-                savereadram_q[savereadram_q_new_pos].address = executor_start_ram_address_or_numeric+i-executor_register_start;
-                savereadram_q[savereadram_q_new_pos].value_or_reg = registers[i];
-                $display($time, " adding writing ", savereadram_q[savereadram_q_new_pos].address,
-                         "=", savereadram_q[savereadram_q_new_pos].value_or_reg);
-                savereadram_q_new_pos = savereadram_q_new_pos + 1;
-              end
-            end
-            //          end
-          end else begin*/
             for (i = 0; i < 32; i = i + 1) begin
               if (i >= executor_register_start && i <= executor_register_end) begin
                 case (executor_instruction_state)
-                INSTRUCTION_STATE_REG_SET: begin
-                  registers[i] = executor_start_ram_address_or_numeric;
-                  registers_init[i] = 1;
-                end
-                INSTRUCTION_STATE_REG_ADD:
-                registers[i] = registers[i] + executor_start_ram_address_or_numeric;
-                INSTRUCTION_STATE_REG_DEC:
-                registers[i] = registers[i] - executor_start_ram_address_or_numeric;
-                INSTRUCTION_STATE_REG_MUL:
-                registers[i] = registers[i] * executor_start_ram_address_or_numeric;
-                INSTRUCTION_STATE_REG_DIV:
-                registers[i] = registers[i] / executor_start_ram_address_or_numeric;
+                  INSTRUCTION_STATE_REG_SET: begin
+                    registers[i] = executor_start_ram_address_or_numeric;
+                    registers_init[i] = 1;
+                  end
+                  INSTRUCTION_STATE_REG_ADD:
+                  registers[i] = registers[i] + executor_start_ram_address_or_numeric;
+                  INSTRUCTION_STATE_REG_DEC:
+                  registers[i] = registers[i] - executor_start_ram_address_or_numeric;
+                  INSTRUCTION_STATE_REG_MUL:
+                  registers[i] = registers[i] * executor_start_ram_address_or_numeric;
+                  INSTRUCTION_STATE_REG_DIV:
+                  registers[i] = registers[i] / executor_start_ram_address_or_numeric;
                 endcase
               end
             end
+          end
         end
-      end        
-        
+      end
+
       /*        $display($time, " ",mmuqueue_q_new_pos , " ", mmu_ready);
       if ((!mmu_input && mmuqueue_q_new_pos != 0) || (mmu_input&&mmu_ready)) begin
         $display($time, " adding mmu ",savereadram_q[mmuqueue_q[0].instr_num].address);
