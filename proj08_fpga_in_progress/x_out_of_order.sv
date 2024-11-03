@@ -48,7 +48,7 @@ module x_out_of_order (
   reg rst = 1;
   reg [7:0] instr_num = 0;
 
-  integer i, j;
+  integer i;
 
   //-------------------------------------------------------alu---------------------------------
 
@@ -93,13 +93,12 @@ module x_out_of_order (
       .address_physical_min_in_the_same_page(mmu_address_physical_min_in_the_same_page)
   );
 
-  parameter MMU_QUEUE_PC_INSTR_NUM = INST_QUEUE_LEN + 1;
+  parameter MMU_QUEUE_PC_INSTR_NUM = READRAM_QUEUE_LEN + 1;
 
   typedef struct {reg [7:0] instr_num;} mmuqueue;
 
   mmuqueue mmuqueue_q[0:MMU_QUEUE_LEN];
   reg [7:0] mmuqueue_q_new_pos;
-  reg mmuqueue_q_empty;
 
   //---------------------------------------------------------decoder--------------------------
 
@@ -147,26 +146,22 @@ module x_out_of_order (
       .read_value2(read_value2)
   );
 
-  typedef struct {
+/*  typedef struct {
     reg [15:0] address;
     reg [5:0]  reg_num;
   } readram;
 
   readram readram_q[0:READRAM_QUEUE_LEN];
   reg [7:0] readram_q_new_pos;
+*/
 
-  //typedef struct {
-//    reg [15:0] address;
-//    reg [15:0] value;
-//  } saveram;
+  typedef struct {
+reg [7:0] instr_num;
+  } saveram;
 
-  //saveram saveram_q[0:SAVERAM_QUEUE_LEN];
+  saveram saveram_q[0:SAVERAM_QUEUE_LEN];
   reg [7:0] saveram_q_new_pos;
-  reg [15:0] saveram_address[0:SAVERAM_QUEUE_LEN];
-  reg [15:0] saveram_value[0:SAVERAM_QUEUE_LEN];
   
-  
-
   //--------------------------------------------------------------------process------------------
 
   reg [15:0] process_hardware_address = 0;
@@ -192,19 +187,18 @@ module x_out_of_order (
   reg [15:0] register[0:1];
   reg [15:0] register_inside[0:1];
   
-  always @(posedge clk) begin
-  write_enabled = saveram_q_new_pos != 0 ? 1 : 0;
-      if (saveram_q_new_pos != 0) begin
-        write_address = saveram_address[saveram_q_new_pos-1];
-        write_value   = saveram_value[saveram_q_new_pos-1];
-        $display($time, " writing ", write_address, "=", write_value);
-      end
-  end
+    typedef struct {
+    reg [15:0] address;
+    reg [15:0] value_or_reg;
+  } savereadram;
+  
+  savereadram savereadram_q[0:40];
+  reg [7:0] savereadram_q_new_pos;
 
   always @(posedge clk) begin
     if (rst) begin
       saveram_q_new_pos <= 0;
-      readram_q_new_pos <= 0;
+      savereadram_q_new_pos<=0;
 
       read_address <= 52;
       read_address2 <= 53;
@@ -217,30 +211,26 @@ module x_out_of_order (
       pc_physical_max_page <= 99;
 
       mmuqueue_q_new_pos <= 0;
-      mmuqueue_q_empty <= 0;
 
       executor_state <= 0;
+      
+      mmu_input<=0;
 
       rst <= 0;
     end else if (instr_num < 10) begin
-      /* if (mmu_ready) begin
+       if (mmu_ready) begin
         if (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) begin
           pc_physical_min_page = mmu_address_physical_min_in_the_same_page;
           pc_physical_max_page = mmu_address_physical_max_in_the_same_page;
           pc_physical = mmu_address_physical;
-        end else if (decoder_state==INSTRUCTION_STATE_REG_ADD || decoder_state==INSTRUCTION_STATE_REG_DEC) begin
-          instruction_q[mmuqueue_q[0].instr_num].start_ram_address_physical = mmu_address_physical;
-          readram_q[readram_q_new_pos].instr_num = mmuqueue_q[0].instr_num;
-          readram_q_new_pos = readram_q_new_pos + 1;
+        end else begin
+          savereadram_q[mmuqueue_q[0].instr_num].address = mmu_address_physical;
+          saveram_q[saveram_q_new_pos].instr_num = mmuqueue_q[0].instr_num;
+          saveram_q_new_pos = saveram_q_new_pos + 1;      
         end
         mmuqueue_q = {mmuqueue_q[1:MMU_QUEUE_LEN], mmuqueue_q[0]};
         mmuqueue_q_new_pos = mmuqueue_q_new_pos - 1;
-        mmuqueue_q_empty = mmuqueue_q_new_pos == 0;
       end
-      */
-
-      // $display($time, decoder_ready ," ", executor_state);
-
       if (decoder_ready) begin
         case (executor_state)
           EXECUTE_STATE_NONE: begin
@@ -288,20 +278,21 @@ module x_out_of_order (
         end
         if (executor_state == EXECUTE_STATE_NONE) begin
           if (executor_instruction_state == INSTRUCTION_STATE_REG_2_RAM) begin
-            if (SAVERAM_QUEUE_LEN-saveram_q_new_pos<executor_register_end-executor_register_start) begin
-              executor_state = EXECUTE_STATE_SAVE_WAIT;
-            end else begin
+//            if (SAVERAM_QUEUE_LEN-saveram_q_new_pos<executor_register_end-executor_register_start) begin
+//              executor_state = EXECUTE_STATE_SAVE_WAIT;
+//            end else begin
               for (i = 0; i < 32; i = i + 1) begin
                 if (i >= executor_register_start && i <= executor_register_end) begin
-                 // saveram_q = {saveram_q[0], saveram_q[0:SAVERAM_QUEUE_LEN-1]};
-                  saveram_address[saveram_q_new_pos] = executor_start_ram_address_or_numeric+i-executor_register_start;
-                  saveram_value[saveram_q_new_pos] = registers[i];
-                  $display($time, " adding writing ", saveram_address[saveram_q_new_pos], "=",
-                           saveram_address[saveram_q_new_pos]);
-                  saveram_q_new_pos = saveram_q_new_pos + 1;
+                 mmuqueue_q[mmuqueue_q_new_pos].instr_num = savereadram_q_new_pos;
+          mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;       
+                  savereadram_q[savereadram_q_new_pos].address = executor_start_ram_address_or_numeric+i-executor_register_start;
+                  savereadram_q[savereadram_q_new_pos].value_or_reg = registers[i];
+                  $display($time, " adding writing ", savereadram_q[savereadram_q_new_pos].address, "=",
+                           savereadram_q[savereadram_q_new_pos].value_or_reg);                    
+                  savereadram_q_new_pos = savereadram_q_new_pos + 1;
                 end
               end
-            end
+  //          end
           end else begin
             for (i = 0; i < 32; i = i + 1) begin
               if (i >= executor_register_start && i <= executor_register_end) begin
@@ -339,14 +330,25 @@ module x_out_of_order (
         end
       end
 
-      /*   if (!mmuqueue_q_empty && mmu_ready) begin
+         if (mmuqueue_q_new_pos!=0 && mmu_ready) begin
+        $display($time, " adding mmu");
         mmu_input = 1;
-        mmu_address_logical = (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) ? pc_logical : 0;
+        mmu_address_logical = (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) ? pc_logical : savereadram_q[mmuqueue_q[0].instr_num].address;
         mmu_instr_num = mmuqueue_q[0].instr_num;
+      end else begin
+      mmu_input = 0;
       end
-      if (!aluqueue_q_empty && alu_ready) begin
-      end*/
-      if (write_enabled) saveram_q_new_pos = saveram_q_new_pos - 1;
+//      if (!aluqueue_q_empty && alu_ready) begin
+  //    end
+
+  write_enabled <= saveram_q_new_pos != 0 ? 1 : 0;
+      if (saveram_q_new_pos != 0) begin
+      saveram_q_new_pos = saveram_q_new_pos-1;
+        write_address <= savereadram_q[saveram_q[saveram_q_new_pos].instr_num].address;
+        write_value   <= savereadram_q[saveram_q[saveram_q_new_pos].instr_num].value_or_reg;
+        $display($time, " writing ", write_address, "=", write_value);
+      end
+
       if (!jmp_stall_exists && pc_physical != 0 && executor_state == EXECUTE_STATE_NONE) begin
         read_address  = pc_physical;
         read_address2 = pc_physical + 1;
@@ -361,7 +363,6 @@ module x_out_of_order (
         if (pc_physical > pc_physical_max_page || pc_physical < pc_physical_min_page) begin
           mmuqueue_q[mmuqueue_q_new_pos].instr_num = MMU_QUEUE_PC_INSTR_NUM; //we have to calculate MMU for PC 
           mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
-          mmuqueue_q_empty = 0;
           pc_physical = 0;
         end
       end else begin
@@ -595,8 +596,9 @@ module mmu (
 );
 
   always @(posedge clk) begin
-    ready <= inp;
+   
     if (inp) begin
+     ready <= inp;
       address_physical <= address_logical;
       address_physical_max_in_the_same_page <= 99;
       address_physical_min_in_the_same_page <= 0;
