@@ -189,6 +189,8 @@ module x_out_of_order (
 
   reg [15:0] register[0:1];
   reg [15:0] register_inside[0:1];
+  
+  reg [15:0] xx;
 
   /* typedef struct {
     reg [15:0] address;
@@ -333,17 +335,20 @@ module x_out_of_order (
         register_inside[0] = 0;
         register_inside[1] = 0;
         for (i = 0; i < 32; i = i + 1) begin
-          if (!registers_init[i] && !register_inside[0]) begin
-            register_inside[0] = i >= executor_register_start && i <= executor_register_end && !registers_init[i];
-            read_address = registers_src_ram[i]?registers_src_address[i]:process_hardware_address + ADDRESS_REG + i;
-            registers_src_ram[i] = 0;
-            register[0] = i;
-          end else if (!registers_init[i] && !register_inside[1]) begin
-            register_inside[1] = i >= executor_register_start && i <= executor_register_end && !registers_init[i];
-            read_address2 = registers_src_ram[i]?registers_src_address[i]:process_hardware_address + ADDRESS_REG + i;
-            registers_src_ram[i] = 0;
-            register[1] = i;
-          end
+          if (!registers_init[i]) begin
+             xx = registers_src_ram[i]?registers_src_address[i]:process_hardware_address + ADDRESS_REG + i;
+             if (!register_inside[0]) begin
+                register_inside[0] = i >= executor_register_start && i <= executor_register_end ;
+                read_address = xx;
+                registers_src_ram[i] = 0;
+                register[0] = i;
+             end else           if (!register_inside[1]) begin
+                register_inside[1] = i >= executor_register_start && i <= executor_register_end ;
+                read_address = xx;
+                registers_src_ram[i] = 0;
+                register[1] = i;
+             end
+          end          
         end
       end
       /*        $display($time, " ",mmuqueue_q_new_pos , " ", mmu_ready);
