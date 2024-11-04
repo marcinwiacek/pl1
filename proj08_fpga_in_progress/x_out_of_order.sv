@@ -167,6 +167,8 @@ module x_out_of_order (
   reg [15:0] registers[0:31];
   reg [15:0] registers_src_address[0:31];
   reg registers_src_ram[0:31];
+  reg registers_src_ram_mmu_req[0:31];
+
   reg registers_init[0:31] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };
@@ -189,7 +191,7 @@ module x_out_of_order (
 
   reg [15:0] register[0:1];
   reg [15:0] register_inside[0:1];
-  
+
   reg [15:0] xx;
 
   /* typedef struct {
@@ -199,6 +201,9 @@ module x_out_of_order (
 
   savereadram savereadram_q[0:40];
   reg [7:0] savereadram_q_new_pos;*/
+
+  always @(posedge clk) begin
+  end
 
   always @(posedge clk) begin
     if (rst) begin
@@ -226,9 +231,61 @@ module x_out_of_order (
 
       for (i = 0; i < 32; i = i + 1) begin
         registers_src_ram[i] <= 0;
+        registers_src_ram_mmu_req[i] <= 0;
         //registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
       end
     end else if (instr_num < 10) begin
+      $display($time, " -> ", decoder_ready);
+      if (!jmp_stall_exists && pc_physical != 0 && executor_state == EXECUTE_STATE_NONE) begin
+        read_address  <= pc_physical;
+        read_address2 <= pc_physical + 1;
+        $display($time, pc_logical, " starting fetch");
+
+        decoder_input_address <= pc_logical;
+        decoder_inp <= 1;
+
+        pc_logical <= pc_logical + 2;
+        pc_physical <= pc_physical + 2;
+        //        if (pc_physical > pc_physical_max_page || pc_physical < pc_physical_min_page) begin
+        //          mmuqueue_q[mmuqueue_q_new_pos].instr_num = MMU_QUEUE_PC_INSTR_NUM; //we have to calculate MMU for PC 
+        //          mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
+        //          pc_physical = 0;
+        //        end
+      end else begin
+        decoder_inp <= 0;
+        $display($time, pc_logical, " no fetch");
+      end
+      if (decoder_ready) begin
+        case (executor_state)
+          EXECUTE_STATE_NONE: begin
+            for (i = 0; i < 32; i = i + 1) begin
+              if (i >= executor_register_start && i <= executor_register_end && !registers_init[i]) begin
+                executor_state <= EXECUTE_STATE_READ_EXECUTE;
+
+              end
+            end
+
+            executor_instruction_state <= decoder_state;
+            executor_register_start <= decoder_start;
+            executor_register_end <= decoder_register_end;
+            executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
+            instr_num <= instr_num + 1;
+            $display($time, pc_logical, " excutor1", " ", decoder_start, " ", decoder_register_end,
+                     " ", decoder_start_ram_address_or_numeric);
+            // $display($time, pc_logical, " excutor1"," ",decoder_start," ",decoder_register_end," ",decoder_start_ram_address_or_numeric);
+          end
+          EXECUTE_STATE_READ_EXECUTE: begin
+            executor_state <= EXECUTE_STATE_NONE;
+            $display($time, pc_logical, " excutor2", " ", executor_register_start, " ",
+                     executor_register_end, " ", executor_start_ram_address_or_numeric);
+            x <= mmu_input;  //just to have some output signal from cpu. Not used for anything useful
+            // $display($time, pc_logical, " excutor2"," ",decoder_start," ",decoder_register_end," ",decoder_start_ram_address_or_numeric);
+          end
+        endcase
+      end
+
+
+
       /*if (mmu_ready) begin
         if (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) begin
           pc_physical_min_page = mmu_address_physical_min_in_the_same_page;
@@ -242,7 +299,7 @@ module x_out_of_order (
         mmuqueue_q = {mmuqueue_q[1:MMU_QUEUE_LEN], mmuqueue_q[0]};
         mmuqueue_q_new_pos = mmuqueue_q_new_pos - 1;
       end*/
-      if (decoder_ready) begin
+      /*if (decoder_ready) begin
         case (executor_state)
           EXECUTE_STATE_NONE: begin
             executor_instruction_state = decoder_state;
@@ -373,7 +430,7 @@ module x_out_of_order (
       end
 */
     end else begin
-      decoder_inp = 0;
+      decoder_inp <= 0;
     end
     // $display($time, " decoder_inp ",decoder_inp);
   end
