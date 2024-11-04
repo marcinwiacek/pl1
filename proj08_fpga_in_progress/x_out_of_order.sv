@@ -250,38 +250,40 @@ module x_out_of_order (
         registers_init[register[0]] = 1;
       end
       if (decoder_ready) begin
-        ;
         case (executor_state)
           EXECUTE_STATE_NONE: begin
             for (i = 0; i < 32; i = i + 1) begin
               if (i >= executor_register_start && i <= executor_register_end) begin
-                if (!registers_init[i]) begin
-                  executor_state = EXECUTE_STATE_READ_EXECUTE;
-                  read_address = registers_src_address[i];
-                  register[0] = i;
-                end else begin
-                  case (executor_instruction_state)
-                    INSTRUCTION_STATE_RAM_2_REG: begin
-                      registers_src_address[i] = executor_start_ram_address_or_numeric;
-                      registers_init[i] = 0;
+                case (executor_instruction_state)
+                  INSTRUCTION_STATE_RAM_2_REG: begin
+                    registers_src_address[i] = executor_start_ram_address_or_numeric;
+                    registers_init[i] = 0;
+                  end
+                  INSTRUCTION_STATE_REG_SET: begin
+                    registers[i] = executor_start_ram_address_or_numeric;
+                    registers_init[i] = 1;
+                  end
+                  default: begin
+                    if (!registers_init[i]) begin
+                      executor_state = EXECUTE_STATE_READ_EXECUTE;
+                      read_address = registers_src_address[i];
+                      register[0] = i;
+                    end else begin
+                      case (executor_instruction_state)
+                        INSTRUCTION_STATE_REG_ADD:
+                        registers[i] = registers[i] + executor_start_ram_address_or_numeric;
+                        INSTRUCTION_STATE_REG_DEC:
+                        registers[i] = registers[i] - executor_start_ram_address_or_numeric;
+                        INSTRUCTION_STATE_REG_MUL:
+                        registers[i] = registers[i] * executor_start_ram_address_or_numeric;
+                        INSTRUCTION_STATE_REG_DIV:
+                        registers[i] = registers[i] / executor_start_ram_address_or_numeric;
+                      endcase
                     end
-                    INSTRUCTION_STATE_REG_SET: begin
-                      registers[i] = executor_start_ram_address_or_numeric;
-                      registers_init[i] = 1;
-                    end
-                    INSTRUCTION_STATE_REG_ADD:
-                    registers[i] = registers[i] + executor_start_ram_address_or_numeric;
-                    INSTRUCTION_STATE_REG_DEC:
-                    registers[i] = registers[i] - executor_start_ram_address_or_numeric;
-                    INSTRUCTION_STATE_REG_MUL:
-                    registers[i] = registers[i] * executor_start_ram_address_or_numeric;
-                    INSTRUCTION_STATE_REG_DIV:
-                    registers[i] = registers[i] / executor_start_ram_address_or_numeric;
-                  endcase
-                end
+                  end
+                endcase
               end
             end
-
             executor_instruction_state = decoder_state;
             executor_register_start = decoder_start;
             executor_register_end = decoder_register_end;
