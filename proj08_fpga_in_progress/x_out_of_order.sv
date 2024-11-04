@@ -218,7 +218,6 @@ module x_out_of_order (
       pc_physical = 54;
       pc_physical_min_page = 0;
       pc_physical_max_page = 99;
-      //  mmuqueue_q_new_pos = 0;
       executor_state = 0;
       executor_ready = 0;
       mmu_input = 0;
@@ -230,40 +229,39 @@ module x_out_of_order (
       end
     end else if (instr_num < 10) begin
       // $display($time, " -> ", decoder_ready);
-      if (!jmp_stall_exists && pc_physical != 0 && executor_state == EXECUTE_STATE_NONE) begin
-        read_address  = pc_physical;
-        read_address2 = pc_physical + 1;
-        $display($time, pc_logical, " starting fetch ", read_address);
-        decoder_input_address = pc_logical;
-        decoder_inp = 1;
-        pc_logical = pc_logical + 2;
-        pc_physical = pc_physical + 2;
-        //        if (pc_physical > pc_physical_max_page || pc_physical < pc_physical_min_page) begin
-        //          mmuqueue_q[mmuqueue_q_new_pos].instr_num = MMU_QUEUE_PC_INSTR_NUM; //we have to calculate MMU for PC 
-        //          mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
-        //          pc_physical = 0;
-        //        end
-      end else begin
+     
+      if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
         decoder_inp = 0;
         $display($time, pc_logical, " no fetch ", register[0], " ", read_address, " ", read_value);
         registers[register[0]] = read_value;
         registers_init[register[0]] = 1;
       end
       if (decoder_ready) begin
-        case (executor_state)
-          EXECUTE_STATE_NONE: begin
+            if (executor_state == EXECUTE_STATE_NONE) begin            
+              executor_instruction_state = decoder_state;
+              executor_register_start = decoder_start;
+              executor_register_end = decoder_register_end;
+              executor_start_ram_address_or_numeric = decoder_start_ram_address_or_numeric;
+              instr_num = instr_num + 1;
+            end
+            $display($time, pc_logical, " executor", " ", executor_state," " ,executor_register_start, " ", executor_register_end,
+                     " ", executor_start_ram_address_or_numeric);
+        
             for (i = 0; i < 32; i = i + 1) begin
               if (i >= executor_register_start && i <= executor_register_end) begin
                 case (executor_instruction_state)
                   INSTRUCTION_STATE_RAM_2_REG: begin
-                    registers_src_address[i] = executor_start_ram_address_or_numeric;
+                    //next time this register should be read
                     registers_init[i] = 0;
+                    registers_src_address[i] = executor_start_ram_address_or_numeric;
                   end
                   INSTRUCTION_STATE_REG_SET: begin
-                    registers[i] = executor_start_ram_address_or_numeric;
+                    //not important if register had any value earlier
                     registers_init[i] = 1;
+                    registers[i] = executor_start_ram_address_or_numeric;
                   end
                   default: begin
+                    executor_state = EXECUTE_STATE_NONE;
                     if (!registers_init[i]) begin
                       executor_state = EXECUTE_STATE_READ_EXECUTE;
                       read_address = registers_src_address[i];
@@ -284,26 +282,22 @@ module x_out_of_order (
                 endcase
               end
             end
-            executor_instruction_state = decoder_state;
-            executor_register_start = decoder_start;
-            executor_register_end = decoder_register_end;
-            executor_start_ram_address_or_numeric = decoder_start_ram_address_or_numeric;
-            instr_num = instr_num + 1;
-            $display($time, pc_logical, " excutor1", " ", decoder_start, " ", decoder_register_end,
-                     " ", decoder_start_ram_address_or_numeric);
-            // $display($time, pc_logical, " excutor1"," ",decoder_start," ",decoder_register_end," ",decoder_start_ram_address_or_numeric);
-          end
-          EXECUTE_STATE_READ_EXECUTE: begin
-            executor_state = EXECUTE_STATE_NONE;
-            $display($time, pc_logical, " excutor2", " ", executor_register_start, " ",
-                     executor_register_end, " ", executor_start_ram_address_or_numeric);
-            //just to have some output signal from cpu. Not used for anything useful
-            // $display($time, pc_logical, " excutor2"," ",decoder_start," ",decoder_register_end," ",decoder_start_ram_address_or_numeric);
-          end
-        endcase
       end
 
-
+ if (!jmp_stall_exists && pc_physical != 0 && executor_state == EXECUTE_STATE_NONE) begin
+        read_address  = pc_physical;
+        read_address2 = pc_physical + 1;
+        $display($time, pc_logical, " starting fetch ", read_address);
+        decoder_input_address = pc_logical;
+        decoder_inp = 1;
+        pc_logical = pc_logical + 2;
+        pc_physical = pc_physical + 2;
+     end
+        //        if (pc_physical > pc_physical_max_page || pc_physical < pc_physical_min_page) begin
+        //          mmuqueue_q[mmuqueue_q_new_pos].instr_num = MMU_QUEUE_PC_INSTR_NUM; //we have to calculate MMU for PC 
+        //          mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
+        //          pc_physical = 0;
+        //        end
 
       /*if (mmu_ready) begin
         if (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) begin
