@@ -227,21 +227,7 @@ module x_out_of_order (
         registers_src_ram_mmu_req[i] <= 0;
         registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
       end
-    end else if (instr_num < 10) begin
-      if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
-        if (read_address != 0) begin
-          $display($time, pc_logical, " no fetch register ", register[0], " with address ",
-                   read_address, "=", read_value);
-          registers[register[0]] <= read_value;
-          registers_init[register[0]] <= 1;
-        end
-        if (read_address2 != 0) begin
-          $display($time, pc_logical, " no fetch register ", register[1], " with address ",
-                   read_address2, "=", read_value2);
-          registers[register[1]] <= read_value2;
-          registers_init[register[1]] <= 1;
-        end
-      end
+    end else if (instr_num < 10) begin     
       if (decoder_ready) begin
         read_address  <= 0;
         read_address2 <= 0;
@@ -303,7 +289,19 @@ module x_out_of_order (
               endcase
             end
           end
-        end else begin
+        end else begin        
+          if (read_address != 0) begin
+            $display($time, pc_logical, " no fetch register ", register[0], " with address ",
+                   read_address, "=", read_value);
+            registers[register[0]] <= read_value;
+            registers_init[register[0]] <= 1;
+          end
+          if (read_address2 != 0) begin
+            $display($time, pc_logical, " no fetch register ", register[1], " with address ",
+                   read_address2, "=", read_value2);
+            registers[register[1]] <= read_value2;
+            registers_init[register[1]] <= 1;
+          end
           $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
                    executor_register_start, " ", executor_register_end, " ",
                    executor_start_ram_address_or_numeric);
