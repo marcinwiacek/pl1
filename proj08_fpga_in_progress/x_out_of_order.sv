@@ -242,7 +242,7 @@ module x_out_of_order (
           registers_init[register[1]] <= 1;
         end
       end
-      if (decoder_ready) begin      
+      if (decoder_ready) begin
         read_address  <= 0;
         read_address2 <= 0;
         for (i = 0; i < 32; i = i + 1) begin
@@ -258,7 +258,7 @@ module x_out_of_order (
         end
         if (executor_state == EXECUTE_STATE_NONE) begin
           $display($time, pc_logical, " executor1   ", " ", decoder_state, " ", decoder_start, " ",
-                 decoder_register_end, " ", decoder_start_ram_address_or_numeric);
+                   decoder_register_end, " ", decoder_start_ram_address_or_numeric);
           executor_instruction_state <= decoder_state;
           executor_register_start <= decoder_start;
           executor_register_end <= decoder_register_end;
@@ -304,13 +304,13 @@ module x_out_of_order (
             end
           end
         end else begin
-        $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
-                 executor_register_start, " ", executor_register_end, " ",
-                 executor_start_ram_address_or_numeric);
+          $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
+                   executor_register_start, " ", executor_register_end, " ",
+                   executor_start_ram_address_or_numeric);
           executor_state <= EXECUTE_STATE_NONE;
           for (i = 0; i < 32; i = i + 1) begin
             if (i >= executor_register_start && i <= executor_register_end) begin
-              if (!registers_init[i] && i!=register[0] && i!=register[1]) begin
+              if (!registers_init[i] && i != register[0] && i != register[1]) begin
                 executor_state <= EXECUTE_STATE_READ_EXECUTE;
                 if (i % 2 == 0) begin
                   read_address <= registers_src_address[i];
