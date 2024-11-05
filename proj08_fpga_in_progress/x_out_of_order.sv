@@ -242,12 +242,7 @@ module x_out_of_order (
           registers_init[register[1]] <= 1;
         end
       end
-      if (decoder_ready) begin
-        $display($time, pc_logical, " executor1   ", " ", decoder_state, " ", decoder_start, " ",
-                 decoder_register_end, " ", decoder_start_ram_address_or_numeric);
-        $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
-                 executor_register_start, " ", executor_register_end, " ",
-                 executor_start_ram_address_or_numeric);
+      if (decoder_ready) begin      
         read_address  <= 0;
         read_address2 <= 0;
         for (i = 0; i < 32; i = i + 1) begin
@@ -262,23 +257,25 @@ module x_out_of_order (
           end
         end
         if (executor_state == EXECUTE_STATE_NONE) begin
+          $display($time, pc_logical, " executor1   ", " ", decoder_state, " ", decoder_start, " ",
+                 decoder_register_end, " ", decoder_start_ram_address_or_numeric);
           executor_instruction_state <= decoder_state;
           executor_register_start <= decoder_start;
           executor_register_end <= decoder_register_end;
           executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
           instr_num <= instr_num + 1;
           for (i = 0; i < 32; i = i + 1) begin
-            if (i >= executor_register_start && i <= executor_register_end) begin
-              case (executor_instruction_state)
+            if (i >= decoder_start && i <= decoder_register_end) begin
+              case (decoder_state)
                 INSTRUCTION_STATE_RAM_2_REG: begin
                   //next time this register should be read
                   registers_init[i] <= 0;
-                  registers_src_address[i] <= executor_start_ram_address_or_numeric;
+                  registers_src_address[i] <= decoder_start_ram_address_or_numeric;
                 end
                 INSTRUCTION_STATE_REG_SET: begin
                   //not important if register had any value earlier
                   registers_init[i] <= 1;
-                  registers[i] <= executor_start_ram_address_or_numeric;
+                  registers[i] <= decoder_start_ram_address_or_numeric;
                 end
                 default: begin
                   if (!registers_init[i]) begin
@@ -291,7 +288,7 @@ module x_out_of_order (
                       register[1]   <= i;
                     end
                   end else begin
-                    case (executor_instruction_state)
+                    case (decoder_state)
                       INSTRUCTION_STATE_REG_ADD:
                       registers[i] <= registers[i] + decoder_start_ram_address_or_numeric;
                       INSTRUCTION_STATE_REG_DEC:
@@ -307,10 +304,13 @@ module x_out_of_order (
             end
           end
         end else begin
-
+        $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
+                 executor_register_start, " ", executor_register_end, " ",
+                 executor_start_ram_address_or_numeric);
+          executor_state <= EXECUTE_STATE_NONE;
           for (i = 0; i < 32; i = i + 1) begin
             if (i >= executor_register_start && i <= executor_register_end) begin
-              if (!registers_init[i]) begin
+              if (!registers_init[i] && i!=register[0] && i!=register[1]) begin
                 executor_state <= EXECUTE_STATE_READ_EXECUTE;
                 if (i % 2 == 0) begin
                   read_address <= registers_src_address[i];
@@ -333,10 +333,8 @@ module x_out_of_order (
               end
             end
           end
-
         end
       end
-
       if (!jmp_stall_exists && pc_physical != 0 && executor_state == EXECUTE_STATE_NONE) begin
         read_address  <= pc_physical;
         read_address2 <= pc_physical + 1;
