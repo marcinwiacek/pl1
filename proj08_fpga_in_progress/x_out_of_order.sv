@@ -228,19 +228,19 @@ module x_out_of_order (
         registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
       end
     end else if (instr_num < 10) begin
-      // $display($time, " -> ", decoder_ready);
-
       if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
         decoder_inp <= 0;
+                if (read_address != 0) begin
         $display($time, pc_logical, " no fetch register ", register[0], " with address ",
                  read_address, "=", read_value);
         registers[register[0]] <= read_value;
         registers_init[register[0]] <= 1;
+        end
         if (read_address2 != 0) begin
           $display($time, pc_logical, " no fetch register ", register[1], " with address ",
                    read_address2, "=", read_value2);
-          // registers[register[1]] <= read_value2;
-          //registers_init[register[1]] <= 1;
+          registers[register[1]] <= read_value2;
+          registers_init[register[1]] <= 1;
         end
       end
       if (decoder_ready) begin
@@ -253,8 +253,22 @@ module x_out_of_order (
         end
         $display($time, pc_logical, " executor", " ", executor_state, " ", executor_register_start,
                  " ", executor_register_end, " ", executor_start_ram_address_or_numeric);
-        read_address2 <= 0;
-        for (i = 0; i < 32; i = i + 1) begin
+                 read_address<=0;
+                 read_address2<=0;
+ for (i = 0; i < 32; i = i + 1) begin
+                if (!registers_init[i]) begin
+                    executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                  if (i%2==0) begin
+                    read_address <= registers_src_address[i];
+                    register[0] <= i;                    
+                  end else begin
+                    read_address2 <= registers_src_address[i];
+                    register[1]   <= i;               
+                end
+                end
+ end
+ 
+         for (i = 0; i < 32; i = i + 1) begin
           if (i >= executor_register_start && i <= executor_register_end) begin
             case (executor_instruction_state)
               INSTRUCTION_STATE_RAM_2_REG: begin
@@ -270,12 +284,13 @@ module x_out_of_order (
               default: begin
                 executor_state <= EXECUTE_STATE_NONE;
                 if (!registers_init[i]) begin
-                  executor_state <= EXECUTE_STATE_READ_EXECUTE;
-                  read_address <= registers_src_address[i];
-                  register[0] <= i;
-                  if (read_address2 == 0) begin
+                    executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                  if (i%2==0) begin
+                    read_address <= registers_src_address[i];
+                    register[0] <= i;                    
+                  end else begin
                     read_address2 <= registers_src_address[i];
-                    register[1]   <= i;
+                    register[1]   <= i;               
                   end
                 end else begin
                   case (executor_instruction_state)
