@@ -229,7 +229,6 @@ module x_out_of_order (
       end
     end else if (instr_num < 10) begin
       if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
-        decoder_inp <= 0;
         if (read_address != 0) begin
           $display($time, pc_logical, " no fetch register ", register[0], " with address ",
                    read_address, "=", read_value);
@@ -244,20 +243,15 @@ module x_out_of_order (
         end
       end
       if (decoder_ready) begin
-        if (executor_state == EXECUTE_STATE_NONE) begin
-          executor_instruction_state <= decoder_state;
-          executor_register_start <= decoder_start;
-          executor_register_end <= decoder_register_end;
-          executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
-          instr_num <= instr_num + 1;
-        end
-        $display($time, pc_logical, " executor", " ", executor_state, " ", executor_register_start,
-                 " ", executor_register_end, " ", executor_start_ram_address_or_numeric);
+        $display($time, pc_logical, " executor1   ", " ", decoder_state, " ", decoder_start, " ",
+                 decoder_register_end, " ", decoder_start_ram_address_or_numeric);
+        $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
+                 executor_register_start, " ", executor_register_end, " ",
+                 executor_start_ram_address_or_numeric);
         read_address  <= 0;
         read_address2 <= 0;
         for (i = 0; i < 32; i = i + 1) begin
           if (!registers_init[i]) begin
-            executor_state <= EXECUTE_STATE_READ_EXECUTE;
             if (i % 2 == 0) begin
               read_address <= registers_src_address[i];
               register[0]  <= i;
@@ -267,49 +261,79 @@ module x_out_of_order (
             end
           end
         end
-
-        for (i = 0; i < 32; i = i + 1) begin
-          if (i >= executor_register_start && i <= executor_register_end) begin
-            case (executor_instruction_state)
-              INSTRUCTION_STATE_RAM_2_REG: begin
-                //next time this register should be read
-                registers_init[i] <= 0;
-                registers_src_address[i] <= executor_start_ram_address_or_numeric;
-              end
-              INSTRUCTION_STATE_REG_SET: begin
-                //not important if register had any value earlier
-                registers_init[i] <= 1;
-                registers[i] <= executor_start_ram_address_or_numeric;
-              end
-              default: begin
-                executor_state <= EXECUTE_STATE_NONE;
-                if (!registers_init[i]) begin
-                  executor_state <= EXECUTE_STATE_READ_EXECUTE;
-                  if (i % 2 == 0) begin
-                    read_address <= registers_src_address[i];
-                    register[0]  <= i;
-                  end else begin
-                    read_address2 <= registers_src_address[i];
-                    register[1]   <= i;
-                  end
-                end else begin
-                  case (executor_instruction_state)
-                    INSTRUCTION_STATE_REG_ADD:
-                    registers[i] <= registers[i] + executor_start_ram_address_or_numeric;
-                    INSTRUCTION_STATE_REG_DEC:
-                    registers[i] <= registers[i] - executor_start_ram_address_or_numeric;
-                    INSTRUCTION_STATE_REG_MUL:
-                    registers[i] <= registers[i] * executor_start_ram_address_or_numeric;
-                    INSTRUCTION_STATE_REG_DIV:
-                    registers[i] <= registers[i] / executor_start_ram_address_or_numeric;
-                  endcase
+        if (executor_state == EXECUTE_STATE_NONE) begin
+          executor_instruction_state <= decoder_state;
+          executor_register_start <= decoder_start;
+          executor_register_end <= decoder_register_end;
+          executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
+          instr_num <= instr_num + 1;
+          for (i = 0; i < 32; i = i + 1) begin
+            if (i >= executor_register_start && i <= executor_register_end) begin
+              case (executor_instruction_state)
+                INSTRUCTION_STATE_RAM_2_REG: begin
+                  //next time this register should be read
+                  registers_init[i] <= 0;
+                  registers_src_address[i] <= executor_start_ram_address_or_numeric;
                 end
-              end
-            endcase
-            //end else                    if (!registers_init[i] && read_address2==read_address) begin
-            //                        read_address2 = registers_src_address[i];
-            //                        register[1] = i;
+                INSTRUCTION_STATE_REG_SET: begin
+                  //not important if register had any value earlier
+                  registers_init[i] <= 1;
+                  registers[i] <= executor_start_ram_address_or_numeric;
+                end
+                default: begin
+                  if (!registers_init[i]) begin
+                    executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                    if (i % 2 == 0) begin
+                      read_address <= registers_src_address[i];
+                      register[0]  <= i;
+                    end else begin
+                      read_address2 <= registers_src_address[i];
+                      register[1]   <= i;
+                    end
+                  end else begin
+                    case (executor_instruction_state)
+                      INSTRUCTION_STATE_REG_ADD:
+                      registers[i] <= registers[i] + decoder_start_ram_address_or_numeric;
+                      INSTRUCTION_STATE_REG_DEC:
+                      registers[i] <= registers[i] - decoder_start_ram_address_or_numeric;
+                      INSTRUCTION_STATE_REG_MUL:
+                      registers[i] <= registers[i] * decoder_start_ram_address_or_numeric;
+                      INSTRUCTION_STATE_REG_DIV:
+                      registers[i] <= registers[i] / decoder_start_ram_address_or_numeric;
+                    endcase
+                  end
+                end
+              endcase
+            end
           end
+        end else begin
+
+          for (i = 0; i < 32; i = i + 1) begin
+            if (i >= executor_register_start && i <= executor_register_end) begin
+              if (!registers_init[i]) begin
+                executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                if (i % 2 == 0) begin
+                  read_address <= registers_src_address[i];
+                  register[0]  <= i;
+                end else begin
+                  read_address2 <= registers_src_address[i];
+                  register[1]   <= i;
+                end
+              end else begin
+                case (executor_instruction_state)
+                  INSTRUCTION_STATE_REG_ADD:
+                  registers[i] <= registers[i] + executor_start_ram_address_or_numeric;
+                  INSTRUCTION_STATE_REG_DEC:
+                  registers[i] <= registers[i] - executor_start_ram_address_or_numeric;
+                  INSTRUCTION_STATE_REG_MUL:
+                  registers[i] <= registers[i] * executor_start_ram_address_or_numeric;
+                  INSTRUCTION_STATE_REG_DIV:
+                  registers[i] <= registers[i] / executor_start_ram_address_or_numeric;
+                endcase
+              end
+            end
+          end
+
         end
       end
 
