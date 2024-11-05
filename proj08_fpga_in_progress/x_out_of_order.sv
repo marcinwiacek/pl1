@@ -209,109 +209,111 @@ module x_out_of_order (
     if (rst) begin
       //saveram_q_new_pos <= 0;
       //savereadram_q_new_pos <= 0;
-      read_address = 52;
-      read_address2 = 53;
-      decoder_inp = 1;
-      decoder_input_address = 52;
+      read_address <= 52;
+      read_address2 <= 53;
+      decoder_inp <= 1;
+      decoder_input_address <= 52;
       $display($time, "   52 starting initial fetch ");
-      pc_logical = 54;
-      pc_physical = 54;
-      pc_physical_min_page = 0;
-      pc_physical_max_page = 99;
-      executor_state = 0;
-      executor_ready = 0;
-      mmu_input = 0;
-      rst = 0;
+      pc_logical <= 54;
+      pc_physical <= 54;
+      pc_physical_min_page <= 0;
+      pc_physical_max_page <= 99;
+      executor_state <= 0;
+      executor_ready <= 0;
+      mmu_input <= 0;
+      rst <= 0;
       for (i = 0; i < 32; i = i + 1) begin
-        registers_src_ram[i] = 0;
-        registers_src_ram_mmu_req[i] = 0;
-        registers_src_address[i] = process_hardware_address + ADDRESS_REG + i;
+        registers_src_ram[i] <= 0;
+        registers_src_ram_mmu_req[i] <= 0;
+        registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
       end
     end else if (instr_num < 10) begin
       // $display($time, " -> ", decoder_ready);
-     
+
       if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
-        decoder_inp = 0;
-        $display($time, pc_logical, " no fetch register ", register[0], " with address ", read_address, "=", read_value);
-        registers[register[0]] = read_value;
-        registers_init[register[0]] = 1;
-        if (read_address2!=0) begin
-          $display($time, pc_logical, " no fetch register ", register[1], " with address ", read_address2, "=", read_value2);
-          registers[register[1]] = read_value2;
-          registers_init[register[1]] = 1;
+        decoder_inp <= 0;
+        $display($time, pc_logical, " no fetch register ", register[0], " with address ",
+                 read_address, "=", read_value);
+        registers[register[0]] <= read_value;
+        registers_init[register[0]] <= 1;
+        if (read_address2 != 0) begin
+          $display($time, pc_logical, " no fetch register ", register[1], " with address ",
+                   read_address2, "=", read_value2);
+          // registers[register[1]] <= read_value2;
+          //registers_init[register[1]] <= 1;
         end
       end
       if (decoder_ready) begin
-            if (executor_state == EXECUTE_STATE_NONE) begin            
-              executor_instruction_state = decoder_state;
-              executor_register_start = decoder_start;
-              executor_register_end = decoder_register_end;
-              executor_start_ram_address_or_numeric = decoder_start_ram_address_or_numeric;
-              instr_num = instr_num + 1;
-            end
-            $display($time, pc_logical, " executor", " ", executor_state," " ,executor_register_start, " ", executor_register_end,
-                     " ", executor_start_ram_address_or_numeric);
-            read_address2=0;
-            for (i = 0; i < 32; i = i + 1) begin
-              if (i >= executor_register_start && i <= executor_register_end) begin
-                case (executor_instruction_state)
-                  INSTRUCTION_STATE_RAM_2_REG: begin
-                    //next time this register should be read
-                    registers_init[i] = 0;
-                    registers_src_address[i] = executor_start_ram_address_or_numeric;
+        if (executor_state == EXECUTE_STATE_NONE) begin
+          executor_instruction_state <= decoder_state;
+          executor_register_start <= decoder_start;
+          executor_register_end <= decoder_register_end;
+          executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
+          instr_num <= instr_num + 1;
+        end
+        $display($time, pc_logical, " executor", " ", executor_state, " ", executor_register_start,
+                 " ", executor_register_end, " ", executor_start_ram_address_or_numeric);
+        read_address2 <= 0;
+        for (i = 0; i < 32; i = i + 1) begin
+          if (i >= executor_register_start && i <= executor_register_end) begin
+            case (executor_instruction_state)
+              INSTRUCTION_STATE_RAM_2_REG: begin
+                //next time this register should be read
+                registers_init[i] <= 0;
+                registers_src_address[i] <= executor_start_ram_address_or_numeric;
+              end
+              INSTRUCTION_STATE_REG_SET: begin
+                //not important if register had any value earlier
+                registers_init[i] <= 1;
+                registers[i] <= executor_start_ram_address_or_numeric;
+              end
+              default: begin
+                executor_state <= EXECUTE_STATE_NONE;
+                if (!registers_init[i]) begin
+                  executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                  read_address <= registers_src_address[i];
+                  register[0] <= i;
+                  if (read_address2 == 0) begin
+                    read_address2 <= registers_src_address[i];
+                    register[1]   <= i;
                   end
-                  INSTRUCTION_STATE_REG_SET: begin
-                    //not important if register had any value earlier
-                    registers_init[i] = 1;
-                    registers[i] = executor_start_ram_address_or_numeric;
-                  end
-                  default: begin
-                    executor_state = EXECUTE_STATE_NONE;
-                    if (!registers_init[i]) begin
-                      executor_state = EXECUTE_STATE_READ_EXECUTE;
-                      read_address = registers_src_address[i];
-                      register[0] = i;
-                      if (read_address2==0) begin
-                        read_address2 = registers_src_address[i];
-                        register[1] = i;
-                      end
-                    end else begin
-                      case (executor_instruction_state)
-                        INSTRUCTION_STATE_REG_ADD:
-                        registers[i] = registers[i] + executor_start_ram_address_or_numeric;
-                        INSTRUCTION_STATE_REG_DEC:
-                        registers[i] = registers[i] - executor_start_ram_address_or_numeric;
-                        INSTRUCTION_STATE_REG_MUL:
-                        registers[i] = registers[i] * executor_start_ram_address_or_numeric;
-                        INSTRUCTION_STATE_REG_DIV:
-                        registers[i] = registers[i] / executor_start_ram_address_or_numeric;
-                      endcase
-                    end
-                  end
-                endcase              
-              //end else                    if (!registers_init[i] && read_address2==read_address) begin
-//                        read_address2 = registers_src_address[i];
-//                        register[1] = i;
-                      end
-            end
+                end else begin
+                  case (executor_instruction_state)
+                    INSTRUCTION_STATE_REG_ADD:
+                    registers[i] <= registers[i] + executor_start_ram_address_or_numeric;
+                    INSTRUCTION_STATE_REG_DEC:
+                    registers[i] <= registers[i] - executor_start_ram_address_or_numeric;
+                    INSTRUCTION_STATE_REG_MUL:
+                    registers[i] <= registers[i] * executor_start_ram_address_or_numeric;
+                    INSTRUCTION_STATE_REG_DIV:
+                    registers[i] <= registers[i] / executor_start_ram_address_or_numeric;
+                  endcase
+                end
+              end
+            endcase
+            //end else                    if (!registers_init[i] && read_address2==read_address) begin
+            //                        read_address2 = registers_src_address[i];
+            //                        register[1] = i;
+          end
+        end
       end
 
- if (!jmp_stall_exists && pc_physical != 0 && executor_state == EXECUTE_STATE_NONE) begin
-        read_address  = pc_physical;
-        read_address2 = pc_physical + 1;
+      if (!jmp_stall_exists && pc_physical != 0 && executor_state == EXECUTE_STATE_NONE) begin
+        read_address  <= pc_physical;
+        read_address2 <= pc_physical + 1;
         $display($time, pc_logical, " starting fetch ", read_address);
-        decoder_input_address = pc_logical;
-        decoder_inp = 1;
-        pc_logical = pc_logical + 2;
-        pc_physical = pc_physical + 2;
-     end else begin
-               decoder_inp = 0;
-     end
-        //        if (pc_physical > pc_physical_max_page || pc_physical < pc_physical_min_page) begin
-        //          mmuqueue_q[mmuqueue_q_new_pos].instr_num = MMU_QUEUE_PC_INSTR_NUM; //we have to calculate MMU for PC 
-        //          mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
-        //          pc_physical = 0;
-        //        end
+        decoder_input_address <= pc_logical;
+        decoder_inp <= 1;
+        pc_logical <= pc_logical + 2;
+        pc_physical <= pc_physical + 2;
+      end else begin
+        decoder_inp <= 0;
+      end
+      //        if (pc_physical > pc_physical_max_page || pc_physical < pc_physical_min_page) begin
+      //          mmuqueue_q[mmuqueue_q_new_pos].instr_num = MMU_QUEUE_PC_INSTR_NUM; //we have to calculate MMU for PC 
+      //          mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
+      //          pc_physical = 0;
+      //        end
 
       /*if (mmu_ready) begin
         if (mmuqueue_q[0].instr_num == MMU_QUEUE_PC_INSTR_NUM) begin
