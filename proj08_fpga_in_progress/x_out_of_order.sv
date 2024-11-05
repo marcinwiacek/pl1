@@ -165,7 +165,7 @@ module x_out_of_order (
   reg [15:0] process_hardware_address = 0;
   reg jmp_stall_exists = 0;
   reg [15:0] registers[0:31];
-  reg [15:0] registers_src_address[0:31];
+  reg [15:0] registers_src_address[0:63];
   reg registers_src_ram[0:31];
   reg registers_src_ram_mmu_req[0:31];
 
@@ -232,9 +232,14 @@ module x_out_of_order (
      
       if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
         decoder_inp = 0;
-        $display($time, pc_logical, " no fetch ", register[0], " ", read_address, " ", read_value);
+        $display($time, pc_logical, " no fetch register ", register[0], " with address ", read_address, "=", read_value);
         registers[register[0]] = read_value;
         registers_init[register[0]] = 1;
+        if (read_address2!=0) begin
+          $display($time, pc_logical, " no fetch register ", register[1], " with address ", read_address2, "=", read_value2);
+          registers[register[1]] = read_value2;
+          registers_init[register[1]] = 1;
+        end
       end
       if (decoder_ready) begin
             if (executor_state == EXECUTE_STATE_NONE) begin            
@@ -246,7 +251,7 @@ module x_out_of_order (
             end
             $display($time, pc_logical, " executor", " ", executor_state," " ,executor_register_start, " ", executor_register_end,
                      " ", executor_start_ram_address_or_numeric);
-        
+            read_address2=0;
             for (i = 0; i < 32; i = i + 1) begin
               if (i >= executor_register_start && i <= executor_register_end) begin
                 case (executor_instruction_state)
@@ -266,6 +271,10 @@ module x_out_of_order (
                       executor_state = EXECUTE_STATE_READ_EXECUTE;
                       read_address = registers_src_address[i];
                       register[0] = i;
+                      if (read_address2==0) begin
+                        read_address2 = registers_src_address[i];
+                        register[1] = i;
+                      end
                     end else begin
                       case (executor_instruction_state)
                         INSTRUCTION_STATE_REG_ADD:
@@ -279,8 +288,11 @@ module x_out_of_order (
                       endcase
                     end
                   end
-                endcase
-              end
+                endcase              
+              //end else                    if (!registers_init[i] && read_address2==read_address) begin
+//                        read_address2 = registers_src_address[i];
+//                        register[1] = i;
+                      end
             end
       end
 
@@ -292,6 +304,8 @@ module x_out_of_order (
         decoder_inp = 1;
         pc_logical = pc_logical + 2;
         pc_physical = pc_physical + 2;
+     end else begin
+               decoder_inp = 0;
      end
         //        if (pc_physical > pc_physical_max_page || pc_physical < pc_physical_min_page) begin
         //          mmuqueue_q[mmuqueue_q_new_pos].instr_num = MMU_QUEUE_PC_INSTR_NUM; //we have to calculate MMU for PC 
