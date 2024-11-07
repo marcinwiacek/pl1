@@ -274,7 +274,13 @@ module x_out_of_order (
           executor_register_end <= decoder_register_end;
           executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
           instr_num <= instr_num + 1;
-         decoder_inp <= 1;            
+         end else begin
+                   $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
+                   executor_instruction_state, " ", executor_register_start, " ",
+                   executor_register_end, " ", executor_start_ram_address_or_numeric);
+         end
+         executor_state <= EXECUTE_STATE_NONE;
+         decoder_inp <= 1;     
           for (i = 0; i < 32; i = i + 1) begin
             if (i >= decoder_register_start && i <= decoder_register_end) begin
               case (decoder_instruction_state)
@@ -289,7 +295,7 @@ module x_out_of_order (
                   registers[i] <= decoder_start_ram_address_or_numeric;
                 end
                 default: begin
-                  if (!registers_init[i]) begin
+                  if (!registers_init[i] && (executor_state != EXECUTE_STATE_NONE && i != register[0] && i != register[1])) begin
                     executor_state <= EXECUTE_STATE_READ_EXECUTE;
          decoder_inp <= 0;                 
                     if (i % 2 == 0) begin
@@ -302,52 +308,31 @@ module x_out_of_order (
                   end else begin
                     case (decoder_instruction_state)
                       INSTRUCTION_STATE_REG_ADD:
-                      registers[i] <= registers[i] + decoder_start_ram_address_or_numeric;
+                      registers[i] <= 
+                      executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
+                      (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i])
+                      +decoder_start_ram_address_or_numeric;
                       INSTRUCTION_STATE_REG_DEC:
-                      registers[i] <= registers[i] - decoder_start_ram_address_or_numeric;
+                      registers[i] <= 
+                      executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
+                      (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i])
+ - decoder_start_ram_address_or_numeric;
                       INSTRUCTION_STATE_REG_MUL:
-                      registers[i] <= registers[i] * decoder_start_ram_address_or_numeric;
+                      registers[i] <= 
+                      executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
+                      (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i])
+ * decoder_start_ram_address_or_numeric;
                       INSTRUCTION_STATE_REG_DIV:
-                      registers[i] <= registers[i] / decoder_start_ram_address_or_numeric;
+                      registers[i] <= 
+                      executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
+                      (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i])
+ / decoder_start_ram_address_or_numeric;
                     endcase
                   end
                 end
               endcase
             end
-          end
-        end else begin
-          $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
-                   executor_instruction_state, " ", executor_register_start, " ",
-                   executor_register_end, " ", executor_start_ram_address_or_numeric);
-          executor_state <= EXECUTE_STATE_NONE;
-                   decoder_inp <= 1;  
-          for (i = 0; i < 32; i = i + 1) begin
-            if (i >= executor_register_start && i <= executor_register_end) begin
-              if (!registers_init[i] && i != register[0] && i != register[1]) begin
-                executor_state <= EXECUTE_STATE_READ_EXECUTE;
-                         decoder_inp <= 0;  
-                if (i % 2 == 0) begin
-                  read_address <= registers_src_address[i];
-                  register[0]  <= i;
-                end else begin
-                  read_address2 <= registers_src_address[i];
-                  register[1]   <= i;
-                end
-              end else begin
-                case (executor_instruction_state)
-                  INSTRUCTION_STATE_REG_ADD:
-                  registers[i] <= registers[i] + executor_start_ram_address_or_numeric;
-                  INSTRUCTION_STATE_REG_DEC:
-                  registers[i] <= registers[i] - executor_start_ram_address_or_numeric;
-                  INSTRUCTION_STATE_REG_MUL:
-                  registers[i] <= registers[i] * executor_start_ram_address_or_numeric;
-                  INSTRUCTION_STATE_REG_DIV:
-                  registers[i] <= registers[i] / executor_start_ram_address_or_numeric;
-                endcase
-              end
-            end
-          end
-        end
+          end         
       end
 
       //        if (pc_physical > pc_physical_max_page || pc_physical < pc_physical_min_page) begin
