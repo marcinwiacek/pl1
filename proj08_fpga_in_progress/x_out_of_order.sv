@@ -264,7 +264,7 @@ module x_out_of_order (
           end
         end
         if (executor_state == EXECUTE_STATE_NONE) begin
-                 decoder_inp <= 0;  
+          decoder_inp <= 0;
           $display($time, pc_logical, " executor1   ", " ", executor_state, " ",
                    decoder_instruction_state, " ", decoder_register_start, " ",
                    decoder_register_end, " ", decoder_start_ram_address_or_numeric, " ",
@@ -274,65 +274,65 @@ module x_out_of_order (
           executor_register_end <= decoder_register_end;
           executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
           instr_num <= instr_num + 1;
-         end else begin
-                   $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
+        end else begin
+          $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
                    executor_instruction_state, " ", executor_register_start, " ",
                    executor_register_end, " ", executor_start_ram_address_or_numeric);
-         end
-         executor_state <= EXECUTE_STATE_NONE;
-         decoder_inp <= 1;     
-          for (i = 0; i < 32; i = i + 1) begin
-            if (i >= decoder_register_start && i <= decoder_register_end) begin
-              case (decoder_instruction_state)
-                INSTRUCTION_STATE_RAM_2_REG: begin
-                  //next time this register should be read
-                  registers_init[i] <= 0;
-                  registers_src_address[i] <= decoder_start_ram_address_or_numeric;
-                end
-                INSTRUCTION_STATE_REG_SET: begin
-                  //not important if register had any value earlier
-                  registers_init[i] <= 1;
-                  registers[i] <= decoder_start_ram_address_or_numeric;
-                end
-                default: begin
-                  if (!registers_init[i] && (executor_state != EXECUTE_STATE_NONE && i != register[0] && i != register[1])) begin
-                    executor_state <= EXECUTE_STATE_READ_EXECUTE;
-         decoder_inp <= 0;                 
-                    if (i % 2 == 0) begin
-                      read_address <= registers_src_address[i];
-                      register[0]  <= i;
-                    end else begin
-                      read_address2 <= registers_src_address[i];
-                      register[1]   <= i;
-                    end
+        end
+        executor_state <= EXECUTE_STATE_NONE;
+        decoder_inp <= 1;
+        for (i = 0; i < 32; i = i + 1) begin
+          if (i >= decoder_register_start && i <= decoder_register_end) begin
+            case (decoder_instruction_state)
+              INSTRUCTION_STATE_RAM_2_REG: begin
+                //next time this register should be read
+                registers_init[i] <= 0;
+                registers_src_address[i] <= decoder_start_ram_address_or_numeric;
+              end
+              INSTRUCTION_STATE_REG_SET: begin
+                //not important if register had any value earlier
+                registers_init[i] <= 1;
+                registers[i] <= decoder_start_ram_address_or_numeric;
+              end
+              default: begin
+                if (!registers_init[i] && (executor_state != EXECUTE_STATE_NONE && i != register[0] && i != register[1])) begin
+                  executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                  decoder_inp <= 0;
+                  if (i % 2 == 0) begin
+                    read_address <= registers_src_address[i];
+                    register[0]  <= i;
                   end else begin
-                    case (decoder_instruction_state)
-                      INSTRUCTION_STATE_REG_ADD:
-                      registers[i] <= 
+                    read_address2 <= registers_src_address[i];
+                    register[1]   <= i;
+                  end
+                end else begin
+                  case (decoder_instruction_state)
+                    INSTRUCTION_STATE_REG_ADD:
+                    registers[i] <= 
                       executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
                       (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i])
                       +decoder_start_ram_address_or_numeric;
-                      INSTRUCTION_STATE_REG_DEC:
-                      registers[i] <= 
+                    INSTRUCTION_STATE_REG_DEC:
+                    registers[i] <= 
                       executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
                       (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i])
  - decoder_start_ram_address_or_numeric;
-                      INSTRUCTION_STATE_REG_MUL:
-                      registers[i] <= 
+                    INSTRUCTION_STATE_REG_MUL:
+                    registers[i] <= 
                       executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
                       (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i])
  * decoder_start_ram_address_or_numeric;
-                      INSTRUCTION_STATE_REG_DIV:
-                      registers[i] <= 
+                    INSTRUCTION_STATE_REG_DIV:
+                    registers[i] <= 
                       executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
                       (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i])
  / decoder_start_ram_address_or_numeric;
-                    endcase
-                  end
+                  endcase
                 end
-              endcase
-            end
-          end         
+              end
+            endcase
+          end
+        end
       end
 
       //        if (pc_physical > pc_physical_max_page || pc_physical < pc_physical_min_page) begin
@@ -694,7 +694,7 @@ module decoder (
           register_end                 <= instruction1_2_1 + instruction1_2_2;
         end
         default: begin
- state <= INSTRUCTION_STATE_REG_UNKNOWN;        
+          state                        <= INSTRUCTION_STATE_REG_UNKNOWN;
           start_ram_address_or_numeric <= 0;
           register_start               <= 0;
           register_end                 <= 0;
