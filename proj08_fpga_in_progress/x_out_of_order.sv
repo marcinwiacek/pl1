@@ -23,22 +23,20 @@ parameter ADDRESS_MMU_LEN = ADDRESS_REG + 32;
 parameter ADDRESS_MMU_NEXT_SEGMENT = ADDRESS_REG + 32 + 7;
 parameter ADDRESS_PROGRAM = ADDRESS_REG + 32 + 7 + 1;
 
-//parameter INSTRUCTION_STATE_FETCH = 1;
-//parameter INSTRUCTION_STATE_DECODE = 2;
-parameter INSTRUCTION_STATE_RAM_2_REG = 3;
-parameter INSTRUCTION_STATE_REG_ADD = 4;
-parameter INSTRUCTION_STATE_REG_DEC = 5;
-parameter INSTRUCTION_STATE_REG_SET = 6;
-parameter INSTRUCTION_STATE_REG_2_RAM = 7;
-parameter INSTRUCTION_STATE_REG_MUL = 8;
-parameter INSTRUCTION_STATE_REG_DIV = 9;
-parameter INSTRUCTION_STATE_REG_UNKNOWN = 10;
-
 parameter MMU_QUEUE_LEN = 32;
 parameter READRAM_QUEUE_LEN = 32;
 parameter SAVERAM_QUEUE_LEN = 32;
 parameter INST_QUEUE_LEN = 10;
 parameter ALU_QUEUE_LEN = 10;
+
+parameter INSTRUCTION_STATE_RAM_2_REG = 1;
+parameter INSTRUCTION_STATE_REG_2_RAM = 2;
+parameter INSTRUCTION_STATE_REG_ADD = 3;
+parameter INSTRUCTION_STATE_REG_DEC = 4;
+parameter INSTRUCTION_STATE_REG_SET = 5;
+parameter INSTRUCTION_STATE_REG_MUL = 6;
+parameter INSTRUCTION_STATE_REG_DIV = 7;
+parameter INSTRUCTION_STATE_REG_UNKNOWN = 8;
 
 module x_out_of_order (
     input clk,
@@ -105,11 +103,11 @@ module x_out_of_order (
   reg [15:0] decoder_input_address;
   reg decoder_inp;
   wire decoder_ready;
-  wire [5:0] decoder_state;
+  wire [5:0] decoder_instruction_state;
   wire [3:0] decoder_error_code;
   wire [15:0] decoder_start_ram_address_or_numeric;
   wire [15:0] decoder_register_end;
-  wire [10:0] decoder_start;
+  wire [10:0] decoder_register_start;
 
   decoder decoder (
       .address(decoder_input_address),
@@ -118,10 +116,10 @@ module x_out_of_order (
       .instruction2(read_value2),
       .inp(decoder_inp),
       .ready(decoder_ready),
-      .state(decoder_state),
+      .state(decoder_instruction_state),
       .error_code(decoder_error_code),
       .start_ram_address_or_numeric(decoder_start_ram_address_or_numeric),
-      .register_start(decoder_start),
+      .register_start(decoder_register_start),
       .register_end(decoder_register_end)
   );
 
@@ -227,8 +225,33 @@ module x_out_of_order (
         registers_src_ram_mmu_req[i] <= 0;
         registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
       end
-    end else if (instr_num < 10) begin     
+    end else if (instr_num < 10) begin
+      if (!jmp_stall_exists && pc_physical != 0 && executor_state == EXECUTE_STATE_NONE) begin
+        read_address  <= pc_physical;
+        read_address2 <= pc_physical + 1;
+        $display($time, pc_logical, " starting fetch ");
+        decoder_input_address <= pc_logical;
+        decoder_inp <= 1;
+        pc_logical <= pc_logical + 2;
+        pc_physical <= pc_physical + 2;
+      end else begin
+     //   decoder_inp <= 0;
+      end
       if (decoder_ready) begin
+        if (executor_state != EXECUTE_STATE_NONE) begin
+          if (read_address != 0) begin
+            $display($time, pc_logical, " no fetch register ", register[0], " with address ",
+                     read_address, "=", read_value);
+            registers[register[0]] <= read_value;
+            registers_init[register[0]] <= 1;
+          end
+          if (read_address2 != 0) begin
+            $display($time, pc_logical, " no fetch register ", register[1], " with address ",
+                     read_address2, "=", read_value2);
+            registers[register[1]] <= read_value2;
+            registers_init[register[1]] <= 1;
+          end
+        end
         read_address  <= 0;
         read_address2 <= 0;
         for (i = 0; i < 32; i = i + 1) begin
@@ -243,16 +266,19 @@ module x_out_of_order (
           end
         end
         if (executor_state == EXECUTE_STATE_NONE) begin
-          $display($time, pc_logical, " executor1   ", " ", decoder_state, " ", decoder_start, " ",
-                   decoder_register_end, " ", decoder_start_ram_address_or_numeric);
-          executor_instruction_state <= decoder_state;
-          executor_register_start <= decoder_start;
+                 decoder_inp <= 0;  
+          $display($time, pc_logical, " executor1   ", " ", executor_state, " ",
+                   decoder_instruction_state, " ", decoder_register_start, " ",
+                   decoder_register_end, " ", decoder_start_ram_address_or_numeric, " ",
+                   decoder_error_code);
+          executor_instruction_state <= decoder_instruction_state;
+          executor_register_start <= decoder_register_start;
           executor_register_end <= decoder_register_end;
           executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
           instr_num <= instr_num + 1;
           for (i = 0; i < 32; i = i + 1) begin
-            if (i >= decoder_start && i <= decoder_register_end) begin
-              case (decoder_state)
+            if (i >= decoder_register_start && i <= decoder_register_end) begin
+              case (decoder_instruction_state)
                 INSTRUCTION_STATE_RAM_2_REG: begin
                   //next time this register should be read
                   registers_init[i] <= 0;
@@ -266,6 +292,7 @@ module x_out_of_order (
                 default: begin
                   if (!registers_init[i]) begin
                     executor_state <= EXECUTE_STATE_READ_EXECUTE;
+         //fixme decoder_inp <= 1;                 
                     if (i % 2 == 0) begin
                       read_address <= registers_src_address[i];
                       register[0]  <= i;
@@ -274,7 +301,7 @@ module x_out_of_order (
                       register[1]   <= i;
                     end
                   end else begin
-                    case (decoder_state)
+                    case (decoder_instruction_state)
                       INSTRUCTION_STATE_REG_ADD:
                       registers[i] <= registers[i] + decoder_start_ram_address_or_numeric;
                       INSTRUCTION_STATE_REG_DEC:
@@ -289,22 +316,10 @@ module x_out_of_order (
               endcase
             end
           end
-        end else begin        
-          if (read_address != 0) begin
-            $display($time, pc_logical, " no fetch register ", register[0], " with address ",
-                   read_address, "=", read_value);
-            registers[register[0]] <= read_value;
-            registers_init[register[0]] <= 1;
-          end
-          if (read_address2 != 0) begin
-            $display($time, pc_logical, " no fetch register ", register[1], " with address ",
-                   read_address2, "=", read_value2);
-            registers[register[1]] <= read_value2;
-            registers_init[register[1]] <= 1;
-          end
+        end else begin
           $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
-                   executor_register_start, " ", executor_register_end, " ",
-                   executor_start_ram_address_or_numeric);
+                   executor_instruction_state, " ", executor_register_start, " ",
+                   executor_register_end, " ", executor_start_ram_address_or_numeric);
           executor_state <= EXECUTE_STATE_NONE;
           for (i = 0; i < 32; i = i + 1) begin
             if (i >= executor_register_start && i <= executor_register_end) begin
@@ -333,17 +348,7 @@ module x_out_of_order (
           end
         end
       end
-      if (!jmp_stall_exists && pc_physical != 0 && executor_state == EXECUTE_STATE_NONE) begin
-        read_address  <= pc_physical;
-        read_address2 <= pc_physical + 1;
-        $display($time, pc_logical, " starting fetch ", read_address);
-        decoder_input_address <= pc_logical;
-        decoder_inp <= 1;
-        pc_logical <= pc_logical + 2;
-        pc_physical <= pc_physical + 2;
-      end else begin
-        decoder_inp <= 0;
-      end
+
       //        if (pc_physical > pc_physical_max_page || pc_physical < pc_physical_min_page) begin
       //          mmuqueue_q[mmuqueue_q_new_pos].instr_num = MMU_QUEUE_PC_INSTR_NUM; //we have to calculate MMU for PC 
       //          mmuqueue_q_new_pos = mmuqueue_q_new_pos + 1;
@@ -585,7 +590,7 @@ module decoder (
           instruction1_2_2,  //DEBUG info
           ") b2 ",  //DEBUG info
           instruction2,  //DEBUG info
-          " (", instruction2_1, "-", instruction2_2, ")");  //DEBUG info
+          " (", instruction2_1, "-", instruction2_2, ")");  //DEBUG info     
       case (instruction1_1)
         //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
         OPCODE_RAM2REG: begin
@@ -703,7 +708,10 @@ module decoder (
           register_end                 <= instruction1_2_1 + instruction1_2_2;
         end
         default: begin
-          state <= INSTRUCTION_STATE_REG_UNKNOWN;
+ state <= INSTRUCTION_STATE_REG_UNKNOWN;        
+          start_ram_address_or_numeric <= 0;
+          register_start               <= 0;
+          register_end                 <= 0;
         end
       endcase
     end
