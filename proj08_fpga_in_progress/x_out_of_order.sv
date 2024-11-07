@@ -282,8 +282,9 @@ module x_out_of_order (
         executor_state <= EXECUTE_STATE_NONE;
         decoder_inp <= 1;
         for (i = 0; i < 32; i = i + 1) begin
-          if (i >= decoder_register_start && i <= decoder_register_end) begin
-            case (decoder_instruction_state)
+          if (i >= (executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start) && i <= 
+             (executor_state == EXECUTE_STATE_NONE?decoder_register_end:executor_register_end)) begin
+            case ((executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state))
               INSTRUCTION_STATE_RAM_2_REG: begin
                 //next time this register should be read
                 registers_init[i] <= 0;
@@ -295,7 +296,8 @@ module x_out_of_order (
                 registers[i] <= decoder_start_ram_address_or_numeric;
               end
               default: begin
-                if (!registers_init[i] && (executor_state != EXECUTE_STATE_NONE && i != register[0] && i != register[1])) begin
+                if (!registers_init[i] && (executor_state == EXECUTE_STATE_NONE || 
+                    (executor_state != EXECUTE_STATE_NONE && i != register[0] && i != register[1]))) begin
                   executor_state <= EXECUTE_STATE_READ_EXECUTE;
                   decoder_inp <= 0;
                   if (i % 2 == 0) begin
@@ -316,17 +318,17 @@ module x_out_of_order (
                     registers[i] <= 
                       executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
                       (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i])
- - decoder_start_ram_address_or_numeric;
+                      - decoder_start_ram_address_or_numeric;
                     INSTRUCTION_STATE_REG_MUL:
                     registers[i] <= 
                       executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
                       (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i])
- * decoder_start_ram_address_or_numeric;
+                      * decoder_start_ram_address_or_numeric;
                     INSTRUCTION_STATE_REG_DIV:
                     registers[i] <= 
                       executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
                       (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i])
- / decoder_start_ram_address_or_numeric;
+                      / decoder_start_ram_address_or_numeric;
                   endcase
                 end
               end
