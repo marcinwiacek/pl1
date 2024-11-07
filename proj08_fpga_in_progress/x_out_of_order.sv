@@ -234,10 +234,8 @@ module x_out_of_order (
         decoder_inp <= 1;
         pc_logical <= pc_logical + 2;
         pc_physical <= pc_physical + 2;
-      end else begin
-     //   decoder_inp <= 0;
       end
-      if (decoder_ready) begin
+      if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         if (executor_state != EXECUTE_STATE_NONE) begin
           if (read_address != 0) begin
             $display($time, pc_logical, " no fetch register ", register[0], " with address ",
@@ -276,6 +274,7 @@ module x_out_of_order (
           executor_register_end <= decoder_register_end;
           executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
           instr_num <= instr_num + 1;
+         decoder_inp <= 1;            
           for (i = 0; i < 32; i = i + 1) begin
             if (i >= decoder_register_start && i <= decoder_register_end) begin
               case (decoder_instruction_state)
@@ -292,7 +291,7 @@ module x_out_of_order (
                 default: begin
                   if (!registers_init[i]) begin
                     executor_state <= EXECUTE_STATE_READ_EXECUTE;
-         //fixme decoder_inp <= 1;                 
+         decoder_inp <= 0;                 
                     if (i % 2 == 0) begin
                       read_address <= registers_src_address[i];
                       register[0]  <= i;
@@ -321,10 +320,12 @@ module x_out_of_order (
                    executor_instruction_state, " ", executor_register_start, " ",
                    executor_register_end, " ", executor_start_ram_address_or_numeric);
           executor_state <= EXECUTE_STATE_NONE;
+                   decoder_inp <= 1;  
           for (i = 0; i < 32; i = i + 1) begin
             if (i >= executor_register_start && i <= executor_register_end) begin
               if (!registers_init[i] && i != register[0] && i != register[1]) begin
                 executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                         decoder_inp <= 0;  
                 if (i % 2 == 0) begin
                   read_address <= registers_src_address[i];
                   register[0]  <= i;
