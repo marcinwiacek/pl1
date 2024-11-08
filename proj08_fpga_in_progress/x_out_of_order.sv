@@ -201,7 +201,24 @@ module x_out_of_order (
       executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
-        if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
+      //  if (executor_state == EXECUTE_STATE_NONE && (decoder_instruction_state==OPCODE_JMP_PLUS || decoder_instruction_state== OPCODE_JMP_MINUS)) begin
+      //  end else begin
+        if (executor_state == EXECUTE_STATE_NONE) begin
+          $display($time, pc_logical, " executor1   ", " ", executor_state, " ",
+                   decoder_instruction_state, " ", decoder_register_start, " ",
+                   decoder_register_end, " ", decoder_start_ram_address_or_numeric, " ",
+                   decoder_error_code);
+          executor_instruction_state <= decoder_instruction_state;
+          executor_register_start <= decoder_register_start;
+          executor_register_end <= decoder_register_end;
+          executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
+          instr_num <= instr_num + 1;
+          executor_state <= EXECUTE_STATE_NONE;
+        end else         if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
+          $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
+                   executor_instruction_state, " ", executor_register_start, " ",
+                   executor_register_end, " ", executor_start_ram_address_or_numeric);
+          executor_state <= EXECUTE_STATE_NONE;
           if (register[0] != 50) begin
             $display($time, pc_logical, " no fetch register ", register[0], " with address ",
                      read_address, "=", read_value);
@@ -227,23 +244,6 @@ module x_out_of_order (
               register[1]   <= i;
             end
           end
-        end
-        if (executor_state == EXECUTE_STATE_NONE) begin
-          $display($time, pc_logical, " executor1   ", " ", executor_state, " ",
-                   decoder_instruction_state, " ", decoder_register_start, " ",
-                   decoder_register_end, " ", decoder_start_ram_address_or_numeric, " ",
-                   decoder_error_code);
-          executor_instruction_state <= decoder_instruction_state;
-          executor_register_start <= decoder_register_start;
-          executor_register_end <= decoder_register_end;
-          executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
-          instr_num <= instr_num + 1;
-          executor_state <= EXECUTE_STATE_NONE;
-        end else begin
-          $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
-                   executor_instruction_state, " ", executor_register_start, " ",
-                   executor_register_end, " ", executor_start_ram_address_or_numeric);
-          executor_state <= EXECUTE_STATE_NONE;
         end
         fetch_stall_exists = 0;
         for (i = 0; i < 32; i = i + 1) begin
@@ -300,6 +300,7 @@ module x_out_of_order (
             endcase
           end
         end
+        //end
       end
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
         read_address  <= pc_physical;
