@@ -4,10 +4,8 @@
 //#output delay constraint
 
 parameter HARDWARE_DEBUG = 0;
-
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
-
 parameter ERROR_NONE = 0;
 parameter ERROR_WRONG_ADDRESS = 1;
 parameter ERROR_DIVIDE_BY_ZERO = 2;
@@ -40,8 +38,10 @@ module x_out_of_order (
     output reg x
 );
 
+ assign x = decoder_inp; //without this we will have empty circuit
+
   reg rst = 1;
-  reg [7:0] instr_num = 0;
+  reg [7:0] instr_num = 0; // how many done
 
   integer i;
 
@@ -83,14 +83,15 @@ module x_out_of_order (
   wire [10:0] decoder_register_start;
 
   decoder decoder (
-      .address(decoder_input_address),
       .clk(clk),
+ 
+      .inp(decoder_inp),    
+      .address(decoder_input_address),
       .instruction1(read_value),
       .instruction2(read_value2),
-      .inp(decoder_inp),
+ 
       .ready(decoder_ready),
       .state(decoder_instruction_state),
-      .executor_state(executor_state),
       .error_code(decoder_error_code),
       .start_ram_address_or_numeric(decoder_start_ram_address_or_numeric),
       .register_start(decoder_register_start),
@@ -109,11 +110,14 @@ module x_out_of_order (
 
   single_blockram single_blockram (
       .clk(clk),
+ 
       .write_enabled(write_enabled),
       .write_address(write_address),
       .write_value(write_value),
+ 
       .read_address(read_address),
       .read_value(read_value),
+ 
       .read_address2(read_address2),
       .read_value2(read_value2)
   );
@@ -126,36 +130,30 @@ module x_out_of_order (
   //--------------------------------------------------------------------process------------------
 
   reg [15:0] process_hardware_address = 0;
+  reg [15:0] pc_logical, pc_physical, pc_physical_min_page, pc_physical_max_page;
+  
   reg jmp_stall_exists = 0, fetch_stall_exists = 0;
+  
   reg [15:0] registers[0:31];
   reg [15:0] registers_src_address[0:63];
-  reg registers_src_ram[0:31];
-  reg registers_src_ram_mmu_req[0:31];
-
+  reg registers_src_ram[0:31]; //bool
+  reg registers_src_ram_mmu_req[0:31]; //bool
   reg registers_init[0:31] = {
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-  };
-  reg [15:0] pc_logical;
-  reg [15:0] pc_physical, pc_physical_min_page, pc_physical_max_page;
-
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 
+  }; //bool
+  
   //--------------------------------------------------------------------execute------------------
 
   reg [5:0] executor_state, executor_instruction_state;
   reg [15:0] executor_register_end;
   reg [10:0] executor_register_start;
   reg [15:0] executor_start_ram_address_or_numeric;
-  reg executor_ready;
 
   reg [15:0] register[0:1];
   reg [15:0] register_inside[0:1];
 
-  assign x = decoder_inp;
-
   always @(posedge clk) begin
-
     if (rst) begin
-      //saveram_q_new_pos <= 0;
-      //savereadram_q_new_pos <= 0;
       read_address <= 52;
       read_address2 <= 53;
       decoder_inp <= 1;
@@ -165,8 +163,6 @@ module x_out_of_order (
       pc_physical <= 54;
       pc_physical_min_page <= 0;
       pc_physical_max_page <= 99;
-      executor_state <= 0;
-      executor_ready <= 0;
       mmu_input <= 0;
       rst <= 0;
       for (i = 0; i < 32; i = i + 1) begin
@@ -176,8 +172,6 @@ module x_out_of_order (
       end
       executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
-      $display($time, " ", decoder_inp, " ", executor_state);
-
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
           if (register[0] != 50) begin
@@ -302,7 +296,6 @@ module decoder (
     input reg [15:0] instruction1,
     instruction2,
     input bit inp,
-    input reg [5:0] executor_state,
     output bit ready,
     output bit [5:0] state,
     output bit [3:0] error_code,
@@ -363,8 +356,6 @@ module decoder (
   //parameter OPCODE_REG_INT_NON_BLOCKING =33; //int number (8 bit), address to jump in case of int
 
   always @(posedge clk) begin
-
-    //if (inp && executor_state == EXECUTE_STATE_NONE) begin
     if (inp) begin
       ready <= inp;
       $display(  //DEBUG info
