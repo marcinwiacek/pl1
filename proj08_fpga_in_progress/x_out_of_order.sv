@@ -31,11 +31,13 @@ parameter ALU_QUEUE_LEN = 10;
 
 parameter INSTRUCTION_STATE_RAM_2_REG = 1;
 parameter INSTRUCTION_STATE_REG_2_RAM = 2;
+
 parameter INSTRUCTION_STATE_REG_ADD = 3;
 parameter INSTRUCTION_STATE_REG_DEC = 4;
 parameter INSTRUCTION_STATE_REG_SET = 5;
 parameter INSTRUCTION_STATE_REG_MUL = 6;
 parameter INSTRUCTION_STATE_REG_DIV = 7;
+
 parameter INSTRUCTION_STATE_REG_UNKNOWN = 8;
 
   parameter EXECUTE_STATE_NONE = 0;
@@ -391,15 +393,22 @@ module decoder (
           ") b2 ",  //DEBUG info
           instruction2,  //DEBUG info
           " (", instruction2_1, "-", instruction2_2, ") ", instruction1, " ",
-          instruction2);  //DEBUG info     
+          instruction2);  //DEBUG info
+
+            error_code <= 0;
+            start_ram_address_or_numeric <= instruction2;
+            register_start <= instruction1_2_1;
+            register_end <= instruction1_2_1 + instruction1_2_2;
+            
       case (instruction1_1)
-        //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
-        OPCODE_RAM2REG: begin
+        //register num (5 bits), how many-1 (3 bits), 16 bit addr
+        OPCODE_RAM2REG,
+        OPCODE_REG2RAM: begin
           if (instruction1_2_1 + instruction1_2_2 >= 32) begin
             error_code <= ERROR_WRONG_REG_NUM;
           end else if (instruction2 < ADDRESS_PROGRAM) begin
             error_code <= ERROR_WRONG_ADDRESS;
-          end else begin
+          end else if (instruction1_1==OPCODE_RAM2REG) begin
             $display(  //DEBUG info
                 $time,  //DEBUG info
                 " opcode = ram2reg read value from logical address ",  //DEBUG info
@@ -410,18 +419,6 @@ module decoder (
                 (instruction1_2_1 + instruction1_2_2)  //DEBUG info
             );  //DEBUG info
             state <= INSTRUCTION_STATE_RAM_2_REG;
-            error_code <= 0;
-            start_ram_address_or_numeric <= instruction2;
-            register_start <= instruction1_2_1;
-            register_end <= instruction1_2_1 + instruction1_2_2;
-          end
-        end
-        //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
-        OPCODE_REG2RAM: begin
-          if (instruction1_2_1 + instruction1_2_2 >= 32) begin
-            error_code <= ERROR_WRONG_REG_NUM;
-          end else if (instruction2 < ADDRESS_PROGRAM) begin
-            error_code <= ERROR_WRONG_ADDRESS;
           end else begin
             $display(  //DEBUG info
                 $time,  //DEBUG info
@@ -434,79 +431,33 @@ module decoder (
                 "+"  //DEBUG info
             );  //DEBUG info
             state                        <= INSTRUCTION_STATE_REG_2_RAM;
-            error_code                   <= 0;
-            start_ram_address_or_numeric <= instruction2;
-            register_start               <= instruction1_2_1;
-            register_end                 <= instruction1_2_1 + instruction1_2_2;
           end
         end
-        //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
-        OPCODE_NUM2REG: begin
-          $display(  //DEBUG info
-              $time,  //DEBUG info
-              " opcode = num2reg save value ",  //DEBUG info
-              instruction2,  //DEBUG info
-              " to reg ",  //DEBUG info
-              instruction1_2_1,  //DEBUG info
-              "-",  //DEBUG info
-              (instruction1_2_1 + instruction1_2_2)  //DEBUG info
-          );  //DEBUG info
-          state                        <= INSTRUCTION_STATE_REG_SET;
-          error_code                   <= 0;
-          start_ram_address_or_numeric <= instruction2;
-          register_start               <= instruction1_2_1;
-          register_end                 <= instruction1_2_1 + instruction1_2_2;
-        end
-        //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
-        OPCODE_REG_PLUS: begin
-          $display(  //DEBUG info
-              $time,  //DEBUG info
-              " opcode = regplus add value ",  //DEBUG info
-              instruction2,  //DEBUG info
-              " to reg ",  //DEBUG info
-              instruction1_2_1,  //DEBUG info
-              "-",  //DEBUG info
-              (instruction1_2_1 + instruction1_2_2)  //DEBUG info
-          );  //DEBUG info
-          state                        <= INSTRUCTION_STATE_REG_ADD;
-          error_code                   <= 0;
-          start_ram_address_or_numeric <= instruction2;
-          register_start               <= instruction1_2_1;
-          register_end                 <= instruction1_2_1 + instruction1_2_2;
-        end
-        //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
-        OPCODE_REG_MUL: begin
-          $display(  //DEBUG info
-              $time,  //DEBUG info
-              " opcode = regmul mul value ",  //DEBUG info
-              instruction2,  //DEBUG info
-              " to reg ",  //DEBUG info
-              instruction1_2_1,  //DEBUG info
-              "-",  //DEBUG info
-              (instruction1_2_1 + instruction1_2_2)  //DEBUG info
-          );  //DEBUG info
-          state                        <= INSTRUCTION_STATE_REG_MUL;
-          error_code                   <= 0;
-          start_ram_address_or_numeric <= instruction2;
-          register_start               <= instruction1_2_1;
-          register_end                 <= instruction1_2_1 + instruction1_2_2;
-        end
-        //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
-        OPCODE_REG_DIV: begin
-          $display(  //DEBUG info
-              $time,  //DEBUG info
-              " opcode = regdiv div value ",  //DEBUG info
-              instruction2,  //DEBUG info
-              " to reg ",  //DEBUG info
-              instruction1_2_1,  //DEBUG info
-              "-",  //DEBUG info
-              (instruction1_2_1 + instruction1_2_2)  //DEBUG info
-          );  //DEBUG info
-          state                        <= INSTRUCTION_STATE_REG_DIV;
-          error_code                   <= 0;
-          start_ram_address_or_numeric <= instruction2;
-          register_start               <= instruction1_2_1;
-          register_end                 <= instruction1_2_1 + instruction1_2_2;
+        //register num (5 bits), how many-1 (3 bits), 16 bit value
+        OPCODE_NUM2REG,
+        OPCODE_REG_PLUS,
+        OPCODE_REG_MUL,
+        OPCODE_REG_DIV: begin        
+          if (instruction1_2_1 + instruction1_2_2 >= 32) begin
+            error_code <= ERROR_WRONG_REG_NUM;
+          end else begin
+            $display(  //DEBUG info
+                $time,  //DEBUG info
+                " opcode = ",(instruction1_1==OPCODE_NUM2REG?"num2reg save":(instruction1_1==OPCODE_REG_PLUS?"regplus add":(instruction1_1==OPCODE_REG_MUL?"regmul mul":"regdiv div")))
+                ," value ",  //DEBUG info
+                instruction2,  //DEBUG info
+                " to reg ",  //DEBUG info
+                instruction1_2_1,  //DEBUG info
+                "-",  //DEBUG info
+                (instruction1_2_1 + instruction1_2_2)  //DEBUG info
+            );  //DEBUG info
+           case (instruction1_1)
+        OPCODE_NUM2REG:state                        <= INSTRUCTION_STATE_REG_SET;
+        OPCODE_REG_PLUS:state                        <= INSTRUCTION_STATE_REG_ADD;
+        OPCODE_REG_MUL:state                        <= INSTRUCTION_STATE_REG_MUL;
+        OPCODE_REG_DIV: state                        <= INSTRUCTION_STATE_REG_DIV;
+           endcase
+          end
         end
         default: begin
           state                        <= INSTRUCTION_STATE_REG_UNKNOWN;
