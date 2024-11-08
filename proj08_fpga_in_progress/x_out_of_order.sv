@@ -38,6 +38,14 @@ parameter INSTRUCTION_STATE_REG_MUL = 6;
 parameter INSTRUCTION_STATE_REG_DIV = 7;
 parameter INSTRUCTION_STATE_REG_UNKNOWN = 8;
 
+  parameter EXECUTE_STATE_NONE = 0;
+  parameter EXECUTE_STATE_READ_EXECUTE = 1;
+  parameter EXECUTE_STATE_SAVE_WAIT = 2;
+  parameter EXECUTE_STATE_SAVE_EXECUTE = 3;
+  parameter EXECUTE_STATE_WAIT_RAM_2_REG_MMU = 4;
+  parameter EXECUTE_STATE_WORKING = 5;
+  //parameter EXECUTE_STATE_NONE2 = 6;
+
 module x_out_of_order (
     input clk,
     output reg x
@@ -93,6 +101,7 @@ module x_out_of_order (
       .inp(decoder_inp),
       .ready(decoder_ready),
       .state(decoder_instruction_state),
+      .executor_state(executor_state),
       .error_code(decoder_error_code),
       .start_ram_address_or_numeric(decoder_start_ram_address_or_numeric),
       .register_start(decoder_register_start),
@@ -141,13 +150,6 @@ module x_out_of_order (
   reg [15:0] pc_physical, pc_physical_min_page, pc_physical_max_page;
 
   //--------------------------------------------------------------------execute------------------
-  parameter EXECUTE_STATE_NONE = 0;
-  parameter EXECUTE_STATE_READ_EXECUTE = 1;
-  parameter EXECUTE_STATE_SAVE_WAIT = 2;
-  parameter EXECUTE_STATE_SAVE_EXECUTE = 3;
-  parameter EXECUTE_STATE_WAIT_RAM_2_REG_MMU = 4;
-  parameter EXECUTE_STATE_WORKING = 5;
-  parameter EXECUTE_STATE_NONE2 = 6;
 
   reg [5:0] executor_state, executor_instruction_state;
   reg [15:0] executor_register_end;
@@ -183,9 +185,10 @@ module x_out_of_order (
         registers_src_ram_mmu_req[i] <= 0;
         registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
       end
-      executor_state <= EXECUTE_STATE_NONE2;
+      executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
-      if (!jmp_stall_exists && pc_physical != 0 && executor_state == EXECUTE_STATE_NONE) begin
+    $display($time, " ",decoder_inp, " ",executor_state);
+      if (!jmp_stall_exists && pc_physical != 0 ) begin
         read_address  <= pc_physical;
         read_address2 <= pc_physical + 1;
         $display($time, pc_logical, " starting fetch ", pc_physical);
@@ -196,9 +199,7 @@ module x_out_of_order (
       end else begin
         decoder_inp <= 0;
       end
-      // executor gubi instrukcję
-      if (executor_state < 10) begin
-        // if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
+      if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
           if (read_address != 0) begin
             $display($time, pc_logical, " no fetch register ", register[0], " with address ",
@@ -226,7 +227,7 @@ module x_out_of_order (
             end
           end
         end
-        if (executor_state == EXECUTE_STATE_NONE || executor_state == EXECUTE_STATE_NONE2) begin
+        if (executor_state == EXECUTE_STATE_NONE) begin
           $display($time, pc_logical, " executor1   ", " ", executor_state, " ",
                    decoder_instruction_state, " ", decoder_register_start, " ",
                    decoder_register_end, " ", decoder_start_ram_address_or_numeric, " ",
@@ -310,6 +311,7 @@ module decoder (
     input reg [15:0] instruction1,
     instruction2,
     input bit inp,
+    input reg [5:0] executor_state,
     output bit ready,
     output bit [5:0] state,
     output bit [3:0] error_code,
@@ -369,10 +371,9 @@ module decoder (
   parameter OPCODE_FREE_LEVEL =32; //free ram pages allocated after page x (or pages with concrete level)
   //parameter OPCODE_REG_INT_NON_BLOCKING =33; //int number (8 bit), address to jump in case of int
 
-  always @(posedge clk) begin
-    ready <= inp;
-    if (inp) begin
-
+  always @(posedge clk) begin    
+   if (inp ) begin
+      ready <= inp ;
       $display(  //DEBUG info
           $time,  //DEBUG info
           address, " decoder ", " b1 %c",  //DEBUG info
