@@ -85,7 +85,7 @@ module x_out_of_order (
       .address_logical_max_in_the_same_page(mmu_address_logical_max_in_the_same_page)
   );
 
-  parameter MMU_QUEUE_LEN = 50;
+  parameter MMU_QUEUE_LEN = 10;
 
   typedef struct {reg [15:0] addr;} mmuqueue;
 
@@ -140,13 +140,13 @@ module x_out_of_order (
       .read_value2  (read_value2)
   );
 
-  parameter SAVERAM_QUEUE_LEN = 50;
+  /*parameter SAVERAM_QUEUE_LEN = 50;
 
   typedef struct {reg [15:0] addr,value;} saveram;
 
   saveram saveram_q[0:SAVERAM_QUEUE_LEN];
   reg [7:0] saveram_q_new_pos;
-
+*/
   //--------------------------------------------------------------------process------------------
 
   reg [15:0] process_hardware_address = 0;
