@@ -87,9 +87,7 @@ module x_out_of_order (
 
   parameter MMU_QUEUE_LEN = 10;
 
-  typedef struct {reg [15:0] addr;} mmuqueue;
-
-  mmuqueue mmuqueue_q[0:MMU_QUEUE_LEN];
+  reg [15:0] mmuqueue_q_addr[0:MMU_QUEUE_LEN];
   reg [10:0] mmuqueue_q_new_pos = 0;
 
   //---------------------------------------------------------decoder--------------------------
@@ -142,9 +140,8 @@ module x_out_of_order (
 
   parameter SAVERAM_QUEUE_LEN = 50;
 
-  typedef struct {reg [15:0] addr, value;} saveram;
-
-  saveram saveram_q[0:SAVERAM_QUEUE_LEN];
+  reg [15:0] saveram_q_addr[0:SAVERAM_QUEUE_LEN];
+  reg [15:0] saveram_q_value[0:SAVERAM_QUEUE_LEN];
   reg [7:0] saveram_q_new_pos;
 
   //--------------------------------------------------------------------process------------------
@@ -255,7 +252,7 @@ module x_out_of_order (
                 registers_src_address[i] <= decoder_start_ram_address_or_numeric;
                 registers_src_ram_needs_mmu[i] <= 1;
                 //should calculate physical address
-                mmuqueue_q[mmuqueue_q_new_pos].addr <= decoder_start_ram_address_or_numeric;
+                mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
                 mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
               end
               OPCODE_NUM2REG: begin
@@ -281,11 +278,11 @@ module x_out_of_order (
                   case (decoder_instruction_state)
                     OPCODE_REG2RAM: begin
                       $display($time, pc_logical, " save ram initiate");
-                      saveram_q[saveram_q_new_pos].addr<=decoder_start_ram_address_or_numeric+executor_register_start-i;
-                      saveram_q[saveram_q_new_pos].value <= registers[i];
+                      saveram_q_addr[saveram_q_new_pos]<=decoder_start_ram_address_or_numeric+executor_register_start-i;
+                      saveram_q_value[saveram_q_new_pos]<= registers[i];
                       saveram_q_new_pos <= saveram_q_new_pos + 1;
                       //should calculate physical address
-                      mmuqueue_q[mmuqueue_q_new_pos].addr <= decoder_start_ram_address_or_numeric;
+                      mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
                       mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
                     end
                     OPCODE_REG_PLUS:
@@ -348,17 +345,17 @@ module x_out_of_order (
       end
       if (mmuqueue_q_new_pos != 0) begin
         mmu_input <= 1;
-        $display($time, pc_logical, " starting mmu ", mmuqueue_q[0].addr);
-        mmu_address_logical <= mmuqueue_q[0].addr;
-        mmuqueue_q <= {mmuqueue_q[1:MMU_QUEUE_LEN], mmuqueue_q[0]};
+        $display($time, pc_logical, " starting mmu ", mmuqueue_q_addr[0]);
+        mmu_address_logical <= mmuqueue_q_addr[0];
+     //   mmuqueue_q <= {mmuqueue_q[1:MMU_QUEUE_LEN], mmuqueue_q[0]};
         mmuqueue_q_new_pos <= mmuqueue_q_new_pos - 1;
       end
       if (saveram_q_new_pos != 0) begin
         write_enabled <= 1;
-        write_address <= saveram_q[0].addr;
-        write_value   <= saveram_q[0].value;
-        $display($time, pc_logical, " saving ram ", saveram_q[0].addr, "=", saveram_q[0].value);
-        saveram_q <= {saveram_q[1:SAVERAM_QUEUE_LEN], saveram_q[0]};
+        write_address <= saveram_q_addr[0];
+        write_value   <= saveram_q_value[0];
+        $display($time, pc_logical, " saving ram ", saveram_q_addr[0], "=", saveram_q[0].value);
+        //saveram_q <= {saveram_q[1:SAVERAM_QUEUE_LEN], saveram_q[0]};
         saveram_q_new_pos <= saveram_q_new_pos - 1;
       end else begin
         write_enabled <= 0;
