@@ -356,7 +356,7 @@ module x_out_of_order (
       if (saveram_q_new_pos != 0) begin
         write_enabled <= 1;
         write_address <= saveram_q[0].addr;
-        write_value   <= write_address <= saveram_q[0].value;
+        write_value   <= saveram_q[0].value;
         $display($time, pc_logical, " saving ram ", saveram_q[0].addr, "=", saveram_q[0].value);
         saveram_q <= {saveram_q[1:SAVERAM_QUEUE_LEN], saveram_q[0]};
         saveram_q_new_pos <= saveram_q_new_pos - 1;
