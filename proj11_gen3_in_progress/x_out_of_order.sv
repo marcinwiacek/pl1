@@ -63,6 +63,7 @@ parameter EXECUTE_STATE_READ_EXECUTE = 1;
 
 module x_out_of_order (
     input clk,
+    
     output reg x
 );
 
@@ -74,10 +75,11 @@ module x_out_of_order (
   wire [15:0] mmu_address_physical_min_in_the_same_page,mmu_address_logical_min_in_the_same_page, mmu_address_logical_max_in_the_same_page;
 
   mmu mmu (
-      .clk(clk),
+      .clk(clk),      
       .inp(mmu_input),
-      .ready(mmu_ready),
       .address_logical(mmu_address_logical),
+      
+      .ready(mmu_ready),
       .address_physical_min_in_the_same_page(mmu_address_physical_min_in_the_same_page),
       .address_logical_min_in_the_same_page(mmu_address_logical_min_in_the_same_page),
       .address_logical_max_in_the_same_page(mmu_address_logical_max_in_the_same_page)
@@ -103,7 +105,6 @@ module x_out_of_order (
 
   decoder decoder (
       .clk(clk),
-
       .inp(decoder_inp),
       .address(decoder_input_address),
       .instruction1(read_value),
@@ -129,15 +130,13 @@ module x_out_of_order (
 
   single_blockram single_blockram (
       .clk(clk),
-
       .write_enabled(write_enabled),
       .write_address(write_address),
       .write_value  (write_value),
-
       .read_address(read_address),
-      .read_value  (read_value),
-
       .read_address2(read_address2),
+      
+      .read_value  (read_value),
       .read_value2  (read_value2)
   );
 
@@ -259,6 +258,11 @@ module x_out_of_order (
               end
               OPCODE_REG2RAM: begin
                 //not important if register had any value earlier
+                //registers_init[i] <= 1;
+                //registers[i] <= decoder_start_ram_address_or_numeric;
+              end
+              OPCODE_NUM2REG: begin
+                //not important if register had any value earlier
                 registers_init[i] <= 1;
                 registers[i] <= decoder_start_ram_address_or_numeric;
               end
@@ -355,6 +359,7 @@ module decoder (
     input reg [15:0] instruction1,
     instruction2,
     input bit inp,
+    
     output bit ready,
     output bit [5:0] state,
     output bit [3:0] error_code,
@@ -495,6 +500,7 @@ module single_blockram (
     write_value,
     read_address,
     read_address2,
+    
     output bit [15:0] read_value,
     read_value2
 );
@@ -716,7 +722,6 @@ module single_blockram (
   assign read_value2 = ram[read_address2];
 
   always @(posedge clk) begin
-    // if (write_enabled) 
     if (write_enabled && RAM_WRITE_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
       $display($time, " ram write ", write_address, " = ", write_value);  //DEBUG info
     if (RAM_READ_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
