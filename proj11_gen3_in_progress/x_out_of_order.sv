@@ -140,10 +140,12 @@ module x_out_of_order (
       .read_value2  (read_value2)
   );
 
-  /*typedef struct {reg [7:0] instr_num;} saveram;
+  parameter SAVERAM_QUEUE_LEN = 50;
+
+  typedef struct {reg [15:0] addr,value;} saveram;
 
   saveram saveram_q[0:SAVERAM_QUEUE_LEN];
-  reg [7:0] saveram_q_new_pos;*/
+  reg [7:0] saveram_q_new_pos;
 
   //--------------------------------------------------------------------process------------------
 
@@ -482,7 +484,7 @@ module mmu (
     output reg [15:0] address_logical_max_in_the_same_page
 );
 
-  always @(posedge clk) begin
+  always @(negedge clk) begin
     ready <= inp;
     if (inp) begin
       address_physical_min_in_the_same_page <= 0;
