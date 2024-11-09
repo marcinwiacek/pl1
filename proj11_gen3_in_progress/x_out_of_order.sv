@@ -321,7 +321,7 @@ module x_out_of_order (
       end else begin
         decoder_inp <= 0;
       end
-      if (mmu_ready && mmu_input) begin
+      if (mmu_ready) begin
         mmu_input <= 0;
         $display($time, pc_logical, " mmu processing ");
         for (i = 0; i < 32; i = i + 1) begin
@@ -340,7 +340,7 @@ module x_out_of_order (
           end
         end
       end
-      if (mmuqueue_q_new_pos != 0 && mmu_ready) begin
+      if (mmuqueue_q_new_pos != 0) begin
         mmu_input <= 1;
         $display($time, pc_logical, " starting mmu ", mmuqueue_q[0].addr);
         mmu_address_logical <= mmuqueue_q[0].addr;
