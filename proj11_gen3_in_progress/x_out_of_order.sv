@@ -140,7 +140,7 @@ module x_out_of_order (
       .read_value2(read_value2)
   );
 
-  parameter SAVERAM_QUEUE_LEN = 10;
+  parameter SAVERAM_QUEUE_LEN = 50;
 
   typedef struct {reg [15:0] addr, value;} saveram;
 
@@ -283,7 +283,7 @@ module x_out_of_order (
                       $display($time, pc_logical, " save ram initiate");
                       saveram_q[saveram_q_new_pos].addr<=decoder_start_ram_address_or_numeric+executor_register_start-i;
                       saveram_q[saveram_q_new_pos].value <= registers[i];
-                      saveram_q_new_pos = saveram_q_new_pos + 1;
+                      saveram_q_new_pos <= saveram_q_new_pos + 1;
                       //should calculate physical address
                       mmuqueue_q[mmuqueue_q_new_pos].addr <= decoder_start_ram_address_or_numeric;
                       mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
@@ -358,6 +358,7 @@ module x_out_of_order (
         write_address <= saveram_q[0].addr;
         write_value   <= write_address <= saveram_q[0].value;
         $display($time, pc_logical, " saving ram ", saveram_q[0].addr, "=", saveram_q[0].value);
+        saveram_q <= {saveram_q[1:SAVERAM_QUEUE_LEN], saveram_q[0]};
         saveram_q_new_pos <= saveram_q_new_pos - 1;
       end else begin
         write_enabled <= 0;
