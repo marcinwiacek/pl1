@@ -66,38 +66,29 @@ module x_out_of_order (
     output reg x
 );
 
-  assign x = decoder_inp;  //without this we will have empty circuit
-
-  reg rst = 1;
-  reg [7:0] instr_num = 0;  // how many done
-
-  integer i;
-
   //--------------------------------------------------------- mmu ----------------------------
 
   reg mmu_input;
   wire mmu_ready;
   reg [15:0] mmu_address_logical;
-  wire [15:0] mmu_address_physical;
-  wire [15:0] mmu_address_physical_max_in_the_same_page, mmu_address_physical_min_in_the_same_page;
-  reg [5:0] mmu_instr_num;
+  wire [15:0] mmu_address_physical_min_in_the_same_page,mmu_address_logical_min_in_the_same_page, mmu_address_logical_max_in_the_same_page;
 
   mmu mmu (
       .clk(clk),
       .inp(mmu_input),
       .ready(mmu_ready),
       .address_logical(mmu_address_logical),
-      .address_physical(mmu_address_physical),
-      .address_physical_max_in_the_same_page(mmu_address_physical_max_in_the_same_page),
-      .address_physical_min_in_the_same_page(mmu_address_physical_min_in_the_same_page)
+      .address_physical_min_in_the_same_page(mmu_address_physical_min_in_the_same_page),
+      .address_logical_min_in_the_same_page(mmu_address_logical_min_in_the_same_page),
+      .address_logical_max_in_the_same_page(mmu_address_logical_max_in_the_same_page)
   );
 
-  /*parameter MMU_QUEUE_PC_INSTR_NUM = READRAM_QUEUE_LEN + 1;
+  parameter MMU_QUEUE_LEN = 50;
 
   typedef struct {reg [15:0] addr;} mmuqueue;
 
   mmuqueue mmuqueue_q[0:MMU_QUEUE_LEN];
-  reg [10:0] mmuqueue_q_new_pos = 0;*/
+  reg [10:0] mmuqueue_q_new_pos = 0;
 
   //---------------------------------------------------------decoder--------------------------
 
@@ -164,8 +155,7 @@ module x_out_of_order (
 
   reg [15:0] registers[0:31];
   reg [15:0] registers_src_address[0:63];
-  reg registers_src_ram[0:31];  //bool
-  reg registers_src_ram_mmu_req[0:31];  //bool
+  reg registers_src_ram_needs_mmu[0:31];  //bool
   reg registers_init[0:31] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };  //bool
@@ -180,6 +170,15 @@ module x_out_of_order (
   reg [15:0] register[0:1];
   reg [15:0] register_inside[0:1];
 
+//----------------------------------------------------------------other---------------------------
+
+  assign x = decoder_inp;  //without this we will have empty circuit
+
+  reg rst = 1;
+  reg [7:0] instr_num = 0;  // how many done
+
+  integer i;
+
   always @(posedge clk) begin
     if (rst) begin
       read_address <= 52;
@@ -190,12 +189,11 @@ module x_out_of_order (
       pc_logical <= 54;
       pc_physical <= 54;
       pc_physical_min_page <= 0;
-      pc_physical_max_page <= 99;
+      pc_physical_max_page <= 200;
       mmu_input <= 0;
       rst <= 0;
       for (i = 0; i < 32; i = i + 1) begin
-        registers_src_ram[i] <= 0;
-        registers_src_ram_mmu_req[i] <= 0;
+        registers_src_ram_needs_mmu[i] <= 0;
         registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
       end
       executor_state <= EXECUTE_STATE_NONE;
@@ -235,7 +233,7 @@ module x_out_of_order (
         register[0] <= 50;
         register[0] <= 50;
         for (i = 0; i < 32; i = i + 1) begin
-          if (!registers_init[i]) begin
+          if (!registers_init[i] && !registers_src_ram_needs_mmu[i]) begin
             if (i % 2 == 0) begin
               read_address <= registers_src_address[i];
               register[0]  <= i;
@@ -254,23 +252,29 @@ module x_out_of_order (
                 //next time this register should be read
                 registers_init[i] <= 0;
                 registers_src_address[i] <= decoder_start_ram_address_or_numeric;
+                registers_src_ram_needs_mmu[i]<=1;
+                //should calculate physical address
+                mmuqueue_q[mmuqueue_q_new_pos].addr <=decoder_start_ram_address_or_numeric;
+                mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
               end
               OPCODE_REG2RAM: begin
                 //not important if register had any value earlier
                 registers_init[i] <= 1;
-                registers[i] <= decoder_start_ram_address_or_numeric;
+                registers[i] <= decoder_start_ram_address_or_numeric;                
               end
               default: begin
                 if (!registers_init[i] && (executor_state == EXECUTE_STATE_NONE || 
                     (executor_state != EXECUTE_STATE_NONE && i != register[0] && i != register[1]))) begin
                   executor_state <= EXECUTE_STATE_READ_EXECUTE;
                   fetch_stall_exists = 1;
+                  if (!registers_src_ram_needs_mmu[i]) begin 
                   if (i % 2 == 0) begin
                     read_address <= registers_src_address[i];
                     register[0]  <= i;
                   end else begin
                     read_address2 <= registers_src_address[i];
                     register[1]   <= i;
+                  end
                   end
                 end else begin
                   case (decoder_instruction_state)
@@ -312,6 +316,29 @@ module x_out_of_order (
         pc_physical <= pc_physical + 2;
       end else begin
         decoder_inp <= 0;
+      end
+      if (mmu_ready && mmu_input) begin
+        mmu_input<=0;      
+        $display($time, pc_logical, " mmu processing ");
+        for (i = 0; i < 32; i = i + 1) begin
+         $display($time, pc_logical,  " ",i," ",registers_init[i]," ", registers_src_ram_needs_mmu[i]," ", 
+              registers_src_address[i], " ",mmu_address_logical_min_in_the_same_page," ", 
+              mmu_address_logical_max_in_the_same_page);
+          if (!registers_init[i] && registers_src_ram_needs_mmu[i] && 
+              registers_src_address[i]>=mmu_address_logical_min_in_the_same_page && 
+              registers_src_address[i]<=mmu_address_logical_max_in_the_same_page) begin
+              $display($time, pc_logical, " updating reg ",i," src address to ", mmu_address_physical_min_in_the_same_page+registers_src_address[i]-mmu_address_logical_min_in_the_same_page);
+              registers_src_address[i]<= mmu_address_physical_min_in_the_same_page+registers_src_address[i]-mmu_address_logical_min_in_the_same_page;
+              registers_src_ram_needs_mmu[i]<=0;
+          end            
+        end      
+      end
+      if (mmuqueue_q_new_pos!=0 && mmu_ready) begin
+        mmu_input<=1;      
+        $display($time, pc_logical, " starting mmu ", mmuqueue_q[0].addr);
+        mmu_address_logical<=mmuqueue_q[0].addr;
+        mmuqueue_q = {mmuqueue_q[1:MMU_QUEUE_LEN], mmuqueue_q[0]};
+        mmuqueue_q_new_pos = mmuqueue_q_new_pos - 1;
       end
     end else begin
       decoder_inp = 0;
@@ -442,18 +469,18 @@ module mmu (
     input inp,
     output bit ready = 0,
     input reg [15:0] address_logical,
-    output reg [15:0] address_physical,
-    output reg [15:0] address_physical_max_in_the_same_page,
-    output reg [15:0] address_physical_min_in_the_same_page
+    output reg [15:0] address_physical_min_in_the_same_page,
+    output reg [15:0] address_logical_min_in_the_same_page,
+    output reg [15:0] address_logical_max_in_the_same_page
 );
 
   always @(posedge clk) begin
-    if (inp) begin
-      ready <= inp;
-      address_physical <= address_logical;
-      address_physical_max_in_the_same_page <= 99;
+   ready <= inp;
+    if (inp) begin     
       address_physical_min_in_the_same_page <= 0;
-      $display($time, " mmu ", address_logical, " -> ", address_logical);
+      address_logical_min_in_the_same_page <= 0;
+      address_logical_max_in_the_same_page <= 200;
+      $display($time, " mmu ", address_logical, " -> ", (0+address_logical-0));
     end
   end
 endmodule
