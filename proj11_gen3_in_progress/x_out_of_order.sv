@@ -63,7 +63,7 @@ parameter EXECUTE_STATE_READ_EXECUTE = 1;
 
 module x_out_of_order (
     input clk,
-    
+
     output reg x
 );
 
@@ -75,10 +75,10 @@ module x_out_of_order (
   wire [15:0] mmu_address_physical_min_in_the_same_page,mmu_address_logical_min_in_the_same_page, mmu_address_logical_max_in_the_same_page;
 
   mmu mmu (
-      .clk(clk),      
+      .clk(clk),
       .inp(mmu_input),
       .address_logical(mmu_address_logical),
-      
+
       .ready(mmu_ready),
       .address_physical_min_in_the_same_page(mmu_address_physical_min_in_the_same_page),
       .address_logical_min_in_the_same_page(mmu_address_logical_min_in_the_same_page),
@@ -132,17 +132,17 @@ module x_out_of_order (
       .clk(clk),
       .write_enabled(write_enabled),
       .write_address(write_address),
-      .write_value  (write_value),
+      .write_value(write_value),
       .read_address(read_address),
       .read_address2(read_address2),
-      
-      .read_value  (read_value),
-      .read_value2  (read_value2)
+
+      .read_value (read_value),
+      .read_value2(read_value2)
   );
 
   parameter SAVERAM_QUEUE_LEN = 10;
 
-  typedef struct {reg [15:0] addr,value;} saveram;
+  typedef struct {reg [15:0] addr, value;} saveram;
 
   saveram saveram_q[0:SAVERAM_QUEUE_LEN];
   reg [7:0] saveram_q_new_pos;
@@ -257,7 +257,7 @@ module x_out_of_order (
                 //should calculate physical address
                 mmuqueue_q[mmuqueue_q_new_pos].addr <= decoder_start_ram_address_or_numeric;
                 mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
-              end            
+              end
               OPCODE_NUM2REG: begin
                 //not important if register had any value earlier
                 registers_init[i] <= 1;
@@ -279,14 +279,14 @@ module x_out_of_order (
                   end
                 end else begin
                   case (decoder_instruction_state)
-                    OPCODE_REG2RAM: begin      
-                    $display($time, pc_logical, " save ram initiate");          
+                    OPCODE_REG2RAM: begin
+                      $display($time, pc_logical, " save ram initiate");
                       saveram_q[saveram_q_new_pos].addr<=decoder_start_ram_address_or_numeric+executor_register_start-i;
-                      saveram_q[saveram_q_new_pos].value<=registers[i];
-                      saveram_q_new_pos=saveram_q_new_pos+1;
-                //should calculate physical address
-                mmuqueue_q[mmuqueue_q_new_pos].addr <= decoder_start_ram_address_or_numeric;
-                mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
+                      saveram_q[saveram_q_new_pos].value <= registers[i];
+                      saveram_q_new_pos = saveram_q_new_pos + 1;
+                      //should calculate physical address
+                      mmuqueue_q[mmuqueue_q_new_pos].addr <= decoder_start_ram_address_or_numeric;
+                      mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
                     end
                     OPCODE_REG_PLUS:
                     registers[i] <= 
@@ -354,13 +354,13 @@ module x_out_of_order (
         mmuqueue_q_new_pos <= mmuqueue_q_new_pos - 1;
       end
       if (saveram_q_new_pos != 0) begin
-  write_enabled <= 1;
-  write_address<=saveram_q[0].addr;
-write_value<=  write_address<=saveram_q[0].value;      
-        $display($time, pc_logical, " saving ram ", saveram_q[0].addr,"=",saveram_q[0].value);
+        write_enabled <= 1;
+        write_address <= saveram_q[0].addr;
+        write_value   <= write_address <= saveram_q[0].value;
+        $display($time, pc_logical, " saving ram ", saveram_q[0].addr, "=", saveram_q[0].value);
         saveram_q_new_pos <= saveram_q_new_pos - 1;
       end else begin
-  write_enabled <= 0;
+        write_enabled <= 0;
       end
     end else begin
       decoder_inp = 0;
@@ -374,7 +374,7 @@ module decoder (
     input reg [15:0] instruction1,
     instruction2,
     input bit inp,
-    
+
     output bit ready,
     output bit [5:0] state,
     output bit [3:0] error_code,
@@ -515,7 +515,7 @@ module single_blockram (
     write_value,
     read_address,
     read_address2,
-    
+
     output bit [15:0] read_value,
     read_value2
 );
