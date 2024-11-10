@@ -179,9 +179,10 @@ module x_out_of_order (
   reg [7:0] instr_num = 0;  // how many done
 
   integer i;
-
-  always @(posedge clk) begin
-  end
+  
+  reg[15:0] xx;
+  reg[15:0] xy;  
+  reg xz;  
 
   always @(posedge clk) begin
     if (rst) begin
@@ -203,21 +204,26 @@ module x_out_of_order (
       end
       executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
-      write_enabled <= 0;
+      xz <= 0;
 
       for (i = 0; i < 32; i = i + 1) begin
         if (registers_target_ram_address[i] && !registers_src_ram_needs_mmu[i]) begin
           $display($time, pc_logical, " saving ram ", registers_src_target_address[i], "=",
                    registers[i]);
 
-
-          write_value   <= registers_save[i];
-          write_enabled <= 1;
-          write_address <= registers_src_target_address[i];
+xx<=  registers_save[i];
+xy<=registers_src_target_address[i];
+xz<=1;
           //registers_src_target_address[i]<=0;
         end
       end
 
+
+          write_value   <=xx; 
+          
+        
+          write_enabled <= xy;
+          write_address <= xz;
 
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         //  if (executor_state == EXECUTE_STATE_NONE && (decoder_instruction_state==OPCODE_JMP_PLUS || decoder_instruction_state== OPCODE_JMP_MINUS)) begin
