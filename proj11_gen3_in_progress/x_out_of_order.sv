@@ -177,6 +177,8 @@ module x_out_of_order (
   reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
 
+  reg [15:0] xx;
+  
   integer i;
 
   always @(posedge clk) begin
@@ -199,6 +201,17 @@ module x_out_of_order (
       end
       executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
+            write_enabled = 0;
+        for (i = 0; i < 32; i = i + 1) begin
+          if (registers_target_ram_address[i] && !registers_src_ram_needs_mmu[i] && !write_enabled) begin
+           $display($time, pc_logical, " saving ram ", registers_src_target_address[i], "=", registers[i]);
+           xx=registers[i];
+        write_value   <= xx;//registers[i];
+        write_enabled = 1;
+        write_address <= registers_src_target_address[i];
+             registers_src_target_address[i]<=0;
+          end
+end      
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         //  if (executor_state == EXECUTE_STATE_NONE && (decoder_instruction_state==OPCODE_JMP_PLUS || decoder_instruction_state== OPCODE_JMP_MINUS)) begin
         //  end else begin
@@ -258,8 +271,8 @@ module x_out_of_order (
                 registers_src_target_address[i] <= decoder_start_ram_address_or_numeric;
                 registers_src_ram_needs_mmu[i] <= 0;
                 //should calculate physical address
-             //   mmuqueue_q_addr[0] <= decoder_start_ram_address_or_numeric;
-               // mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
+  //              mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
+//                mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
                 end
               end
               OPCODE_NUM2REG: begin
@@ -363,16 +376,7 @@ module x_out_of_order (
         mmuqueue_q_addr <= {mmuqueue_q_addr[1:MMU_QUEUE_LEN], mmuqueue_q_addr[0]};
         mmuqueue_q_new_pos <= mmuqueue_q_new_pos - 1;
       end
-     /*        write_enabled <= 0;
-        for (i = 0; i < 32; i = i + 1) begin
-          if (registers_target_ram_address[i]) begin
-           $display($time, pc_logical, " saving ram ", registers_src_target_address[i], "=", registers[i]);
-        write_enabled <= 1;
-        write_address <= registers_src_target_address[i];
-        write_value   <= registers[i];
-             registers_src_target_address[i]<=0;
-          end*/
-//end      
+     
       //if (saveram_q_new_pos != 0) begin
 //        write_enabled <= 1;
 //        write_address <= saveram_q_addr[0];
