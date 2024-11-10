@@ -138,29 +138,22 @@ module x_out_of_order (
       .read_value2(read_value2)
   );
 
-  parameter SAVERAM_QUEUE_LEN = 32;
-
-  reg [15:0] saveram_q_addr[0:SAVERAM_QUEUE_LEN];
-  reg [15:0] saveram_q_value[0:SAVERAM_QUEUE_LEN];
-  reg [7:0] saveram_q_new_pos;
-
   //--------------------------------------------------------------------process------------------
 
   reg [15:0] process_hardware_address = 0;
   reg [15:0] pc_logical, pc_physical, pc_physical_min_page, pc_physical_max_page;
 
   reg jmp_stall_exists = 0, fetch_stall_exists = 0;
-
-  // reg [15:0] registers_save[0:31];
+  
   reg [15:0] registers[0:31];
   reg [15:0] registers_src_target_address[0:31];
-  reg registers_ram_needs_mmu[0:31];  //bool
+  reg registers_ram_needs_mmu[0:31];  //bool. Both for read and save.
   reg registers_init[0:31] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-  };  //bool
-  //reg [15:0] registers_target_address[0:31];
-  reg registers_target_ram_address[0:31];  //bool
-  reg registers_target_ram_save[0:31];  //bool
+  };  //bool. Read from RAM?
+  reg [15:0] registers_save[0:31]; //more lut and bigger timing, but... we can save some cycles in various scenarios
+  reg registers_target_ram_address[0:31];  //bool. We have save address in the registers_src_target_address.
+  reg registers_target_ram_save[0:31];  //bool. Should we finallz save value to RAM?
   //--------------------------------------------------------------------execute------------------
 
   reg [5:0] executor_state, executor_instruction_state;
@@ -179,10 +172,6 @@ module x_out_of_order (
   reg [7:0] instr_num = 0;  // how many done
 
   integer i;
-
-  reg [15:0] xx;
-  reg [15:0] xy;
-  reg xz;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -215,7 +204,6 @@ module x_out_of_order (
           write_address <= registers_src_target_address[i];
         end
         //registers_src_target_address[i]<=0;
-        //end
       end
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         //  if (executor_state == EXECUTE_STATE_NONE && (decoder_instruction_state==OPCODE_JMP_PLUS || decoder_instruction_state== OPCODE_JMP_MINUS)) begin
@@ -375,7 +363,6 @@ module x_out_of_order (
             registers_src_target_address[i]<= mmu_address_physical_min_in_the_same_page+registers_src_target_address[i]-mmu_address_logical_min_in_the_same_page;
             registers_ram_needs_mmu[i] <= 0;
             registers_target_ram_save[i] <= registers_target_ram_address[i];
-
           end
         end
       end
@@ -386,18 +373,6 @@ module x_out_of_order (
         mmuqueue_q_addr <= {mmuqueue_q_addr[1:MMU_QUEUE_LEN], mmuqueue_q_addr[0]};
         mmuqueue_q_new_pos <= mmuqueue_q_new_pos - 1;
       end
-
-      //if (saveram_q_new_pos != 0) begin
-      //        write_enabled <= 1;
-      //        write_address <= saveram_q_addr[0];
-      //        write_value   <= saveram_q_value[0];
-      //        $display($time, pc_logical, " saving ram ", saveram_q_addr[0], "=", saveram_q_value[0]);
-      //        //saveram_q <= {saveram_q[1:SAVERAM_QUEUE_LEN], saveram_q[0]};
-      //        saveram_q_new_pos <= saveram_q_new_pos - 1;
-      //      end else begin
-      //        write_enabled <= 0;
-      //      end
-
     end else begin
       decoder_inp = 0;
     end
