@@ -140,9 +140,9 @@ module x_out_of_order (
 
   parameter SAVERAM_QUEUE_LEN = 32;
 
-  //reg [15:0] saveram_q_addr[0:SAVERAM_QUEUE_LEN];
-  //reg [15:0] saveram_q_value[0:SAVERAM_QUEUE_LEN];
-  //reg [7:0] saveram_q_new_pos;
+  reg [15:0] saveram_q_addr[0:SAVERAM_QUEUE_LEN];
+  reg [15:0] saveram_q_value[0:SAVERAM_QUEUE_LEN];
+  reg [7:0] saveram_q_new_pos;
 
   //--------------------------------------------------------------------process------------------
 
@@ -177,25 +177,12 @@ module x_out_of_order (
 
   reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
-  
+
   integer i;
- 
+
   always @(posedge clk) begin
-      write_enabled <= 0;
-      
-        for (i = 0; i < 32; i = i + 1) begin
-          if (registers_target_ram_address[i] && !registers_src_ram_needs_mmu[i]) begin
-           $display($time, pc_logical, " saving ram ", registers_src_target_address[i], "=", registers[i]);
-         
-           
-        write_value   <= registers_save[i];
-        write_enabled <= 1;
-        write_address <= registers_src_target_address[i];
-             //registers_src_target_address[i]<=0;
-          end
-          end
-end
-          
+  end
+
   always @(posedge clk) begin
     if (rst) begin
       read_address <= 52;
@@ -211,13 +198,27 @@ end
       rst <= 0;
       for (i = 0; i < 32; i = i + 1) begin
         registers_target_ram_address[i] <= 0;
-        registers_src_ram_needs_mmu[i] <= 0;
+        registers_src_ram_needs_mmu[i]  <= 0;
         registers_src_target_address[i] <= process_hardware_address + ADDRESS_REG + i;
       end
       executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
-      
-      
+      write_enabled <= 0;
+
+      for (i = 0; i < 32; i = i + 1) begin
+        if (registers_target_ram_address[i] && !registers_src_ram_needs_mmu[i]) begin
+          $display($time, pc_logical, " saving ram ", registers_src_target_address[i], "=",
+                   registers[i]);
+
+
+          write_value   <= registers_save[i];
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[i];
+          //registers_src_target_address[i]<=0;
+        end
+      end
+
+
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         //  if (executor_state == EXECUTE_STATE_NONE && (decoder_instruction_state==OPCODE_JMP_PLUS || decoder_instruction_state== OPCODE_JMP_MINUS)) begin
         //  end else begin
@@ -270,24 +271,24 @@ end
             case ((executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state))
               OPCODE_RAM2REG: begin
                 if (registers_target_ram_address[i]) begin
-                         executor_state <= EXECUTE_STATE_READ_EXECUTE;
-                end else begin                
-                //next time this register should be read
-                registers_init[i] <= 0;
-                registers_src_target_address[i] <= decoder_start_ram_address_or_numeric;
-                registers_src_ram_needs_mmu[i] <= 0;
-                //should calculate physical address
-  //              mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
-//                mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
+                  executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                end else begin
+                  //next time this register should be read
+                  registers_init[i] <= 0;
+                  registers_src_target_address[i] <= decoder_start_ram_address_or_numeric;
+                  registers_src_ram_needs_mmu[i] <= 0;
+                  //should calculate physical address
+                  //              mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
+                  //                mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
                 end
               end
               OPCODE_NUM2REG: begin
                 if (registers_target_ram_address[i]) begin
-                         executor_state <= EXECUTE_STATE_READ_EXECUTE;
-                end else begin                
-                //not important if register had any value earlier
-                registers_init[i] <= 1;
-                registers[i] <= decoder_start_ram_address_or_numeric;
+                  executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                end else begin
+                  //not important if register had any value earlier
+                  registers_init[i] <= 1;
+                  registers[i] <= decoder_start_ram_address_or_numeric;
                 end
               end
               default: begin
@@ -308,9 +309,9 @@ end
                   case (decoder_instruction_state)
                     OPCODE_REG2RAM: begin
                       $display($time, pc_logical, " save ram initiate");
-                      registers_target_ram_address[i]<=1;
-                         registers_src_target_address[i]<=decoder_start_ram_address_or_numeric+executor_register_start-i;
-                         registers_save[i]<= executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
+                      registers_target_ram_address[i] <= 1;
+                      registers_src_target_address[i]<=decoder_start_ram_address_or_numeric+executor_register_start-i;
+                      registers_save[i]<= executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
                       (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i]);
                       //saveram_q_addr[0]<=decoder_start_ram_address_or_numeric+executor_register_start-i;
                       //saveram_q_value[0]<= registers[i];
@@ -384,17 +385,17 @@ end
         mmuqueue_q_addr <= {mmuqueue_q_addr[1:MMU_QUEUE_LEN], mmuqueue_q_addr[0]};
         mmuqueue_q_new_pos <= mmuqueue_q_new_pos - 1;
       end
-     
+
       //if (saveram_q_new_pos != 0) begin
-//        write_enabled <= 1;
-//        write_address <= saveram_q_addr[0];
-//        write_value   <= saveram_q_value[0];
-//        $display($time, pc_logical, " saving ram ", saveram_q_addr[0], "=", saveram_q_value[0]);
-//        //saveram_q <= {saveram_q[1:SAVERAM_QUEUE_LEN], saveram_q[0]};
-//        saveram_q_new_pos <= saveram_q_new_pos - 1;
-//      end else begin
-//        write_enabled <= 0;
-//      end
+      //        write_enabled <= 1;
+      //        write_address <= saveram_q_addr[0];
+      //        write_value   <= saveram_q_value[0];
+      //        $display($time, pc_logical, " saving ram ", saveram_q_addr[0], "=", saveram_q_value[0]);
+      //        //saveram_q <= {saveram_q[1:SAVERAM_QUEUE_LEN], saveram_q[0]};
+      //        saveram_q_new_pos <= saveram_q_new_pos - 1;
+      //      end else begin
+      //        write_enabled <= 0;
+      //      end
 
     end else begin
       decoder_inp = 0;
