@@ -508,7 +508,7 @@ module mmu (
     output reg [15:0] address_logical_max_in_the_same_page
 );
 
-  always @(posedge clk) begin
+  always @(negedge clk) begin
     ready <= inp;
     if (inp) begin
       address_physical_min_in_the_same_page <= 0;
