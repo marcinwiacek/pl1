@@ -88,6 +88,7 @@ module x_out_of_order (
   parameter MMU_QUEUE_LEN = 10;
 
   reg [15:0] mmuqueue_q_addr[0:MMU_QUEUE_LEN];
+  reg [15:0] mmuqueue_q_len[0:MMU_QUEUE_LEN];  
   reg [10:0] mmuqueue_q_new_pos = 0;
 
   //---------------------------------------------------------decoder--------------------------
@@ -264,8 +265,10 @@ module x_out_of_order (
                   registers_src_target_address[i] <= decoder_start_ram_address_or_numeric;
                   registers_ram_needs_mmu[i] <= 0;
                   //should calculate physical address
-                  //              mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
-                  //                mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
+                               mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
+                               mmuqueue_q_len[mmuqueue_q_new_pos] <=(executor_state == EXECUTE_STATE_NONE?decoder_register_end:executor_register_end)-
+(executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start);
+                                  mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
                 end
               end
               OPCODE_NUM2REG: begin
@@ -300,12 +303,11 @@ module x_out_of_order (
                       registers_save[i]<= executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
                       (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i]);
                       registers_target_ram_save[i] <= 0;
-                      //saveram_q_addr[0]<=decoder_start_ram_address_or_numeric+executor_register_start-i;
-                      //saveram_q_value[0]<= registers[i];
-                      //saveram_q_new_pos <= saveram_q_new_pos + 1;
-                      //should calculate physical address
-                      //mmuqueue_q_addr[0] <= decoder_start_ram_address_or_numeric;
-                      //mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
+                  //should calculate physical address
+                               mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
+                               mmuqueue_q_len[mmuqueue_q_new_pos] <=(executor_state == EXECUTE_STATE_NONE?decoder_register_end:executor_register_end)-
+(executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start);
+                                  mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
                     end
                     OPCODE_REG_PLUS:
                     registers[i] <= 
