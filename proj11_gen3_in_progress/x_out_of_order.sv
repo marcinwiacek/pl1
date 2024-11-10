@@ -179,10 +179,10 @@ module x_out_of_order (
   reg [7:0] instr_num = 0;  // how many done
 
   integer i;
-
-  reg [15:0] xx;
-  reg [15:0] xy;
-  reg xz;
+  
+  reg[15:0] xx;
+  reg[15:0] xy;  
+  reg xz;  
 
   always @(posedge clk) begin
     if (rst) begin
@@ -204,7 +204,27 @@ module x_out_of_order (
       end
       executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
-    
+      xz <= 0;
+
+      for (i = 0; i < 32; i = i + 1) begin
+        if (registers_target_ram_address[i] && !registers_src_ram_needs_mmu[i]) begin
+          $display($time, pc_logical, " saving ram ", registers_src_target_address[i], "=",
+                   registers[i]);
+
+xx<=  registers_save[i];
+xy<=registers_src_target_address[i];
+xz<=1;
+          //registers_src_target_address[i]<=0;
+        end
+      end
+
+
+          write_value   <=xx; 
+          
+        
+          write_enabled <= xy;
+          write_address <= xz;
+
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         //  if (executor_state == EXECUTE_STATE_NONE && (decoder_instruction_state==OPCODE_JMP_PLUS || decoder_instruction_state== OPCODE_JMP_MINUS)) begin
         //  end else begin
@@ -251,32 +271,7 @@ module x_out_of_order (
           end
         end
         fetch_stall_exists = 0;
-      end
-      write_enabled <= 0;
-      for (i = 0; i < 32; i = i + 1) begin
-      if (mmu_ready) begin
-          $display($time, pc_logical, " ", i, " ", registers_init[i], " ",
-                   registers_src_ram_needs_mmu[i], " ", registers_src_target_address[i], " ",
-                   mmu_address_logical_min_in_the_same_page, " ",
-                   mmu_address_logical_max_in_the_same_page);
-          if (!registers_init[i] && registers_src_ram_needs_mmu[i] && 
-              registers_src_target_address[i]>=mmu_address_logical_min_in_the_same_page && 
-              registers_src_target_address[i]<=mmu_address_logical_max_in_the_same_page) begin
-            $display(
-                $time, pc_logical, " updating reg ", i, " src address to ",
-                mmu_address_physical_min_in_the_same_page + registers_src_target_address[i] - mmu_address_logical_min_in_the_same_page);
-            registers_src_target_address[i]<= mmu_address_physical_min_in_the_same_page+registers_src_target_address[i]-mmu_address_logical_min_in_the_same_page;
-            registers_src_ram_needs_mmu[i] <= 0;
-          end
-       end
-       if (registers_target_ram_address[i] && !registers_src_ram_needs_mmu[i]) begin
-          $display($time, pc_logical, " saving ram ", registers_src_target_address[i], "=",
-                   registers[i]);
-  write_value   <= registers_save[i];
-      write_enabled <= 1;
-      write_address <= registers_src_target_address[i];
-        end
-        if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
+        for (i = 0; i < 32; i = i + 1) begin
           if (i >= (executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start) && i <= 
              (executor_state == EXECUTE_STATE_NONE?decoder_register_end:executor_register_end)) begin
             case ((executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state))
@@ -357,9 +352,8 @@ module x_out_of_order (
             endcase
           end
         end
+        //end
       end
-      //end
-
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
         read_address  <= pc_physical;
         read_address2 <= pc_physical + 1;
@@ -374,6 +368,21 @@ module x_out_of_order (
       if (mmu_ready) begin
         mmu_input <= 0;
         $display($time, pc_logical, " mmu processing ");
+        for (i = 0; i < 32; i = i + 1) begin
+          $display($time, pc_logical, " ", i, " ", registers_init[i], " ",
+                   registers_src_ram_needs_mmu[i], " ", registers_src_target_address[i], " ",
+                   mmu_address_logical_min_in_the_same_page, " ",
+                   mmu_address_logical_max_in_the_same_page);
+          if (!registers_init[i] && registers_src_ram_needs_mmu[i] && 
+              registers_src_target_address[i]>=mmu_address_logical_min_in_the_same_page && 
+              registers_src_target_address[i]<=mmu_address_logical_max_in_the_same_page) begin
+            $display(
+                $time, pc_logical, " updating reg ", i, " src address to ",
+                mmu_address_physical_min_in_the_same_page + registers_src_target_address[i] - mmu_address_logical_min_in_the_same_page);
+            registers_src_target_address[i]<= mmu_address_physical_min_in_the_same_page+registers_src_target_address[i]-mmu_address_logical_min_in_the_same_page;
+            registers_src_ram_needs_mmu[i] <= 0;
+          end
+        end
       end
       if (mmuqueue_q_new_pos != 0) begin
         mmu_input <= 1;
@@ -553,7 +562,7 @@ module single_blockram (
 );
 
   // verilog_format:off
-   //(* ram_style = "block" *) 
+   //(* ram_style = "block" *)
    bit [15:0] ram  [0:699]= {  // in Vivado (required by board)
   //  reg [0:559] [15:0] ram = {  // in iVerilog
 
