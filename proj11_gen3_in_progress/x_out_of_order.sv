@@ -183,6 +183,20 @@ module x_out_of_order (
   integer i;
 
   always @(posedge clk) begin
+      write_enabled <= 0;
+        for (i = 0; i < 32; i = i + 1) begin
+          if (registers_target_ram_address[i] && !registers_src_ram_needs_mmu[i]) begin
+           $display($time, pc_logical, " saving ram ", registers_src_target_address[i], "=", registers[i]);
+           //xx=registers[i];
+        write_value   <= registers[i];
+        write_enabled <= 1;
+        write_address <= registers_src_target_address[i];
+             //registers_src_target_address[i]<=0;
+          end
+          end
+end
+          
+  always @(posedge clk) begin
     if (rst) begin
       read_address <= 52;
       read_address2 <= 53;
@@ -202,17 +216,8 @@ module x_out_of_order (
       end
       executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
-            write_enabled <= 0;
-        for (i = 0; i < 32; i = i + 1) begin
-          if (registers_target_ram_address[i] && !registers_src_ram_needs_mmu[i]) begin
-           $display($time, pc_logical, " saving ram ", registers_src_target_address[i], "=", registers[i]);
-           //xx=registers[i];
-        write_value   <= registers_save[i];
-        write_enabled <= 1;
-        write_address <= registers_src_target_address[i];
-             //registers_src_target_address[i]<=0;
-          end
-end      
+      
+      
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         //  if (executor_state == EXECUTE_STATE_NONE && (decoder_instruction_state==OPCODE_JMP_PLUS || decoder_instruction_state== OPCODE_JMP_MINUS)) begin
         //  end else begin
@@ -305,7 +310,8 @@ end
                       $display($time, pc_logical, " save ram initiate");
                       registers_target_ram_address[i]<=1;
                          registers_src_target_address[i]<=decoder_start_ram_address_or_numeric+executor_register_start-i;
-                         registers_save[i]<=registers[i];
+                         registers_save[i]<= executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
+                      (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i]);
                       //saveram_q_addr[0]<=decoder_start_ram_address_or_numeric+executor_register_start-i;
                       //saveram_q_value[0]<= registers[i];
                       //saveram_q_new_pos <= saveram_q_new_pos + 1;
@@ -525,7 +531,7 @@ module mmu (
     output reg [15:0] address_logical_max_in_the_same_page
 );
 
-  always @(negedge clk) begin
+  always @(posedge clk) begin
     ready <= inp;
     if (inp) begin
       address_physical_min_in_the_same_page <= 0;
