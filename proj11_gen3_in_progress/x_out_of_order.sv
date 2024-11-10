@@ -182,13 +182,17 @@ module x_out_of_order (
   
   integer i;
 
+assign   write_value   = registers[xx];
+       
   always @(posedge clk) begin
       write_enabled <= 0;
+      xx=0;
         for (i = 0; i < 32; i = i + 1) begin
           if (registers_target_ram_address[i] && !registers_src_ram_needs_mmu[i]) begin
            $display($time, pc_logical, " saving ram ", registers_src_target_address[i], "=", registers[i]);
+           xx=i;
            //xx=registers[i];
-        write_value   <= registers[i];
+        //write_value   <= registers[i];
         write_enabled <= 1;
         write_address <= registers_src_target_address[i];
              //registers_src_target_address[i]<=0;
