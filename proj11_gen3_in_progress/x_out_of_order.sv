@@ -151,16 +151,16 @@ module x_out_of_order (
 
   reg jmp_stall_exists = 0, fetch_stall_exists = 0;
 
-  reg [15:0] registers_save[0:31];
+  // reg [15:0] registers_save[0:31];
   reg [15:0] registers[0:31];
   reg [15:0] registers_src_target_address[0:31];
-  reg registers_src_ram_needs_mmu[0:31];  //bool
+  reg registers_ram_needs_mmu[0:31];  //bool
   reg registers_init[0:31] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };  //bool
   //reg [15:0] registers_target_address[0:31];
   reg registers_target_ram_address[0:31];  //bool
-
+  reg registers_target_ram_save[0:31];  //bool
   //--------------------------------------------------------------------execute------------------
 
   reg [5:0] executor_state, executor_instruction_state;
@@ -179,10 +179,10 @@ module x_out_of_order (
   reg [7:0] instr_num = 0;  // how many done
 
   integer i;
-  
-  reg[15:0] xx;
-  reg[15:0] xy;  
-  reg xz;  
+
+  reg [15:0] xx;
+  reg [15:0] xy;
+  reg xz;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -199,73 +199,24 @@ module x_out_of_order (
       rst <= 0;
       for (i = 0; i < 32; i = i + 1) begin
         registers_target_ram_address[i] <= 0;
-        registers_src_ram_needs_mmu[i]  <= 0;
+        registers_ram_needs_mmu[i] <= 0;
         registers_src_target_address[i] <= process_hardware_address + ADDRESS_REG + i;
+        registers_target_ram_save[i] <= 0;
       end
       executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
-          write_enabled <= 0;
-      /*for (i = 0; i < 32; i = i + 1) begin
-        if (registers_target_ram_address[i] && !registers_src_ram_needs_mmu[i]) begin
+      write_enabled <= 0;
+      for (i = 0; i < 32; i = i + 1) begin
+        if (registers_target_ram_save[i]) begin
           $display($time, pc_logical, " saving ram ", registers_src_target_address[i], "=",
                    registers[i]);
-  write_value   <=registers_save[i];                   
+          write_value   <= registers_save[i];
           write_enabled <= 1;
-          write_address <= registers_src_target_address[i];          
-          //registers_src_target_address[i]<=0;
+          write_address <= registers_src_target_address[i];
         end
-      end*/
-      
-        if (registers_target_ram_address[0] && !registers_src_ram_needs_mmu[0]) begin
-       write_value   <=registers_save[0];                   
-          write_enabled <= 1;
-          write_address <= registers_src_target_address[0];
-       end else         if (registers_target_ram_address[1] && !registers_src_ram_needs_mmu[1]) begin
-       write_value   <=registers_save[1];                   
-          write_enabled <= 1;
-          write_address <= registers_src_target_address[1];
-       end else         if (registers_target_ram_address[2] && !registers_src_ram_needs_mmu[2]) begin
-       write_value   <=registers_save[2];                   
-          write_enabled <= 1;
-          write_address <= registers_src_target_address[2];
-       end else         if (registers_target_ram_address[3] && !registers_src_ram_needs_mmu[3]) begin
-       write_value   <=registers_save[3];                   
-          write_enabled <= 1;
-          write_address <= registers_src_target_address[3];
-       end else         if (registers_target_ram_address[4] && !registers_src_ram_needs_mmu[4]) begin
-       write_value   <=registers_save[4];                   
-          write_enabled <= 1;
-          write_address <= registers_src_target_address[4];
-       end else         if (registers_target_ram_address[5] && !registers_src_ram_needs_mmu[5]) begin
-       write_value   <=registers_save[5];                   
-          write_enabled <= 1;
-          write_address <= registers_src_target_address[5];
-       end else         if (registers_target_ram_address[6] && !registers_src_ram_needs_mmu[6]) begin
-       write_value   <=registers_save[6];                   
-          write_enabled <= 1;
-          write_address <= registers_src_target_address[6];
-       end else         if (registers_target_ram_address[7] && !registers_src_ram_needs_mmu[7]) begin
-       write_value   <=registers_save[7];                   
-          write_enabled <= 1;
-          write_address <= registers_src_target_address[7];
-       end else         if (registers_target_ram_address[8] && !registers_src_ram_needs_mmu[8]) begin
-       write_value   <=registers_save[8];                   
-          write_enabled <= 1;
-          write_address <= registers_src_target_address[8];
-       end else         if (registers_target_ram_address[9] && !registers_src_ram_needs_mmu[9]) begin
-       write_value   <=registers_save[9];                   
-          write_enabled <= 1;
-          write_address <= registers_src_target_address[9];
-       end else         if (registers_target_ram_address[10] && !registers_src_ram_needs_mmu[10]) begin
-       write_value   <=registers_save[10];                   
-          write_enabled <= 1;
-          write_address <= registers_src_target_address[10];
-       end else         if (registers_target_ram_address[11] && !registers_src_ram_needs_mmu[11]) begin
-       write_value   <=registers_save[11];                   
-          write_enabled <= 1;
-          write_address <= registers_src_target_address[11];
-       end
-    
+        //registers_src_target_address[i]<=0;
+        //end
+      end
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         //  if (executor_state == EXECUTE_STATE_NONE && (decoder_instruction_state==OPCODE_JMP_PLUS || decoder_instruction_state== OPCODE_JMP_MINUS)) begin
         //  end else begin
@@ -301,7 +252,7 @@ module x_out_of_order (
         register[0] <= 50;
         register[0] <= 50;
         for (i = 0; i < 32; i = i + 1) begin
-          if (!registers_init[i] && !registers_src_ram_needs_mmu[i] && !registers_target_ram_address[i]) begin
+          if (!registers_init[i] && !registers_ram_needs_mmu[i] && !registers_target_ram_address[i]) begin
             if (i % 2 == 0) begin
               read_address <= registers_src_target_address[i];
               register[0]  <= i;
@@ -323,7 +274,7 @@ module x_out_of_order (
                   //next time this register should be read
                   registers_init[i] <= 0;
                   registers_src_target_address[i] <= decoder_start_ram_address_or_numeric;
-                  registers_src_ram_needs_mmu[i] <= 0;
+                  registers_ram_needs_mmu[i] <= 0;
                   //should calculate physical address
                   //              mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
                   //                mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
@@ -343,7 +294,7 @@ module x_out_of_order (
                     (executor_state != EXECUTE_STATE_NONE && i != register[0] && i != register[1]))) begin
                   executor_state <= EXECUTE_STATE_READ_EXECUTE;
                   fetch_stall_exists = 1;
-                  if (!registers_src_ram_needs_mmu[i] && !registers_target_ram_address[i]) begin
+                  if (!registers_ram_needs_mmu[i] && !registers_target_ram_address[i]) begin
                     if (i % 2 == 0) begin
                       read_address <= registers_src_target_address[i];
                       register[0]  <= i;
@@ -360,6 +311,7 @@ module x_out_of_order (
                       registers_src_target_address[i]<=decoder_start_ram_address_or_numeric+executor_register_start-i;
                       registers_save[i]<= executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
                       (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i]);
+                      registers_target_ram_save[i] <= 0;
                       //saveram_q_addr[0]<=decoder_start_ram_address_or_numeric+executor_register_start-i;
                       //saveram_q_value[0]<= registers[i];
                       //saveram_q_new_pos <= saveram_q_new_pos + 1;
@@ -411,17 +363,19 @@ module x_out_of_order (
         $display($time, pc_logical, " mmu processing ");
         for (i = 0; i < 32; i = i + 1) begin
           $display($time, pc_logical, " ", i, " ", registers_init[i], " ",
-                   registers_src_ram_needs_mmu[i], " ", registers_src_target_address[i], " ",
+                   registers_ram_needs_mmu[i], " ", registers_src_target_address[i], " ",
                    mmu_address_logical_min_in_the_same_page, " ",
                    mmu_address_logical_max_in_the_same_page);
-          if (!registers_init[i] && registers_src_ram_needs_mmu[i] && 
+          if (!registers_init[i] && registers_ram_needs_mmu[i] && 
               registers_src_target_address[i]>=mmu_address_logical_min_in_the_same_page && 
               registers_src_target_address[i]<=mmu_address_logical_max_in_the_same_page) begin
             $display(
                 $time, pc_logical, " updating reg ", i, " src address to ",
                 mmu_address_physical_min_in_the_same_page + registers_src_target_address[i] - mmu_address_logical_min_in_the_same_page);
             registers_src_target_address[i]<= mmu_address_physical_min_in_the_same_page+registers_src_target_address[i]-mmu_address_logical_min_in_the_same_page;
-            registers_src_ram_needs_mmu[i] <= 0;
+            registers_ram_needs_mmu[i] <= 0;
+            registers_target_ram_save[i] <= registers_target_ram_address[i];
+
           end
         end
       end
