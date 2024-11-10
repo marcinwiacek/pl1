@@ -204,27 +204,68 @@ module x_out_of_order (
       end
       executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
-      xz <= 0;
-
-      for (i = 0; i < 32; i = i + 1) begin
+          write_enabled <= 0;
+      /*for (i = 0; i < 32; i = i + 1) begin
         if (registers_target_ram_address[i] && !registers_src_ram_needs_mmu[i]) begin
           $display($time, pc_logical, " saving ram ", registers_src_target_address[i], "=",
                    registers[i]);
-
-xx<=  registers_save[i];
-xy<=registers_src_target_address[i];
-xz<=1;
+  write_value   <=registers_save[i];                   
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[i];          
           //registers_src_target_address[i]<=0;
         end
-      end
-
-
-          write_value   <=xx; 
-          
-        
-          write_enabled <= xy;
-          write_address <= xz;
-
+      end*/
+      
+        if (registers_target_ram_address[0] && !registers_src_ram_needs_mmu[0]) begin
+       write_value   <=registers_save[0];                   
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[0];
+       end else         if (registers_target_ram_address[1] && !registers_src_ram_needs_mmu[1]) begin
+       write_value   <=registers_save[1];                   
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[1];
+       end else         if (registers_target_ram_address[2] && !registers_src_ram_needs_mmu[2]) begin
+       write_value   <=registers_save[2];                   
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[2];
+       end else         if (registers_target_ram_address[3] && !registers_src_ram_needs_mmu[3]) begin
+       write_value   <=registers_save[3];                   
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[3];
+       end else         if (registers_target_ram_address[4] && !registers_src_ram_needs_mmu[4]) begin
+       write_value   <=registers_save[4];                   
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[4];
+       end else         if (registers_target_ram_address[5] && !registers_src_ram_needs_mmu[5]) begin
+       write_value   <=registers_save[5];                   
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[5];
+       end else         if (registers_target_ram_address[6] && !registers_src_ram_needs_mmu[6]) begin
+       write_value   <=registers_save[6];                   
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[6];
+       end else         if (registers_target_ram_address[7] && !registers_src_ram_needs_mmu[7]) begin
+       write_value   <=registers_save[7];                   
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[7];
+       end else         if (registers_target_ram_address[8] && !registers_src_ram_needs_mmu[8]) begin
+       write_value   <=registers_save[8];                   
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[8];
+       end else         if (registers_target_ram_address[9] && !registers_src_ram_needs_mmu[9]) begin
+       write_value   <=registers_save[9];                   
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[9];
+       end else         if (registers_target_ram_address[10] && !registers_src_ram_needs_mmu[10]) begin
+       write_value   <=registers_save[10];                   
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[10];
+       end else         if (registers_target_ram_address[11] && !registers_src_ram_needs_mmu[11]) begin
+       write_value   <=registers_save[11];                   
+          write_enabled <= 1;
+          write_address <= registers_src_target_address[11];
+       end
+    
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         //  if (executor_state == EXECUTE_STATE_NONE && (decoder_instruction_state==OPCODE_JMP_PLUS || decoder_instruction_state== OPCODE_JMP_MINUS)) begin
         //  end else begin
