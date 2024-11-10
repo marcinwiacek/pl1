@@ -337,7 +337,7 @@ module x_out_of_order (
       end else begin
         decoder_inp <= 0;
       end
-   /*   if (mmu_ready) begin
+      if (mmu_ready) begin
         mmu_input <= 0;
         $display($time, pc_logical, " mmu processing ");
         for (i = 0; i < 32; i = i + 1) begin
@@ -360,9 +360,9 @@ module x_out_of_order (
         mmu_input <= 1;
         $display($time, pc_logical, " starting mmu ", mmuqueue_q_addr[0]);
         mmu_address_logical <= mmuqueue_q_addr[0];
-     //   mmuqueue_q <= {mmuqueue_q[1:MMU_QUEUE_LEN], mmuqueue_q[0]};
+        mmuqueue_q_addr <= {mmuqueue_q_addr[1:MMU_QUEUE_LEN], mmuqueue_q_addr[0]};
         mmuqueue_q_new_pos <= mmuqueue_q_new_pos - 1;
-      end*/
+      end
      /*        write_enabled <= 0;
         for (i = 0; i < 32; i = i + 1) begin
           if (registers_target_ram_address[i]) begin
