@@ -178,14 +178,46 @@ module x_out_of_order (
   reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
 
-  reg [15:0] xx;
+  reg [15:0] xx,xy;
   
   integer i;
 
-assign   write_value   = registers[xx];
+assign xx = registers_target_ram_address[0] && !registers_src_ram_needs_mmu[0]?registers_save[0]:(
+registers_target_ram_address[1] && !registers_src_ram_needs_mmu[1]?registers_save[1]:(
+registers_target_ram_address[2] && !registers_src_ram_needs_mmu[2]?registers_save[2]:(
+registers_target_ram_address[3] && !registers_src_ram_needs_mmu[3]?registers_save[3]:(
+registers_target_ram_address[4] && !registers_src_ram_needs_mmu[4]?registers_save[4]:(
+registers_target_ram_address[5] && !registers_src_ram_needs_mmu[5]?registers_save[5]:(
+registers_target_ram_address[6] && !registers_src_ram_needs_mmu[6]?registers_save[6]:(
+registers_target_ram_address[7] && !registers_src_ram_needs_mmu[7]?registers_save[7]:(
+registers_target_ram_address[8] && !registers_src_ram_needs_mmu[8]?registers_save[8]:(
+registers_target_ram_address[9] && !registers_src_ram_needs_mmu[9]?registers_save[9]:(
+registers_target_ram_address[10] && !registers_src_ram_needs_mmu[10]?registers_save[10]:(
+registers_target_ram_address[11] && !registers_src_ram_needs_mmu[11]?registers_save[11]:(
+registers_target_ram_address[12] && !registers_src_ram_needs_mmu[12]?registers_save[12]:(
+registers_target_ram_address[13] && !registers_src_ram_needs_mmu[13]?registers_save[13]:(
+14
+))))))))))))));
+//assign   write_value   = registers[xx];
+assign xy = registers_target_ram_address[0] && !registers_src_ram_needs_mmu[0]?registers_src_target_address[0]:(
+registers_target_ram_address[1] && !registers_src_ram_needs_mmu[1]?registers_src_target_address[1]:(
+registers_target_ram_address[2] && !registers_src_ram_needs_mmu[2]?registers_src_target_address[2]:(
+registers_target_ram_address[3] && !registers_src_ram_needs_mmu[3]?registers_src_target_address[3]:(
+registers_target_ram_address[4] && !registers_src_ram_needs_mmu[4]?registers_src_target_address[4]:(
+registers_target_ram_address[5] && !registers_src_ram_needs_mmu[5]?registers_src_target_address[5]:(
+registers_target_ram_address[6] && !registers_src_ram_needs_mmu[6]?registers_src_target_address[6]:(
+registers_target_ram_address[7] && !registers_src_ram_needs_mmu[7]?registers_src_target_address[7]:(
+registers_target_ram_address[8] && !registers_src_ram_needs_mmu[8]?registers_src_target_address[8]:(
+registers_target_ram_address[9] && !registers_src_ram_needs_mmu[9]?registers_src_target_address[9]:(
+registers_target_ram_address[10] && !registers_src_ram_needs_mmu[10]?registers_src_target_address[10]:(
+registers_target_ram_address[11] && !registers_src_ram_needs_mmu[11]?registers_src_target_address[11]:(
+registers_target_ram_address[12] && !registers_src_ram_needs_mmu[12]?registers_src_target_address[12]:(
+registers_target_ram_address[13] && !registers_src_ram_needs_mmu[13]?registers_src_target_address[13]:(
+14
+))))))))))))));
        
   always @(posedge clk) begin
-      write_enabled <= 0;
+      /*write_enabled <= 0;
       xx=0;
         for (i = 0; i < 32; i = i + 1) begin
           if (registers_target_ram_address[i] && !registers_src_ram_needs_mmu[i]) begin
@@ -197,6 +229,12 @@ assign   write_value   = registers[xx];
         write_address <= registers_src_target_address[i];
              //registers_src_target_address[i]<=0;
           end
+          end*/
+        write_enabled <= 0;
+          if (xy!=14) begin
+        write_value   <= xx;
+        write_enabled <= 1;
+        write_address <= xy;
           end
 end
           
