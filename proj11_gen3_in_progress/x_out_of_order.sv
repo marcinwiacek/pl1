@@ -202,13 +202,13 @@ module x_out_of_order (
       end
       executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
-    for (i = 0; i < 32; i = i + 1) begin
+    for (i = 1; i < 32; i = i + 1) begin
            //if (saveram_q_init[i]) begin
             // if (i >= ab && i <= cd) begin
    //xx =       registers[i];
           //if (i >= (executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start) && i <= 
             // (executor_state == EXECUTE_STATE_NONE?decoder_register_end:executor_register_end)) begin
-             saveram_q_value[i]<=saveram_q_init[i]?registers[saveram_q_value[i]]:saveram_q_value[i];
+             if (saveram_q_init[i]) saveram_q_value[i]<=registers[saveram_q_value[i]];
              saveram_q_init[i]<=0;
           //end
             // end
