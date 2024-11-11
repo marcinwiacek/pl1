@@ -88,7 +88,7 @@ module x_out_of_order (
   parameter MMU_QUEUE_LEN = 10;
 
   reg [15:0] mmuqueue_q_addr[0:MMU_QUEUE_LEN];
-  reg [15:0] mmuqueue_q_len[0:MMU_QUEUE_LEN];  
+  reg [15:0] mmuqueue_q_len[0:MMU_QUEUE_LEN];
   reg [10:0] mmuqueue_q_new_pos = 0;
 
   //---------------------------------------------------------decoder--------------------------
@@ -138,12 +138,12 @@ module x_out_of_order (
       .read_value (read_value),
       .read_value2(read_value2)
   );
-  
+
   parameter SAVERAM_QUEUE_LEN = 32;
-  
+
   reg [15:0] saveram_q_addr[0:SAVERAM_QUEUE_LEN];
-  reg [15:0] saveram_q_value[0:SAVERAM_QUEUE_LEN];  
-  reg [15:0] saveram_q_init[0:SAVERAM_QUEUE_LEN];  
+  reg [15:0] saveram_q_value[0:SAVERAM_QUEUE_LEN];
+  reg [15:0] saveram_q_init[0:SAVERAM_QUEUE_LEN];
   reg [10:0] saveram_q_new_pos = 0;
 
   //--------------------------------------------------------------------process------------------
@@ -152,7 +152,7 @@ module x_out_of_order (
   reg [15:0] pc_logical, pc_physical, pc_physical_min_page, pc_physical_max_page;
 
   reg jmp_stall_exists = 0, fetch_stall_exists = 0;
-  
+
   reg [15:0] registers[0:31];
   reg [15:0] registers_src_address[0:31];
   reg registers_ram_needs_mmu[0:31];  //bool.
@@ -177,11 +177,11 @@ module x_out_of_order (
   reg [7:0] instr_num = 0;  // how many done
 
   integer i;
-  
-  reg[15:0] ab,cd;
-  
+
+  reg [15:0] ab, cd;
+
   assign ab = (executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start);
-  assign cd = (executor_state == EXECUTE_STATE_NONE?decoder_register_end:executor_register_end);
+  assign cd = (executor_state == EXECUTE_STATE_NONE ? decoder_register_end : executor_register_end);
 
   always @(posedge clk) begin
     if (rst) begin
@@ -196,34 +196,33 @@ module x_out_of_order (
       pc_physical_max_page <= 200;
       mmu_input <= 0;
       rst <= 0;
-      for (i = 0; i < 32; i = i + 1) begin     
+      for (i = 0; i < 32; i = i + 1) begin
         registers_ram_needs_mmu[i] <= 0;
-        registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
+        registers_src_address[i]   <= process_hardware_address + ADDRESS_REG + i;
       end
       executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
-    for (i = 1; i < 32; i = i + 1) begin
-           //if (saveram_q_init[i]) begin
-            // if (i >= ab && i <= cd) begin
-   //xx =       registers[i];
-          //if (i >= (executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start) && i <= 
-            // (executor_state == EXECUTE_STATE_NONE?decoder_register_end:executor_register_end)) begin
-             if (saveram_q_init[i]) saveram_q_value[i]<=registers[saveram_q_value[i]];
-             saveram_q_init[i]<=0;
-          //end
-            // end
-        end
-        
-        $display($time, pc_logical, " saving ram ", saveram_q_addr[0], "=",
-                   saveram_q_value[0]);
-          write_enabled <= saveram_q_new_pos !=0;
+      for (i = 1; i < 32; i = i + 1) begin
+        //if (saveram_q_init[i]) begin
+        // if (i >= ab && i <= cd) begin
+        //xx =       registers[i];
+        //if (i >= (executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start) && i <= 
+        // (executor_state == EXECUTE_STATE_NONE?decoder_register_end:executor_register_end)) begin
+        if (saveram_q_init[i]) saveram_q_value[i] <= registers[saveram_q_value[i]];
+        saveram_q_init[i] <= 0;
+        //end
+        // end
+      end
 
-          write_address <= saveram_q_addr[0];        
-          write_value   <= saveram_q_value[0];
-        //  saveram_q_addr<= {saveram_q_addr[1:SAVERAM_QUEUE_LEN], saveram_q_addr[0]};
-         // saveram_q_value<= {saveram_q_value[1:SAVERAM_QUEUE_LEN], saveram_q_value[0]};
-          if (saveram_q_new_pos!=0) saveram_q_new_pos<=saveram_q_new_pos-1;
-/*      for (i = 0; i < 32; i = i + 1) begin
+      $display($time, pc_logical, " saving ram ", saveram_q_addr[0], "=", saveram_q_value[0]);
+      write_enabled <= saveram_q_new_pos != 0;
+
+      write_address <= saveram_q_addr[0];
+      write_value   <= saveram_q_value[0];
+      //  saveram_q_addr<= {saveram_q_addr[1:SAVERAM_QUEUE_LEN], saveram_q_addr[0]};
+      // saveram_q_value<= {saveram_q_value[1:SAVERAM_QUEUE_LEN], saveram_q_value[0]};
+      if (saveram_q_new_pos != 0) saveram_q_new_pos <= saveram_q_new_pos - 1;
+      /*      for (i = 0; i < 32; i = i + 1) begin
         if (registers_target_ram_save[i]) begin
           $display($time, pc_logical, " saving ram ", registers_src_target_address[i], "=",
                    registers[i]);
@@ -280,24 +279,24 @@ module x_out_of_order (
         end
         fetch_stall_exists = 0;
         for (i = 0; i < 32; i = i + 1) begin
-   //xx =       registers[i];
+          //xx =       registers[i];
           if (i >= ab && i <= cd) begin
             case ((executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state))
-              OPCODE_RAM2REG: begin               
-                  //next time this register should be read
-                  registers_init[i] <= 0;
-                  registers_src_address[i] <= decoder_start_ram_address_or_numeric;
-                  registers_ram_needs_mmu[i] <= 0;
-                  //should calculate physical address
-//                               mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
-//                               mmuqueue_q_len[mmuqueue_q_new_pos] <=(executor_state == EXECUTE_STATE_NONE?decoder_register_end:executor_register_end)-
-//(executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start);
-  //                                mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
+              OPCODE_RAM2REG: begin
+                //next time this register should be read
+                registers_init[i] <= 0;
+                registers_src_address[i] <= decoder_start_ram_address_or_numeric;
+                registers_ram_needs_mmu[i] <= 0;
+                //should calculate physical address
+                //                               mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
+                //                               mmuqueue_q_len[mmuqueue_q_new_pos] <=(executor_state == EXECUTE_STATE_NONE?decoder_register_end:executor_register_end)-
+                //(executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start);
+                //                                mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
               end
               OPCODE_NUM2REG: begin
-                  //not important if register had any value earlier
-                  registers_init[i] <= 1;
-                  registers[i] <= decoder_start_ram_address_or_numeric;
+                //not important if register had any value earlier
+                registers_init[i] <= 1;
+                registers[i] <= decoder_start_ram_address_or_numeric;
               end
               default: begin
                 if (!registers_init[i] && (executor_state == EXECUTE_STATE_NONE || 
@@ -317,22 +316,22 @@ module x_out_of_order (
                   case (decoder_instruction_state)
                     OPCODE_REG2RAM: begin
                       $display($time, pc_logical, " save ram initiate");
-                      saveram_q_init[saveram_q_new_pos]<=1;
-                      saveram_q_value[saveram_q_new_pos]<=i;
-/*                      registers_target_ram_address[i] <= 1;
+                      saveram_q_init[saveram_q_new_pos]  <= 1;
+                      saveram_q_value[saveram_q_new_pos] <= i;
+                      /*                      registers_target_ram_address[i] <= 1;
                       registers_src_target_address[i]<=decoder_start_ram_address_or_numeric+executor_register_start-i;
                       registers_save[i]<= executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
                       (executor_state != EXECUTE_STATE_NONE && i == register[1]?read_value2:registers[i]);
                       registers_target_ram_save[i] <= 0;*/
-                  //should calculate physical address
-                          //     mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
-//                               mmuqueue_q_len[mmuqueue_q_new_pos] <=(executor_state == EXECUTE_STATE_NONE?decoder_register_end:executor_register_end)-
-//(executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start);
-//                                  mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
-//saveram_q_addr[saveram_q_new_pos]<=  100+i;
-   //decoder_start_ram_address_or_numeric+i-(executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start);
-//saveram_q_value[saveram_q_new_pos]<=registers[i];
-//saveram_q_new_pos<=saveram_q_new_pos+1;               
+                      //should calculate physical address
+                      //     mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
+                      //                               mmuqueue_q_len[mmuqueue_q_new_pos] <=(executor_state == EXECUTE_STATE_NONE?decoder_register_end:executor_register_end)-
+                      //(executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start);
+                      //                                  mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
+                      //saveram_q_addr[saveram_q_new_pos]<=  100+i;
+                      //decoder_start_ram_address_or_numeric+i-(executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start);
+                      //saveram_q_value[saveram_q_new_pos]<=registers[i];
+                      //saveram_q_new_pos<=saveram_q_new_pos+1;               
                     end
                     OPCODE_REG_PLUS:
                     registers[i] <= 
@@ -357,10 +356,10 @@ module x_out_of_order (
                   endcase
                 end
               end
-            endcase            
+            endcase
           end
-        end       
-      /*  if (!fetch_stall_exists && decoder_instruction_state == OPCODE_REG2RAM) begin
+        end
+        /*  if (!fetch_stall_exists && decoder_instruction_state == OPCODE_REG2RAM) begin
          for (i = 0; i < 32; i = i + 1) begin
            if (saveram_q_init[i]) begin
             // if (i >= ab && i <= cd) begin
@@ -401,7 +400,7 @@ module x_out_of_order (
                 mmu_address_physical_min_in_the_same_page + registers_src_address[i] - mmu_address_logical_min_in_the_same_page);
             registers_src_address[i]<= mmu_address_physical_min_in_the_same_page+registers_src_address[i]-mmu_address_logical_min_in_the_same_page;
             registers_ram_needs_mmu[i] <= 0;
-          //  registers_target_ram_save[i] <= registers_target_ram_address[i];
+            //  registers_target_ram_save[i] <= registers_target_ram_address[i];
           end
         end
       end
