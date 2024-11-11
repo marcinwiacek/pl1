@@ -210,14 +210,14 @@ module x_out_of_order (
         write_enabled <= 0;
           write_address <= saveram_q_addr[0];
         write_value   <= saveram_q_value[0];
-      if (saveram_q_init_mmu[0] && saveram_q_new_pos != 0) begin
+      //if (saveram_q_init_mmu[0] && saveram_q_new_pos != 0) begin
         $display($time, pc_logical, " saving ram ", saveram_q_addr[0], "=", saveram_q_value[0]);
-        write_enabled <= 1;      
-        saveram_q_addr<= {saveram_q_addr[1:SAVERAM_QUEUE_LEN], saveram_q_addr[0]};
-        saveram_q_value<= {saveram_q_value[1:SAVERAM_QUEUE_LEN], saveram_q_value[0]};
-        saveram_q_init<= {saveram_q_init[1:SAVERAM_QUEUE_LEN], saveram_q_init[0]};
-        saveram_q_init_mmu<= {saveram_q_init_mmu[1:SAVERAM_QUEUE_LEN], saveram_q_init_mmu[0]};
-      end      
+        write_enabled <= saveram_q_init_mmu[0] && saveram_q_new_pos != 0;      
+        //saveram_q_addr<= {saveram_q_addr[1:SAVERAM_QUEUE_LEN], saveram_q_addr[0]};
+        //saveram_q_value<= {saveram_q_value[1:SAVERAM_QUEUE_LEN], saveram_q_value[0]};
+        //saveram_q_init<= {saveram_q_init[1:SAVERAM_QUEUE_LEN], saveram_q_init[0]};
+        //saveram_q_init_mmu<= {saveram_q_init_mmu[1:SAVERAM_QUEUE_LEN], saveram_q_init_mmu[0]};
+      //end      
       saveram_q_init_mmu[0]<=1;   
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         //  if (executor_state == EXECUTE_STATE_NONE && (decoder_instruction_state==OPCODE_JMP_PLUS || decoder_instruction_state== OPCODE_JMP_MINUS)) begin
