@@ -143,7 +143,8 @@ module x_out_of_order (
 
   reg [15:0] saveram_q_addr[0:SAVERAM_QUEUE_LEN];
   reg [15:0] saveram_q_value[0:SAVERAM_QUEUE_LEN];
-  reg [15:0] saveram_q_init[0:SAVERAM_QUEUE_LEN];
+  reg saveram_q_init[0:SAVERAM_QUEUE_LEN];
+  reg saveram_q_init_mmu[0:SAVERAM_QUEUE_LEN];  
   reg [10:0] saveram_q_new_pos = 0;
 
   //--------------------------------------------------------------------process------------------
@@ -206,11 +207,18 @@ module x_out_of_order (
         if (saveram_q_init[i]) saveram_q_value[i] <= registers[saveram_q_value[i]];
         saveram_q_init[i] <= 0;
       end
-      $display($time, pc_logical, " saving ram ", saveram_q_addr[0], "=", saveram_q_value[0]);
-      //write_enabled <= saveram_q_new_pos != 0;
-      //write_address <= saveram_q_addr[0];
-      //write_value   <= registers[saveram_q_value[0]];
-      //if (saveram_q_new_pos != 0) saveram_q_new_pos <= saveram_q_new_pos - 1;   
+        write_enabled <= 0;
+          write_address <= saveram_q_addr[0];
+        write_value   <= saveram_q_value[0];
+      if (saveram_q_init_mmu[0] && saveram_q_new_pos != 0) begin
+        $display($time, pc_logical, " saving ram ", saveram_q_addr[0], "=", saveram_q_value[0]);
+        write_enabled <= 1;      
+        saveram_q_addr<= {saveram_q_addr[1:SAVERAM_QUEUE_LEN], saveram_q_addr[0]};
+        saveram_q_value<= {saveram_q_value[1:SAVERAM_QUEUE_LEN], saveram_q_value[0]};
+        saveram_q_init<= {saveram_q_init[1:SAVERAM_QUEUE_LEN], saveram_q_init[0]};
+        saveram_q_init_mmu<= {saveram_q_init_mmu[1:SAVERAM_QUEUE_LEN], saveram_q_init_mmu[0]};
+      end      
+      saveram_q_init_mmu[0]<=1;   
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         //  if (executor_state == EXECUTE_STATE_NONE && (decoder_instruction_state==OPCODE_JMP_PLUS || decoder_instruction_state== OPCODE_JMP_MINUS)) begin
         //  end else begin
@@ -295,8 +303,10 @@ module x_out_of_order (
                   case (decoder_instruction_state)
                     OPCODE_REG2RAM: begin
                       $display($time, pc_logical, " save ram initiate");
-                      saveram_q_init[saveram_q_new_pos]  <= 1;
-                      saveram_q_value[saveram_q_new_pos] <= i;
+                      saveram_q_init_mmu[saveram_q_new_pos+i-ab]<=0;
+                      saveram_q_init[saveram_q_new_pos+i-ab]  <= 1;
+                      saveram_q_value[saveram_q_new_pos+i-ab] <= i;
+                      saveram_q_addr[saveram_q_new_pos+i-ab]<=  decoder_start_ram_address_or_numeric+executor_register_start-i;
                       /*                      registers_target_ram_address[i] <= 1;
                       registers_src_target_address[i]<=decoder_start_ram_address_or_numeric+executor_register_start-i;
                       registers_save[i]<= executor_state != EXECUTE_STATE_NONE && i == register[0]?read_value:
@@ -338,7 +348,7 @@ module x_out_of_order (
             endcase
           end
         end
-         //if (!fetch_stall_exists && decoder_instruction_state == OPCODE_REG2RAM) begin
+        if (!fetch_stall_exists && decoder_instruction_state == OPCODE_REG2RAM) saveram_q_new_pos<=saveram_q_new_pos+cd-ab;
       end
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
         read_address  <= pc_physical;
