@@ -178,13 +178,14 @@ module x_out_of_order (
 
   integer i;
 
+// verilog_format:off
   `define REG_START_NUM (executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start)
   `define REG_END_NUM (executor_state == EXECUTE_STATE_NONE ? decoder_register_end : executor_register_end)
-  `define REG_VALUE(
-      ARG) executor_state != EXECUTE_STATE_NONE && ARG == register[0]?read_value: \
+  `define REG_VALUE(ARG) executor_state != EXECUTE_STATE_NONE && ARG == register[0]?read_value: \
                       (executor_state != EXECUTE_STATE_NONE && ARG == register[1]?read_value2:registers[ARG])
   `define INSTRUCTION_STATE (executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state)
   `define INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC (executor_state == EXECUTE_STATE_NONE?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric)
+// verilog_format:on
 
   always @(posedge clk) begin
     if (rst) begin
