@@ -182,6 +182,8 @@ module x_out_of_order (
   `define REG_END_NUM (executor_state == EXECUTE_STATE_NONE ? decoder_register_end : executor_register_end)
   `define REG_VALUE(ARG) executor_state != EXECUTE_STATE_NONE && ARG == register[0]?read_value: \
                       (executor_state != EXECUTE_STATE_NONE && ARG == register[1]?read_value2:registers[ARG])
+  `define INSTRUCTION_STATE (executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state)
+  `define INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC (executor_state == EXECUTE_STATE_NONE?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric)
 
   always @(posedge clk) begin
     if (rst) begin
@@ -250,7 +252,7 @@ module x_out_of_order (
         fetch_stall_exists = 0;
         for (i = 0; i < 32; i = i + 1) begin
           if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
-            case ((executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state))
+            case (`INSTRUCTION_STATE)
               OPCODE_RAM2REG: begin
                 //next time this register should be read
                 registers_init[i] <= 0;
@@ -277,28 +279,28 @@ module x_out_of_order (
                     end
                   end
                 end else begin
-                  case (decoder_instruction_state)
+                  case (`INSTRUCTION_STATE)
                     OPCODE_REG2RAM: begin
                       $display($time, pc_logical, " save ram initiate");
-                      saveram_q_addr[(saveram_q_new_pos+i-`REG_START_NUM)%32]<=decoder_start_ram_address_or_numeric+`REG_START_NUM-i;
+                      saveram_q_addr[(saveram_q_new_pos+i-`REG_START_NUM)%32]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i;
                       saveram_q_value[(saveram_q_new_pos+i-`REG_START_NUM)%32]<=i;
                       saveram_q_init_mmu[(saveram_q_new_pos+i-`REG_START_NUM)%32]<=1;
                       saveram_q_init[(saveram_q_new_pos+i-`REG_START_NUM)%32]<=1;                     
                     end
-                    OPCODE_REG_PLUS: registers[i] <= `REG_VALUE(i)+decoder_start_ram_address_or_numeric;
-                    OPCODE_REG_MINUS: registers[i] <= `REG_VALUE(i) - decoder_start_ram_address_or_numeric;
-                    OPCODE_REG_MUL: registers[i] <= `REG_VALUE(i) * decoder_start_ram_address_or_numeric;
-                    OPCODE_REG_DIV: registers[i] <= `REG_VALUE(i) / decoder_start_ram_address_or_numeric;
+                    OPCODE_REG_PLUS: registers[i] <= `REG_VALUE(i)+`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                    OPCODE_REG_MINUS: registers[i] <= `REG_VALUE(i) -`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                    OPCODE_REG_MUL: registers[i] <= `REG_VALUE(i) * `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                    OPCODE_REG_DIV: registers[i] <= `REG_VALUE(i) / `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                   endcase
                 end
               end
             endcase
           end
         end
-        if (!fetch_stall_exists && (decoder_instruction_state == OPCODE_REG2RAM || decoder_instruction_state == OPCODE_RAM2REG)) begin
-          if (decoder_instruction_state == OPCODE_REG2RAM) saveram_q_new_pos<=(saveram_q_new_pos+`REG_END_NUM-`REG_START_NUM+1) % 32;
+        if (!fetch_stall_exists && (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG)) begin
+          if (`INSTRUCTION_STATE == OPCODE_REG2RAM) saveram_q_new_pos<=(saveram_q_new_pos+`REG_END_NUM-`REG_START_NUM+1) % 32;
           //should calculate physical address
-          mmuqueue_q_addr[mmuqueue_q_new_pos] <= decoder_start_ram_address_or_numeric;
+          mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
           mmuqueue_q_len[mmuqueue_q_new_pos] <=`REG_END_NUM-`REG_START_NUM;
           mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
         end
