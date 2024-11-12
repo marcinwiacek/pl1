@@ -143,19 +143,19 @@ module x_out_of_order (
   reg [15:0] saveram_q_value[0:32];
   reg saveram_q_needs_mmu[0:32];
   reg saveram_q_init_done[0:32];
-
+  
   reg [10:0] saveram_q_new_pos = 0;
   reg [10:0] saveram_q_read_pos = 0;
   //--------------------------------------------------------------------process------------------
 
   reg [15:0] process_hardware_address = 0;
-  reg [15:0] pc_logical, pc_physical, pc_physical_min_page, pc_physical_max_page;
+  reg [15:0] pc_logical, pc_physical;
 
   reg jmp_stall_exists = 0, fetch_stall_exists = 0;
 
   reg [15:0] registers[0:31];
   reg [15:0] registers_src_address[0:31];
-  reg registers_ram_needs_mmu[0:31];  //bool.
+  reg registers_ram_needs_mmu[0:31];  //bool
   reg registers_init[0:31] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };  //bool. Read from RAM?
@@ -195,8 +195,6 @@ module x_out_of_order (
       $display($time, "   52 starting initial fetch ");
       pc_logical <= 54;
       pc_physical <= 54;
-      pc_physical_min_page <= 0;
-      pc_physical_max_page <= 200;
       mmu_input <= 0;
       rst <= 0;
       for (i = 0; i < 32; i = i + 1) begin
@@ -256,7 +254,7 @@ module x_out_of_order (
           if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
             case (`INSTRUCTION_STATE)
               OPCODE_RAM2REG: begin
-                //next time this register should be read
+                //this register should be read next time
                 registers_init[i] <= 0;
                 registers_src_address[i] <= decoder_start_ram_address_or_numeric;
                 registers_ram_needs_mmu[i] <= 0;
@@ -320,7 +318,6 @@ module x_out_of_order (
         write_address <= saveram_q_addr[saveram_q_read_pos];
         write_value <= saveram_q_value[saveram_q_read_pos];
         saveram_q_read_pos<=saveram_q_init_done[saveram_q_read_pos] && !saveram_q_needs_mmu[saveram_q_read_pos]?(saveram_q_read_pos+1)%32:saveram_q_read_pos;
-        //$display($time," ", saveram_q_init_done[saveram_q_read_pos] && !saveram_q_needs_mmu[saveram_q_read_pos]," ",saveram_q_new_pos ," ", saveram_q_read_pos);
       end
       write_enabled <= saveram_q_init_done[saveram_q_read_pos] && !saveram_q_needs_mmu[saveram_q_read_pos];
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
