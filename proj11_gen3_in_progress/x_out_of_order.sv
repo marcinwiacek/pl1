@@ -88,8 +88,9 @@ module x_out_of_order (
   reg [15:0] saveram_q_addr[0:32];
   reg [15:0] saveram_q_value[0:32];
   reg saveram_q_needs_mmu[0:32];
+  reg saveram_q_read_init_done[0:32];
   reg saveram_q_init_done[0:32];
-
+  
   reg [10:0] saveram_q_new_pos = 0;
   reg [10:0] saveram_q_read_pos = 0;
 
@@ -199,7 +200,6 @@ module x_out_of_order (
       for (i = 0; i < 32; i = i + 1) begin
         registers_ram_needs_mmu[i] <= 0;
         registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
-        saveram_q_init_done[i] <= 0;
       end
       executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
@@ -289,6 +289,7 @@ module x_out_of_order (
                       saveram_q_addr[(saveram_q_new_pos+i-`REG_START_NUM)%32]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i;
                       saveram_q_value[(saveram_q_new_pos+i-`REG_START_NUM)%32] <= i;
                       saveram_q_needs_mmu[(saveram_q_new_pos+i-`REG_START_NUM)%32] <= 1;
+                      saveram_q_read_init_done[(saveram_q_new_pos+i-`REG_START_NUM)%32] <= 0;
                       saveram_q_init_done[(saveram_q_new_pos+i-`REG_START_NUM)%32] <= 0;
                     end
                     OPCODE_REG_PLUS:
@@ -317,14 +318,17 @@ module x_out_of_order (
       //save ram
       if (saveram_q_new_pos != saveram_q_read_pos) begin
         for (i = 0; i < 32; i = i + 1) begin
-          if (!saveram_q_init_done[i]) saveram_q_value[i] <= registers[i];
-          saveram_q_init_done[i] <= 1;
+          if (!saveram_q_read_init_done[i]) saveram_q_value[i] <= registers[i];
+          saveram_q_read_init_done[i] <= 1;
+          saveram_q_init_done[i] <= !saveram_q_needs_mmu[i];            
         end
         write_address <= saveram_q_addr[saveram_q_read_pos];
         write_value <= saveram_q_value[saveram_q_read_pos];
-        saveram_q_read_pos<=saveram_q_init_done[saveram_q_read_pos] && !saveram_q_needs_mmu[saveram_q_read_pos]?(saveram_q_read_pos+1)%32:saveram_q_read_pos;
+        saveram_q_read_pos<=saveram_q_init_done[saveram_q_read_pos]?(saveram_q_read_pos+1)%32:saveram_q_read_pos;
       end
-      write_enabled <= saveram_q_init_done[saveram_q_read_pos] && !saveram_q_needs_mmu[saveram_q_read_pos];
+    //    $display($time, " ",saveram_q_read_pos," ",saveram_q_init_done[saveram_q_read_pos]," ",
+      //      saveram_q_read_init_done[saveram_q_read_pos]," ",saveram_q_needs_mmu[saveram_q_read_pos]);
+      write_enabled <= saveram_q_init_done[saveram_q_read_pos];
       //fetch & decoder
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
         read_address  <= pc_physical;
@@ -363,6 +367,7 @@ module x_out_of_order (
                 mmu_address_physical_min_in_the_same_page + saveram_q_addr[i] - mmu_address_logical_min_in_the_same_page);  //DEBUG info
             saveram_q_addr[i]<= mmu_address_physical_min_in_the_same_page+saveram_q_addr[i]-mmu_address_logical_min_in_the_same_page;
             saveram_q_needs_mmu[i] <= 0;
+            saveram_q_init_done[i] <= saveram_q_read_init_done[i];
           end
         end
       end
@@ -518,7 +523,7 @@ module mmu (
     if (inp) begin
       address_physical_min_in_the_same_page <= 0;
       address_logical_min_in_the_same_page  <= 0;
-      address_logical_max_in_the_same_page  <= 200;
+      address_logical_max_in_the_same_page  <= 500;
       $display($time, " mmu ", address_logical, " -> ", (0 + address_logical - 0));
     end
   end
