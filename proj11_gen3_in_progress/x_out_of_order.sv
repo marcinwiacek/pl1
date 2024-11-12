@@ -1,8 +1,5 @@
 `timescale 1ns / 1ps
 
-//#set_property IOSTANDARD LVCMOS12 [get_ports "x"] ;
-//#output delay constraint
-
 parameter HARDWARE_DEBUG = 0;
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
@@ -50,7 +47,6 @@ parameter OPCODE_INT_RET = 'h1c;  //int number
 parameter OPCODE_RAM2OUT = 'h1d;  //port number, 16 bit source address
 parameter OPCODE_REG_IN2RAM = 'h1e;  //port number, 16 bit source address
 parameter OPCODE_IN2RAM_RET = 'h1f;
-
 parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions (8 bit value) // do..while
 parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions (8 bit value) //do..while
 parameter OPCODE_LOOP = 25;  //x, x, how many instructions (8 bit value) //for...
@@ -66,6 +62,36 @@ module x_out_of_order (
 
     output reg x
 );
+
+  //------------------------------------------------------------ram---------------------------
+
+  bit write_enabled = 0;
+  bit [15:0] write_address;
+  bit [15:0] write_value;
+  bit [15:0] read_address;
+  wire [15:0] read_value;
+  bit [15:0] read_address2;
+  wire [15:0] read_value2;
+
+  single_blockram single_blockram (
+      .clk(clk),
+      .write_enabled(write_enabled),
+      .write_address(write_address),
+      .write_value(write_value),
+      .read_address(read_address),
+      .read_address2(read_address2),
+
+      .read_value (read_value),
+      .read_value2(read_value2)
+  );
+
+  reg [15:0] saveram_q_addr[0:32];
+  reg [15:0] saveram_q_value[0:32];
+  reg saveram_q_needs_mmu[0:32];
+  reg saveram_q_init_done[0:32];
+  
+  reg [10:0] saveram_q_new_pos = 0;
+  reg [10:0] saveram_q_read_pos = 0;
 
   //--------------------------------------------------------- mmu ----------------------------
 
@@ -117,35 +143,25 @@ module x_out_of_order (
       .register_end(decoder_register_end)
   );
 
-  //------------------------------------------------------------ram---------------------------
+  //--------------------------------------------------------------------executor------------------
 
-  bit write_enabled = 0;
-  bit [15:0] write_address;
-  bit [15:0] write_value;
-  bit [15:0] read_address;
-  wire [15:0] read_value;
-  bit [15:0] read_address2;
-  wire [15:0] read_value2;
+  reg [5:0] executor_state, executor_instruction_state;
+  reg [15:0] executor_register_end;
+  reg [10:0] executor_register_start;
+  reg [15:0] executor_start_ram_address_or_numeric;
 
-  single_blockram single_blockram (
-      .clk(clk),
-      .write_enabled(write_enabled),
-      .write_address(write_address),
-      .write_value(write_value),
-      .read_address(read_address),
-      .read_address2(read_address2),
+  reg [15:0] register[0:1];
+  reg [15:0] register_inside[0:1];
 
-      .read_value (read_value),
-      .read_value2(read_value2)
-  );
+// verilog_format:off
+  `define REG_START_NUM (executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start)
+  `define REG_END_NUM (executor_state == EXECUTE_STATE_NONE ? decoder_register_end : executor_register_end)
+  `define REG_VALUE(ARG) executor_state != EXECUTE_STATE_NONE && ARG == register[0]?read_value: \
+                      (executor_state != EXECUTE_STATE_NONE && ARG == register[1]?read_value2:registers[ARG])
+  `define INSTRUCTION_STATE (executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state)
+  `define INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC (executor_state == EXECUTE_STATE_NONE?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric)
+// verilog_format:on
 
-  reg [15:0] saveram_q_addr[0:32];
-  reg [15:0] saveram_q_value[0:32];
-  reg saveram_q_needs_mmu[0:32];
-  reg saveram_q_init_done[0:32];
-  
-  reg [10:0] saveram_q_new_pos = 0;
-  reg [10:0] saveram_q_read_pos = 0;
   //--------------------------------------------------------------------process------------------
 
   reg [15:0] process_hardware_address = 0;
@@ -159,15 +175,6 @@ module x_out_of_order (
   reg registers_init[0:31] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };  //bool. Read from RAM?
-  //--------------------------------------------------------------------execute------------------
-
-  reg [5:0] executor_state, executor_instruction_state;
-  reg [15:0] executor_register_end;
-  reg [10:0] executor_register_start;
-  reg [15:0] executor_start_ram_address_or_numeric;
-
-  reg [15:0] register[0:1];
-  reg [15:0] register_inside[0:1];
 
   //----------------------------------------------------------------other---------------------------
 
@@ -178,22 +185,13 @@ module x_out_of_order (
 
   integer i;
 
-// verilog_format:off
-  `define REG_START_NUM (executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start)
-  `define REG_END_NUM (executor_state == EXECUTE_STATE_NONE ? decoder_register_end : executor_register_end)
-  `define REG_VALUE(ARG) executor_state != EXECUTE_STATE_NONE && ARG == register[0]?read_value: \
-                      (executor_state != EXECUTE_STATE_NONE && ARG == register[1]?read_value2:registers[ARG])
-  `define INSTRUCTION_STATE (executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state)
-  `define INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC (executor_state == EXECUTE_STATE_NONE?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric)
-// verilog_format:on
-
   always @(posedge clk) begin
     if (rst) begin
       read_address <= 52;
       read_address2 <= 53;
       decoder_inp <= 1;
       decoder_input_address <= 52;
-      $display($time, "   52 starting initial fetch ");
+      $display($time, "   52 starting initial fetch "); //DEBUG info
       pc_logical <= 54;
       pc_physical <= 54;
       mmu_input <= 0;
@@ -205,14 +203,15 @@ module x_out_of_order (
       end
       executor_state <= EXECUTE_STATE_NONE;
     end else if (instr_num < 10) begin
+      //executor
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         //  if (executor_state == EXECUTE_STATE_NONE && (decoder_instruction_state==OPCODE_JMP_PLUS || decoder_instruction_state== OPCODE_JMP_MINUS)) begin
         //  end else begin
         if (executor_state == EXECUTE_STATE_NONE) begin
-          $display($time, pc_logical, " executor1   ", " ", executor_state, " ",
-                   decoder_instruction_state, " ", decoder_register_start, " ",
-                   decoder_register_end, " ", decoder_start_ram_address_or_numeric, " ",
-                   decoder_error_code);
+          $display($time, pc_logical, " executor1   ", " ", executor_state, " ", //DEBUG info
+                   decoder_instruction_state, " ", decoder_register_start, " ", //DEBUG info
+                   decoder_register_end, " ", decoder_start_ram_address_or_numeric, " ", //DEBUG info
+                   decoder_error_code); //DEBUG info
           executor_instruction_state <= decoder_instruction_state;
           executor_register_start <= decoder_register_start;
           executor_register_end <= decoder_register_end;
@@ -220,19 +219,19 @@ module x_out_of_order (
           instr_num <= instr_num + 1;
           executor_state <= EXECUTE_STATE_NONE;
         end else if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
-          $display($time, pc_logical, " executor2   ", " ", executor_state, " ",
-                   executor_instruction_state, " ", executor_register_start, " ",
-                   executor_register_end, " ", executor_start_ram_address_or_numeric);
+          $display($time, pc_logical, " executor2   ", " ", executor_state, " ", //DEBUG info
+                   executor_instruction_state, " ", executor_register_start, " ", //DEBUG info
+                   executor_register_end, " ", executor_start_ram_address_or_numeric); //DEBUG info 
           executor_state <= EXECUTE_STATE_NONE;
           if (register[0] != 50) begin
-            $display($time, pc_logical, " no fetch register ", register[0], " with address ",
-                     read_address, "=", read_value);
+            $display($time, pc_logical, " no fetch register ", register[0], " with address ", //DEBUG info
+                     read_address, "=", read_value); //DEBUG info
             registers[register[0]] <= read_value;
             registers_init[register[0]] <= 1;
           end
           if (register[1] != 50) begin
-            $display($time, pc_logical, " no fetch register ", register[1], " with address ",
-                     read_address2, "=", read_value2);
+            $display($time, pc_logical, " no fetch register ", register[1], " with address ", //DEBUG info
+                     read_address2, "=", read_value2); //DEBUG info
             registers[register[1]] <= read_value2;
             registers_init[register[1]] <= 1;
           end
@@ -261,7 +260,7 @@ module x_out_of_order (
                 registers_ram_needs_mmu[i] <= 0;
               end
               OPCODE_NUM2REG: begin
-                //not important if register had any value earlier
+                //not important if register had value earlier
                 registers_init[i] <= 1;
                 registers[i] <= decoder_start_ram_address_or_numeric;
               end
@@ -282,7 +281,7 @@ module x_out_of_order (
                 end else begin
                   case (`INSTRUCTION_STATE)
                     OPCODE_REG2RAM: begin
-                      $display($time, pc_logical, " save ram initiate");
+                      $display($time, pc_logical, " save ram initiate"); //DEBUG info
                       saveram_q_addr[(saveram_q_new_pos+i-`REG_START_NUM)%32]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i;
                       saveram_q_value[(saveram_q_new_pos+i-`REG_START_NUM)%32] <= i;
                       saveram_q_needs_mmu[(saveram_q_new_pos+i-`REG_START_NUM)%32] <= 1;
@@ -311,6 +310,7 @@ module x_out_of_order (
           mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
         end
       end
+      //save ram
       if (saveram_q_new_pos != saveram_q_read_pos) begin
         for (i = 0; i < 32; i = i + 1) begin
           if (!saveram_q_init_done[i]) saveram_q_value[i] <= registers[i];
@@ -321,6 +321,7 @@ module x_out_of_order (
         saveram_q_read_pos<=saveram_q_init_done[saveram_q_read_pos] && !saveram_q_needs_mmu[saveram_q_read_pos]?(saveram_q_read_pos+1)%32:saveram_q_read_pos;
       end
       write_enabled <= saveram_q_init_done[saveram_q_read_pos] && !saveram_q_needs_mmu[saveram_q_read_pos];
+      //fetch & decoder
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
         read_address  <= pc_physical;
         read_address2 <= pc_physical + 1;
@@ -332,9 +333,10 @@ module x_out_of_order (
       end else begin
         decoder_inp <= 0;
       end
+      //mmu
       if (mmu_ready) begin
         mmu_input <= 0;
-        $display($time, pc_logical, " mmu processing ");
+        $display($time, pc_logical, " mmu processing "); //DEBUG info
         for (i = 0; i < 32; i = i + 1) begin
           $display($time, pc_logical, " ", i, " ", registers_init[i], " ",
                    registers_ram_needs_mmu[i], " ", registers_src_address[i], " ",
@@ -343,18 +345,18 @@ module x_out_of_order (
           if (!registers_init[i] && registers_ram_needs_mmu[i] && 
               registers_src_address[i]>=mmu_address_logical_min_in_the_same_page && 
               registers_src_address[i]<=mmu_address_logical_max_in_the_same_page) begin
-            $display(
-                $time, pc_logical, " updating reg ", i, " src address to ",
-                mmu_address_physical_min_in_the_same_page + registers_src_address[i] - mmu_address_logical_min_in_the_same_page);
+            $display( //DEBUG info
+                $time, pc_logical, " updating reg ", i, " src address to ", //DEBUG info
+                mmu_address_physical_min_in_the_same_page + registers_src_address[i] - mmu_address_logical_min_in_the_same_page); //DEBUG info
             registers_src_address[i]<= mmu_address_physical_min_in_the_same_page+registers_src_address[i]-mmu_address_logical_min_in_the_same_page;
             registers_ram_needs_mmu[i] <= 0;
           end
           if (saveram_q_needs_mmu[i] && 
               saveram_q_addr[i]>=mmu_address_logical_min_in_the_same_page && 
               saveram_q_addr[i]<=mmu_address_logical_max_in_the_same_page) begin
-            $display(
-                $time, pc_logical, " updating save ram ", i, " src address to ",
-                mmu_address_physical_min_in_the_same_page + saveram_q_addr[i] - mmu_address_logical_min_in_the_same_page);
+            $display( //DEBUG info
+                $time, pc_logical, " updating save ram ", i, " src address to ", //DEBUG info
+                mmu_address_physical_min_in_the_same_page + saveram_q_addr[i] - mmu_address_logical_min_in_the_same_page); //DEBUG info
             saveram_q_addr[i]<= mmu_address_physical_min_in_the_same_page+saveram_q_addr[i]-mmu_address_logical_min_in_the_same_page;
             saveram_q_needs_mmu[i] <= 0;
           end
@@ -362,7 +364,7 @@ module x_out_of_order (
       end
       if (mmuqueue_q_new_pos != 0) begin
         mmu_input <= 1;
-        $display($time, pc_logical, " starting mmu ", mmuqueue_q_addr[0]);
+        $display($time, pc_logical, " starting mmu ", mmuqueue_q_addr[0]); //DEBUG info
         mmu_address_logical <= mmuqueue_q_addr[0];
         mmuqueue_q_addr <= {mmuqueue_q_addr[1:MMU_QUEUE_LEN], mmuqueue_q_addr[0]};
         mmuqueue_q_new_pos <= mmuqueue_q_new_pos - 1;
@@ -467,13 +469,13 @@ module decoder (
           end else begin
             $write(  //DEBUG info
                 $time,  //DEBUG info
-                " opcode = ");
-            case (instruction1_1)
-              OPCODE_NUM2REG:  $write("num2reg save");
-              OPCODE_REG_PLUS: $write("regplus add");
-              OPCODE_REG_MUL:  $write("regmul mul");
-              OPCODE_REG_DIV:  $write("regdiv div");
-            endcase
+                " opcode = ");//DEBUG info
+            case (instruction1_1) //DEBUG info
+              OPCODE_NUM2REG:  $write("num2reg save"); //DEBUG info
+              OPCODE_REG_PLUS: $write("regplus add"); //DEBUG info
+              OPCODE_REG_MUL:  $write("regmul mul"); //DEBUG info
+              OPCODE_REG_DIV:  $write("regdiv div"); //DEBUG info
+            endcase //DEBUG info
             $display(" value ",  //DEBUG info
                      instruction2,  //DEBUG info
                      " to reg ",  //DEBUG info
