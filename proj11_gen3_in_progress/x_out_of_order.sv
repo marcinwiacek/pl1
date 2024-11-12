@@ -518,7 +518,7 @@ module mmu (
     if (inp) begin
       address_physical_min_in_the_same_page <= 0;
       address_logical_min_in_the_same_page  <= 0;
-      address_logical_max_in_the_same_page  <= 500;
+      address_logical_max_in_the_same_page  <= 200;
       $display($time, " mmu ", address_logical, " -> ", (0 + address_logical - 0));
     end
   end
