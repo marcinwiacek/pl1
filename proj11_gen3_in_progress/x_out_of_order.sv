@@ -187,15 +187,7 @@ module x_out_of_order (
   integer i;
 
   always @(posedge clk) begin
-    write_address <= saveram_q_addr[saveram_q_read_pos];
-        write_value <= saveram_q_value[saveram_q_read_pos];      
-      //end
-     // if (saveram_q_new_pos != saveram_q_read_pos) begin
-      write_enabled <= saveram_q_init_done[saveram_q_read_pos];
-      saveram_q_read_pos<=saveram_q_init_done[saveram_q_read_pos]?(saveram_q_read_pos+1)%32:saveram_q_read_pos;
-     // end else begin
-     //   write_enabled <= 0;
-    //  end    
+   
   end
       
   always @(posedge clk) begin
@@ -328,13 +320,18 @@ module x_out_of_order (
         end
       end
       //save ram
-      //if (saveram_q_new_pos != saveram_q_read_pos) begin
-        for (i = 0; i < 32; i = i + 1) begin
-          if (!saveram_q_read_init_done[i]) saveram_q_value[i] <= registers[i];
-          saveram_q_read_init_done[i] <= 1;
-          saveram_q_init_done[i] <= !saveram_q_needs_mmu[i];            
-        end
-      
+          write_enabled <= 0;
+      for (i = 0; i < 32; i = i + 1) begin
+        if (!saveram_q_read_init_done[i]) saveram_q_value[i] <= registers[i];
+        saveram_q_read_init_done[i] <= 1;
+        saveram_q_init_done[i] <= !saveram_q_needs_mmu[i];   
+        if (i==  saveram_q_read_pos && saveram_q_init_done[i]) begin
+          write_address <= saveram_q_addr[i];
+          write_value <= saveram_q_value[i];      
+          write_enabled <= 1;
+          saveram_q_read_pos<=(saveram_q_read_pos+1)%32;
+        end       
+      end
       //fetch & decoder
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
         read_address  <= pc_physical;
