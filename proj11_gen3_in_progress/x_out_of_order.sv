@@ -187,7 +187,16 @@ module x_out_of_order (
   integer i;
 
   always @(posedge clk) begin
-   
+             saveram_q_num<=50;     
+             write_enabled<=0;    
+      for (i = 0; i < 32; i = i + 1) begin
+        if (saveram_q_ready[i]) begin
+          write_address <= saveram_q_addr[i];
+          write_value <= saveram_q_value[i];      
+          write_enabled <= 1;
+          saveram_q_num<=i;
+        end       
+      end
   end
       
   always @(posedge clk) begin
@@ -320,9 +329,7 @@ module x_out_of_order (
           mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
         end
       end
-      //save ram
-          write_enabled <= 0;
-          saveram_q_num<=50;
+      //save ram         
           if (saveram_q_num!=50) begin
             saveram_q_ready[saveram_q_num]<=0;
           end
@@ -332,14 +339,6 @@ module x_out_of_order (
            saveram_q_ready[i] <= !saveram_q_needs_mmu[i];
         end
         saveram_q_read_init_done[i] <= 1;
-      end
-      for (i = 0; i < 32; i = i + 1) begin
-        if (saveram_q_ready[i]) begin
-          write_address <= saveram_q_addr[i];
-          write_value <= saveram_q_value[i];      
-          write_enabled <= 1;
-          saveram_q_num<=i;
-        end       
       end
       //fetch & decoder
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
