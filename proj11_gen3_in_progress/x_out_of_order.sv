@@ -332,6 +332,8 @@ module x_out_of_order (
            saveram_q_ready[i] <= !saveram_q_needs_mmu[i];
         end
         saveram_q_read_init_done[i] <= 1;
+      end
+      for (i = 0; i < 32; i = i + 1) begin
         if (saveram_q_ready[i]) begin
           write_address <= saveram_q_addr[i];
           write_value <= saveram_q_value[i];      
