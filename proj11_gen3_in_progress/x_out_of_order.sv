@@ -190,7 +190,7 @@ module x_out_of_order (
       //       saveram_q_num<=50;     
              write_enabled<=0;    
       for (i = 0; i < 32; i = i + 1) begin
-        if (!saveram_q_needs_mmu[i] && saveram_q_read_init_done[i]) begin
+        if (saveram_q_needs_mmu[i]==0 && saveram_q_read_init_done[i]) begin
           write_address <= saveram_q_addr[i];
           write_value <= saveram_q_value[i];      
           write_enabled <= 1;
@@ -319,9 +319,9 @@ module x_out_of_order (
             endcase
           end
         end
-        if (!fetch_stall_exists && (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG)) begin
-          if (`INSTRUCTION_STATE == OPCODE_REG2RAM)
+        if (!fetch_stall_exists && `INSTRUCTION_STATE == OPCODE_REG2RAM)
             saveram_q_new_pos <= (saveram_q_new_pos + `REG_END_NUM - `REG_START_NUM + 1) % 32;
+        if (!fetch_stall_exists && (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG)) begin
           //should calculate physical address
           mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
           mmuqueue_q_len[mmuqueue_q_new_pos] <= `REG_END_NUM - `REG_START_NUM;
@@ -333,8 +333,10 @@ module x_out_of_order (
 //            saveram_q_ready[saveram_q_num]<=0;
 //          end
       for (i = 0; i < 32; i = i + 1) begin
-        saveram_q_value[i] <= !saveram_q_read_init_done[i]?registers[i]:saveram_q_value[i];
-        saveram_q_read_init_done[i] <= 1;
+        if (saveram_q_read_init_done[i]==0) begin
+          saveram_q_value[i] <= registers[i];
+          saveram_q_read_init_done[i] <= 1;
+        end
       end
       //fetch & decoder
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
