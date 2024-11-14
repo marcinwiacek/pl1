@@ -186,18 +186,9 @@ module x_out_of_order (
 
   integer i;
 
-  always @(posedge clk) begin
-      //       saveram_q_num<=50;     
-             write_enabled<=0;    
-      for (i = 0; i < 32; i = i + 1) begin
-        if (saveram_q_needs_mmu[i]==0 && saveram_q_read_init_done[i]) begin
-          write_address <= saveram_q_addr[i];
-          write_value <= saveram_q_value[i];      
-          write_enabled <= 1;
-      //    saveram_q_num<=i;
-        end       
-      end
-  end
+  //always @(posedge clk) begin
+    
+  //end
       
   always @(posedge clk) begin
     if (rst) begin
@@ -302,7 +293,7 @@ module x_out_of_order (
                       $display($time, pc_logical, " save ram initiate");  //DEBUG info
                       saveram_q_addr[(saveram_q_new_pos+i-`REG_START_NUM)%32]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i;
                       saveram_q_value[(saveram_q_new_pos+i-`REG_START_NUM)%32] <= i;
-                      saveram_q_needs_mmu[(saveram_q_new_pos+i-`REG_START_NUM)%32] <= 1;
+                      //saveram_q_needs_mmu[(saveram_q_new_pos+i-`REG_START_NUM)%32] <= 1;
                       saveram_q_read_init_done[(saveram_q_new_pos+i-`REG_START_NUM)%32] <= 0;
                     end
                     OPCODE_REG_PLUS:
@@ -332,12 +323,18 @@ module x_out_of_order (
 //          if (saveram_q_num!=50) begin
 //            saveram_q_ready[saveram_q_num]<=0;
 //          end
+      write_enabled<=0;    
       for (i = 0; i < 32; i = i + 1) begin
         if (saveram_q_read_init_done[i]==0) begin
+          saveram_q_needs_mmu[i] <= 1;
           saveram_q_value[i] <= registers[i];
           saveram_q_read_init_done[i] <= 1;
-        end
-      end
+        end else if (saveram_q_needs_mmu[i]==0) begin
+          write_address <= saveram_q_addr[i];
+          write_value <= saveram_q_value[i];      
+          write_enabled <= 1;
+        end       
+      end      
       //fetch & decoder
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
         read_address  <= pc_physical;
