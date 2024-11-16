@@ -85,10 +85,17 @@ module x_out_of_order (
       .read_value2(read_value2)
   );
 
-  reg [32:0] saveram_qq[0:32];
-  
+  //reg [32:0] saveram_qq[0:32];
   reg [10:0] saveram_q_new_pos = 0;
   reg [10:0] saveram_q_num = 0;
+  
+  typedef struct {
+    reg[15:0] value;
+    reg[15:0] addr;
+    reg mmu_done;
+  } save_ram;
+  
+  save_ram saveram_qq [0:32];
 
   //--------------------------------------------------------- mmu ----------------------------
 
@@ -297,10 +304,16 @@ module x_out_of_order (
                     //  saveram_qq[(saveram_q_new_pos+i-`REG_START_NUM)%32][31] <= 0;                   
                    // saveram_qq[(saveram_q_new_pos+i-`REG_START_NUM)%32]<={`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i,
                      // `REG_VALUE(i),1'd0};
-                     xx[15:0]=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i;
-                    xx[31:16] = `REG_VALUE(i);
-                    xx[32] = 0;                   
-                  saveram_qq[(saveram_q_new_pos+i-`REG_START_NUM)%32]<=xx;
+                 //    xx[15:0]=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i;
+                   // xx[31:16] = `REG_VALUE(i);
+                   // xx[32] = 0;                   
+//                  saveram_qq[(saveram_q_new_pos+i-`REG_START_NUM)%32]<=xx;
+                    //saveram_qq[(saveram_q_new_pos+i-`REG_START_NUM)%32][32:0]<='{
+                     //`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i,
+                     //`REG_VALUE(i),1'd0};
+                     
+                     saveram_qq[(saveram_q_new_pos+i-`REG_START_NUM)%32]<= '{addr:`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i,
+                         value:`REG_VALUE(i), mmu_done:0};
                     end
                     OPCODE_REG_PLUS:
                     registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
@@ -327,14 +340,14 @@ module x_out_of_order (
       end
       //save ram         
           if (saveram_q_num!=50) begin
-            saveram_qq[saveram_q_num][32]<=0;
+            saveram_qq[saveram_q_num].mmu_done<=0;
           end
           saveram_q_num<=50;
       write_enabled<=0;    
       for (i = 0; i < 32; i = i + 1) begin
-        if (saveram_qq[i][32] && i!=saveram_q_num) begin
-          write_address <= saveram_qq[i][15:0];
-          write_value <= saveram_qq[i][31:16];      
+        if (saveram_qq[i].mmu_done && i!=saveram_q_num) begin
+          write_address <= saveram_qq[i].addr;
+          write_value <= saveram_qq[i].value;      
           write_enabled <= 1;
           saveram_q_num<=i;
         end       
@@ -369,14 +382,14 @@ module x_out_of_order (
             registers_src_address[i]<= mmu_address_physical_min_in_the_same_page+registers_src_address[i]-mmu_address_logical_min_in_the_same_page;
             registers_ram_needs_mmu[i] <= 0;
           end
-          if (!saveram_qq[i][32] && 
-              saveram_qq[i][15:0]>=mmu_address_logical_min_in_the_same_page && 
-              saveram_qq[i][15:0]<=mmu_address_logical_max_in_the_same_page) begin
+          if (!saveram_qq[i].mmu_done && 
+              saveram_qq[i].addr>=mmu_address_logical_min_in_the_same_page && 
+              saveram_qq[i].addr<=mmu_address_logical_max_in_the_same_page) begin
             $display(  //DEBUG info
-                $time, pc_logical, " updating save ram ", i, " src address from ",saveram_qq[i][15:0]," to ",  //DEBUG info
-                mmu_address_physical_min_in_the_same_page + saveram_qq[i][15:0] - mmu_address_logical_min_in_the_same_page);  //DEBUG info
-            saveram_qq[i][15:0]<= mmu_address_physical_min_in_the_same_page+saveram_qq[i][15:0]-mmu_address_logical_min_in_the_same_page;
-            saveram_qq[i][32] <= 1;
+                $time, pc_logical, " updating save ram ", i, " src address from ",saveram_qq[i].addr," to ",  //DEBUG info
+                mmu_address_physical_min_in_the_same_page + saveram_qq[i].addr - mmu_address_logical_min_in_the_same_page);  //DEBUG info
+            saveram_qq[i].addr<= mmu_address_physical_min_in_the_same_page+saveram_qq[i].addr-mmu_address_logical_min_in_the_same_page;
+            saveram_qq[i].mmu_done <= 1;
           end
         end
       end
