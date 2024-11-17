@@ -295,8 +295,9 @@ module x_out_of_order (
                 end else begin
                   case (`INSTRUCTION_STATE)
                     OPCODE_REG2RAM: begin                      
-                         saveram_qq[(saveram_q_new_pos+i-`REG_START_NUM)%32]<= 
+                         saveram_qq[saveram_q_new_pos]<= 
                             (`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i)<<16+registers[i];
+                            saveram_q_new_pos = (saveram_q_new_pos+1)%32;
                     end
                     OPCODE_REG_PLUS:
                     registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
@@ -312,7 +313,7 @@ module x_out_of_order (
             endcase
           end
         end
-        if (!fetch_stall_exists && `INSTRUCTION_STATE == OPCODE_REG2RAM) begin
+        //if (!fetch_stall_exists && `INSTRUCTION_STATE == OPCODE_REG2RAM) begin
           /* xx = saveram_q_new_pos % 32;
             for (i = 0; i < 32; i = i + 1) begin
                if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
@@ -324,8 +325,8 @@ module x_out_of_order (
                      xx = (xx+1)%32;
                end
             end*/
-            saveram_q_new_pos <= (saveram_q_new_pos+`REG_END_NUM-`REG_START_NUM)%32;
-        end
+          //  saveram_q_new_pos <= (saveram_q_new_pos+`REG_END_NUM-`REG_START_NUM)%32;
+        //end
         if (!fetch_stall_exists && (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG)) begin
           //should calculate physical address
           mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
