@@ -296,8 +296,14 @@ module x_out_of_order (
                   end
                 end else begin
                   case (`INSTRUCTION_STATE)
-                    OPCODE_REG2RAM: begin
-                    saveram_q_value[(saveram_q_new_pos +i-`REG_START_NUM)%32]<= `REG_VALUE(i);
+                   OPCODE_REG2RAM: begin
+                   // saveram_q_value[(saveram_q_new_pos +i-`REG_START_NUM)%32]<= `REG_VALUE(i);
+                                         $display($time, pc_logical, " save ram initiate ", (
+                         `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i), " ",`REG_VALUE(i),
+                         " position ",(saveram_q_new_pos+i-`REG_START_NUM)%32);  //DEBUG info
+                         saveram_q_addr= {`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i,saveram_q_addr[1:32]};                                                          
+                     saveram_q_mmu_done={0,saveram_q_mmu_done[1:32]};
+                      saveram_q_value= {`REG_VALUE(i),saveram_q_value[1:32]};      
                     end
                     OPCODE_REG_PLUS:
                     registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
@@ -314,7 +320,7 @@ module x_out_of_order (
           end
         end
         if (!fetch_stall_exists && `INSTRUCTION_STATE == OPCODE_REG2RAM) begin
-            for (i = 0; i < 32; i = i + 1) begin
+         /*   for (i = 0; i < 32; i = i + 1) begin
                if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
                       $display($time, pc_logical, " save ram initiate ", (
                          `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i), " ",`REG_VALUE(i),
@@ -322,7 +328,7 @@ module x_out_of_order (
                          saveram_q_addr[(saveram_q_new_pos +i-`REG_START_NUM)%32]<= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i;                                                          
                      saveram_q_mmu_done[(saveram_q_new_pos +i-`REG_START_NUM)%32]<=0;
                end
-            end
+            end*/
             saveram_q_new_pos <= (saveram_q_new_pos+`REG_END_NUM-`REG_START_NUM)%32;
         end
         if (!fetch_stall_exists && (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG)) begin
