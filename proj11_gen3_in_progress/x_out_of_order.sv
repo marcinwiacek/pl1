@@ -296,12 +296,11 @@ module x_out_of_order (
                   end
                 end else begin
                   case (`INSTRUCTION_STATE)
-                    OPCODE_REG2RAM: begin
-                      for (j=0;j<32;j=j+1) begin
-                         saveram_q_addr[j]<= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i;
-                         saveram_q_value[j]<=registers[i];
-                         saveram_q_mmu_done[j]<=0;
-                       end
+                    OPCODE_REG2RAM: begin                      
+                         saveram_q_addr[saveram_q_new_pos]<= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i;
+                         saveram_q_value[saveram_q_new_pos]<=registers[i];
+                         saveram_q_mmu_done[saveram_q_new_pos]<=0;
+                           saveram_q_new_pos = (saveram_q_new_pos+1)%32;
                     end
                     OPCODE_REG_PLUS:
                     registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
@@ -317,7 +316,7 @@ module x_out_of_order (
             endcase
           end
         end
-        if (!fetch_stall_exists && `INSTRUCTION_STATE == OPCODE_REG2RAM) begin
+       // if (!fetch_stall_exists && `INSTRUCTION_STATE == OPCODE_REG2RAM) begin
           /* xx = saveram_q_new_pos % 32;
             for (i = 0; i < 32; i = i + 1) begin
                if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
@@ -329,8 +328,8 @@ module x_out_of_order (
                      xx = (xx+1)%32;
                end
             end*/
-            saveram_q_new_pos <= (saveram_q_new_pos+`REG_END_NUM-`REG_START_NUM)%32;
-        end
+            //saveram_q_new_pos <= (saveram_q_new_pos+`REG_END_NUM-`REG_START_NUM)%32;
+        //end
         if (!fetch_stall_exists && (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG)) begin
           //should calculate physical address
           mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
