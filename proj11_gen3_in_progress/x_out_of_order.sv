@@ -343,8 +343,7 @@ module x_out_of_order (
           end
           saveram_q_num<=50;
       write_enabled<=0;    
-      for (i = 0; i < 32; i = i + 1) begin
-      saveram_q_value[i]<=registers[i];
+      for (i = 0; i < 32; i = i + 1) begin     
         if (saveram_q_mmu_done[i] && i!=saveram_q_num) begin
           write_address <= saveram_q_addr[i];
           write_value <= saveram_q_value[i];      
