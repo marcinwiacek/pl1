@@ -189,7 +189,7 @@ module x_out_of_order (
   reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
   
-  reg [32:0] xx;
+  reg [32:0] xx,xy;
 
   integer i;
 
@@ -296,8 +296,9 @@ module x_out_of_order (
                   end
                 end else begin
                   case (`INSTRUCTION_STATE)
-//                    OPCODE_REG2RAM: begin
-//                    end
+                    OPCODE_REG2RAM: begin
+                        saveram_q_addr[(saveram_q_new_pos +i-`REG_START_NUM)%32]<= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i;
+                    end
                     OPCODE_REG_PLUS:
                     registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                     OPCODE_REG_MINUS:
@@ -313,28 +314,15 @@ module x_out_of_order (
           end
         end
         if (!fetch_stall_exists && `INSTRUCTION_STATE == OPCODE_REG2RAM) begin
+           xx = saveram_q_new_pos % 32;
             for (i = 0; i < 32; i = i + 1) begin
                if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
                       $display($time, pc_logical, " save ram initiate ", (
                          `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i), " ",`REG_VALUE(i),
-                         " position ",(saveram_q_new_pos+i-`REG_START_NUM)%32);  //DEBUG info
-                    //  xx=(saveram_q_new_pos+i-`REG_START_NUM)%32;
-                    //  saveram_qq[(saveram_q_new_pos+i-`REG_START_NUM)%32][14:0]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i;
-                    //  saveram_qq[(saveram_q_new_pos+i-`REG_START_NUM)%32][30:15] <= `REG_VALUE(i);
-                    //  saveram_qq[(saveram_q_new_pos+i-`REG_START_NUM)%32][31] <= 0;                   
-                   // saveram_qq[(saveram_q_new_pos+i-`REG_START_NUM)%32]<={`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i,
-                     // `REG_VALUE(i),1'd0};
-                 //    xx[15:0]=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i;
-                   // xx[31:16] = `REG_VALUE(i);
-                   // xx[32] = 0;                   
-//                  saveram_qq[(saveram_q_new_pos+i-`REG_START_NUM)%32]<=xx;
-                    //saveram_qq[(saveram_q_new_pos+i-`REG_START_NUM)%32][32:0]<='{
-                     //`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i,
-                     //`REG_VALUE(i),1'd0};
-                     
-                     saveram_q_addr[(saveram_q_new_pos+i-`REG_START_NUM)%32]<= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i;
-                     saveram_q_value[(saveram_q_new_pos+i-`REG_START_NUM)%32]<=`REG_VALUE(i);
-                     saveram_q_mmu_done[(saveram_q_new_pos+i-`REG_START_NUM)%32]<=0;
+                         " position ",(saveram_q_new_pos+i-`REG_START_NUM)%32);  //DEBUG info                                                          
+                     saveram_q_value[xx]<=i;
+                     saveram_q_mmu_done[xx]<=0;
+                     xx = (xx+1)%32;
                end
             end
             saveram_q_new_pos <= (saveram_q_new_pos+`REG_END_NUM-`REG_START_NUM)%32;
@@ -353,6 +341,7 @@ module x_out_of_order (
           saveram_q_num<=50;
       write_enabled<=0;    
       for (i = 0; i < 32; i = i + 1) begin
+      saveram_q_value[i]<=registers[i];
         if (saveram_q_mmu_done[i] && i!=saveram_q_num) begin
           write_address <= saveram_q_addr[i];
           write_value <= saveram_q_value[i];      
