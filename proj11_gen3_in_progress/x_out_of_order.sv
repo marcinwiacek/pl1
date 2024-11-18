@@ -332,9 +332,13 @@ module x_out_of_order (
         end
       end
       //save ram     
-      if (doit) begin
+          if (saveram_q_num!=50) begin
+            saveram_q_state[saveram_q_num]<=3;
+          end
+          saveram_q_num<=50;
+      write_enabled<=0;      
       for (i = 0; i < 32; i = i + 1) begin
-               if (i >= executor_register_start && i <= executor_register_end) begin
+               if (doit && i >= executor_register_start && i <= executor_register_end) begin
                               $display($time, pc_logical, " save ram initiate ", (
                          `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i), " ",`REG_VALUE(i));  //DEBUG info            
                             saveram_q_addr[saveram_q_new_pos]<=executor_start_ram_address_or_numeric+i-executor_register_start;
@@ -342,22 +346,16 @@ module x_out_of_order (
                                       saveram_q_state[saveram_q_new_pos]<=1;
                             saveram_q_new_pos= saveram_q_new_pos+1;        
                end
-               end
-     //       saveram_q_new_pos <= (saveram_q_new_pos+executor_register_end-executor_register_start)%32;
-      end    
-          if (saveram_q_num!=50) begin
-            saveram_q_state[saveram_q_num]<=3;
-          end
-          saveram_q_num<=50;
-      write_enabled<=0;    
-      for (i = 0; i < 32; i = i + 1) begin     
-        if (saveram_q_state[i]==2 && i!=saveram_q_num) begin
+               
+                       if (saveram_q_state[i]==2 && i!=saveram_q_num) begin
           write_address <= saveram_q_addr[i];
           write_value <= saveram_q_value[i];      
           write_enabled <= 1;
           saveram_q_num<=i;
         end       
-      end      
+
+     //       saveram_q_new_pos <= (saveram_q_new_pos+executor_register_end-executor_register_start)%32;
+      end             
       //fetch & decoder
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
         read_address  <= pc_physical;
