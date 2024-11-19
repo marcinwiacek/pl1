@@ -291,11 +291,19 @@ module x_out_of_order (
                   end
                 end else begin
                   case (`INSTRUCTION_STATE)
-                  //  OPCODE_REG2RAM: begin
-                                              
-                                      
-
-                    //end
+                    OPCODE_REG2RAM: begin
+                        if ( saveram_q_state[i]!=0) begin
+                         $display($time, pc_logical, " save ram stall");
+                          executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                  fetch_stall_exists = 1;
+                        end else begin                     
+                         $display($time, pc_logical, " save ram initiate ", (
+                         `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i), " ",`REG_VALUE(i));  //DEBUG info            
+                            saveram_q_addr[i]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
+                            saveram_q_value[i]<=`REG_VALUE(i);
+                            saveram_q_state[i]<=1;
+                        end
+                    end
                     OPCODE_REG_PLUS:
                     registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                     OPCODE_REG_MINUS:
@@ -310,21 +318,8 @@ module x_out_of_order (
             endcase
           end
         end
-        doit <=!fetch_stall_exists && `INSTRUCTION_STATE == OPCODE_REG2RAM;
-          /* xx = saveram_q_new_pos % 32;
-            for (i = 0; i < 32; i = i + 1) begin
-               if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
-                      $display($time, pc_logical, " save ram initiate ", (
-                         `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i), " ",`REG_VALUE(i),
-                         " position ",(saveram_q_new_pos+i-`REG_START_NUM)%32);  //DEBUG info                                                          
-                     saveram_q_value[xx]<=i;
-                     saveram_q_mmu_done[xx]<=0;
-                     xx = (xx+1)%32;
-               end
-            end*/
-           // saveram_q_new_pos <= (saveram_q_new_pos+`REG_END_NUM-`REG_START_NUM)%32;
-       // end
         if (!fetch_stall_exists && (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG)) begin
+          //if (`INSTRUCTION_STATE == OPCODE_REG2RAM ) saveram_q_new_pos <= (saveram_q_new_pos+`REG_END_NUM-`REG_START_NUM+1);
           //should calculate physical address
           mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
           mmuqueue_q_len[mmuqueue_q_new_pos] <= `REG_END_NUM - `REG_START_NUM;
@@ -332,29 +327,18 @@ module x_out_of_order (
         end
       end
       //save ram     
-          if (saveram_q_num!=50) begin
-            saveram_q_state[saveram_q_num]<=3;
+          if (saveram_q_num!=50 && saveram_q_state[saveram_q_num]==2) begin
+            saveram_q_state[saveram_q_num]<=0;
           end
           saveram_q_num<=50;
       write_enabled<=0;      
       for (i = 0; i < 32; i = i + 1) begin
-               if (doit && i >= executor_register_start && i <= executor_register_end) begin
-                              $display($time, pc_logical, " save ram initiate ", (
-                         `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-i), " ",`REG_VALUE(i));  //DEBUG info            
-                            saveram_q_addr[saveram_q_new_pos]<=executor_start_ram_address_or_numeric+i-executor_register_start;
-                            saveram_q_value[saveram_q_new_pos]<=registers[i];
-                                      saveram_q_state[saveram_q_new_pos]<=1;
-                            saveram_q_new_pos= saveram_q_new_pos+1;        
-               end
-               
-                       if (saveram_q_state[i]==2 && i!=saveram_q_num) begin
+        if (saveram_q_state[i]==2) begin
           write_address <= saveram_q_addr[i];
           write_value <= saveram_q_value[i];      
-          write_enabled <= 1;
+          write_enabled <= i!=saveram_q_num;
           saveram_q_num<=i;
         end       
-
-     //       saveram_q_new_pos <= (saveram_q_new_pos+executor_register_end-executor_register_start)%32;
       end             
       //fetch & decoder
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
