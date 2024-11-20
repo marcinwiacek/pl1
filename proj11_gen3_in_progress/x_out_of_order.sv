@@ -297,11 +297,7 @@ module x_out_of_order (
                         executor_state <= EXECUTE_STATE_READ_EXECUTE;
                         fetch_stall_exists = 1;
                       end else begin
-                        $display($time, pc_logical, " save ram initiate ",
-                                 (`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC + `REG_START_NUM - i),
-                                 " ", `REG_VALUE(i));  //DEBUG info            
                         saveram_q_addr[i]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
-                        saveram_q_value[i] <= `REG_VALUE(i);
                         saveram_q_state[i] <= 1;
                       end
                     end
@@ -320,7 +316,7 @@ module x_out_of_order (
           end
         end
         if (!fetch_stall_exists && (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG)) begin
-          //if (`INSTRUCTION_STATE == OPCODE_REG2RAM ) saveram_q_new_pos <= (saveram_q_new_pos+`REG_END_NUM-`REG_START_NUM+1);
+          if (`INSTRUCTION_STATE == OPCODE_REG2RAM ) doit<=1;
           //should calculate physical address
           mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
           mmuqueue_q_len[mmuqueue_q_new_pos] <= `REG_END_NUM - `REG_START_NUM;
@@ -334,6 +330,13 @@ module x_out_of_order (
       saveram_q_num <= 50;
       write_enabled <= 0;
       for (i = 0; i < 32; i = i + 1) begin
+        if (doit && i>=executor_register_start && i<= executor_register_end) begin
+           $display($time, pc_logical, " save ram initiate ",
+                                 (executor_start_ram_address_or_numeric + i-executor_register_start),
+                                 " ", registers[i]);  //DEBUG info            
+                        saveram_q_value[i] <= registers[i];
+                        doit<=0;
+        end
         if (saveram_q_state[i] == 2) begin
           write_address <= saveram_q_addr[i];
           write_value   <= saveram_q_value[i];
