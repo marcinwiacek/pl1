@@ -182,8 +182,6 @@ module x_out_of_order (
   reg rst = 1, doit = 0;
   reg [7:0] instr_num = 0;  // how many done
 
-reg[15:0] xx,xy;
-
   integer i;
 
   always @(posedge clk) begin
@@ -203,6 +201,7 @@ reg[15:0] xx,xy;
         //saveram_q_ready[i]<=0;
       end
       executor_state <= EXECUTE_STATE_NONE;
+      fetch_stall_exists = 0;
     end else if (instr_num < 10) begin
       //executor
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
@@ -243,6 +242,7 @@ reg[15:0] xx,xy;
         end
         register[0] <= 50;
         register[1] <= 50;
+        fetch_stall_exists = 0;
         for (i = 0; i < 32; i = i + 1) begin
           if (!registers_init[i] && !registers_ram_needs_mmu[i]) begin
             if (i % 2 == 0) begin
@@ -253,15 +253,12 @@ reg[15:0] xx,xy;
               register[1]   <= i;
             end
           end
-        end
-        fetch_stall_exists = 0;
-        for (i = 0; i < 32; i = i + 1) begin
           if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
             case (`INSTRUCTION_STATE)
               OPCODE_RAM2REG: begin
                 //this register should be read next time
                 registers_init[i] <= 0;
-                registers_src_address[i] <= decoder_start_ram_address_or_numeric;
+                registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
                 registers_ram_needs_mmu[i] <= 0;
               end
               OPCODE_NUM2REG: begin
@@ -283,47 +280,42 @@ reg[15:0] xx,xy;
                       register[1]   <= i;
                     end
                   end
-                end else begin
-                  case (`INSTRUCTION_STATE)
-                    OPCODE_REG2RAM: begin
-                    end
-                    OPCODE_REG_PLUS:
-                    registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                    OPCODE_REG_MINUS:
-                    registers[i] <= `REG_VALUE(i) - `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                    OPCODE_REG_MUL:
-                    registers[i] <= `REG_VALUE(i) * `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                    OPCODE_REG_DIV:
-                    registers[i] <= `REG_VALUE(i) / `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                  endcase
                 end
               end
             endcase
           end
         end
-        
-      end
-      
-       if (!fetch_stall_exists && `INSTRUCTION_STATE == OPCODE_REG2RAM) begin
-       //xx=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-       xy = `REG_START_NUM;
+        if (!fetch_stall_exists) begin
           for (i = 0; i < 32; i = i + 1) begin
-            if (saveram_q_state[i] == 0 && xy<=`REG_END_NUM) begin
-          //  $display($time, pc_logical, " filling slot ", i);
-                        saveram_q_addr[i]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-xy;
-                        saveram_q_value[i]<=`REG_VALUE(xy);
-                        saveram_q_state[i]<=1;                       
-         //               xx = xx+1;
-                        xy = xy+1;
+            if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
+              case (`INSTRUCTION_STATE)
+                OPCODE_REG2RAM: begin
+                  saveram_q_addr[saveram_q_new_pos+i-`REG_START_NUM]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
+                  saveram_q_state[saveram_q_new_pos+i-`REG_START_NUM] <= 1;
+                  saveram_q_value[saveram_q_new_pos+i-`REG_START_NUM] <= `REG_VALUE(i);
+                end
+                OPCODE_REG_PLUS:
+                registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                OPCODE_REG_MINUS:
+                registers[i] <= `REG_VALUE(i) - `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                OPCODE_REG_MUL:
+                registers[i] <= `REG_VALUE(i) * `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                OPCODE_REG_DIV:
+                registers[i] <= `REG_VALUE(i) / `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+              endcase
             end
           end
+          if (`INSTRUCTION_STATE == OPCODE_REG2RAM) begin
+            saveram_q_new_pos <= saveram_q_new_pos + `REG_END_NUM - `REG_START_NUM + 1;
+          end
+          if (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG) begin
+            //should calculate physical address
+            mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+            mmuqueue_q_len[mmuqueue_q_new_pos] <= `REG_END_NUM - `REG_START_NUM;
+            mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
+          end
         end
-        if (!fetch_stall_exists && (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG)) begin
-          //should calculate physical address
-          mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-          mmuqueue_q_len[mmuqueue_q_new_pos] <= `REG_END_NUM - `REG_START_NUM;
-          mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
-        end
+      end
       //save ram     
       if (saveram_q_num != 50 && saveram_q_state[saveram_q_num] == 2) begin
         saveram_q_state[saveram_q_num] <= 0;
