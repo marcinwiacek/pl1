@@ -300,7 +300,12 @@ module x_out_of_order (
                         (`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM);
                         saveram_q_addr_value[saveram_q_new_pos+i-`REG_START_NUM][32:16]<=
                         `REG_VALUE(i);
-                        saveram_q_state[saveram_q_new_pos+i-`REG_START_NUM] <= 1;                       
+                        
+//                         saveram_q_addr_value[saveram_q_new_pos+i-`REG_START_NUM][32:0]<=                       
+//                       ( (`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM)*256)+
+//                        `REG_VALUE(i);
+                        
+                                     
                      // end
                     end
                     OPCODE_REG_PLUS:
@@ -319,6 +324,11 @@ module x_out_of_order (
         end
         if (!fetch_stall_exists && (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG)) begin
           if (`INSTRUCTION_STATE == OPCODE_REG2RAM ) begin
+              for (i = 0; i < 32; i = i + 1) begin
+          if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
+           saveram_q_state[saveram_q_new_pos+i-`REG_START_NUM] <= 1;         
+          end
+          end
              saveram_q_new_pos<=saveram_q_new_pos+`REG_END_NUM-`REG_START_NUM+1;
 //            doit<=1;
           end
