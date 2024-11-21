@@ -85,9 +85,9 @@ module x_out_of_order (
       .read_value2(read_value2)
   );
 
-  reg [16:0] saveram_q_addr[0:32];
-  reg [16:0] saveram_q_value[0:32];
-  reg [2:0] saveram_q_state[0:32];
+  reg [16:0] saveram_q_addr[0:31];
+  reg [16:0] saveram_q_value[0:31];
+  reg [2:0] saveram_q_state[0:31];
 
   reg [10:0] saveram_q_new_pos = 0;
   reg [10:0] saveram_q_num = 0;
@@ -292,7 +292,7 @@ module x_out_of_order (
                 OPCODE_REG2RAM: begin
                   saveram_q_addr[saveram_q_new_pos+i-`REG_START_NUM]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
                   saveram_q_state[saveram_q_new_pos+i-`REG_START_NUM] <= 1;
-                  saveram_q_value[saveram_q_new_pos+i-`REG_START_NUM] <= `REG_VALUE(i);
+                  saveram_q_value[saveram_q_new_pos+i-`REG_START_NUM] <= i;//`REG_VALUE(i);
                 end
                 OPCODE_REG_PLUS:
                 registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
