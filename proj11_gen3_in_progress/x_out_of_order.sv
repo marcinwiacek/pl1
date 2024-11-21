@@ -240,10 +240,24 @@ module x_out_of_order (
             registers_init[register[1]] <= 1;
           end
         end
+        
+        //save ram     
+      if (saveram_q_num != 50 && saveram_q_state[saveram_q_num] == 2) begin
+        saveram_q_state[saveram_q_num] <= 0;
+      end
+      saveram_q_num <= 50;
+      write_enabled <= 0;
+      
         register[0] <= 50;
         register[1] <= 50;
         fetch_stall_exists = 0;
         for (i = 0; i < 32; i = i + 1) begin
+        if (saveram_q_state[i] == 2) begin
+          write_address <= saveram_q_addr[i];
+          write_value   <= saveram_q_value[i];
+          write_enabled <= i != saveram_q_num;
+          saveram_q_num <= i;
+        end
           if (!registers_init[i] && !registers_ram_needs_mmu[i]) begin
             if (i % 2 == 0) begin
               read_address <= registers_src_address[i];
@@ -292,7 +306,7 @@ module x_out_of_order (
                 OPCODE_REG2RAM: begin
                   saveram_q_addr[saveram_q_new_pos+i-`REG_START_NUM]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
                   saveram_q_state[saveram_q_new_pos+i-`REG_START_NUM] <= 1;
-                  saveram_q_value[saveram_q_new_pos+i-`REG_START_NUM] <= i;//`REG_VALUE(i);
+                  saveram_q_value[saveram_q_new_pos+i-`REG_START_NUM] <= `REG_VALUE(i);
                 end
                 OPCODE_REG_PLUS:
                 registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
@@ -316,20 +330,7 @@ module x_out_of_order (
           end
         end
       end
-      //save ram     
-      if (saveram_q_num != 50 && saveram_q_state[saveram_q_num] == 2) begin
-        saveram_q_state[saveram_q_num] <= 0;
-      end
-      saveram_q_num <= 50;
-      write_enabled <= 0;
-      for (i = 0; i < 32; i = i + 1) begin
-        if (saveram_q_state[i] == 2) begin
-          write_address <= saveram_q_addr[i];
-          write_value   <= saveram_q_value[i];
-          write_enabled <= i != saveram_q_num;
-          saveram_q_num <= i;
-        end
-      end
+      
       //fetch & decoder
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
         read_address  <= pc_physical;
