@@ -305,15 +305,15 @@ reg[15:0] xx,xy;
       end
       
        if (!fetch_stall_exists && `INSTRUCTION_STATE == OPCODE_REG2RAM) begin
-       xx=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+       //xx=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
        xy = `REG_START_NUM;
           for (i = 0; i < 32; i = i + 1) begin
             if (saveram_q_state[i] == 0 && xy<=`REG_END_NUM) begin
-            $display($time, pc_logical, " filling slot ", i);
-                        saveram_q_addr[i]<=xx;
+          //  $display($time, pc_logical, " filling slot ", i);
+                        saveram_q_addr[i]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+`REG_START_NUM-xy;
                         saveram_q_value[i]<=`REG_VALUE(xy);
                         saveram_q_state[i]<=1;                       
-                        xx = xx+1;
+         //               xx = xx+1;
                         xy = xy+1;
             end
           end
