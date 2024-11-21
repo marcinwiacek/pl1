@@ -205,8 +205,6 @@ module x_out_of_order (
     end else if (instr_num < 10) begin
       //executor
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
-        //  if (executor_state == EXECUTE_STATE_NONE && (decoder_instruction_state==OPCODE_JMP_PLUS || decoder_instruction_state== OPCODE_JMP_MINUS)) begin
-        //  end else begin
         if (executor_state == EXECUTE_STATE_NONE) begin
           $display($time, pc_logical, " executor1   ", " ", executor_state, " ",  //DEBUG info
                    decoder_instruction_state, " ", decoder_register_start, " ",  //DEBUG info
@@ -218,12 +216,12 @@ module x_out_of_order (
           executor_register_end <= decoder_register_end;
           executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
           instr_num <= instr_num + 1;
-          executor_state <= EXECUTE_STATE_NONE;
         end else if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
           $display($time, pc_logical, " executor2   ", " ", executor_state, " ",  //DEBUG info
                    executor_instruction_state, " ", executor_register_start, " ",  //DEBUG info
                    executor_register_end, " ",
                    executor_start_ram_address_or_numeric);  //DEBUG info 
+        end
           executor_state <= EXECUTE_STATE_NONE;
           if (register[0] != 50) begin
             $display($time, pc_logical, " no fetch register ", register[0],
@@ -239,25 +237,10 @@ module x_out_of_order (
             registers[register[1]] <= read_value2;
             registers_init[register[1]] <= 1;
           end
-        end
-        
-        //save ram     
-      if (saveram_q_num != 50 && saveram_q_state[saveram_q_num] == 2) begin
-        saveram_q_state[saveram_q_num] <= 0;
-      end
-      saveram_q_num <= 50;
-      write_enabled <= 0;
-      
         register[0] <= 50;
         register[1] <= 50;
         fetch_stall_exists = 0;
         for (i = 0; i < 32; i = i + 1) begin
-        if (saveram_q_state[i] == 2) begin
-          write_address <= saveram_q_addr[i];
-          write_value   <= saveram_q_value[i];
-          write_enabled <= i != saveram_q_num;
-          saveram_q_num <= i;
-        end
           if (!registers_init[i] && !registers_ram_needs_mmu[i]) begin
             if (i % 2 == 0) begin
               read_address <= registers_src_address[i];
@@ -267,6 +250,8 @@ module x_out_of_order (
               register[1]   <= i;
             end
           end
+        end
+        for (i = 0; i < 32; i = i + 1) begin
           if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
             case (`INSTRUCTION_STATE)
               OPCODE_RAM2REG: begin
@@ -303,11 +288,11 @@ module x_out_of_order (
           for (i = 0; i < 32; i = i + 1) begin
             if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
               case (`INSTRUCTION_STATE)
-                OPCODE_REG2RAM: begin
-                  saveram_q_addr[saveram_q_new_pos+i-`REG_START_NUM]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
-                  saveram_q_state[saveram_q_new_pos+i-`REG_START_NUM] <= 1;
-                  saveram_q_value[saveram_q_new_pos+i-`REG_START_NUM] <= `REG_VALUE(i);
-                end
+              //  OPCODE_REG2RAM: begin
+                //  saveram_q_addr[saveram_q_new_pos+i-`REG_START_NUM]<=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
+                //  saveram_q_state[saveram_q_new_pos+i-`REG_START_NUM] <= 1;
+                //  saveram_q_value[saveram_q_new_pos+i-`REG_START_NUM] <= `REG_VALUE(i);
+                //end
                 OPCODE_REG_PLUS:
                 registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                 OPCODE_REG_MINUS:
@@ -320,7 +305,7 @@ module x_out_of_order (
             end
           end
           if (`INSTRUCTION_STATE == OPCODE_REG2RAM) begin
-            saveram_q_new_pos <= saveram_q_new_pos + `REG_END_NUM - `REG_START_NUM + 1;
+//            saveram_q_new_pos <= saveram_q_new_pos + `REG_END_NUM - `REG_START_NUM + 1;
           end
           if (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG) begin
             //should calculate physical address
@@ -330,7 +315,22 @@ module x_out_of_order (
           end
         end
       end
-      
+ 
+        //save ram     
+      if (saveram_q_num != 50 && saveram_q_state[saveram_q_num] == 2) begin
+        saveram_q_state[saveram_q_num] <= 0;
+      end
+      saveram_q_num <= 50;
+      write_enabled <= 0;
+         for (i = 0; i < 32; i = i + 1) begin
+        if (saveram_q_state[i] == 2) begin
+          write_address <= saveram_q_addr[i];
+          write_value   <= saveram_q_value[i];
+          write_enabled <= i != saveram_q_num;
+          saveram_q_num <= i;
+        end
+        
+        end
       //fetch & decoder
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
         read_address  <= pc_physical;
