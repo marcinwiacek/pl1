@@ -85,19 +85,12 @@ module x_out_of_order (
       .read_value2(read_value2)
   );
 
-  reg [32:0] saveram_q_addr_value[0:32];
+  reg [16:0] saveram_q_addr[0:32];
+  reg [16:0] saveram_q_value[0:32];
   reg [2:0] saveram_q_state[0:32];
 
   reg [10:0] saveram_q_new_pos = 0;
   reg [10:0] saveram_q_num = 0;
-
-  // typedef struct {
-  //    reg[15:0] value;
-  //    reg[15:0] addr;
-  //    reg mmu_done;
-  //  } save_ram;
-
-  //save_ram saveram_qq [0:32];
 
   //--------------------------------------------------------- mmu ----------------------------
 
@@ -188,6 +181,8 @@ module x_out_of_order (
 
   reg rst = 1, doit = 0;
   reg [7:0] instr_num = 0;  // how many done
+
+reg[15:0] xx,xy;
 
   integer i;
 
@@ -291,22 +286,6 @@ module x_out_of_order (
                 end else begin
                   case (`INSTRUCTION_STATE)
                     OPCODE_REG2RAM: begin
-                     // if (saveram_q_state[i] != 0) begin
-                     //   $display($time, pc_logical, " save ram stall");
-                     //   executor_state <= EXECUTE_STATE_READ_EXECUTE;
-                     //   fetch_stall_exists = 1;
-                     // end else begin
-                        saveram_q_addr_value[saveram_q_new_pos+i-`REG_START_NUM][15:0]<=                       
-                        (`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM);
-                        saveram_q_addr_value[saveram_q_new_pos+i-`REG_START_NUM][32:16]<=
-                        `REG_VALUE(i);
-                        
-//                         saveram_q_addr_value[saveram_q_new_pos+i-`REG_START_NUM][32:0]<=                       
-//                       ( (`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM)*256)+
-//                        `REG_VALUE(i);
-                        
-                                     
-                     // end
                     end
                     OPCODE_REG_PLUS:
                     registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
@@ -322,22 +301,29 @@ module x_out_of_order (
             endcase
           end
         end
+        
+      end
+      
+       if (!fetch_stall_exists && `INSTRUCTION_STATE == OPCODE_REG2RAM) begin
+       xx=`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+       xy = `REG_START_NUM;
+          for (i = 0; i < 32; i = i + 1) begin
+            if (saveram_q_state[i] == 0 && xy<=`REG_END_NUM) begin
+            $display($time, pc_logical, " filling slot ", i);
+                        saveram_q_addr[i]<=xx;
+                        saveram_q_value[i]<=`REG_VALUE(xy);
+                        saveram_q_state[i]<=1;                       
+                        xx = xx+1;
+                        xy = xy+1;
+            end
+          end
+        end
         if (!fetch_stall_exists && (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG)) begin
-          if (`INSTRUCTION_STATE == OPCODE_REG2RAM ) begin
-              for (i = 0; i < 32; i = i + 1) begin
-          if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
-           saveram_q_state[saveram_q_new_pos+i-`REG_START_NUM] <= 1;         
-          end
-          end
-             saveram_q_new_pos<=saveram_q_new_pos+`REG_END_NUM-`REG_START_NUM+1;
-//            doit<=1;
-          end
           //should calculate physical address
           mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
           mmuqueue_q_len[mmuqueue_q_new_pos] <= `REG_END_NUM - `REG_START_NUM;
           mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
         end
-      end
       //save ram     
       if (saveram_q_num != 50 && saveram_q_state[saveram_q_num] == 2) begin
         saveram_q_state[saveram_q_num] <= 0;
@@ -345,16 +331,9 @@ module x_out_of_order (
       saveram_q_num <= 50;
       write_enabled <= 0;
       for (i = 0; i < 32; i = i + 1) begin
-        /*if (doit && i>=executor_register_start && i<= executor_register_end) begin
-           $display($time, pc_logical, " save ram initiate ",
-                                 (executor_start_ram_address_or_numeric + i-executor_register_start),
-                                 " ", registers[i]);  //DEBUG info            
-                        saveram_q_value[i] <= registers[i];
-                        doit<=0;
-        end*/
         if (saveram_q_state[i] == 2) begin
-          write_address <= saveram_q_addr_value[i][15:0];
-          write_value   <= saveram_q_addr_value[i][32:16];
+          write_address <= saveram_q_addr[i];
+          write_value   <= saveram_q_value[i];
           write_enabled <= i != saveram_q_num;
           saveram_q_num <= i;
         end
@@ -390,13 +369,13 @@ module x_out_of_order (
             registers_ram_needs_mmu[i] <= 0;
           end
           if (saveram_q_state[i]==1 && 
-              saveram_q_addr_value[i][32:16]>=mmu_address_logical_min_in_the_same_page && 
-              saveram_q_addr_value[i][32:16]<=mmu_address_logical_max_in_the_same_page) begin
+              saveram_q_addr[i]>=mmu_address_logical_min_in_the_same_page && 
+              saveram_q_addr[i]<=mmu_address_logical_max_in_the_same_page) begin
             $display(  //DEBUG info
                 $time, pc_logical, " updating save ram ", i, " src address from ",
-                saveram_q_addr_value[i][32:16], " to ",  //DEBUG info
-                mmu_address_physical_min_in_the_same_page + saveram_q_addr_value[i][32:16] - mmu_address_logical_min_in_the_same_page);  //DEBUG info
-            saveram_q_addr_value[i][32:16]<= mmu_address_physical_min_in_the_same_page+saveram_q_addr_value[i][32:16]-mmu_address_logical_min_in_the_same_page;
+                saveram_q_addr[i], " to ",  //DEBUG info
+                mmu_address_physical_min_in_the_same_page + saveram_q_addr[i] - mmu_address_logical_min_in_the_same_page);  //DEBUG info
+            saveram_q_addr[i]<= mmu_address_physical_min_in_the_same_page+saveram_q_addr[i]-mmu_address_logical_min_in_the_same_page;
             saveram_q_state[i] <= 2;
           end
         end
