@@ -154,6 +154,8 @@ reg [15:0] register_save_lock[0:31];
   `define REG_END_NUM (executor_state == EXECUTE_STATE_NONE ? decoder_register_end : executor_register_end)
   `define REG_VALUE(ARG) executor_state != EXECUTE_STATE_NONE && ARG == register[0]?read_value: \
                       (executor_state != EXECUTE_STATE_NONE && ARG == register[1]?read_value2:registers[ARG])
+`define REG_VALUE2(ARG) executor_state != EXECUTE_STATE_NONE && ARG == register[0]?read_value: \
+                      (executor_state != EXECUTE_STATE_NONE && ARG == register[1]?read_value2:registers2[ARG])                      
   `define INSTRUCTION_STATE (executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state)
   `define INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC (executor_state == EXECUTE_STATE_NONE?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric)
 // verilog_format:on
@@ -229,7 +231,7 @@ reg [15:0] register_save_lock[0:31];
                    " with address ",  //DEBUG info
                    read_address, "=", read_value);  //DEBUG info
           registers[register[0]] <= read_value;
-          if (!register_save_lock[register[0]]) registers2[register[0]] <= read_value;
+         // if (!register_save_lock[register[0]]) registers2[register[0]] <= read_value;
           registers_init[register[0]] <= 1;
         end
         if (register[1] != 50) begin
@@ -237,7 +239,7 @@ reg [15:0] register_save_lock[0:31];
                    " with address ",  //DEBUG info
                    read_address2, "=", read_value2);  //DEBUG info
           registers[register[1]] <= read_value2;
-          if (!register_save_lock[register[1]]) registers2[register[1]] <= read_value2;
+         // if (!register_save_lock[register[1]]) registers2[register[1]] <= read_value2;
           registers_init[register[1]] <= 1;
         end
         register[0] <= 50;
@@ -263,7 +265,7 @@ reg [15:0] register_save_lock[0:31];
               registers_init[i] <= 1;
               registers_ram_needs_mmu[i] <= 0;
               registers[i] <= decoder_start_ram_address_or_numeric;
-              if (!register_save_lock[i]) registers2[i] <= decoder_start_ram_address_or_numeric;
+             // if (!register_save_lock[i]) registers2[i] <= decoder_start_ram_address_or_numeric;
             end else if (!registers_init[i] && i != register[0] && i != register[1]) begin
               executor_state <= EXECUTE_STATE_READ_EXECUTE;
               fetch_stall_exists = 1;
@@ -277,6 +279,7 @@ reg [15:0] register_save_lock[0:31];
         end
         if (!fetch_stall_exists) begin
           for (i = 0; i < 32; i = i + 1) begin
+            //if (!register_save_lock[i]) registers2[i] <=registers[i];
             if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
               case (`INSTRUCTION_STATE)
                 OPCODE_REG2RAM: begin
@@ -287,24 +290,25 @@ reg [15:0] register_save_lock[0:31];
                    registers_src_address2[i] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
                    registers_ram_needs_mmu2[i] <= 1;   
                    register_save_lock[i]<=1;  
+                   registers2[i] <=registers[i];
                   end
                 end
                 OPCODE_REG_PLUS: begin
                 registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                if (!register_save_lock[i]) registers2[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                //if (!register_save_lock[i]) registers2[i] <= `REG_VALUE2(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                 end
                 OPCODE_REG_MINUS: begin
                 registers[i] <= `REG_VALUE(i) - `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                if (!register_save_lock[i]) registers2[i] <= `REG_VALUE(i) - `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                //if (!register_save_lock[i]) registers2[i] <= `REG_VALUE2(i) - `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                 end
                 OPCODE_REG_MUL: begin
                 registers[i] <= `REG_VALUE(i) * `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                if (!register_save_lock[i]) registers2[i] <= `REG_VALUE(i) * `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                //if (!register_save_lock[i]) registers2[i] <= `REG_VALUE2(i) * `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                 end                
                 OPCODE_REG_DIV:
                 begin
                 registers[i] <= `REG_VALUE(i) / `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                if (!register_save_lock[i]) registers2[i] <= `REG_VALUE(i) / `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                //if (!register_save_lock[i]) registers2[i] <= `REG_VALUE2(i) / `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                 end                
               endcase
             end
