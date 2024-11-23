@@ -85,11 +85,6 @@ module x_out_of_order (
       .read_value2(read_value2)
   );
 
- // reg [32:0] saveram_q_addr[0:31];
- // reg [16:0] saveram_q_value[0:31];
- // reg [2:0] saveram_q_state[0:31];
-
- // reg [10:0] saveram_q_new_pos = 0;
   reg [10:0] saveram_q_num = 0;
 
   //--------------------------------------------------------- mmu ----------------------------
@@ -207,6 +202,7 @@ reg [15:0] register_save_lock[0:31];
       end
       executor_state <= EXECUTE_STATE_NONE;
       fetch_stall_exists = 0;
+      saveram_q_num <= 50;      
     end else if (instr_num < 10) begin
       //executor
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
@@ -286,27 +282,34 @@ reg [15:0] register_save_lock[0:31];
                 OPCODE_REG2RAM: begin
                   if (register_save_lock[i]) begin
                     executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                    $display($time, pc_logical, " write memory stall");
                   end else begin
                    registers_src_address2[i] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
                    registers_ram_needs_mmu2[i] <= 1;   
                    register_save_lock[i]<=1;  
                   end
                 end
-                OPCODE_REG_PLUS:
+                OPCODE_REG_PLUS: begin
                 registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                OPCODE_REG_MINUS:
+                if (!register_save_lock[i]) registers2[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                end
+                OPCODE_REG_MINUS: begin
                 registers[i] <= `REG_VALUE(i) - `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                OPCODE_REG_MUL:
+                if (!register_save_lock[i]) registers2[i] <= `REG_VALUE(i) - `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                end
+                OPCODE_REG_MUL: begin
                 registers[i] <= `REG_VALUE(i) * `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                if (!register_save_lock[i]) registers2[i] <= `REG_VALUE(i) * `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                end                
                 OPCODE_REG_DIV:
+                begin
                 registers[i] <= `REG_VALUE(i) / `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                if (!register_save_lock[i]) registers2[i] <= `REG_VALUE(i) / `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                end                
               endcase
             end
           end
         end
-        //if (`INSTRUCTION_STATE == OPCODE_REG2RAM) begin
-        //  saveram_q_new_pos <= saveram_q_new_pos + `REG_END_NUM - `REG_START_NUM + 1;
-        //end
         if (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG) begin
           //should calculate physical address
           mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
@@ -314,14 +317,14 @@ reg [15:0] register_save_lock[0:31];
           mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
         end
       end
-      //save ram     
+      //save ram           
       if (saveram_q_num != 50) begin
         register_save_lock[saveram_q_num] <= 0;
+        saveram_q_num <= 50;
       end
-      saveram_q_num <= 50;
       write_enabled <= 0;
       for (i = 0; i < 32; i = i + 1) begin
-        if (register_save_lock[i] && !registers_ram_needs_mmu2[i]) begin
+        if (register_save_lock[i] && !registers_ram_needs_mmu2[i] && i!=saveram_q_num) begin
           write_address <= registers_src_address2[i];
           write_value   <= registers2[i];
           write_enabled <= 1;
@@ -362,13 +365,11 @@ reg [15:0] register_save_lock[0:31];
               registers_src_address2[i]>=mmu_address_logical_min_in_the_same_page && 
               registers_src_address2[i]<=mmu_address_logical_max_in_the_same_page) begin
             $display(  //DEBUG info
-                $time, pc_logical, " updating save ram ", i, " src address from ");
-                
+                $time, pc_logical, " updating save ram ", i, " src address from ");                
                 //saveram_q_addr[i], " to ",  //DEBUG info
                 //mmu_address_physical_min_in_the_same_page + saveram_q_addr[i] - mmu_address_logical_min_in_the_same_page);  //DEBUG info
             registers_src_address2[i]<= mmu_address_physical_min_in_the_same_page+registers_src_address2[i]-mmu_address_logical_min_in_the_same_page;
             registers_ram_needs_mmu2[i]<=0;
-            //    saveram_q_value[i]<=registers_backup[saveram_q_value[i]];
           end
         end
       end
