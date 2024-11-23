@@ -65,9 +65,9 @@ module x_out_of_order (
 
   //------------------------------------------------------------ram---------------------------
 
-  wire write_enabled;
-  wire [15:0] write_address;
-  wire [15:0]  write_value;
+  bit write_enabled = 0;
+  bit [15:0] write_address;
+  bit [15:0] write_value;
   bit [15:0] read_address;
   wire [15:0] read_value;
   bit [15:0] read_address2;
@@ -167,7 +167,7 @@ reg [15:0] register_save_lock[0:31];
 
   reg jmp_stall_exists = 0, fetch_stall_exists = 0;
 
-  reg [15:0] registers[0:31];//,registers2[0:31];
+  reg [15:0] registers[0:31],registers2[0:31];
   //  reg [15:0] registers_backup[0:31];
   reg [15:0] registers_src_address[0:31];
   reg [15:0] registers_src_address2[0:31];
@@ -178,17 +178,6 @@ reg [15:0] register_save_lock[0:31];
   };  //bool. Read from RAM?
 
   //----------------------------------------------------------------other---------------------------
-
-writer writer (
-    .clk(clk),
-    .registers(registers),
-
-    .write_address(write_address),
-  .write_value(write_value),
-  .write_enabled(write_enabled)
-);
-
-
 
   assign x = decoder_inp;  //without this we will have empty circuit
 
@@ -250,7 +239,7 @@ writer writer (
                    " with address ",  //DEBUG info
                    read_address, "=", read_value);  //DEBUG info
           registers[register[0]] <= read_value;
-            //        registers2[register[0]] <= register_save_lock[register[0]]? registers2[register[0]]:  read_value;
+                    registers2[register[0]] <= register_save_lock[register[0]]? registers2[register[0]]:  read_value;
           registers_init[register[0]] <= 1;
         end
         if (register[1] != 50) begin
@@ -258,7 +247,7 @@ writer writer (
                    " with address ",  //DEBUG info
                    read_address2, "=", read_value2);  //DEBUG info
           registers[register[1]] <= read_value2;
-          //registers2[register[1]] <= register_save_lock[register[1]]? registers2[register[1]]:  read_value2;
+          registers2[register[1]] <= register_save_lock[register[1]]? registers2[register[1]]:  read_value2;
           registers_init[register[1]] <= 1;
         end
         register[0] <= 50;
@@ -284,7 +273,7 @@ writer writer (
               registers_init[i] <= 1;
               registers_ram_needs_mmu[i] <= 0;
               registers[i] <= decoder_start_ram_address_or_numeric;
-              //registers2[i] <= register_save_lock[i] ?registers2[i]:decoder_start_ram_address_or_numeric;
+              registers2[i] <= register_save_lock[i] ?registers2[i]:decoder_start_ram_address_or_numeric;
             end else if (!registers_init[i] && i != register[0] && i != register[1]) begin
               executor_state <= EXECUTE_STATE_READ_EXECUTE;
               fetch_stall_exists = 1;
@@ -302,21 +291,20 @@ writer writer (
            // registers2[i] <=registers[i];
             if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
               case (`INSTRUCTION_STATE)
-                OPCODE_REG2RAM: begin                  
+                OPCODE_REG2RAM: begin
+                 // registers2[i] <=registers[i];
                   if (register_save_lock[i]) begin
                     executor_state <= EXECUTE_STATE_READ_EXECUTE;
                     $display($time, pc_logical, " write memory stall");
                   end else begin
                    registers_src_address2[i] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
                    registers_ram_needs_mmu2[i] <= 1;   
-                   register_save_lock[i]<=1;  
-                  // registers2[i] <=registers[i];                  
+                   register_save_lock[i]<=1;                    
                   end
                 end
                 OPCODE_REG_PLUS: begin
                 registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                //if (!register_save_lock[i]) 
-                //registers2[i] <= register_save_lock[i]?registers2[i]:`REG_VALUE2(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                //if (!register_save_lock[i]) registers2[i] <= `REG_VALUE2(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                 end
                 OPCODE_REG_MINUS: begin
                 registers[i] <= `REG_VALUE(i) - `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
@@ -342,22 +330,20 @@ writer writer (
           mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
         end
       end
-    /*  //save ram           
-      write_enabled <= 0;
-      if (saveram_q_num != 50) begin      
-        write_address <= registers_src_address2[saveram_q_num];
-        write_value   <= registers[saveram_q_num];//registers2[i];
-        write_enabled <= 1;          
+      //save ram           
+      if (saveram_q_num != 50) begin
         register_save_lock[saveram_q_num] <= 0;
         saveram_q_num <= 50;
       end
-      
+      write_enabled <= 0;
       for (i = 0; i < 32; i = i + 1) begin
         if (register_save_lock[i] && !registers_ram_needs_mmu2[i] && i!=saveram_q_num) begin
-         
+          write_address <= registers_src_address2[i];
+          write_value   <= registers2[i];//registers2[i];
+          write_enabled <= 1;
           saveram_q_num <= i;
         end
-      end*/
+      end
       //fetch & decoder
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
         read_address  <= pc_physical;
@@ -411,40 +397,6 @@ writer writer (
       decoder_inp = 0;
     end
   end
-endmodule
-
-module writer (
-    input clk,
-    input [15:0] registers[0:31],
-
-    output bit [15:0] write_address,
-  output bit [15:0] write_value,
-  output bit write_enabled
-);
-
-bit [5:0] saveram_q_num;
-
-integer i;
-
-  always @(posedge clk) begin
- //save ram           
-      write_enabled <= 0;
-      if (saveram_q_num != 50) begin      
-        write_address <= 1234; //registers_src_address2[saveram_q_num];
-        write_value   <= registers[saveram_q_num];//registers2[i];
-        write_enabled <= 1;          
-        //register_save_lock[saveram_q_num] <= 0;
-        saveram_q_num <= 50;
-      end
-      
-      for (i = 0; i < 32; i = i + 1) begin
-        if (i!=saveram_q_num) begin //register_save_lock[i] &&  && !registers_ram_needs_mmu2[i] 
-         
-          saveram_q_num <= i;
-        end
-      end
-      end
-
 endmodule
 
 module decoder (
