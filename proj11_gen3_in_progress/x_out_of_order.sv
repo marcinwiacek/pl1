@@ -255,9 +255,6 @@ module x_out_of_order (
           //registers2[register[1]] <= register_save_lock[register[1]]? registers2[register[1]]:  read_value2;
           registers_init[register[1]] <= 1;
         end
-
-
-
         //robic save rzadziej ?
         //save ram           
         /*    write_enabled <= saveram_q_num != 50;
@@ -274,7 +271,6 @@ module x_out_of_order (
           saveram_q_num <= i;
         end
       end*/
-
         //  for (i = 0; i < 32; i = i + 1) begin
         //registers2[i]<=registers_save_now[i]?registers[i]:registers2[i];
         //    registers_save_now[i]<=0;
@@ -286,7 +282,6 @@ module x_out_of_order (
           if (register_save_lock[i]) begin  // && !registers_ram_needs_mmu2[i] ) begin
             saveram_q_num <= i;
           end
-
           if (!registers_init[i] && !registers_ram_needs_mmu[i]) begin
             read_address  <= i % 2 == 0 ? registers_src_address[i] : read_address;
             read_address2 <= i % 2 == 1 ? registers_src_address[i] : read_address2;
@@ -295,7 +290,6 @@ module x_out_of_order (
         end
         //cannot join with previous loop
         for (i = 0; i < 32; i = i + 1) begin
-
           if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
             if (`INSTRUCTION_STATE == OPCODE_RAM2REG) begin
               //this register should be read next time
@@ -321,14 +315,12 @@ module x_out_of_order (
         end
         if (!fetch_stall_exists) begin
           for (i = 0; i < 32; i = i + 1) begin
-
             //  if (registers_save_now[i]) registers2[i]<=registers[i];
             //if (!register_save_lock[i]) 
             // registers2[i] <=registers[i];
             if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
               case (`INSTRUCTION_STATE)
                 OPCODE_REG2RAM: begin
-
                   if (register_save_lock[i]) begin
                     executor_state <= EXECUTE_STATE_READ_EXECUTE;
                     $display($time, pc_logical, " write memory stall");
@@ -359,23 +351,18 @@ module x_out_of_order (
               endcase
             end
           end
-
           if (saveram_q_num != 50) begin
             register_save_lock[saveram_q_num] <= 0;
             saveram_q_num <= 50;
             write_address <= registers_src_address2[saveram_q_num];
             write_value <= registers2[saveram_q_num];
             write_enabled <= 1;
-
-
-
           end
           if (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG) begin
             //should calculate physical address
             mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
             mmuqueue_q_len[mmuqueue_q_new_pos] <= `REG_END_NUM - `REG_START_NUM;
             mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
-
           end
         end
       end
