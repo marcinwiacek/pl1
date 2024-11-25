@@ -177,6 +177,8 @@ reg [15:0] register_save_lock[0:31];
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };  //bool. Read from RAM?
 
+reg registers_save_now[0:31]; 
+
   //----------------------------------------------------------------other---------------------------
 
   assign x = decoder_inp;  //without this we will have empty circuit
@@ -185,14 +187,16 @@ reg [15:0] register_save_lock[0:31];
   reg [7:0] instr_num = 0;  // how many done
 
   integer i,j;
+  
+  reg [15:0] xx;
 
 
-  /*always @(posedge clk) begin
-  for (j = 0; j < 32; j = j + 1) begin
-            if (!register_save_lock[j])  registers2[j] <=registers[j];
-            end
-            end
-    */
+ // always @(posedge clk) begin
+ // for (j = 0; j < 32; j = j + 1) begin
+      //      registers2[j]<=registers_save_now[j]?registers[j]:registers2[j];
+     //       end      
+    //        end
+            
            
   always @(posedge clk) begin
     if (rst) begin
@@ -214,6 +218,7 @@ reg [15:0] register_save_lock[0:31];
       fetch_stall_exists = 0;
       saveram_q_num <= 50;      
     end else if (instr_num < 10) begin
+            write_enabled<=0;        
       //executor
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         if (executor_state == EXECUTE_STATE_NONE) begin
@@ -239,7 +244,7 @@ reg [15:0] register_save_lock[0:31];
                    " with address ",  //DEBUG info
                    read_address, "=", read_value);  //DEBUG info
           registers[register[0]] <= read_value;
-                    registers2[register[0]] <= register_save_lock[register[0]]? registers2[register[0]]:  read_value;
+            //        registers2[register[0]] <= register_save_lock[register[0]]? registers2[register[0]]:  read_value;
           registers_init[register[0]] <= 1;
         end
         if (register[1] != 50) begin
@@ -247,13 +252,41 @@ reg [15:0] register_save_lock[0:31];
                    " with address ",  //DEBUG info
                    read_address2, "=", read_value2);  //DEBUG info
           registers[register[1]] <= read_value2;
-          registers2[register[1]] <= register_save_lock[register[1]]? registers2[register[1]]:  read_value2;
+          //registers2[register[1]] <= register_save_lock[register[1]]? registers2[register[1]]:  read_value2;
           registers_init[register[1]] <= 1;
         end
+        
+        
+        
+            //robic save rzadziej ?
+            //save ram           
+      /*    write_enabled <= saveram_q_num != 50;
+      if (saveram_q_num != 50) begin
+        register_save_lock[saveram_q_num] <= 0;
+        
+          write_address <= registers_src_address2[saveram_q_num];
+          write_value   <= registers[saveram_q_num];//registers2[i];
+        saveram_q_num <= 50;
+      end
+      for (i = 0; i < 32; i = i + 1) begin
+        if (register_save_lock[i] && !registers_ram_needs_mmu2[i] && i!=saveram_q_num) begin
+        
+          saveram_q_num <= i;
+        end
+      end*/
+
+      //  for (i = 0; i < 32; i = i + 1) begin
+            //registers2[i]<=registers_save_now[i]?registers[i]:registers2[i];
+        //    registers_save_now[i]<=0;
+          //  end      
         register[0] <= 50;
         register[1] <= 50;
         fetch_stall_exists = 0;
         for (i = 0; i < 32; i = i + 1) begin
+         if (register_save_lock[i]) begin // && !registers_ram_needs_mmu2[i] ) begin
+            saveram_q_num <= i;
+          end
+        
           if (!registers_init[i] && !registers_ram_needs_mmu[i]) begin
             read_address  <= i % 2 == 0 ? registers_src_address[i] : read_address;
             read_address2 <= i % 2 == 1 ? registers_src_address[i] : read_address2;
@@ -262,6 +295,7 @@ reg [15:0] register_save_lock[0:31];
         end
         //cannot join with previous loop
         for (i = 0; i < 32; i = i + 1) begin
+       
           if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
             if (`INSTRUCTION_STATE == OPCODE_RAM2REG) begin
               //this register should be read next time
@@ -273,7 +307,7 @@ reg [15:0] register_save_lock[0:31];
               registers_init[i] <= 1;
               registers_ram_needs_mmu[i] <= 0;
               registers[i] <= decoder_start_ram_address_or_numeric;
-              registers2[i] <= register_save_lock[i] ?registers2[i]:decoder_start_ram_address_or_numeric;
+              //registers2[i] <= register_save_lock[i] ?registers2[i]:decoder_start_ram_address_or_numeric;
             end else if (!registers_init[i] && i != register[0] && i != register[1]) begin
               executor_state <= EXECUTE_STATE_READ_EXECUTE;
               fetch_stall_exists = 1;
@@ -287,19 +321,23 @@ reg [15:0] register_save_lock[0:31];
         end
         if (!fetch_stall_exists) begin
           for (i = 0; i < 32; i = i + 1) begin
+          
+           //  if (registers_save_now[i]) registers2[i]<=registers[i];
             //if (!register_save_lock[i]) 
            // registers2[i] <=registers[i];
             if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
               case (`INSTRUCTION_STATE)
                 OPCODE_REG2RAM: begin
-                 // registers2[i] <=registers[i];
+              
                   if (register_save_lock[i]) begin
                     executor_state <= EXECUTE_STATE_READ_EXECUTE;
                     $display($time, pc_logical, " write memory stall");
                   end else begin
                    registers_src_address2[i] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
                    registers_ram_needs_mmu2[i] <= 1;   
-                   register_save_lock[i]<=1;                    
+                   register_save_lock[i]<=1;      
+                   registers_save_now[i]<=1;              
+                   registers2[i] <=registers[i];
                   end
                 end
                 OPCODE_REG_PLUS: begin
@@ -321,27 +359,25 @@ reg [15:0] register_save_lock[0:31];
                 end                
               endcase
             end
-          end
-        end
+          end 
+          
+           if (saveram_q_num != 50) begin
+        register_save_lock[saveram_q_num] <= 0;
+         saveram_q_num <= 50;
+              write_address <= registers_src_address2[saveram_q_num];
+            write_value   <= registers2[saveram_q_num];
+            write_enabled<=1;       
+
+           
+
+      end
         if (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG) begin
           //should calculate physical address
           mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
           mmuqueue_q_len[mmuqueue_q_new_pos] <= `REG_END_NUM - `REG_START_NUM;
           mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
+        
         end
-      end
-      //save ram           
-      if (saveram_q_num != 50) begin
-        register_save_lock[saveram_q_num] <= 0;
-        saveram_q_num <= 50;
-      end
-      write_enabled <= 0;
-      for (i = 0; i < 32; i = i + 1) begin
-        if (register_save_lock[i] && !registers_ram_needs_mmu2[i] && i!=saveram_q_num) begin
-          write_address <= registers_src_address2[i];
-          write_value   <= registers2[i];//registers2[i];
-          write_enabled <= 1;
-          saveram_q_num <= i;
         end
       end
       //fetch & decoder
