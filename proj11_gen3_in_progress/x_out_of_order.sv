@@ -167,7 +167,7 @@ module x_out_of_order (
 
   reg jmp_stall_exists = 0, fetch_stall_exists = 0;
 
-  reg [15:0] registers[0:31], registers2[0:31];
+  reg [15:0] registers[0:31]; //, registers2[0:31];
   reg [15:0] registers_src_address[0:31];
   reg [15:0] registers_src_address2[0:31];
   reg registers_ram_needs_mmu[0:31];  //bool
@@ -184,8 +184,6 @@ module x_out_of_order (
   reg [7:0] instr_num = 0;  // how many done
 
   integer i;
-  
-  reg [7:0] num=0;
 
 
 /*
@@ -231,7 +229,7 @@ abc abc (
         registers_ram_mmu2[saveram_q_num] <= 0;
   
         write_address <= registers_src_address2[saveram_q_num];
-        write_value   <= registers2[saveram_q_num];//abc_value;
+        write_value   <= registers[saveram_q_num];//abc_value;
         write_enabled <= 1;
           
         saveram_q_num <= 50;
@@ -321,14 +319,14 @@ abc abc (
             if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
               case (`INSTRUCTION_STATE)
                 OPCODE_REG2RAM: begin
-                  //if (register_save_lock[i]) begin
-                  //  executor_state <= EXECUTE_STATE_READ_EXECUTE;
-                  //  $display($time, pc_logical, " write memory stall");
-                  //end else begin
-                    registers_src_address2[num+i-`REG_START_NUM] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
-                    register_save_lock[num+i-`REG_START_NUM] <= 1;
-                    registers2[num+i-`REG_START_NUM] <= registers[i];
-                  //end
+                  if (register_save_lock[i]) begin
+                    executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                    $display($time, pc_logical, " write memory stall");
+                  end else begin
+                    registers_src_address2[i] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
+                    register_save_lock[i] <= 1;
+                    //registers2[i] <= registers[i];
+                  end
                 end
                 OPCODE_REG_PLUS: begin
                   registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;                
@@ -345,9 +343,6 @@ abc abc (
                 end*/
               endcase
             end
-          end
-          if (`INSTRUCTION_STATE == OPCODE_REG2RAM) begin
-            num<=num+`REG_END_NUM-`REG_START_NUM+1;
           end
           if (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG) begin
             //should calculate physical address
