@@ -334,6 +334,7 @@ abc abc (
                 OPCODE_REG_MINUS: begin
                   registers[i] <= `REG_VALUE(i) - `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                 end
+                /* no div & mul */
                /* OPCODE_REG_MUL: begin
                   registers[i] <= `REG_VALUE(i) * `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                 end
