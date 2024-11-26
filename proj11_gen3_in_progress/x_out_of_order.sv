@@ -167,7 +167,7 @@ module x_out_of_order (
 
   reg jmp_stall_exists = 0, fetch_stall_exists = 0;
 
-  reg [15:0] registers[0:31], registers2[0:31];
+  reg [15:0] registers[0:31]; //, registers2[0:31];
   reg [15:0] registers_src_address[0:31];
   reg [15:0] registers_src_address2[0:31];
   reg registers_ram_needs_mmu[0:31];  //bool
@@ -186,6 +186,7 @@ module x_out_of_order (
   integer i;
 
 
+/*
 reg[15:0] abc_addr;
 
 wire[15:0] abc_value;
@@ -197,7 +198,7 @@ abc abc (
     .value(abc_value)
   
 );
-  
+  */
 
 
 
@@ -228,7 +229,7 @@ abc abc (
         registers_ram_mmu2[saveram_q_num] <= 0;
   
         write_address <= registers_src_address2[saveram_q_num];
-        write_value   <= abc_value;
+        write_value   <= registers[saveram_q_num];//abc_value;
         write_enabled <= 1;
           
         saveram_q_num <= 50;
@@ -236,7 +237,7 @@ abc abc (
       for (i = 0; i < 32; i = i + 1) begin
         if (registers_ram_mmu2[i]) begin         
           saveram_q_num <= i;
-          abc_addr<=i;
+          //abc_addr<=i;
         end
       end
       //executor
@@ -328,21 +329,17 @@ abc abc (
                   end
                 end
                 OPCODE_REG_PLUS: begin
-                  registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                  //if (!register_save_lock[i]) registers2[i] <= `REG_VALUE2(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                  registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;                
                 end
                 OPCODE_REG_MINUS: begin
                   registers[i] <= `REG_VALUE(i) - `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                  //if (!register_save_lock[i]) registers2[i] <= `REG_VALUE2(i) - `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                 end
-                OPCODE_REG_MUL: begin
+               /* OPCODE_REG_MUL: begin
                   registers[i] <= `REG_VALUE(i) * `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                  //if (!register_save_lock[i]) registers2[i] <= `REG_VALUE2(i) * `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                 end
                 OPCODE_REG_DIV: begin
                   registers[i] <= `REG_VALUE(i) / `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                  //if (!register_save_lock[i]) registers2[i] <= `REG_VALUE2(i) / `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-                end
+                end*/
               endcase
             end
           end
@@ -414,6 +411,7 @@ module abc (
     output bit [15:0] value
   
 );
+
 
   always @(posedge clk) begin
     value<=registers[addr];
