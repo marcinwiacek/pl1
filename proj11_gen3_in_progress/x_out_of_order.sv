@@ -167,7 +167,7 @@ module x_out_of_order (
 
   reg jmp_stall_exists = 0, fetch_stall_exists = 0;
 
-  reg [15:0] registers[0:31]; //, registers2[0:31];
+  reg [15:0] registers[0:31], registers2[0:31];
   reg [15:0] registers_src_address[0:31];
   reg [15:0] registers_src_address2[0:31];
   reg registers_ram_needs_mmu[0:31];  //bool
@@ -180,27 +180,10 @@ module x_out_of_order (
 
   assign x = decoder_inp;  //without this we will have empty circuit
 
-  reg rst = 1, doit = 0;
+  reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
 
   integer i;
-
-
-/*
-reg[15:0] abc_addr;
-
-wire[15:0] abc_value;
-
-abc abc (
-    .clk(clk),
-    .registers(registers),
-    .addr(abc_addr),
-    .value(abc_value)
-  
-);
-  */
-
-
 
   always @(posedge clk) begin
     if (rst) begin
@@ -229,7 +212,7 @@ abc abc (
         registers_ram_mmu2[saveram_q_num] <= 0;
   
         write_address <= registers_src_address2[saveram_q_num];
-        write_value   <= registers[saveram_q_num];//abc_value;
+        write_value   <= registers2[saveram_q_num];
         write_enabled <= 1;
           
         saveram_q_num <= 50;
@@ -237,7 +220,6 @@ abc abc (
       for (i = 0; i < 32; i = i + 1) begin
         if (registers_ram_mmu2[i]) begin         
           saveram_q_num <= i;
-          //abc_addr<=i;
         end
       end
       //executor
@@ -325,7 +307,7 @@ abc abc (
                   end else begin
                     registers_src_address2[i] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
                     register_save_lock[i] <= 1;
-                    //registers2[i] <= registers[i];
+                    registers2[i] <= registers[i];
                   end
                 end
                 OPCODE_REG_PLUS: begin
