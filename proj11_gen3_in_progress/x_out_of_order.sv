@@ -154,8 +154,6 @@ module x_out_of_order (
   `define REG_END_NUM (executor_state == EXECUTE_STATE_NONE ? decoder_register_end : executor_register_end)
   `define REG_VALUE(ARG) executor_state != EXECUTE_STATE_NONE && ARG == register[0]?read_value: \
                       (executor_state != EXECUTE_STATE_NONE && ARG == register[1]?read_value2:registers[ARG])
-`define REG_VALUE2(ARG) executor_state != EXECUTE_STATE_NONE && ARG == register[0]?read_value: \
-                      (executor_state != EXECUTE_STATE_NONE && ARG == register[1]?read_value2:registers2[ARG])                      
   `define INSTRUCTION_STATE (executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state)
   `define INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC (executor_state == EXECUTE_STATE_NONE?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric)
 // verilog_format:on
@@ -163,7 +161,7 @@ module x_out_of_order (
   //--------------------------------------------------------------------process------------------
 
   parameter REGISTER_NUM = 32;
-  
+
   reg [15:0] process_hardware_address = 0;
   reg [15:0] pc_logical, pc_physical;
 
@@ -171,10 +169,11 @@ module x_out_of_order (
 
   reg [15:0] registers[0:REGISTER_NUM-1], registers2[0:REGISTER_NUM-1];
   reg [15:0] registers_src_address[0:REGISTER_NUM-1], registers_target_address[0:REGISTER_NUM-1];
-  reg registers_src_mmu_done[0:REGISTER_NUM-1], registers_target_mmu_done[0:REGISTER_NUM-1];  //boolean
+  reg registers_src_mmu_done[0:REGISTER_NUM-1],
+      registers_target_mmu_done[0:REGISTER_NUM-1];  //boolean
   reg registers_init[0:REGISTER_NUM-1] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-  };  //bool. Read from RAM?
+  };  //boolean. Read from RAM?
 
   //----------------------------------------------------------------other---------------------------
 
@@ -183,7 +182,7 @@ module x_out_of_order (
   reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
 
-  integer i,j;
+  integer i, j;
 
   parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = 50;
 
@@ -201,7 +200,7 @@ module x_out_of_order (
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         registers_src_mmu_done[i] <= 1;
         registers_target_mmu_done[i] <= 0;
-        registers_src_address[i]   <= process_hardware_address + ADDRESS_REG + i;
+        registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
       end
       executor_state <= EXECUTE_STATE_NONE;
       fetch_stall_exists = 0;
@@ -211,14 +210,14 @@ module x_out_of_order (
       write_enabled <= 0;
       if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         register_save_lock[saveram_q_num] <= 0;
-        registers_target_mmu_done[saveram_q_num] <= 0;  
+        registers_target_mmu_done[saveram_q_num] <= 0;
         write_address <= registers_target_address[saveram_q_num];
-        write_value   <= registers2[saveram_q_num];
-        write_enabled <= 1;          
+        write_value <= registers2[saveram_q_num];
+        write_enabled <= 1;
         saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-        if (registers_target_mmu_done[i] && i != saveram_q_num) begin         
+        if (registers_target_mmu_done[i] && i != saveram_q_num) begin
           saveram_q_num <= i;
         end
       end
@@ -248,6 +247,13 @@ module x_out_of_order (
                    read_address, "=", read_value);  //DEBUG info
           registers[register[0]] <= read_value;
           registers_init[register[0]] <= 1;
+          
+          for (i=0;i<REGISTER_NUM;i=i+1) begin
+                  /* fixme - we need all combinations */
+                    if (register_save_lock[i] && registers_target_address[i]== registers_src_address[register[0]]) begin
+                     registers[register[0]] <= registers2[i];                      
+                    end
+          end        
         end
         if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($time, pc_logical, " no fetch register ", register[1],
@@ -286,7 +292,7 @@ module x_out_of_order (
                 if (!registers_init[i] && i != register[0] && i != register[1]) begin
                   fetch_stall_exists = 1;
                   //for (j=0;j<REGISTER_NUM;j=j+1) begin
-                    /* fixme - we need all combinations */
+                  /* fixme - we need all combinations */
                   //  if (register_save_lock[j] && registers_target_address[j]== registers_src_address[i]) begin
                   //   registers_init[i] <= 1;
                   //   registers_src_mmu_done[i] <= 1;
@@ -294,13 +300,13 @@ module x_out_of_order (
                   //  end
                   //end
                   if (fetch_stall_exists) begin
-                    executor_state <= EXECUTE_STATE_READ_EXECUTE;                  
+                    executor_state <= EXECUTE_STATE_READ_EXECUTE;
                     if (registers_src_mmu_done[i]) begin
                       read_address  <= i % 2 == 0 ? registers_src_address[i] : read_address;
                       read_address2 <= i % 2 == 1 ? registers_src_address[i] : read_address2;
                       register[i%2] <= i;
-                    end                  
-                  end                  
+                    end
+                  end
                 end
               end
             endcase
@@ -321,12 +327,12 @@ module x_out_of_order (
                   end
                 end
                 OPCODE_REG_PLUS: begin
-                  registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;                
+                  registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                 end
                 OPCODE_REG_MINUS: begin
                   registers[i] <= `REG_VALUE(i) - `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                 end
-               /* OPCODE_REG_MUL: begin
+                /* OPCODE_REG_MUL: begin
                   registers[i] <= `REG_VALUE(i) * `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
                 end
                 OPCODE_REG_DIV: begin
