@@ -184,6 +184,8 @@ module x_out_of_order (
 
   integer i, j;
 
+reg [16:0] xx;
+
   parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = 50;
 
   always @(posedge clk) begin
@@ -241,6 +243,9 @@ module x_out_of_order (
                    executor_start_ram_address_or_numeric);  //DEBUG info 
         end
         executor_state <= EXECUTE_STATE_NONE;
+        
+      
+                  
         if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($time, pc_logical, " no fetch register ", register[0],
                    " with address ",  //DEBUG info
@@ -248,12 +253,12 @@ module x_out_of_order (
           registers[register[0]] <= read_value;
           registers_init[register[0]] <= 1;
           
-          for (i=0;i<REGISTER_NUM;i=i+1) begin
+                     for (i=0;i<REGISTER_NUM;i=i+1) begin
                   /* fixme - we need all combinations */
-                    if (register_save_lock[i] && registers_target_address[i]== registers_src_address[register[0]]) begin
-                     registers[register[0]] <= registers2[i];                      
+                    if (registers_src_address[register[0]]==registers_target_address[i]) begin
+                     registers[register[0]] <= registers[i];                      
                     end
-          end        
+                  end                       
         end
         if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($time, pc_logical, " no fetch register ", register[1],
@@ -291,22 +296,15 @@ module x_out_of_order (
               default: begin
                 if (!registers_init[i] && i != register[0] && i != register[1]) begin
                   fetch_stall_exists = 1;
-                  //for (j=0;j<REGISTER_NUM;j=j+1) begin
-                  /* fixme - we need all combinations */
-                  //  if (register_save_lock[j] && registers_target_address[j]== registers_src_address[i]) begin
-                  //   registers_init[i] <= 1;
-                  //   registers_src_mmu_done[i] <= 1;
-                  //   registers[i] <= registers2[j];                      
-                  //  end
-                  //end
-                  if (fetch_stall_exists) begin
+                 
+                 // if (fetch_stall_exists) begin
                     executor_state <= EXECUTE_STATE_READ_EXECUTE;
                     if (registers_src_mmu_done[i]) begin
                       read_address  <= i % 2 == 0 ? registers_src_address[i] : read_address;
                       read_address2 <= i % 2 == 1 ? registers_src_address[i] : read_address2;
                       register[i%2] <= i;
                     end
-                  end
+                  //end
                 end
               end
             endcase
@@ -324,6 +322,8 @@ module x_out_of_order (
                     registers_target_address[i] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
                     register_save_lock[i] <= 1;
                     registers2[i] <= registers[i];
+                    
+                  
                   end
                 end
                 OPCODE_REG_PLUS: begin
