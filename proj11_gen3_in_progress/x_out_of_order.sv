@@ -152,8 +152,8 @@ module x_out_of_order (
   // verilog_format:off
   `define REG_START_NUM (executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start)
   `define REG_END_NUM (executor_state == EXECUTE_STATE_NONE ? decoder_register_end : executor_register_end)
-  `define REG_VALUE(ARG) executor_state != EXECUTE_STATE_NONE && ARG == register[0]?read_value: \
-                      (executor_state != EXECUTE_STATE_NONE && ARG == register[1]?read_value2:registers[ARG])
+  `define REG_VALUE(ARG) executor_state != EXECUTE_STATE_NONE && ARG == register[0]?(register2[0]!=RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32?registers2[register2[0]]:read_value): \
+                      (executor_state != EXECUTE_STATE_NONE && ARG == register[1]?(register2[1]!=RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32?registers2[register2[1]]:read_value2):registers[ARG])
   `define INSTRUCTION_STATE (executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state)
   `define INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC (executor_state == EXECUTE_STATE_NONE?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric)
 // verilog_format:on
@@ -186,31 +186,9 @@ module x_out_of_order (
   reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
 
-  integer i, j, z;
+  integer i, j;
 
   parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = 50;
-
-  //reg [5:0] xx, yy;
-
-  /*always @(posedge clk) begin
-    xx = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-    for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-      if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 &&
-                        registers_src_address[register[0]]==registers_target_address2[j]) begin
-        xx = j;
-      end
-    end
-  end
-
-  always @(posedge clk) begin
-    yy = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-    for (z = 0; z < REGISTER_NUM; z = z + 1) begin
-      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32&&
-                    registers_src_address[register[1]]==registers_target_address2[z]) begin
-        yy = z;
-      end
-    end
-  end*/
 
   always @(posedge clk) begin
     if (rst) begin
@@ -247,8 +225,6 @@ module x_out_of_order (
           saveram_q_num <= i;
         end
       end
-     // if (xx!=50) registers[xx] <= registers2[xx];
-     // if (yy!=50) registers[yy] <= registers2[yy];
       //executor
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         if (executor_state == EXECUTE_STATE_NONE) begin
@@ -313,20 +289,16 @@ module x_out_of_order (
               end
               default: begin
                 if (!registers_init[i] && i != register[0] && i != register[1]) begin
-                  fetch_stall_exists = 1;
-                  // if (fetch_stall_exists) begin
+                  fetch_stall_exists = 1;                 
                   executor_state <= EXECUTE_STATE_READ_EXECUTE;
                   if (registers_src_mmu_done[i]) begin
-                   for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-      if (registers_src_address[i]==registers_target_address2[j]) begin
-                    register2[i%2] <= i;
-      end
-    end
+                    for (j = 0; j < REGISTER_NUM; j = j + 1) begin
+                      register2[i%2] <= registers_src_address[i]==registers_target_address2[j]?i:register2[i%2];
+                    end
                     read_address  <= i % 2 == 0 ? registers_src_address[i] : read_address;
                     read_address2 <= i % 2 == 1 ? registers_src_address[i] : read_address2;
                     register[i%2] <= i;
                   end
-                  //end
                 end
               end
             endcase
