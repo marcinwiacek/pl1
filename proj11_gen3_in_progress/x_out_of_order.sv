@@ -193,7 +193,7 @@ module x_out_of_order (
   reg [5:0] xx, yy;
 
   always @(posedge clk) begin
-    xx = 50;
+    xx = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
     for (j = 0; j < REGISTER_NUM; j = j + 1) begin
       if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 &&
                         registers_src_address[register[0]]==registers_target_address2[j]) begin
@@ -203,7 +203,7 @@ module x_out_of_order (
   end
 
   always @(posedge clk) begin
-    yy = 50;
+    yy = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
     for (z = 0; z < REGISTER_NUM; z = z + 1) begin
       if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32&&
                     registers_src_address[register[1]]==registers_target_address2[z]) begin
@@ -247,8 +247,8 @@ module x_out_of_order (
           saveram_q_num <= i;
         end
       end
-      if (xx!=50) registers[xx] <= registers2[xx];
-      if (yy!=50) registers[yy] <= registers2[yy];
+     // if (xx!=50) registers[xx] <= registers2[xx];
+     // if (yy!=50) registers[yy] <= registers2[yy];
       //executor
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         if (executor_state == EXECUTE_STATE_NONE) begin
