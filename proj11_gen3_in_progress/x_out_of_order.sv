@@ -305,8 +305,10 @@ module x_out_of_order (
                   executor_state <= EXECUTE_STATE_READ_EXECUTE;
                   if (registers_src_mmu_done[i]) begin
                     for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-                      if (registers_src_address[i]==registers_target_address2[j]) register2[i%2] <= j;
-                      if (registers_src_address[i]==registers_target_address2[j]) $display($sformatf("%02d",$time)," assigning ",j," to ",register2[i%2], " ",i%2);
+                      if (registers_src_address[i]==registers_target_address2[j]) begin
+                        register2[i%2] <= j;
+                      end
+                      //if (registers_src_address[i]==registers_target_address2[j]) $display($sformatf("%02d",$time)," assigning ",j," to ",register2[i%2], " ",i%2);
                     end
                     read_address  <= i % 2 == 0 ? registers_src_address[i] : read_address;
                     read_address2 <= i % 2 == 1 ? registers_src_address[i] : read_address2;
