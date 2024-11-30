@@ -183,7 +183,7 @@ module x_out_of_order (
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };  //boolean. Read from RAM?
 
-  reg registers_block_save[0:REGISTER_NUM-1];
+  reg registers_save_ready[0:REGISTER_NUM-1];
 
   //----------------------------------------------------------------other---------------------------
 
@@ -197,9 +197,8 @@ module x_out_of_order (
   always @(posedge clk) begin
     for (z = 0; z < REGISTER_NUM; z = z + 1) begin
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-        if (registers_src_address[z] == registers_target_address[j]) begin
-          registers_block_save[j] <= !registers_init[i];
-        end
+        //let's compare addresses before MMU
+        registers_save_ready[z] <= registers_src_address[z] == registers_target_address[j]?registers_init[z]&&registers_target_mmu_done[z]:registers_target_mmu_done[z];
       end
     end
   end
@@ -245,7 +244,7 @@ module x_out_of_order (
         saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-        if (registers_target_mmu_done[i] && i != saveram_q_num) begin //!registers_block_save[i] &&
+        if (registers_save_ready[i] && i != saveram_q_num) begin
           saveram_q_num <= i;
         end
       end
@@ -272,10 +271,6 @@ module x_out_of_order (
         end
         executor_state <= EXECUTE_STATE_NONE;
         if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-          //   for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-          //   if (registers_block[j]) registers2[0]<=j;
-          // end
-
           $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[0],
                    " with address ",  //DEBUG info
                    read_address, "=", read_value);  //DEBUG info
@@ -323,17 +318,10 @@ module x_out_of_order (
                 if (!registers_init[i] && i != register[0] && i != register[1]) begin
                   fetch_stall_exists = 1;
                   executor_state <= EXECUTE_STATE_READ_EXECUTE;
-                  //fetch_stall_exists2 = 0;
                   if (registers_src_mmu_done[i]) begin
-                    // for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-                    //   fetch_stall_exists2= fetch_stall_exists2+ (registers_src_address[i]==registers_target_address2[j]);
-                    //if (registers_src_address[i]==registers_target_address2[j]) $display($sformatf("%02d",$time)," assigning ",j," to ",register2[i%2], " ",i%2);
-                    // end
-                    // if (!fetch_stall_exists2) begin
                     read_address  <= i % 2 == 0 ? registers_src_address2[i] : read_address;
                     read_address2 <= i % 2 == 1 ? registers_src_address2[i] : read_address2;
                     register[i%2] <= i;
-                    // end
                   end
                 end
               end
