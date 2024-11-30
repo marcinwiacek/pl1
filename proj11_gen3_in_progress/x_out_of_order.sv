@@ -173,6 +173,7 @@ module x_out_of_order (
   reg [15:0] registers[0:REGISTER_NUM-1], registers2[0:REGISTER_NUM-1];
   reg [15:0]
       registers_src_address[0:REGISTER_NUM-1],
+      registers_src_address2[0:REGISTER_NUM-1],
       registers_target_address[0:REGISTER_NUM-1],
       registers_target_address2[0:REGISTER_NUM-1];
   reg
@@ -182,7 +183,7 @@ module x_out_of_order (
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };  //boolean. Read from RAM?
 
-  reg registers_block[0:REGISTER_NUM-1];
+  reg registers_block_save[0:REGISTER_NUM-1];
 
   //----------------------------------------------------------------other---------------------------
 
@@ -197,7 +198,7 @@ module x_out_of_order (
     for (z = 0; z < REGISTER_NUM; z = z + 1) begin
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
         if (registers_src_address[z] == registers_target_address[j]) begin
-          registers_target_mmu_done[j] <= 0;
+          registers_block_save[j] <= !registers_init[i];
         end
       end
     end
@@ -244,7 +245,7 @@ module x_out_of_order (
         saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-        if (registers_target_mmu_done[i] && i != saveram_q_num) begin
+        if (registers_target_mmu_done[i] && i != saveram_q_num) begin //!registers_block_save[i] &&
           saveram_q_num <= i;
         end
       end
@@ -295,8 +296,8 @@ module x_out_of_order (
         fetch_stall_exists = 0;
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           if (!registers_init[i] && registers_src_mmu_done[i]) begin
-            read_address  <= i % 2 == 0 ? registers_src_address[i] : read_address;
-            read_address2 <= i % 2 == 1 ? registers_src_address[i] : read_address2;
+            read_address  <= i % 2 == 0 ? registers_src_address2[i] : read_address;
+            read_address2 <= i % 2 == 1 ? registers_src_address2[i] : read_address2;
             register[i%2] <= i;
           end
         end
@@ -329,8 +330,8 @@ module x_out_of_order (
                     //if (registers_src_address[i]==registers_target_address2[j]) $display($sformatf("%02d",$time)," assigning ",j," to ",register2[i%2], " ",i%2);
                     // end
                     // if (!fetch_stall_exists2) begin
-                    read_address  <= i % 2 == 0 ? registers_src_address[i] : read_address;
-                    read_address2 <= i % 2 == 1 ? registers_src_address[i] : read_address2;
+                    read_address  <= i % 2 == 0 ? registers_src_address2[i] : read_address;
+                    read_address2 <= i % 2 == 1 ? registers_src_address2[i] : read_address2;
                     register[i%2] <= i;
                     // end
                   end
@@ -351,10 +352,6 @@ module x_out_of_order (
                     registers_target_address[i] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
                     register_save_lock[i] <= 1;
                     registers2[i] <= registers[i];
-
-
-
-
                   end
                 end
                 OPCODE_REG_PLUS: begin
@@ -414,7 +411,7 @@ module x_out_of_order (
                 $sformatf("%02d", $time), pc_logical, " updating reg ", i,
                 " src address to ",  //DEBUG info
                 mmu_address_physical_min_in_the_same_page + registers_src_address[i] - mmu_address_logical_min_in_the_same_page);  //DEBUG info
-            registers_src_address[i]<= mmu_address_physical_min_in_the_same_page+registers_src_address[i]-mmu_address_logical_min_in_the_same_page;
+            registers_src_address2[i]<= mmu_address_physical_min_in_the_same_page+registers_src_address[i]-mmu_address_logical_min_in_the_same_page;
             registers_src_mmu_done[i] <= 1;
           end
           if (register_save_lock[i] && 
@@ -425,7 +422,6 @@ module x_out_of_order (
                 " src address from ");
             registers_target_address2[i]<= mmu_address_physical_min_in_the_same_page+registers_target_address[i]-mmu_address_logical_min_in_the_same_page;
             registers_target_mmu_done[i] <= 1;
-
           end
         end
       end
