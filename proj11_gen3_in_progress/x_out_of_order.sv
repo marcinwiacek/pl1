@@ -339,15 +339,7 @@ reg
                     registers_target_address[i] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
                     register_save_lock[i] <= 1;
                     registers2[i] <= registers[i];
-                    for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-                      if (registers_src_address[i]==registers_target_address2[j]) begin
-                        //first needs to read old value
-                        executor_state <= EXECUTE_STATE_READ_EXECUTE;
-                          register_save_lock[i] <= 0;                  
-                      end
-  //                    fetch_stall_exists2= fetch_stall_exists2+ (registers_src_address[i]==registers_target_address2[j]);
-                      //if (registers_src_address[i]==registers_target_address2[j]) $display($sformatf("%02d",$time)," assigning ",j," to ",register2[i%2], " ",i%2);
-                    end
+                    
                   
                   
                 
@@ -416,6 +408,11 @@ reg
                 $sformatf("%02d",$time), pc_logical, " updating save ram ", i, " src address from ");
             registers_target_address2[i]<= mmu_address_physical_min_in_the_same_page+registers_target_address[i]-mmu_address_logical_min_in_the_same_page;
             registers_target_mmu_done[i] <= 1;
+            for (j = 0; j < REGISTER_NUM; j = j + 1) begin
+                      if (registers_src_address[j]==registers_target_address[i]) begin
+                         registers_target_mmu_done[i] <= 0;                 
+                      end
+                    end
           end
         end
       end
