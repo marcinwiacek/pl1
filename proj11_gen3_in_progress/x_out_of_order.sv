@@ -198,20 +198,29 @@ module x_out_of_order (
   always @(posedge clk) begin
     for (z = 0; z < REGISTER_NUM; z = z + 1) begin
         registers_new_read_forward[z]<=50;
-        //registers_disable_save[z]<=0;
         for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-          //if (registers_target_address[z] == registers_target_address[j]) begin
-          //  registers_disable_save[z]<=registers_new_save[j];
-          //end
           if (registers_src_address[z] == registers_target_address[j] && !registers_init[z]) begin
             registers_new_read_forward[z]<=j;
           end
         end
-//        for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-//          registers_save_ready[z] <= registers_src_address[z] == registers_target_address[j]?registers_init[z]&&registers_target_mmu_done[z]:registers_target_mmu_done[z];
-//        end      
+        registers_save_ready[z] <= registers_src_address[z] == registers_target_address[j]?
+            register_save_lock[z]&&registers_init[z]&&registers_target_mmu_done[z]:
+            registers_target_mmu_done[z];
     end
   end
+  
+  
+  
+ /* always @(posedge clk) begin
+    for (z = 0; z < REGISTER_NUM; z = z + 1) begin
+        registers_disable_save[z]<=0;
+        for (j = 0; j < REGISTER_NUM; j = j + 1) begin
+          if (registers_target_address[z] == registers_target_address[j]) begin
+            registers_disable_save[z]<=registers_new_save[j];
+          end
+        end
+    end
+  end*/
 
   always @(posedge clk) begin
     if (rst) begin
@@ -258,7 +267,7 @@ module x_out_of_order (
           saveram_q_num <= i;
         end
         registers_new_save[i]<=0;        
-        //register_save_lock[i]<=registers_disable_save[i]?0:register_save_lock[i];
+        //if (registers_disable_save[i]) register_save_lock[i]<=0;        
         if (registers_new_read_forward[i]!=50) begin
                registers_init[i] <= 1;
                registers_src_mmu_done[i] <= 1;
@@ -358,12 +367,6 @@ module x_out_of_order (
                     register_save_lock[i] <= 1;
                     registers2[i] <= registers[i];
                     registers_new_save[i]<=1;
-                    
-                    for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-          if (`INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM == registers_target_address[j]) begin
-            register_save_lock[j] <= 0;
-          end
-          end
                   end
                 end
                 OPCODE_REG_PLUS: begin
