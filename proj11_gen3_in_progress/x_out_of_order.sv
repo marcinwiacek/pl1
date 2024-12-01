@@ -200,7 +200,7 @@ module x_out_of_order (
         registers_new_read_forward[z]<=50;
         registers_disable_save[z]<=0;
         for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-          if (registers_target_address[z] == registers_target_address[j] && z!=j && registers_new_save[j]) begin
+          if (registers_target_address[z] == registers_target_address[j] && registers_new_save[j]) begin
             registers_disable_save[z]<=1;
           end
           if (registers_src_address[z] == registers_target_address[j] && !registers_init[z]) begin
@@ -262,8 +262,7 @@ module x_out_of_order (
         if (registers_new_read_forward[i]!=50) begin
                registers_init[i] <= 1;
                registers_src_mmu_done[i] <= 1;
-               registers[i] <= registers2[registers_new_read_forward[i]];
-           //    registers_new_read_forward[i]<=50;               
+               registers[i] <= registers2[registers_new_read_forward[i]];            
         end
       end
       //executor
