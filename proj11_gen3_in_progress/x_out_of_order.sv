@@ -183,7 +183,8 @@ module x_out_of_order (
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };  //boolean. Read from RAM?
 
-  reg registers_save_ready[0:REGISTER_NUM-1],registers_new_read[0:REGISTER_NUM-1];
+  reg registers_save_ready[0:REGISTER_NUM-1], registers_new_read[0:REGISTER_NUM-1];
+  reg [15:0] registers_new_read_forward[0:REGISTER_NUM-1];
 
   //----------------------------------------------------------------other---------------------------
 
@@ -196,18 +197,19 @@ module x_out_of_order (
 
   always @(posedge clk) begin
     for (z = 0; z < REGISTER_NUM; z = z + 1) begin
-      for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-        //if (registers_src_address[z] == registers_target_address[j] && registers_new_read[z]) begin
-        //       registers_init[z] <= 1;
-        //       registers_src_mmu_done[z] <= 1;
-        //       registers[z] <= registers2[j];               
-        //end else begin                  
-          //make sure, that ram is read before saving
-          //let's compare addresses before MMU
-          registers_save_ready[z] <= registers_src_address[z] == registers_target_address[j]?registers_init[z]&&registers_target_mmu_done[z]:registers_target_mmu_done[z];
-        //end
+      if (registers_new_read[z]) begin
+        registers_new_read_forward[z]<=50;
+        for (j = 0; j < REGISTER_NUM; j = j + 1) begin
+          if (registers_src_address[z] == registers_target_address[j]) begin
+            registers_new_read_forward[z]<=j;
+          end
+        end
         registers_new_read[z] <= 0;
-      end
+      end else begin
+        for (j = 0; j < REGISTER_NUM; j = j + 1) begin
+          registers_save_ready[z] <= registers_src_address[z] == registers_target_address[j]?registers_init[z]&&registers_target_mmu_done[z]:registers_target_mmu_done[z];
+        end      
+      end       
     end
   end
 
@@ -226,7 +228,7 @@ module x_out_of_order (
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         registers_src_mmu_done[i] <= 1;
         registers_target_mmu_done[i] <= 0;
-        registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;
+        registers_src_address[i] <= process_hardware_address + ADDRESS_REG + i;        
       end
       executor_state <= EXECUTE_STATE_NONE;
       fetch_stall_exists = 0;
@@ -254,6 +256,12 @@ module x_out_of_order (
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         if (registers_save_ready[i] && i != saveram_q_num) begin
           saveram_q_num <= i;
+        end
+        if (registers_new_read_forward[i]!=50) begin
+               registers_init[i] <= 1;
+               registers_src_mmu_done[i] <= 1;
+               registers[i] <= registers2[registers_new_read_forward[i]];
+               registers_new_read_forward[i]<=50;               
         end
       end
       //executor
