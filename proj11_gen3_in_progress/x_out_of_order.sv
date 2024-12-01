@@ -183,7 +183,7 @@ module x_out_of_order (
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };  //boolean. Read from RAM?
 
-  reg registers_save_ready[0:REGISTER_NUM-1], registers_new_read[0:REGISTER_NUM-1];
+  reg registers_save_ready[0:REGISTER_NUM-1], registers_new_save[0:REGISTER_NUM-1], registers_disable_save[0:REGISTER_NUM-1];
   reg [15:0] registers_new_read_forward[0:REGISTER_NUM-1];
 
   //----------------------------------------------------------------other---------------------------
@@ -197,19 +197,19 @@ module x_out_of_order (
 
   always @(posedge clk) begin
     for (z = 0; z < REGISTER_NUM; z = z + 1) begin
-      if (registers_new_read[z]) begin
         registers_new_read_forward[z]<=50;
+        registers_disable_save[z]<=0;
         for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-          if (registers_src_address[z] == registers_target_address[j]) begin
+          if (registers_target_address[z] == registers_target_address[j] && z!=j && registers_new_save[j]) begin
+            registers_disable_save[z]<=1;
+          end
+          if (registers_src_address[z] == registers_target_address[j] && !registers_init[z]) begin
             registers_new_read_forward[z]<=j;
           end
         end
-        registers_new_read[z] <= 0;
-      end else begin
-        for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-          registers_save_ready[z] <= registers_src_address[z] == registers_target_address[j]?registers_init[z]&&registers_target_mmu_done[z]:registers_target_mmu_done[z];
-        end      
-      end       
+//        for (j = 0; j < REGISTER_NUM; j = j + 1) begin
+//          registers_save_ready[z] <= registers_src_address[z] == registers_target_address[j]?registers_init[z]&&registers_target_mmu_done[z]:registers_target_mmu_done[z];
+//        end      
     end
   end
 
@@ -257,11 +257,13 @@ module x_out_of_order (
         if (registers_save_ready[i] && i != saveram_q_num) begin
           saveram_q_num <= i;
         end
+        registers_new_save[i]<=0;        
+        register_save_lock[i]<=registers_disable_save[i]?0:register_save_lock[i];
         if (registers_new_read_forward[i]!=50) begin
                registers_init[i] <= 1;
                registers_src_mmu_done[i] <= 1;
                registers[i] <= registers2[registers_new_read_forward[i]];
-               registers_new_read_forward[i]<=50;               
+           //    registers_new_read_forward[i]<=50;               
         end
       end
       //executor
@@ -321,7 +323,6 @@ module x_out_of_order (
                 registers_init[i] <= 0;
                 registers_src_mmu_done[i] <= 0;
                 registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
-                registers_new_read[i] <= 1;  
               end
               OPCODE_NUM2REG: begin
                 //not important if register had value earlier
@@ -352,11 +353,12 @@ module x_out_of_order (
                 OPCODE_REG2RAM: begin
                   if (register_save_lock[i]) begin
                     executor_state <= EXECUTE_STATE_READ_EXECUTE;
-                    $display($sformatf("%02d", $time), pc_logical, " write memory stall");
+                    $display($sformatf("%02d", $time), pc_logical, " write memory slot is already filled, stall");
                   end else begin
                     registers_target_address[i] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
                     register_save_lock[i] <= 1;
                     registers2[i] <= registers[i];
+                    registers_new_save[i]<=1;
                   end
                 end
                 OPCODE_REG_PLUS: begin
