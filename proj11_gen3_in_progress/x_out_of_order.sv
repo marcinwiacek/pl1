@@ -183,7 +183,7 @@ module x_out_of_order (
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   };  //boolean. Read from RAM?
 
-  reg registers_save_ready[0:REGISTER_NUM-1];
+  reg registers_save_ready[0:REGISTER_NUM-1],registers_new_read[0:REGISTER_NUM-1];
 
   //----------------------------------------------------------------other---------------------------
 
@@ -192,13 +192,21 @@ module x_out_of_order (
   reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
 
-  integer i, j, z;
+  integer i, j, z, p;
 
   always @(posedge clk) begin
     for (z = 0; z < REGISTER_NUM; z = z + 1) begin
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-        //let's compare addresses before MMU
-        registers_save_ready[z] <= registers_src_address[z] == registers_target_address[j]?registers_init[z]&&registers_target_mmu_done[z]:registers_target_mmu_done[z];
+        //if (registers_src_address[z] == registers_target_address[j] && registers_new_read[z]) begin
+        //       registers_init[z] <= 1;
+        //       registers_src_mmu_done[z] <= 1;
+        //       registers[z] <= registers2[j];               
+        //end else begin                  
+          //make sure, that ram is read before saving
+          //let's compare addresses before MMU
+          registers_save_ready[z] <= registers_src_address[z] == registers_target_address[j]?registers_init[z]&&registers_target_mmu_done[z]:registers_target_mmu_done[z];
+        //end
+        registers_new_read[z] <= 0;
       end
     end
   end
@@ -305,6 +313,7 @@ module x_out_of_order (
                 registers_init[i] <= 0;
                 registers_src_mmu_done[i] <= 0;
                 registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
+                registers_new_read[i] <= 1;  
               end
               OPCODE_NUM2REG: begin
                 //not important if register had value earlier
@@ -364,7 +373,7 @@ module x_out_of_order (
             end
           end
           if (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG) begin
-            //should calculate physical address
+            //start calculating physical address
             mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
             mmuqueue_q_len[mmuqueue_q_new_pos] <= `REG_END_NUM - `REG_START_NUM;
             mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
@@ -372,6 +381,7 @@ module x_out_of_order (
         end
       end
       //fetch & decoder
+      decoder_inp <= 0;
       if (!jmp_stall_exists && !fetch_stall_exists && pc_physical != 0) begin
         read_address  <= pc_physical;
         read_address2 <= pc_physical + 1;
@@ -380,8 +390,6 @@ module x_out_of_order (
         decoder_inp <= 1;
         pc_logical <= pc_logical + 2;
         pc_physical <= pc_physical + 2;
-      end else begin
-        decoder_inp <= 0;
       end
       //mmu
       if (mmu_ready) begin
