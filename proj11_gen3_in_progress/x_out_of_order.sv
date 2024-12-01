@@ -204,7 +204,7 @@ module x_out_of_order (
           end
         end
         registers_save_ready[z] <= registers_src_address[z] == registers_target_address[j]?
-            register_save_lock[z]&&registers_init[z]&&registers_target_mmu_done[z]:
+            register_save_lock[z]&&registers_target_mmu_done[z]: //&&registers_init[z]
             registers_target_mmu_done[z];
     end
   end
