@@ -178,7 +178,7 @@ module x_out_of_order (
   reg
       registers_save_ready[0:REGISTER_NUM-1],
       registers_src_mmu_done[0:REGISTER_NUM-1],
-      registers_target_mmu_done[0:REGISTER_NUM-1],      
+      registers_target_mmu_done[0:REGISTER_NUM-1],
       registers_init[0:REGISTER_NUM-1] = {
         // verilog_format:off
         1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1
@@ -209,9 +209,9 @@ module x_out_of_order (
 
   always @(posedge clk) begin
     for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
-      registers_save_ready[zz] <= registers_target_mmu_done[zz];//&& register_save_lock[zz];
+      registers_save_ready[zz] <= registers_target_mmu_done[zz];  //&& register_save_lock[zz];
       for (jj = 0; jj < REGISTER_NUM; jj = jj + 1) begin
-        if (registers_src_address[jj]==registers_target_address[zz] && !registers_init[jj]) begin
+        if (registers_src_address[jj] == registers_target_address[zz] && !registers_init[jj]) begin
           //first read jj, later save zz
           registers_save_ready[zz] <= 0;
         end
@@ -257,7 +257,7 @@ module x_out_of_order (
         write_address <= registers_target_address2[saveram_q_num];
         write_value <= registers2[saveram_q_num];
         write_enabled <= 1;
-        saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;        
+        saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       fetch_stall_exists = 0;
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
