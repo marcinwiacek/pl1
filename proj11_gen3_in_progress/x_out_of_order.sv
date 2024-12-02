@@ -57,7 +57,7 @@ parameter OPCODE_FREE_LEVEL =32; //free ram pages allocated after page x (or pag
 parameter EXECUTE_STATE_NONE = 0;
 parameter EXECUTE_STATE_READ_EXECUTE = 1;
 
-module x_out_of_order (
+    module x_out_of_order (
     input clk,
 
     output reg x
@@ -195,7 +195,7 @@ module x_out_of_order (
 
   integer i, j, z, jj, zz;
 
-  always @(posedge clk) begin
+  /*always @(posedge clk) begin
     for (z = 0; z < REGISTER_NUM; z = z + 1) begin
       registers_new_read_forward[z] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
@@ -205,15 +205,15 @@ module x_out_of_order (
         end
       end
     end
-  end
+  end*/
 
   always @(posedge clk) begin
     for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
-      registers_save_ready[zz] <= registers_target_mmu_done[zz];  //&& register_save_lock[zz];
+      registers_save_ready[zz] <= registers_target_mmu_done[zz]; // && register_save_lock[zz];
       for (jj = 0; jj < REGISTER_NUM; jj = jj + 1) begin
-        if (registers_src_address[jj] == registers_target_address[zz] && !registers_init[jj]) begin
+        if (registers_src_address[jj] == registers_target_address[zz]) begin
           //first read jj, later save zz
-          registers_save_ready[zz] <= 0;
+          registers_save_ready[zz] <= registers_target_mmu_done[zz] && registers_init[jj];
         end
       end
     end
@@ -241,7 +241,7 @@ module x_out_of_order (
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
     end else if (instr_num < 10) begin
       $write($sformatf("%02d", $time), " reg");
-      for (i = 0; i < 16; i = i + 1) begin
+      for (i = 0; i < 20; i = i + 1) begin
         if (registers_init[i]) begin
           $write($sformatf(" %02d:%02d", i, registers[i]));
         end else begin
@@ -264,12 +264,12 @@ module x_out_of_order (
         if (registers_save_ready[i] && i != saveram_q_num) begin
           saveram_q_num <= i;
         end
-        if (registers_new_read_forward[i] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+       /* if (registers_new_read_forward[i] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           registers_init[i] <= 1;
           registers_src_mmu_done[i] <= 1;
           registers[i] <= registers2[registers_new_read_forward[i]];
           fetch_stall_exists <= 1;
-        end
+        end*/
       end
       //executor
       if (!fetch_stall_exists && (decoder_ready || executor_state != EXECUTE_STATE_NONE)) begin
