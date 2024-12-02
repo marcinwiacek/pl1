@@ -198,25 +198,29 @@ module x_out_of_order (
   always @(posedge clk) begin
     for (z = 0; z < REGISTER_NUM; z = z + 1) begin
         registers_new_read_forward[z]<=50;
+        registers_save_ready[z]<=registers_target_mmu_done[z];
         for (j = 0; j < REGISTER_NUM; j = j + 1) begin
           if (registers_src_address[z] == registers_target_address[j] && !registers_init[z]) begin
             registers_new_read_forward[z]<=j;
           end
+          if (!registers_init[z] && registers_src_address[j] == registers_target_address[z]) begin
+            registers_save_ready[z]<=0;
+          end
         end
-        registers_save_ready[z] <= registers_src_address[z] == registers_target_address[j]?
-            register_save_lock[z]&&registers_target_mmu_done[z]: //&&registers_init[z]
-            registers_target_mmu_done[z];
+       // registers_save_ready[z] <= registers_src_address[z] == registers_target_address[j]?
+         //   !registers_disable_save[i]&& register_save_lock[z]&&registers_target_mmu_done[z]: //&&registers_init[z]
+           // registers_target_mmu_done[z];
     end
   end
   
   
   
- /* always @(posedge clk) begin
+/*  always @(posedge clk) begin
     for (z = 0; z < REGISTER_NUM; z = z + 1) begin
         registers_disable_save[z]<=0;
         for (j = 0; j < REGISTER_NUM; j = j + 1) begin
           if (registers_target_address[z] == registers_target_address[j]) begin
-            registers_disable_save[z]<=registers_new_save[j];
+            registers_disable_save[z]<=1;
           end
         end
     end
@@ -266,8 +270,8 @@ module x_out_of_order (
         if (registers_save_ready[i] && i != saveram_q_num) begin
           saveram_q_num <= i;
         end
-        registers_new_save[i]<=0;        
-        //if (registers_disable_save[i]) register_save_lock[i]<=0;        
+   //     registers_new_save[i]<=0;        
+  //      if (registers_disable_save[i]) register_save_lock[i]<=0;        
         if (registers_new_read_forward[i]!=50) begin
                registers_init[i] <= 1;
                registers_src_mmu_done[i] <= 1;
