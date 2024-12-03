@@ -230,7 +230,7 @@ module x_out_of_order (
     end
   end*/
   
-  reg [15:0] save_to_check;
+ /* reg [15:0] save_to_check;
   
   always @(posedge clk) begin
     for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
@@ -243,7 +243,7 @@ module x_out_of_order (
         end
       end
     end
-  end
+  end*/
 
   always @(posedge clk) begin
     if (rst) begin
