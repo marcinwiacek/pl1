@@ -229,6 +229,21 @@ module x_out_of_order (
       end
     end
   end*/
+  
+  reg [15:0] save_to_check;
+  
+  always @(posedge clk) begin
+    for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
+      if (registers_save_counter[zz] == save_to_check) begin
+        registers_save_counter[zz]<=0;
+        for (jj = 0; jj < REGISTER_NUM; jj = jj + 1) begin
+          for (z = 0; z < REGISTER_NUM; z = z + 1) begin
+            if (registers_save_save_counter[z] == jj && registers_save_address[z]==registers_src_address[zz]) registers_save_counter[z]<=jj+1; 
+          end
+        end
+      end
+    end
+  end
 
   always @(posedge clk) begin
     if (rst) begin
