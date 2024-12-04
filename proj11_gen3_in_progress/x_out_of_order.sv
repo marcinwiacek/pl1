@@ -267,6 +267,7 @@ module x_out_of_order (
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       save_counter  <= 0;
     end else if (instr_num < 10) begin
+      fetch_stall_exists = 0;
       $write($sformatf("%02d", $time), " reg");
       for (i = 0; i < 20; i = i + 1) begin
         if (registers_init[i]) begin
@@ -292,21 +293,21 @@ module x_out_of_order (
           registers_save_counter[i]<=registers_save_counter[i]>0?registers_save_counter[i]-1:0;
         end
         save_counter = save_counter > 0 ? save_counter - 1 : 0;
-      end
-      fetch_stall_exists = 0;
-      for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-        if (registers_save_ready[i] && i != saveram_q_num && registers_save_save_counter[i]==0) begin
-          saveram_q_num <= i;
-        end
+      end else begin
+        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+          if (registers_save_ready[i] && registers_save_save_counter[i]==0) begin //i != saveram_q_num && 
+            saveram_q_num <= i;
+          end
         /*if (registers_new_read_forward[i] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           registers_init[i] <= 1;
           registers_src_mmu_done[i] <= 1;
           registers[i] <= registers2[registers_new_read_forward[i]];
           fetch_stall_exists <= 1;
         end*/
+        end
       end
       //executor
-      if (!fetch_stall_exists && (decoder_ready || executor_state != EXECUTE_STATE_NONE)) begin
+      if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         if (executor_state == EXECUTE_STATE_NONE) begin
           $display($sformatf("%02d", $time), pc_logical, " executor1   ", " ", executor_state,
                    " ",  //DEBUG info
