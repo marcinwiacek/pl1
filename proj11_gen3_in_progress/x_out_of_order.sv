@@ -229,8 +229,8 @@ module x_out_of_order (
       end
     end
   end*/
-  
- /* reg [15:0] save_to_check;
+
+  /* reg [15:0] save_to_check;
   
   always @(posedge clk) begin
     for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
@@ -298,7 +298,7 @@ module x_out_of_order (
           if (registers_save_ready[i] && registers_save_save_counter[i]==0) begin //i != saveram_q_num && 
             saveram_q_num <= i;
           end
-        /*if (registers_new_read_forward[i] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+          /*if (registers_new_read_forward[i] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           registers_init[i] <= 1;
           registers_src_mmu_done[i] <= 1;
           registers[i] <= registers2[registers_new_read_forward[i]];
