@@ -60,7 +60,7 @@ parameter EXECUTE_STATE_READ_EXECUTE = 1;
 module x_out_of_order (
     input clk,
 
-    output reg x
+    output bit x
 );
 
   //------------------------------------------------------------ram---------------------------
@@ -85,13 +85,13 @@ module x_out_of_order (
       .read_value2(read_value2)
   );
 
-  reg [10:0] saveram_q_num = 0;
+  bit [10:0] saveram_q_num = 0;
 
   //--------------------------------------------------------- mmu ----------------------------
 
-  reg mmu_input;
+  bit mmu_input;
   wire mmu_ready;
-  reg [15:0] mmu_address_logical;
+  bit [15:0] mmu_address_logical;
   wire [15:0] mmu_address_physical_min_in_the_same_page,mmu_address_logical_min_in_the_same_page, mmu_address_logical_max_in_the_same_page;
 
   mmu mmu (
@@ -107,14 +107,14 @@ module x_out_of_order (
 
   parameter MMU_QUEUE_LEN = 10;
 
-  reg [15:0] mmuqueue_q_addr[0:MMU_QUEUE_LEN];
-  reg [15:0] mmuqueue_q_len[0:MMU_QUEUE_LEN];
-  reg [10:0] mmuqueue_q_new_pos = 0;
+  bit [15:0] mmuqueue_q_addr[0:MMU_QUEUE_LEN];
+  bit [15:0] mmuqueue_q_len[0:MMU_QUEUE_LEN];
+  bit [10:0] mmuqueue_q_new_pos = 0;
 
   //---------------------------------------------------------decoder--------------------------
 
-  reg [15:0] decoder_input_address;
-  reg decoder_inp;
+  bit [15:0] decoder_input_address;
+  bit decoder_inp;
   wire decoder_ready;
   wire [5:0] decoder_instruction_state;
   wire [3:0] decoder_error_code;
@@ -139,15 +139,15 @@ module x_out_of_order (
 
   //--------------------------------------------------------------------executor------------------
 
-  reg [5:0] executor_state, executor_instruction_state;
-  reg [15:0] executor_register_end;
-  reg [10:0] executor_register_start;
-  reg [15:0] executor_start_ram_address_or_numeric;
+  bit [5:0] executor_state, executor_instruction_state;
+  bit [15:0] executor_register_end;
+  bit [10:0] executor_register_start;
+  bit [15:0] executor_start_ram_address_or_numeric;
 
-  reg [15:0] register[0:1];  //, register2[0:1];
-  reg [15:0] register_inside[0:1];
+  bit [15:0] register[0:1];  //, register2[0:1];
+  bit [15:0] register_inside[0:1];
 
-  reg [15:0] register_save_lock[0:31];
+  bit [15:0] register_save_lock[0:31];
 
   parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = 50;
 
@@ -164,22 +164,22 @@ module x_out_of_order (
 
   parameter REGISTER_NUM = 32;
 
-  reg [15:0] process_hardware_address = 0;
-  reg [15:0] pc_logical, pc_physical;
+  bit [15:0] process_hardware_address = 0;
+  bit [15:0] pc_logical, pc_physical;
 
-  reg jmp_stall_exists = 0, fetch_stall_exists = 0;
+  bit jmp_stall_exists = 0, fetch_stall_exists = 0;
 
-  reg [15:0] save_counter;
+  bit [15:0] save_counter;
 
-  reg [15:0] registers[0:REGISTER_NUM-1], registers_save[0:REGISTER_NUM-1];
-  reg [15:0]
+  bit [15:0] registers[0:REGISTER_NUM-1], registers_save[0:REGISTER_NUM-1];
+  bit [15:0]
       registers_save_counter[0:REGISTER_NUM-1], registers_save_save_counter[0:REGISTER_NUM-1];
-  reg [15:0]
+  bit [15:0]
       registers_src_address[0:REGISTER_NUM-1],
       registers_src_address2[0:REGISTER_NUM-1],
       registers_save_address[0:REGISTER_NUM-1],
       registers_save_address2[0:REGISTER_NUM-1];
-  reg
+  bit
       registers_src_mmu_done[0:REGISTER_NUM-1],
       registers_init[0:REGISTER_NUM-1] = {
         // verilog_format:off
@@ -193,10 +193,27 @@ module x_out_of_order (
 
   assign x = decoder_inp;  //without this we will have empty circuit
 
-  reg rst = 1;
-  reg [7:0] instr_num = 0;  // how many done
+  bit rst = 1;
+  bit [7:0] instr_num = 0;  // how many done
 
-  integer i;
+  integer i, ii,zz;
+  
+  bit registers_new[0:32];
+  
+  always @(posedge clk) begin
+     for (ii=0;ii<REGISTER_NUM; ii =ii + 1) begin
+       if (registers_new[ii]) begin
+         registers_save_counter[ii] = 0;
+         for (zz=0;zz<REGISTER_NUM; zz =zz + 1) begin
+           if (registers_save_address[ii] ==  registers_src_address[zz] 
+                           //&& registers_save_save_counter[zz]>registers_save_counter[ii]
+                           ) begin
+                   registers_save_counter[ii] = registers_save_save_counter[zz];
+           end 
+         end
+       end
+     end
+  end
 
   always @(posedge clk) begin
     if (rst) begin
@@ -213,7 +230,7 @@ module x_out_of_order (
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         registers_src_mmu_done[i]  <= 1;
         registers_save_mmu_done[i] <= 0;
-        registers_src_address[i]   <= process_hardware_address + ADDRESS_REG + i;
+        registers_src_address[i]   = process_hardware_address + ADDRESS_REG + i;
       end
       executor_state <= EXECUTE_STATE_NONE;
       fetch_stall_exists = 0;
@@ -224,7 +241,7 @@ module x_out_of_order (
       $write($sformatf("%02d", $time), " reg");
       for (i = 0; i < 20; i = i + 1) begin
         if (registers_init[i]) begin
-          $write($sformatf(" %02d:%02d(%02d)", i, registers[i], registers_save_save_counter[i]));
+          $write($sformatf(" %02d:%02d(- %02d)", i, registers[i], registers_save_save_counter[i]));
         end else begin
           $write($sformatf(" %02d:-(%02d %02d)", i, registers_save_counter[i],
                            registers_save_save_counter[i]));
@@ -243,7 +260,7 @@ module x_out_of_order (
         saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           registers_save_save_counter[i]<=registers_save_save_counter[i]>0?registers_save_save_counter[i]-1:0;
-          registers_save_counter[i]<=registers_save_counter[i]>0?registers_save_counter[i]-1:0;
+          registers_save_counter[i]=registers_save_counter[i]>0?registers_save_counter[i]-1:0;
         end
         save_counter = save_counter > 0 ? save_counter - 1 : 0;
       end
@@ -302,6 +319,7 @@ module x_out_of_order (
         end
         //cannot join with previous loop
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+                registers_new[i]<=0;
           if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
             case (`INSTRUCTION_STATE)
               OPCODE_RAM2REG: begin
@@ -309,7 +327,8 @@ module x_out_of_order (
                 registers_init[i] <= 0;
                 registers_src_mmu_done[i] <= 0;
                 registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
-                registers_save_counter[i] <= save_counter;
+                registers_save_counter[i] = 0;//save_counter;
+                registers_new[i]<=1;
               end
               OPCODE_NUM2REG: begin
                 //not important if register had value earlier
@@ -440,8 +459,8 @@ endmodule
 
 module decoder (
     input clk,
-    input reg [15:0] address,
-    input reg [15:0] instruction1,
+    input bit [15:0] address,
+    input bit [15:0] instruction1,
     instruction2,
     input bit inp,
 
@@ -566,10 +585,10 @@ module mmu (
     input clk,
     input inp,
     output bit ready = 0,
-    input reg [15:0] address_logical,
-    output reg [15:0] address_physical_min_in_the_same_page,
-    output reg [15:0] address_logical_min_in_the_same_page,
-    output reg [15:0] address_logical_max_in_the_same_page
+    input bit [15:0] address_logical,
+    output bit [15:0] address_physical_min_in_the_same_page,
+    output bit [15:0] address_logical_min_in_the_same_page,
+    output bit [15:0] address_logical_max_in_the_same_page
 );
 
   always @(negedge clk) begin
