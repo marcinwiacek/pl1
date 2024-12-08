@@ -171,12 +171,16 @@ module x_out_of_order (
 
   bit [15:0] save_counter;
 
-  bit [15:0] registers[0:REGISTER_NUM-1], registers_save[0:REGISTER_NUM-1];
+  bit [15:0] registers[0:REGISTER_NUM-1], registers_save[0:REGISTER_NUM-1], registers_save_temp[0:REGISTER_NUM-1];
   bit [15:0]
       registers_save_counter[0:REGISTER_NUM-1], registers_save_save_counter[0:REGISTER_NUM-1];
   bit [15:0]
       registers_src_address[0:REGISTER_NUM-1],
       registers_src_address2[0:REGISTER_NUM-1],
+      
+      registers_save_address_temp[0:REGISTER_NUM-1],
+      
+      
       registers_save_address[0:REGISTER_NUM-1],
       registers_save_address2[0:REGISTER_NUM-1];
   bit
@@ -196,23 +200,24 @@ module x_out_of_order (
   bit rst = 1;
   bit [7:0] instr_num = 0;  // how many done
 
-  integer i, ii,zz;
+  integer i, ii,zz,ww;
   
-  bit registers_new[0:32];
+  bit registers_new[0:32], flag;
+  bit [5:0] registers_save_temp_num;
   
+  always @(posedge clk) begin
+  
+    end
+        
   always @(posedge clk) begin
      for (ii=0;ii<REGISTER_NUM; ii =ii + 1) begin
        if (registers_new[ii]) begin
-         registers_save_counter[ii] = 0;
-         for (zz=0;zz<REGISTER_NUM; zz =zz + 1) begin
-           if (registers_save_address[ii] ==  registers_src_address[zz] 
-                           //&& registers_save_save_counter[zz]>registers_save_counter[ii]
-                           ) begin
-                   registers_save_counter[ii] = registers_save_save_counter[zz];
-           end 
-         end
+          registers_save[registers_save_temp_num]<=registers_save_temp[ii];
+          registers_save_address[registers_save_temp_num]<=registers_save_address_temp[ii];
+          registers_save_temp_num=registers_save_temp_num+1;          
        end
      end
+     if (write_enabled) registers_save_temp_num=registers_save_temp_num-1;
   end
 
   always @(posedge clk) begin
@@ -250,24 +255,16 @@ module x_out_of_order (
       $display("");
       //save ram
       write_enabled <= 0;
-      if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-        register_save_lock[saveram_q_num] <= 0;
-        registers_save_ready[saveram_q_num] <= 0;
-        registers_save_mmu_done[saveram_q_num] <= 0;
-        write_address <= registers_save_address2[saveram_q_num];
-        write_value <= registers_save[saveram_q_num];
+      if (registers_save_temp_num>0 && registers_save_ready[0]) begin  //
+        registers_save_ready[0] <= 0;
+        registers_save_mmu_done[0] <= 0;
+        write_address <= registers_save_address2[0];
+        write_value <= registers_save[0];
         write_enabled <= 1;
-        saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           registers_save_save_counter[i]<=registers_save_save_counter[i]>0?registers_save_save_counter[i]-1:0;
-          registers_save_counter[i]=registers_save_counter[i]>0?registers_save_counter[i]-1:0;
         end
         save_counter = save_counter > 0 ? save_counter - 1 : 0;
-      end
-      for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-        if (registers_save_ready[i] && registers_save_save_counter[i] == 0) begin  //
-          saveram_q_num <= i;
-        end      
       end
       //executor
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
@@ -327,8 +324,8 @@ module x_out_of_order (
                 registers_init[i] <= 0;
                 registers_src_mmu_done[i] <= 0;
                 registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
-                registers_save_counter[i] = 0;//save_counter;
-                registers_new[i]<=1;
+              //  registers_save_counter[i] = 0;//save_counter;
+
               end
               OPCODE_NUM2REG: begin
                 //not important if register had value earlier
@@ -360,17 +357,18 @@ module x_out_of_order (
             if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
               case (`INSTRUCTION_STATE)
                 OPCODE_REG2RAM: begin
-                  if (register_save_lock[i]) begin
-                    executor_state <= EXECUTE_STATE_READ_EXECUTE;
-                    $display($sformatf("%02d", $time), pc_logical,
-                             " write memory slot is already filled, stall");
-                  end else begin
-                    registers_save_address[i] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
-                    register_save_lock[i] <= 1;
-                    registers_save[i] <= registers[i];
-                    registers_save_save_counter[i] <= save_counter;
+          //        if (register_save_lock[i]) begin
+//                    executor_state <= EXECUTE_STATE_READ_EXECUTE;
+  //                  $display($sformatf("%02d", $time), pc_logical,
+    //                         " write memory slot is already filled, stall");
+      //            end else begin
+                    registers_save_address_temp[i] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
+//                    register_save_lock[i] <= 1;
+                    registers_save_temp[i] <= registers[i];
+                                    registers_new[i]<=1;
+      //              registers_save_save_counter[i] <= save_counter;
                   end
-                end
+        //        end
                 OPCODE_REG_PLUS: begin
                   $display($sformatf("%02d", $time), pc_logical, " ", register[0], " ",
                            register[1], " ", read_value, " ", read_value2);
@@ -431,7 +429,7 @@ module x_out_of_order (
             registers_src_address2[i]<= mmu_address_physical_min_in_the_same_page+registers_src_address[i]-mmu_address_logical_min_in_the_same_page;
             registers_src_mmu_done[i] <= 1;
           end
-          if (register_save_lock[i] && 
+          if (i<registers_save_temp_num && 
               registers_save_address[i]>=mmu_address_logical_min_in_the_same_page && 
               registers_save_address[i]<=mmu_address_logical_max_in_the_same_page) begin
             $display(  //DEBUG info
