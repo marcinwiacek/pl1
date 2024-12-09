@@ -176,7 +176,7 @@ module x_out_of_order (
       registers_save_counter[0:REGISTER_NUM-1], registers_save_save_counter[0:REGISTER_NUM-1];
   bit [15:0]
       registers_src_address[0:REGISTER_NUM-1],
-      registers_src_address2[0:REGISTER_NUM-1],           
+      registers_src_address2[0:REGISTER_NUM-1],
       registers_save_address[0:REGISTER_NUM-1],
       registers_save_address2[0:REGISTER_NUM-1];
   bit
@@ -196,27 +196,27 @@ module x_out_of_order (
   bit rst = 1;
   bit [7:0] instr_num = 0;  // how many done
 
-  integer i, ii,zz,ww;
-  
+  integer i, ii, zz, ww;
+
   bit registers_new, flag;
   bit [5:0] registers_save_temp_num, xx;
-  
+
   always @(posedge clk) begin
-  
-    end
-        
+
+  end
+
   always @(posedge clk) begin
-  //if (registers_new) begin
-     for (ii=0;ii<REGISTER_NUM; ii =ii + 1) begin
-       if(registers_new&&ii>=executor_register_start && ii<=executor_register_end) begin
-          registers_save[registers_save_temp_num+ii-executor_register_start]<=registers[ii];
-          registers_save_address[registers_save_temp_num+ii-executor_register_start]<=
+    //if (registers_new) begin
+    for (ii = 0; ii < REGISTER_NUM; ii = ii + 1) begin
+      if (registers_new && ii >= executor_register_start && ii <= executor_register_end) begin
+        registers_save[registers_save_temp_num+ii-executor_register_start] <= registers[ii];
+        registers_save_address[registers_save_temp_num+ii-executor_register_start]<=
               executor_start_ram_address_or_numeric+ii-executor_register_start;
-       end                    
-     end
+      end
+    end
     // end;     
-registers_save_temp_num<=registers_new?registers_save_temp_num+executor_register_end-executor_register_start+1:
-     (write_enabled?registers_save_temp_num-1:registers_save_temp_num);     
+    registers_save_temp_num<=registers_new?registers_save_temp_num+executor_register_end-executor_register_start+1:
+     (write_enabled?registers_save_temp_num-1:registers_save_temp_num);
   end
 
   always @(posedge clk) begin
@@ -234,7 +234,7 @@ registers_save_temp_num<=registers_new?registers_save_temp_num+executor_register
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         registers_src_mmu_done[i]  <= 1;
         registers_save_mmu_done[i] <= 0;
-        registers_src_address[i]   = process_hardware_address + ADDRESS_REG + i;
+        registers_src_address[i] = process_hardware_address + ADDRESS_REG + i;
       end
       executor_state <= EXECUTE_STATE_NONE;
       fetch_stall_exists = 0;
@@ -252,16 +252,16 @@ registers_save_temp_num<=registers_new?registers_save_temp_num+executor_register
         end
       end
       $display("");
-                registers_new<=0;
+      registers_new <= 0;
       //save ram
       write_enabled <= 0;
-      if (registers_save_temp_num>0 && registers_save_ready[0]) begin  //
+      if (registers_save_temp_num > 0 && registers_save_ready[0]) begin  //
         registers_save_ready[0] <= 0;
         registers_save_mmu_done[0] <= 0;
         write_address <= registers_save_address2[0];
         write_value <= registers_save[0];
         write_enabled <= 1;
-     //   saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+        //   saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           registers_save_save_counter[i]<=registers_save_save_counter[i]>0?registers_save_save_counter[i]-1:0;
         end
@@ -357,15 +357,15 @@ registers_save_temp_num<=registers_new?registers_save_temp_num+executor_register
             if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
               case (`INSTRUCTION_STATE)
                 OPCODE_REG2RAM: begin
-          //        if (register_save_lock[i]) begin
-//                    executor_state <= EXECUTE_STATE_READ_EXECUTE;
-  //                  $display($sformatf("%02d", $time), pc_logical,
-    //                         " write memory slot is already filled, stall");
-      //            end else begin
-                registers_new<=1;
-      //              registers_save_save_counter[i] <= save_counter;
-                  end
-        //        end
+                  //        if (register_save_lock[i]) begin
+                  //                    executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                  //                  $display($sformatf("%02d", $time), pc_logical,
+                  //                         " write memory slot is already filled, stall");
+                  //            end else begin
+                  registers_new <= 1;
+                  //              registers_save_save_counter[i] <= save_counter;
+                end
+                //        end
                 OPCODE_REG_PLUS: begin
                   $display($sformatf("%02d", $time), pc_logical, " ", register[0], " ",
                            register[1], " ", read_value, " ", read_value2);
