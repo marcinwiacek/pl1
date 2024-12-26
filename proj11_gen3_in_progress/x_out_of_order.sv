@@ -224,23 +224,23 @@ module x_out_of_order (
       $write($sformatf("%02d", $time), " reg");
       for (i = 0; i < 20; i = i + 1) begin
         if (registers_init[i]) begin
-          $write($sformatf(" %02d:%02d(%02d)", i, registers[i], registers_save_save_counter[i]));
+          $write($sformatf(" %02d:%02d(- %02d)", i, registers[i], registers_save_save_counter[i]));
         end else begin
           $write($sformatf(" %02d:-(%02d %02d)", i, registers_save_counter[i],
                            registers_save_save_counter[i]));
         end
       end
       $display("");
-      $display("save ram ",saveram_q_num);
+      $display("save ram ",saveram_q_num, " save counter ",save_counter);
       //save ram
-      if (saveram_q_num == RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      
         write_enabled <= 0;
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           if (registers_save_ready[i] && registers_save_save_counter[i] == 0) begin
             saveram_q_num <= i;
           end
         end            
-      end else begin
+      if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         register_save_lock[saveram_q_num] <= 0;
         registers_save_ready[saveram_q_num] <= 0;
         registers_save_mmu_done[saveram_q_num] <= 0;
@@ -409,7 +409,7 @@ module x_out_of_order (
                    registers_src_mmu_done[i], " ", registers_src_address[i], " ",
                    mmu_address_logical_min_in_the_same_page, " ",
                    mmu_address_logical_max_in_the_same_page);
-          if (
+          if (!registers_src_mmu_done[i] &&
               registers_src_address[i]>=mmu_address_logical_min_in_the_same_page && 
               registers_src_address[i]<=mmu_address_logical_max_in_the_same_page) begin
             $display(  //DEBUG info
@@ -419,7 +419,7 @@ module x_out_of_order (
             registers_src_address2[i]<= mmu_address_physical_min_in_the_same_page+registers_src_address[i]-mmu_address_logical_min_in_the_same_page;
             registers_src_mmu_done[i] <= 1;
           end
-          if ( 
+          if ( register_save_lock[i]&&
               registers_save_address[i]>=mmu_address_logical_min_in_the_same_page && 
               registers_save_address[i]<=mmu_address_logical_max_in_the_same_page) begin
             $display(  //DEBUG info
