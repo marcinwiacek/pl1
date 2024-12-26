@@ -202,17 +202,17 @@ module x_out_of_order (
   bit [5:0] registers_save_temp_num, registers_save_get_temp_num, xx;
 
   always @(posedge clk) begin
-  
-   write_enabled <= 0;
-      if (registers_save_temp_num != registers_save_get_temp_num && registers_save_ready[registers_save_get_temp_num]) begin  //
-   //     registers_save_ready[registers_save_get_temp_num] <= 0;
-//        registers_save_mmu_done[registers_save_get_temp_num] <= 0;
-        write_address <= registers_save_address2[registers_save_get_temp_num];
-        write_value <= registers_save[registers_save_get_temp_num];
-        write_enabled <= 1;
-        end
-//if (registers_save_temp_num != registers_save_get_temp_num && registers_save_ready[registers_save_get_temp_num]) begin
-//end
+
+    write_enabled <= 0;
+    if (registers_save_temp_num != registers_save_get_temp_num && registers_save_ready[registers_save_get_temp_num]) begin  //
+      //     registers_save_ready[registers_save_get_temp_num] <= 0;
+      //        registers_save_mmu_done[registers_save_get_temp_num] <= 0;
+      write_address <= registers_save_address2[registers_save_get_temp_num];
+      write_value   <= registers_save[registers_save_get_temp_num];
+      write_enabled <= 1;
+    end
+    //if (registers_save_temp_num != registers_save_get_temp_num && registers_save_ready[registers_save_get_temp_num]) begin
+    //end
   end
 
   always @(posedge clk) begin
@@ -227,7 +227,7 @@ module x_out_of_order (
     // end;     
     registers_save_temp_num<=registers_new?registers_save_temp_num+executor_register_end-executor_register_start+1:
      (registers_save_temp_num);
-     registers_save_get_temp_num<=write_enabled?registers_save_get_temp_num+1:registers_save_get_temp_num;
+    registers_save_get_temp_num<=write_enabled?registers_save_get_temp_num+1:registers_save_get_temp_num;
   end
 
   always @(posedge clk) begin
@@ -265,11 +265,11 @@ module x_out_of_order (
       $display("");
       registers_new <= 0;
       //save ram
-     
+
       if (registers_save_temp_num != registers_save_get_temp_num && registers_save_ready[registers_save_get_temp_num]) begin  //
-   //     registers_save_ready[registers_save_get_temp_num] <= 0;
-//        registers_save_mmu_done[registers_save_get_temp_num] <= 0;
-      
+        //     registers_save_ready[registers_save_get_temp_num] <= 0;
+        //        registers_save_mmu_done[registers_save_get_temp_num] <= 0;
+
         //   saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           registers_save_save_counter[i]<=registers_save_save_counter[i]>0?registers_save_save_counter[i]-1:0;
