@@ -196,7 +196,7 @@ module x_out_of_order (
   reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
 
-  integer i, ii;
+  integer i, ii, iii;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -235,11 +235,7 @@ module x_out_of_order (
       //save ram
       
         write_enabled <= 0;
-        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (registers_save_ready[i] && registers_save_save_counter[i] == 0) begin
-            saveram_q_num <= i;
-          end
-        end            
+            
       if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         register_save_lock[saveram_q_num] <= 0;
         registers_save_ready[saveram_q_num] <= 0;
@@ -253,7 +249,13 @@ module x_out_of_order (
           registers_save_counter[i]<=registers_save_counter[i]>0?registers_save_counter[i]-1:0;
         end
         save_counter = save_counter > 0 ? save_counter - 1 : 0;
-      end      
+      end  else begin    
+        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+          if (registers_save_ready[i] && registers_save_save_counter[i] == 0) begin
+            saveram_q_num <= i;
+          end
+        end      
+      end
       //executor
       if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
         if (executor_state == EXECUTE_STATE_NONE) begin
@@ -323,11 +325,13 @@ module x_out_of_order (
               end
               default: begin
                 if (!registers_init[i] && i != register[0] && i != register[1]) begin
-                  for (ii = 0; ii < REGISTER_NUM; ii = ii + 1) begin
-                    registers_init[i]<=registers_save_save_counter[ii]< registers_save_counter[i]?1:registers_init[i];
-                    registers[i]<=registers_save_save_counter[ii]< registers_save_counter[i]?registers_save[ii]:registers[i];
+                 /*iii = 50;
+                 for (ii = 0; ii < REGISTER_NUM; ii = ii + 1) begin
+                     if (registers_save_save_counter[ii]< registers_save_counter[i]) iii = ii;
                   end
-
+                    registers_init[i]<=iii!=50?1:registers_init[i];
+                    registers[i]<=iii!=50?registers_save[iii]:registers[i];
+                   */ 
                   fetch_stall_exists = 1;
                   executor_state <= EXECUTE_STATE_READ_EXECUTE;
                   if (registers_src_mmu_done[i] && registers_save_counter[i] == 0) begin
