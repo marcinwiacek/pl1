@@ -295,7 +295,7 @@ module x_out_of_order (
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (!registers_init[i] && registers_src_mmu_done[i] && registers_save_counter[i]==0) begin
+          if (!registers_init[i] && i != register[0] && i != register[1] && registers_src_mmu_done[i] && registers_save_counter[i]==0) begin
             if (i % 2 == 0) begin
               read_address <= registers_src_address2[i];
             end else begin
@@ -335,6 +335,9 @@ module x_out_of_order (
                   fetch_stall_exists = 1;
                   executor_state <= EXECUTE_STATE_READ_EXECUTE;
                   if (registers_src_mmu_done[i] && registers_save_counter[i] == 0) begin
+                  
+                   $display($sformatf("%02d", $time), pc_logical, " need to fetch register ",i, " src address ",registers_src_address2[i]);
+                         
                     if (i % 2 == 0) begin
                       read_address <= registers_src_address2[i];
                     end else begin
