@@ -119,8 +119,9 @@ module x_out_of_order (
   wire [5:0] decoder_instruction_state;
   wire [3:0] decoder_error_code;
   wire [15:0] decoder_start_ram_address_or_numeric;
-  wire [15:0] decoder_register_end;
+  wire [15:0] decoder_register_len;
   wire [10:0] decoder_register_start;
+  wire [32:0] decoder_do_op;
 
   decoder decoder (
       .clk(clk),
@@ -129,20 +130,22 @@ module x_out_of_order (
       .instruction1(read_value),
       .instruction2(read_value2),
 
+.do_op(decoder_do_op),
       .ready(decoder_ready),
       .state(decoder_instruction_state),
       .error_code(decoder_error_code),
       .start_ram_address_or_numeric(decoder_start_ram_address_or_numeric),
       .register_start(decoder_register_start),
-      .register_end(decoder_register_end)
+      .register_len(decoder_register_len)
   );
 
   //--------------------------------------------------------------------executor------------------
 
   reg [5:0] executor_state, executor_instruction_state;
-  reg [15:0] executor_register_end;
+  reg [15:0] executor_register_len;
   reg [10:0] executor_register_start;
   reg [15:0] executor_start_ram_address_or_numeric;
+  reg [32:0] executor_do_op;
 
   reg [15:0] register[0:1];  //, register2[0:1];
   reg [15:0] register_inside[0:1];
@@ -153,11 +156,12 @@ module x_out_of_order (
 
   // verilog_format:off
   `define REG_START_NUM (executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start)
-  `define REG_END_NUM (executor_state == EXECUTE_STATE_NONE ? decoder_register_end : executor_register_end)
+  `define REG_LEN_NUM (executor_state == EXECUTE_STATE_NONE ? decoder_register_len : executor_register_len)
   `define REG_VALUE(ARG) ARG==register[0]?read_value: \
              (ARG==register[1]?read_value2:registers[ARG])  
   `define INSTRUCTION_STATE (executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state)
   `define INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC (executor_state == EXECUTE_STATE_NONE?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric)
+  `define REG_DO_OP(ARG)(executor_state == EXECUTE_STATE_NONE?decoder_do_op[ARG]:executor_do_op[ARG])  
 // verilog_format:on
 
   //--------------------------------------------------------------------process------------------
@@ -259,19 +263,20 @@ module x_out_of_order (
           $display($sformatf("%02d", $time), pc_logical, " executor1   ", " ", executor_state,
                    " ",  //DEBUG info
                    decoder_instruction_state, " ", decoder_register_start, " ",  //DEBUG info
-                   decoder_register_end, " ", decoder_start_ram_address_or_numeric,
+                   decoder_register_len, " ", decoder_start_ram_address_or_numeric,
                    " ",  //DEBUG info
                    decoder_error_code);  //DEBUG info
           executor_instruction_state <= decoder_instruction_state;
           executor_register_start <= decoder_register_start;
-          executor_register_end <= decoder_register_end;
+          executor_register_len <= decoder_register_len;
           executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
+          executor_do_op<=decoder_do_op;
           instr_num <= instr_num + 1;
         end else if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
           $display($sformatf("%02d", $time), pc_logical, " executor2   ", " ", executor_state,
                    " ",  //DEBUG info
                    executor_instruction_state, " ", executor_register_start, " ",  //DEBUG info
-                   executor_register_end, " ",
+                   executor_register_len, " ",
                    executor_start_ram_address_or_numeric);  //DEBUG info 
         end
         executor_state <= EXECUTE_STATE_NONE;
@@ -303,7 +308,7 @@ module x_out_of_order (
         end
         //cannot join with previous loop
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
+          if (`REG_DO_OP(i)) begin
             case (`INSTRUCTION_STATE)
               OPCODE_RAM2REG: begin
                 //this register should be read next time
@@ -341,7 +346,7 @@ module x_out_of_order (
         end
         if (!fetch_stall_exists) begin
           for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-            if (i >= `REG_START_NUM && i <= `REG_END_NUM) begin
+            if (`REG_DO_OP(i)) begin
               case (`INSTRUCTION_STATE)
                 OPCODE_REG2RAM: begin
                   if (register_save_lock[i]) begin
@@ -380,7 +385,7 @@ module x_out_of_order (
           if (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG) begin
             //start calculating physical address
             mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-            mmuqueue_q_len[mmuqueue_q_new_pos] <= `REG_END_NUM - `REG_START_NUM;
+            mmuqueue_q_len[mmuqueue_q_new_pos] <= `REG_LEN_NUM;
             mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
           end
         end
@@ -448,11 +453,12 @@ module decoder (
     instruction2,
     input bit inp,
 
+output bit [32:0] do_op,
     output bit ready,
     output bit [5:0] state,
     output bit [3:0] error_code,
     output bit [15:0] start_ram_address_or_numeric,
-    output bit [15:0] register_end,
+    output bit [15:0] register_len,
     output bit [10:0] register_start
 );
 
@@ -469,6 +475,8 @@ module decoder (
   assign instruction1_2_2 = instruction1[7:5];
   assign instruction2_1   = instruction2[15:8];
   assign instruction2_2   = instruction2[7:0];
+
+integer i;
 
   always @(posedge clk) begin
     if (inp) begin
@@ -495,9 +503,12 @@ module decoder (
       error_code <= 0;
       start_ram_address_or_numeric <= instruction2;
       register_start <= instruction1_2_1;
-      register_end <= instruction1_2_1 + instruction1_2_2;
+      register_len <= instruction1_2_2;
       state <= instruction1_1;
 
+for (i=0;i<33;i=i+1) begin
+  do_op[i] <= (i>=instruction1_2_1 && i<=instruction1_2_1 + instruction1_2_2)?1:0;
+end
       case (instruction1_1)
         //register num (5 bits), how many-1 (3 bits), 16 bit addr
         OPCODE_RAM2REG, OPCODE_REG2RAM: begin
@@ -558,7 +569,7 @@ module decoder (
           state                        <= ERROR_WRONG_OPCODE;
           start_ram_address_or_numeric <= 0;
           register_start               <= 0;
-          register_end                 <= 0;
+          register_len                 <= 0;
         end
       endcase
     end
