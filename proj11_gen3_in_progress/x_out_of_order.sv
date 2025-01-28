@@ -161,6 +161,7 @@ module x_out_of_order (
   reg [10:0] reg_register_start;
   reg [15:0] reg_start_ram_address_or_numeric;
   reg [32:0] reg_do_op;
+ // reg [15:0] reg_registers[0:REGISTER_NUM-1];
 
   // verilog_format:off
   `define REG_VALUE(ARG) ARG==register[0]?read_value: \
@@ -356,7 +357,7 @@ module x_out_of_order (
                   executor_do_op[i] <= 0;
                   registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
                   register_save_lock[i] <= 1;
-                  registers_save[i] <= registers[i];
+                  registers_save[i] <= `REG_VALUE(i);
                   registers_save_save_counter[i] <= save_counter;
                 end
               end
@@ -390,7 +391,6 @@ module x_out_of_order (
           mmuqueue_q_len[mmuqueue_q_new_pos] <= reg_register_len;
           mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
         end
-
       end
       //fetch & decoder
       decoder_inp <= 0;
