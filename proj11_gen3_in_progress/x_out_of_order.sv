@@ -327,14 +327,11 @@ assign reg_do_op = executor_state == EXECUTE_STATE_NONE?decoder_do_op:executor_d
                       read_address2 <= registers_src_address2[i];
                     end
                     register[i%2] <= i;
-           end  
-          end
-        end
-        if (!fetch_stall_exists) begin
-          for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-            if (reg_do_op[i]) begin
+                  end  
+          end else if (reg_do_op[i]) begin
               case (reg_instruction_state)
               OPCODE_RAM2REG: begin
+              executor_do_op[i]<=0;
                 //this register should be read next time
                 registers_init[i] <= 0;
                 registers_src_mmu_done[i] <= 0;
@@ -342,6 +339,7 @@ assign reg_do_op = executor_state == EXECUTE_STATE_NONE?decoder_do_op:executor_d
                 registers_save_counter[i] <= save_counter;
               end
               OPCODE_NUM2REG: begin
+              executor_do_op[i]<=0;
                 //not important if register had value earlier
                 registers_init[i] <= 1;
                 registers_src_mmu_done[i] <= 1;
@@ -355,6 +353,7 @@ assign reg_do_op = executor_state == EXECUTE_STATE_NONE?decoder_do_op:executor_d
                     $display($sformatf("%02d", $time), pc_logical,
                              " write memory slot is already filled, stall");
                   end else begin
+              executor_do_op[i]<=0;
                     registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
                     register_save_lock[i] <= 1;
                     registers_save[i] <= registers[i];
@@ -362,6 +361,7 @@ assign reg_do_op = executor_state == EXECUTE_STATE_NONE?decoder_do_op:executor_d
                   end
                 end
                 OPCODE_REG_PLUS: begin
+              executor_do_op[i]<=0;
                   $display($sformatf("%02d", $time), pc_logical, " ", register[0], " ",
                            register[1], " ", read_value, " ", read_value2);
                   $display($sformatf("%02d", $time), pc_logical, " reg ", i, " plus with value ",
@@ -369,6 +369,7 @@ assign reg_do_op = executor_state == EXECUTE_STATE_NONE?decoder_do_op:executor_d
                   registers[i] <= `REG_VALUE(i) + reg_start_ram_address_or_numeric;
                 end
                 OPCODE_REG_MINUS: begin
+              executor_do_op[i]<=0;
                   $display($sformatf("%02d", $time), pc_logical, " reg ", i, " minus with value ",
                            reg_start_ram_address_or_numeric, " old ", `REG_VALUE(i));
                   registers[i] <= `REG_VALUE(i) - reg_start_ram_address_or_numeric;
@@ -379,9 +380,9 @@ assign reg_do_op = executor_state == EXECUTE_STATE_NONE?decoder_do_op:executor_d
                 OPCODE_REG_DIV: begin
                   registers[i] <= `REG_VALUE(i) / reg_start_ram_address_or_numeric;
                 end*/
-              endcase
-            end
+              endcase           
           end
+        end
           if (reg_instruction_state == OPCODE_REG2RAM) save_counter = save_counter + 1;
           if (reg_instruction_state == OPCODE_REG2RAM || reg_instruction_state == OPCODE_RAM2REG) begin
             //start calculating physical address
@@ -389,7 +390,7 @@ assign reg_do_op = executor_state == EXECUTE_STATE_NONE?decoder_do_op:executor_d
             mmuqueue_q_len[mmuqueue_q_new_pos] <= reg_register_len;
             mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
           end
-        end
+        
       end
       //fetch & decoder
       decoder_inp <= 0;
