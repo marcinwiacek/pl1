@@ -154,18 +154,25 @@ module x_out_of_order (
 
   parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = 50;
 
-  // verilog_format:off
-  `define REG_START_NUM (executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start)
-  `define REG_LEN_NUM (executor_state == EXECUTE_STATE_NONE ? decoder_register_len : executor_register_len)
-  `define REG_VALUE(ARG) ARG==register[0]?read_value: \
-             (ARG==register[1]?read_value2:registers[ARG])  
-  `define INSTRUCTION_STATE (executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state)
-  `define INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC (executor_state == EXECUTE_STATE_NONE?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric)
-  `define REG_DO_OP(ARG)(executor_state == EXECUTE_STATE_NONE?decoder_do_op[ARG]:executor_do_op[ARG])  
-// verilog_format:on
-
   //--------------------------------------------------------------------process------------------
 
+  reg [5:0] reg_instruction_state;
+  reg [15:0] reg_register_len;
+  reg [10:0] reg_register_start;
+  reg [15:0] reg_start_ram_address_or_numeric;
+  reg [32:0] reg_do_op;
+
+  // verilog_format:off
+  `define REG_VALUE(ARG) ARG==register[0]?read_value: \
+             (ARG==register[1]?read_value2:registers[ARG])  
+// verilog_format:on
+  
+  assign   reg_register_start =  executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start;
+assign reg_register_len =  executor_state == EXECUTE_STATE_NONE ? decoder_register_len : executor_register_len;  
+assign reg_instruction_state =  executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state;
+  assign reg_start_ram_address_or_numeric = executor_state == EXECUTE_STATE_NONE?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric;
+assign reg_do_op = executor_state == EXECUTE_STATE_NONE?decoder_do_op:executor_do_op;  
+  
   parameter REGISTER_NUM = 32;
 
   reg [15:0] process_hardware_address = 0;
@@ -200,7 +207,7 @@ module x_out_of_order (
   reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
 
-  integer i;
+  integer i,j;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -308,8 +315,25 @@ module x_out_of_order (
         end
         //cannot join with previous loop
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (`REG_DO_OP(i)) begin
-            case (`INSTRUCTION_STATE)
+          if (reg_do_op[i] && !registers_init[i] && i != register[0] && i != register[1]) begin
+                  fetch_stall_exists = 1;
+                  executor_state <= EXECUTE_STATE_READ_EXECUTE;
+                  if (registers_src_mmu_done[i] && registers_save_counter[i] == 0) begin
+                    $display($sformatf("%02d", $time), pc_logical, " need to fetch register ", i,
+                             " src address ", registers_src_address2[i]);
+                    if (i % 2 == 0) begin
+                      read_address <= registers_src_address2[i];
+                    end else begin
+                      read_address2 <= registers_src_address2[i];
+                    end
+                    register[i%2] <= i;
+           end  
+          end
+        end
+        if (!fetch_stall_exists) begin
+          for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+            if (reg_do_op[i]) begin
+              case (reg_instruction_state)
               OPCODE_RAM2REG: begin
                 //this register should be read next time
                 registers_init[i] <= 0;
@@ -325,36 +349,13 @@ module x_out_of_order (
                 $display($sformatf("%02d", $time), pc_logical, " set reg ", i, " with value ",
                          decoder_start_ram_address_or_numeric);
               end
-              default: begin
-                if (!registers_init[i] && i != register[0] && i != register[1]) begin
-                  fetch_stall_exists = 1;
-                  executor_state <= EXECUTE_STATE_READ_EXECUTE;
-                  if (registers_src_mmu_done[i] && registers_save_counter[i] == 0) begin
-                    $display($sformatf("%02d", $time), pc_logical, " need to fetch register ", i,
-                             " src address ", registers_src_address2[i]);
-                    if (i % 2 == 0) begin
-                      read_address <= registers_src_address2[i];
-                    end else begin
-                      read_address2 <= registers_src_address2[i];
-                    end
-                    register[i%2] <= i;
-                  end
-                end
-              end
-            endcase
-          end
-        end
-        if (!fetch_stall_exists) begin
-          for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-            if (`REG_DO_OP(i)) begin
-              case (`INSTRUCTION_STATE)
                 OPCODE_REG2RAM: begin
                   if (register_save_lock[i]) begin
                     executor_state <= EXECUTE_STATE_READ_EXECUTE;
                     $display($sformatf("%02d", $time), pc_logical,
                              " write memory slot is already filled, stall");
                   end else begin
-                    registers_save_address[i] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC+i-`REG_START_NUM;
+                    registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
                     register_save_lock[i] <= 1;
                     registers_save[i] <= registers[i];
                     registers_save_save_counter[i] <= save_counter;
@@ -364,28 +365,28 @@ module x_out_of_order (
                   $display($sformatf("%02d", $time), pc_logical, " ", register[0], " ",
                            register[1], " ", read_value, " ", read_value2);
                   $display($sformatf("%02d", $time), pc_logical, " reg ", i, " plus with value ",
-                           `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC, " old ", `REG_VALUE(i));
-                  registers[i] <= `REG_VALUE(i) + `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                           reg_start_ram_address_or_numeric, " old ", `REG_VALUE(i));
+                  registers[i] <= `REG_VALUE(i) + reg_start_ram_address_or_numeric;
                 end
                 OPCODE_REG_MINUS: begin
                   $display($sformatf("%02d", $time), pc_logical, " reg ", i, " minus with value ",
-                           `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC, " old ", `REG_VALUE(i));
-                  registers[i] <= `REG_VALUE(i) - `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                           reg_start_ram_address_or_numeric, " old ", `REG_VALUE(i));
+                  registers[i] <= `REG_VALUE(i) - reg_start_ram_address_or_numeric;
                 end
-                /* OPCODE_REG_MUL: begin
-                  registers[i] <= `REG_VALUE(i) * `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                 /*OPCODE_REG_MUL: begin
+                  registers[i] <= `REG_VALUE(i) * reg_start_ram_address_or_numeric;
                 end
                 OPCODE_REG_DIV: begin
-                  registers[i] <= `REG_VALUE(i) / `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
+                  registers[i] <= `REG_VALUE(i) / reg_start_ram_address_or_numeric;
                 end*/
               endcase
             end
           end
-          if (`INSTRUCTION_STATE == OPCODE_REG2RAM) save_counter = save_counter + 1;
-          if (`INSTRUCTION_STATE == OPCODE_REG2RAM || `INSTRUCTION_STATE == OPCODE_RAM2REG) begin
+          if (reg_instruction_state == OPCODE_REG2RAM) save_counter = save_counter + 1;
+          if (reg_instruction_state == OPCODE_REG2RAM || reg_instruction_state == OPCODE_RAM2REG) begin
             //start calculating physical address
-            mmuqueue_q_addr[mmuqueue_q_new_pos] <= `INSTRUCTION_START_RAM_ADDRESS_OR_NUMERIC;
-            mmuqueue_q_len[mmuqueue_q_new_pos] <= `REG_LEN_NUM;
+            mmuqueue_q_addr[mmuqueue_q_new_pos] <= reg_start_ram_address_or_numeric;
+            mmuqueue_q_len[mmuqueue_q_new_pos] <= reg_register_len;
             mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
           end
         end
