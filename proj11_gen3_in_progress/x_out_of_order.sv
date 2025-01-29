@@ -202,7 +202,35 @@ module x_out_of_order (
   reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
 
-  integer i, j;
+  integer i, j,z;
+  
+   reg [15:0] registerr[0:1];
+    reg [15:0] read_valueee, read_valueee2;
+  
+  always @(posedge clk) begin
+    registerr[0] = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+    if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      for (j = 0; j < REGISTER_NUM; j = j + 1) begin
+        if (read_address == registers_save_address[j]) begin
+            read_valueee =registers_save[j];
+            registerr[0] =j;
+        end
+      end
+    end
+  end
+
+  always @(posedge clk) begin
+    registerr[1] = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+    if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      for (z = 0; z < REGISTER_NUM; z = z + 1) begin
+        if (read_address == registers_save_address[z]) begin
+            read_valueee2 =registers_save[z];
+            registerr[1] =z;
+        end
+      end
+    end
+  end
+
 
   always @(posedge clk) begin
     if (rst) begin
@@ -287,14 +315,14 @@ module x_out_of_order (
           $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[0],
                    " with address ",  //DEBUG info
                    read_address, "=", read_value);  //DEBUG info
-          registers[register[0]] = read_value;
+          registers[register[0]] = registerr[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 ?read_valueee: read_value;
           registers_init[register[0]] = 1;
         end
         if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[1],
                    " with address ",  //DEBUG info
                    read_address2, "=", read_value2);  //DEBUG info
-          registers[register[1]] = read_value2;
+          registers[register[1]] = registerr[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 ?read_valueee2: read_value2;
           registers_init[register[1]] = 1;
         end
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
@@ -314,7 +342,7 @@ module x_out_of_order (
           if (reg_do_op[i] && !registers_init[i]) begin
             fetch_stall_exists = 1;
             executor_state <= EXECUTE_STATE_READ_EXECUTE;
-            if (registers_src_mmu_done[i] && registers_save_counter[i] == 0) begin
+            if (registers_src_mmu_done[i]) begin // && registers_save_counter[i] == 0) begin
               $display($sformatf("%02d", $time), pc_logical, " need to fetch register ", i,
                        " src address ", registers_src_address2[i]);
               if (i % 2 == 0) begin
