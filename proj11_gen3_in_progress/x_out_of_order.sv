@@ -161,14 +161,8 @@ module x_out_of_order (
   reg [10:0] reg_register_start;
   reg [15:0] reg_start_ram_address_or_numeric;
   reg [32:0] reg_do_op;
- // reg [15:0] reg_registers[0:REGISTER_NUM-1];
 
-  // verilog_format:off
-  `define REG_VALUE(ARG) ARG==register[0]?read_value: \
-             (ARG==register[1]?read_value2:registers[ARG])  
-// verilog_format:on
-
-  assign   reg_register_start =  executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start;
+  assign reg_register_start =  executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start;
   assign reg_register_len =  executor_state == EXECUTE_STATE_NONE ? decoder_register_len : executor_register_len;
   assign reg_instruction_state =  executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state;
   assign reg_start_ram_address_or_numeric = executor_state == EXECUTE_STATE_NONE?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric;
@@ -242,8 +236,8 @@ module x_out_of_order (
                            registers_save_save_counter[i]));
         end
       end
-      $display("");
-      $display("save ram ", saveram_q_num, " save counter ", save_counter);
+     // $display("");
+     // $display("save ram ", saveram_q_num, " save counter ", save_counter);
       //save ram              
       write_enabled <= saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
@@ -280,7 +274,8 @@ module x_out_of_order (
           executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
           executor_do_op <= decoder_do_op;
           instr_num <= instr_num + 1;
-        end else if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
+        end
+        if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
           $display($sformatf("%02d", $time), pc_logical, " executor2   ", " ", executor_state,
                    " ",  //DEBUG info
                    executor_instruction_state, " ", executor_register_start, " ",  //DEBUG info
@@ -292,20 +287,20 @@ module x_out_of_order (
           $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[0],
                    " with address ",  //DEBUG info
                    read_address, "=", read_value);  //DEBUG info
-          registers[register[0]] <= read_value;
-          registers_init[register[0]] <= 1;
+          registers[register[0]] = read_value;
+          registers_init[register[0]] = 1;
         end
         if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[1],
                    " with address ",  //DEBUG info
                    read_address2, "=", read_value2);  //DEBUG info
-          registers[register[1]] <= read_value2;
-          registers_init[register[1]] <= 1;
+          registers[register[1]] = read_value2;
+          registers_init[register[1]] = 1;
         end
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (!registers_init[i] && i != register[0] && i != register[1] && registers_src_mmu_done[i] && registers_save_counter[i]==0) begin
+          if (!registers_init[i] && registers_src_mmu_done[i] && registers_save_counter[i]==0) begin
             if (i % 2 == 0) begin
               read_address <= registers_src_address2[i];
             end else begin
@@ -316,7 +311,7 @@ module x_out_of_order (
         end
         //cannot join with previous loop
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (reg_do_op[i] && !registers_init[i] && i != register[0] && i != register[1]) begin
+          if (reg_do_op[i] && !registers_init[i]) begin
             fetch_stall_exists = 1;
             executor_state <= EXECUTE_STATE_READ_EXECUTE;
             if (registers_src_mmu_done[i] && registers_save_counter[i] == 0) begin
@@ -334,7 +329,7 @@ module x_out_of_order (
               OPCODE_RAM2REG: begin
                 executor_do_op[i] <= 0;
                 //this register should be read next time
-                registers_init[i] <= 0;
+                registers_init[i] = 0;
                 registers_src_mmu_done[i] <= 0;
                 registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
                 registers_save_counter[i] <= save_counter;
@@ -342,9 +337,9 @@ module x_out_of_order (
               OPCODE_NUM2REG: begin
                 executor_do_op[i] <= 0;
                 //not important if register had value earlier
-                registers_init[i] <= 1;
+                registers_init[i] = 1;
                 registers_src_mmu_done[i] <= 1;
-                registers[i] <= decoder_start_ram_address_or_numeric;
+                registers[i] = decoder_start_ram_address_or_numeric;
                 $display($sformatf("%02d", $time), pc_logical, " set reg ", i, " with value ",
                          decoder_start_ram_address_or_numeric);
               end
@@ -357,7 +352,7 @@ module x_out_of_order (
                   executor_do_op[i] <= 0;
                   registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
                   register_save_lock[i] <= 1;
-                  registers_save[i] <= `REG_VALUE(i);
+                  registers_save[i] <= registers[i];
                   registers_save_save_counter[i] <= save_counter;
                 end
               end
@@ -366,30 +361,34 @@ module x_out_of_order (
                 $display($sformatf("%02d", $time), pc_logical, " ", register[0], " ", register[1],
                          " ", read_value, " ", read_value2);
                 $display($sformatf("%02d", $time), pc_logical, " reg ", i, " plus with value ",
-                         reg_start_ram_address_or_numeric, " old ", `REG_VALUE(i));
-                registers[i] <= `REG_VALUE(i) + reg_start_ram_address_or_numeric;
+                         reg_start_ram_address_or_numeric, " old ", registers[i]);
+                registers[i] = registers[i] + reg_start_ram_address_or_numeric;
               end
               OPCODE_REG_MINUS: begin
                 executor_do_op[i] <= 0;
                 $display($sformatf("%02d", $time), pc_logical, " reg ", i, " minus with value ",
-                         reg_start_ram_address_or_numeric, " old ", `REG_VALUE(i));
-                registers[i] <= `REG_VALUE(i) - reg_start_ram_address_or_numeric;
+                         reg_start_ram_address_or_numeric, " old ", registers[i]);
+                registers[i] = registers[i] - reg_start_ram_address_or_numeric;
               end
-              /*OPCODE_REG_MUL: begin
-                  registers[i] <= `REG_VALUE(i) * reg_start_ram_address_or_numeric;
+             /* OPCODE_REG_MUL: begin
+              executor_do_op[i] <= 0;
+                  registers[i] = registers[i] * reg_start_ram_address_or_numeric;
                 end
                 OPCODE_REG_DIV: begin
-                  registers[i] <= `REG_VALUE(i) / reg_start_ram_address_or_numeric;
+                executor_do_op[i] <= 0;
+                  registers[i] = registers[i] / reg_start_ram_address_or_numeric;
                 end*/
             endcase
           end
         end
-        if (reg_instruction_state == OPCODE_REG2RAM) save_counter = save_counter + 1;
-        if (reg_instruction_state == OPCODE_REG2RAM || reg_instruction_state == OPCODE_RAM2REG) begin
-          //start calculating physical address
-          mmuqueue_q_addr[mmuqueue_q_new_pos] <= reg_start_ram_address_or_numeric;
-          mmuqueue_q_len[mmuqueue_q_new_pos] <= reg_register_len;
-          mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
+        if (!fetch_stall_exists) begin
+          if (reg_instruction_state == OPCODE_REG2RAM) save_counter = save_counter + 1;
+          if (reg_instruction_state == OPCODE_REG2RAM || reg_instruction_state == OPCODE_RAM2REG) begin
+            //start calculating physical address
+            mmuqueue_q_addr[mmuqueue_q_new_pos] <= reg_start_ram_address_or_numeric;
+            mmuqueue_q_len[mmuqueue_q_new_pos] <= reg_register_len;
+            mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
+          end
         end
       end
       //fetch & decoder
@@ -422,8 +421,7 @@ module x_out_of_order (
             registers_src_address2[i]<= mmu_address_physical_min_in_the_same_page+registers_src_address[i]-mmu_address_logical_min_in_the_same_page;
             registers_src_mmu_done[i] <= 1;
           end
-          if ( register_save_lock[i]&&
-              registers_save_address[i]>=mmu_address_logical_min_in_the_same_page && 
+          if (register_save_lock[i] && registers_save_address[i]>=mmu_address_logical_min_in_the_same_page && 
               registers_save_address[i]<=mmu_address_logical_max_in_the_same_page) begin
             $display(  //DEBUG info
                 $sformatf("%02d", $time), pc_logical, " updating save ram ", i,
