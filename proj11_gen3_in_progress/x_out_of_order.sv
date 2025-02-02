@@ -175,7 +175,7 @@ module x_out_of_order (
 
   reg jmp_stall_exists = 0, fetch_stall_exists = 0;
 
-  reg [15:0] save_counter;
+  reg [15:0] save_counter, save_counter_for_read,save_counter_for_read2;
 
   reg [15:0] registers[0:REGISTER_NUM-1], registers_save[0:REGISTER_NUM-1];
   reg [15:0]
@@ -206,12 +206,17 @@ module x_out_of_order (
   
    reg [15:0] registerr[0:1];
     reg [15:0] read_valueee, read_valueee2;
+    reg [15:0]
+      registers_save_countereeee, registers_save_countereeee2;
   
   always @(posedge clk) begin
     registerr[0] = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
     if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      registers_save_countereeee = 0;
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-        if (read_address == registers_save_address[j]) begin
+        if (read_address == registers_save_address[j] && registers_save_save_counter[j] >registers_save_countereeee && 
+             registers_save_save_counter[j]<save_counter_for_read) begin
+        registers_save_countereeee= registers_save_save_counter[j];
             read_valueee =registers_save[j];
             registerr[0] =j;
         end
@@ -221,9 +226,12 @@ module x_out_of_order (
 
   always @(posedge clk) begin
     registerr[1] = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-    if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+    if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      registers_save_countereeee2 = 0;
       for (z = 0; z < REGISTER_NUM; z = z + 1) begin
-        if (read_address == registers_save_address[z]) begin
+        if (read_address2 == registers_save_address[z] && registers_save_save_counter[z] >registers_save_countereeee2 && 
+           registers_save_save_counter[z]<save_counter_for_read2) begin
+          registers_save_countereeee2= registers_save_save_counter[z];          
             read_valueee2 =registers_save[z];
             registerr[1] =z;
         end
@@ -328,11 +336,13 @@ module x_out_of_order (
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (!registers_init[i] && registers_src_mmu_done[i] && registers_save_counter[i]==0) begin
+          if (!registers_init[i] && registers_src_mmu_done[i]) begin // && registers_save_counter[i]==0) begin
             if (i % 2 == 0) begin
               read_address <= registers_src_address2[i];
+            save_counter_for_read<=registers_save_counter[i];
             end else begin
               read_address2 <= registers_src_address2[i];
+            save_counter_for_read2<=registers_save_counter[i];
             end
             register[i%2] <= i;
           end
@@ -347,8 +357,10 @@ module x_out_of_order (
                        " src address ", registers_src_address2[i]);
               if (i % 2 == 0) begin
                 read_address <= registers_src_address2[i];
+            save_counter_for_read<=registers_save_counter[i];                
               end else begin
                 read_address2 <= registers_src_address2[i];
+            save_counter_for_read2<=registers_save_counter[i];                
               end
               register[i%2] <= i;
             end
