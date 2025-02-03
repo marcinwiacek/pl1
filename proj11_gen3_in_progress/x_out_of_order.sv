@@ -210,10 +210,11 @@ module x_out_of_order (
 
   always @(posedge clk) begin   
       registers_save_countereeee = 0;
+      read_valueee = 32;
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
           //p = registers_save_save_counter[j];
-        if (read_address == registers_save_address[j]) begin// && p >registers_save_countereeee && p<save_counter_for_read) begin
-            read_valueee =registers_save[j];
+        if (read_address == registers_save_address[j]) begin // && registers_save_save_counter[j]>registers_save_countereeee) begin// && p >registers_save_countereeee && p<save_counter_for_read) begin
+            read_valueee =j;
             registers_save_countereeee= registers_save_save_counter[j] ;
         end
       end
@@ -221,9 +222,10 @@ module x_out_of_order (
 
   always @(posedge clk) begin
       registers_save_countereeee2 = 0;
+      read_valueee2 = 32;
       for (z = 0; z < REGISTER_NUM; z = z + 1) begin
-        if (read_address2 == registers_save_address[z]) begin          //if (q >registers_save_countereeee2) begin // &&  q<save_counter_for_read2) begin
-            read_valueee2 =registers_save[z];
+        if (read_address2 == registers_save_address[z]) begin// && registers_save_save_counter[z]>registers_save_countereeee2) begin          //if (q >registers_save_countereeee2) begin // &&  q<save_counter_for_read2) begin
+            read_valueee2 =z;
             registers_save_countereeee2=registers_save_save_counter[z];
         end
       end
@@ -313,14 +315,14 @@ module x_out_of_order (
           $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[0],
                    " with address ",  //DEBUG info
                    read_address, "=", read_value);  //DEBUG info
-          registers[register[0]] = registers_save_countereeee!=0 ? read_valueee : read_value;
+          registers[register[0]] = registers_save_countereeee!=0 ? registers_save[read_valueee] : read_value;
           registers_init[register[0]] = 1;
         end
         if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[1],
                    " with address ",  //DEBUG info
                    read_address2, "=", read_value2);  //DEBUG info
-          registers[register[1]] = registers_save_countereeee2!=0 ? read_valueee2 : read_value2;
+          registers[register[1]] = registers_save_countereeee2!=0 ? registers_save[read_valueee2] : read_value2;
           registers_init[register[1]] = 1;
         end
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
