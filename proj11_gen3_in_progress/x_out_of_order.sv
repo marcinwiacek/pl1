@@ -207,22 +207,21 @@ module x_out_of_order (
   reg [15:0] registerr[0:1];
   reg [15:0] read_valueee, read_valueee2;
   reg [6:0] registers_save_countereeee, registers_save_countereeee2;
-  reg [6:0] p, q,r;
+  reg [6:0] p, q;
 
   always @(posedge clk) begin
     registerr[0] = 0;
     if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-      for (r = 0; r < 32; r = r + 1) begin
-    
+      registers_save_countereeee = 0;
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
+        if (read_address == registers_save_address[j]) begin
           p = registers_save_save_counter[j];
-        if (read_address == registers_save_address[j] && p == r && r<save_counter_for_read) begin
-            read_valueee =registers_save[j];
-            registers_save_countereeee= p;
+//          if (p >registers_save_countereeee) begin //&& p<save_counter_for_read) begin
+            read_valueee =p >registers_save_countereeee?registers_save[j]:read_valueee;
+            registers_save_countereeee= p >registers_save_countereeee?p:registers_save_countereeee;
+  //        end
           registerr[0] = 1;
         end
-      end
-      
       end
     end
   end
