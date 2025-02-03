@@ -204,44 +204,31 @@ module x_out_of_order (
 
   integer i, j, z;
 
-  reg [15:0] registerr[0:1];
   reg [15:0] read_valueee, read_valueee2;
   reg [6:0] registers_save_countereeee, registers_save_countereeee2;
   reg [6:0] p, q;
 
-  always @(posedge clk) begin
-    registerr[0] = 0;
-    if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+  always @(posedge clk) begin   
       registers_save_countereeee = 0;
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-        if (read_address == registers_save_address[j]) begin
-          p = registers_save_save_counter[j];
-//          if (p >registers_save_countereeee) begin //&& p<save_counter_for_read) begin
-            read_valueee =p >registers_save_countereeee?registers_save[j]:read_valueee;
-            registers_save_countereeee= p >registers_save_countereeee?p:registers_save_countereeee;
-  //        end
-          registerr[0] = 1;
+          //p = registers_save_save_counter[j];
+        if (read_address == registers_save_address[j]) begin// && p >registers_save_countereeee && p<save_counter_for_read) begin
+            read_valueee =registers_save[j];
+            registers_save_countereeee= registers_save_save_counter[j] ;
         end
       end
-    end
   end
 
   always @(posedge clk) begin
-    registerr[1] = 0;
-    if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
       registers_save_countereeee2 = 0;
       for (z = 0; z < REGISTER_NUM; z = z + 1) begin
-        if (read_address2 == registers_save_address[z]) begin
-          q = registers_save_save_counter[z];
-          //if (q >registers_save_countereeee2) begin // &&  q<save_counter_for_read2) begin
-            registers_save_countereeee2=q;
+        if (read_address2 == registers_save_address[z]) begin          //if (q >registers_save_countereeee2) begin // &&  q<save_counter_for_read2) begin
             read_valueee2 =registers_save[z];
-          //end
-          registerr[1] = 1;
+            registers_save_countereeee2=registers_save_save_counter[z];
         end
       end
-    end
   end
+
 
   always @(posedge clk) begin
     if (rst) begin
@@ -326,14 +313,14 @@ module x_out_of_order (
           $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[0],
                    " with address ",  //DEBUG info
                    read_address, "=", read_value);  //DEBUG info
-          registers[register[0]] = registerr[0] == 1 ? read_valueee : read_value;
+          registers[register[0]] = registers_save_countereeee!=0 ? read_valueee : read_value;
           registers_init[register[0]] = 1;
         end
         if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[1],
                    " with address ",  //DEBUG info
                    read_address2, "=", read_value2);  //DEBUG info
-          registers[register[1]] = registerr[1] == 1 ? read_valueee2 : read_value2;
+          registers[register[1]] = registers_save_countereeee2!=0 ? read_valueee2 : read_value2;
           registers_init[register[1]] = 1;
         end
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
