@@ -54,6 +54,8 @@ parameter OPCODE_FREE = 31;  //free ram pages x-y
 parameter OPCODE_FREE_LEVEL =32; //free ram pages allocated after page x (or pages with concrete level)
 //parameter OPCODE_REG_INT_NON_BLOCKING =33; //int number (8 bit), address to jump in case of int
 
+parameter OPCODE_REG2REG =33;
+
 parameter EXECUTE_STATE_NONE = 0;
 parameter EXECUTE_STATE_READ_EXECUTE = 1;
 
@@ -208,29 +210,30 @@ module x_out_of_order (
   reg [6:0] registers_save_countereeee, registers_save_countereeee2;
   reg [6:0] p, q;
 
+/*
   always @(posedge clk) begin   
-      registers_save_countereeee = 0;
+      //registers_save_countereeee = 0;
       read_valueee = 32;
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
           //p = registers_save_save_counter[j];
-        if (read_address == registers_save_address[j]) begin // && registers_save_save_counter[j]>registers_save_countereeee) begin// && p >registers_save_countereeee && p<save_counter_for_read) begin
-            read_valueee =j;
-            registers_save_countereeee= registers_save_save_counter[j] ;
-        end
+        //if (read_address == registers_save_address[j]) begin // && registers_save_save_counter[j]>registers_save_countereeee) begin// && p >registers_save_countereeee && p<save_counter_for_read) begin
+            read_valueee = read_address == registers_save_address[j] && registers_save_save_counter[j]>registers_save_save_counter[read_valueee]?j:read_valueee;
+            //registers_save_countereeee= registers_save_save_counter[j] ;
+        //end
       end
   end
 
   always @(posedge clk) begin
-      registers_save_countereeee2 = 0;
+      //registers_save_countereeee2 = 0;
       read_valueee2 = 32;
       for (z = 0; z < REGISTER_NUM; z = z + 1) begin
-        if (read_address2 == registers_save_address[z]) begin// && registers_save_save_counter[z]>registers_save_countereeee2) begin          //if (q >registers_save_countereeee2) begin // &&  q<save_counter_for_read2) begin
-            read_valueee2 =z;
-            registers_save_countereeee2=registers_save_save_counter[z];
-        end
+        //if (read_address2 == registers_save_address[z]) begin// && registers_save_save_counter[z]>registers_save_countereeee2) begin          //if (q >registers_save_countereeee2) begin // &&  q<save_counter_for_read2) begin
+            read_valueee2 =read_address2 == registers_save_address[z] && registers_save_save_counter[z]>registers_save_save_counter[registers_save_countereeee2]?z:read_valueee2;
+            //registers_save_countereeee2=registers_save_save_counter[z];
+        //end
       end
   end
-
+*/
 
   always @(posedge clk) begin
     if (rst) begin
@@ -315,20 +318,20 @@ module x_out_of_order (
           $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[0],
                    " with address ",  //DEBUG info
                    read_address, "=", read_value);  //DEBUG info
-          registers[register[0]] = registers_save_countereeee!=0 ? registers_save[read_valueee] : read_value;
+          registers[register[0]] = read_value; //read_valueee!=32 ? registers_save[read_valueee] : read_value;
           registers_init[register[0]] = 1;
         end
         if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[1],
                    " with address ",  //DEBUG info
                    read_address2, "=", read_value2);  //DEBUG info
-          registers[register[1]] = registers_save_countereeee2!=0 ? registers_save[read_valueee2] : read_value2;
+          registers[register[1]] = read_value2; //read_valueee2!=32? registers_save[read_valueee2] : read_value2;
           registers_init[register[1]] = 1;
         end
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (!registers_init[i] && registers_src_mmu_done[i]) begin // && registers_save_counter[i]==0) begin
+          if (!registers_init[i] && registers_src_mmu_done[i] && registers_save_counter[i]==0) begin
             if (i % 2 == 0) begin
               read_address <= registers_src_address2[i];
               save_counter_for_read <= registers_save_counter[i];
@@ -341,22 +344,8 @@ module x_out_of_order (
         end
         //cannot join with previous loop
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (reg_do_op[i] && !registers_init[i]) begin
-            fetch_stall_exists = 1;
-            executor_state <= EXECUTE_STATE_READ_EXECUTE;
-            if (registers_src_mmu_done[i]) begin  // && registers_save_counter[i] == 0) begin
-              $display($sformatf("%02d", $time), pc_logical, " need to fetch register ", i,
-                       " src address ", registers_src_address2[i]);
-              if (i % 2 == 0) begin
-                read_address <= registers_src_address2[i];
-                save_counter_for_read <= registers_save_counter[i];
-              end else begin
-                read_address2 <= registers_src_address2[i];
-                save_counter_for_read2 <= registers_save_counter[i];
-              end
-              register[i%2] <= i;
-            end
-          end else if (reg_do_op[i]) begin
+
+          if (reg_do_op[i]) begin
             case (reg_instruction_state)
               OPCODE_RAM2REG: begin
                 executor_do_op[i] <= 0;
@@ -375,12 +364,34 @@ module x_out_of_order (
                 $display($sformatf("%02d", $time), pc_logical, " set reg ", i, " with value ",
                          decoder_start_ram_address_or_numeric);
               end
+              default: begin
+          if (!registers_init[i]) begin
+            fetch_stall_exists = 1;
+            executor_state <= EXECUTE_STATE_READ_EXECUTE;
+            if (registers_src_mmu_done[i] && registers_save_counter[i] == 0) begin
+              $display($sformatf("%02d", $time), pc_logical, " need to fetch register ", i,
+                       " src address ", registers_src_address2[i]);
+              if (i % 2 == 0) begin
+                read_address <= registers_src_address2[i];
+                save_counter_for_read <= registers_save_counter[i];
+              end else begin
+                read_address2 <= registers_src_address2[i];
+                save_counter_for_read2 <= registers_save_counter[i];
+              end
+              register[i%2] <= i;
+            end
+          end else begin
+
+            case (reg_instruction_state)
               OPCODE_REG2RAM: begin
                 if (register_save_lock[i]) begin
                   executor_state <= EXECUTE_STATE_READ_EXECUTE;
                   $display($sformatf("%02d", $time), pc_logical,
                            " write memory slot is already filled, stall");
                 end else begin
+                 // for (z=0;z<32;z=z+1) begin
+//                    if (registers_save_address[z] == reg_start_ram_address_or_numeric+i-reg_register_start) register_save_lock[z] <= 0;
+//                  end
                   executor_do_op[i] <= 0;
                   registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
                   register_save_lock[i] <= 1;
@@ -411,7 +422,15 @@ module x_out_of_order (
                   registers[i] = registers[i] / reg_start_ram_address_or_numeric;
                 end*/
             endcase
+
           end
+
+              end
+           endcase
+          end
+
+
+        
         end
         if (!fetch_stall_exists) begin
           if (reg_instruction_state == OPCODE_REG2RAM) save_counter = save_counter + 1;
