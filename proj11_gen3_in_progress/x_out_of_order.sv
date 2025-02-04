@@ -343,7 +343,6 @@ module x_out_of_order (
         end
         //cannot join with previous loop
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-
           if (reg_do_op[i]) begin
             case (reg_instruction_state)
               OPCODE_RAM2REG: begin
@@ -380,7 +379,6 @@ module x_out_of_order (
                     register[i%2] <= i;
                   end
                 end else begin
-
                   case (reg_instruction_state)
                     OPCODE_REG2RAM: begin
                       if (register_save_lock[i]) begin
@@ -423,15 +421,10 @@ module x_out_of_order (
                   registers[i] = registers[i] / reg_start_ram_address_or_numeric;
                 end*/
                   endcase
-
                 end
-
               end
             endcase
           end
-
-
-
         end
         if (!fetch_stall_exists) begin
           if (reg_instruction_state == OPCODE_REG2RAM) save_counter = save_counter + 1;
