@@ -59,7 +59,7 @@ parameter OPCODE_REG2REG = 33;
 parameter EXECUTE_STATE_NONE = 0;
 parameter EXECUTE_STATE_READ_EXECUTE = 1;
 
-module x_out_of_order (
+module x_out_of_order2 (
     input clk,
 
     output reg x
