@@ -115,31 +115,14 @@ module x_out_of_order2 (
 
   //---------------------------------------------------------decoder--------------------------
 
-  reg [15:0] decoder_input_address;
-  reg decoder_inp;
-  wire decoder_ready;
-  wire [5:0] decoder_instruction_state;
-  wire [3:0] decoder_error_code;
-  wire [15:0] decoder_start_ram_address_or_numeric;
-  wire [15:0] decoder_register_len;
-  wire [10:0] decoder_register_start;
-  wire [32:0] decoder_do_op;
 
-  decoder decoder (
-      .clk(clk),
-      .inp(decoder_inp),
-      .address(decoder_input_address),
-      .instruction1(read_value),
-      .instruction2(read_value2),
+  reg [5:0] decoder_instruction_state;
+  reg [3:0] decoder_error_code;
+  reg [15:0] decoder_start_ram_address_or_numeric;
+  reg [15:0] decoder_register_len;
+  reg [10:0] decoder_register_start;
+  reg [32:0] decoder_do_op;
 
-      .do_op(decoder_do_op),
-      .ready(decoder_ready),
-      .state(decoder_instruction_state),
-      .error_code(decoder_error_code),
-      .start_ram_address_or_numeric(decoder_start_ram_address_or_numeric),
-      .register_start(decoder_register_start),
-      .register_len(decoder_register_len)
-  );
 
   //--------------------------------------------------------------------executor------------------
 
@@ -208,6 +191,24 @@ module x_out_of_order2 (
   reg [15:0] read_valueee, read_valueee2;
   reg [6:0] registers_save_countereeee, registers_save_countereeee2;
   reg [6:0] p, q;
+  
+  
+  
+  bit [7:0] instruction1_1;
+  bit [7:0] instruction1_2;
+  bit [4:0] instruction1_2_1;
+  bit [2:0] instruction1_2_2;
+  bit [7:0] instruction2_1;
+  bit [7:0] instruction2_2;
+
+  assign instruction1_1   = read_value[15:8];
+  assign instruction1_2   = read_value[7:0];
+  assign instruction1_2_1 = read_value[4:0];
+  assign instruction1_2_2 = read_value[7:5];
+  assign instruction2_1   = read_value2[15:8];
+  assign instruction2_2   = read_value2[7:0];
+
+reg decoder_inp;
 
 /*
   always @(posedge clk) begin
@@ -231,7 +232,7 @@ module x_out_of_order2 (
       read_address <= 52;
       read_address2 <= 53;
       decoder_inp <= 1;
-      decoder_input_address <= 52;
+    
       $display($sformatf("%02d", $time), "   52 starting initial fetch ");  //DEBUG info
       pc_logical <= 54;
       pc_physical <= 54;
@@ -279,10 +280,105 @@ module x_out_of_order2 (
             saveram_q_num <= i;
           end
         end
-      end
+      end     
       //executor
-      if (decoder_ready || executor_state != EXECUTE_STATE_NONE) begin
+      if (decoder_inp || executor_state != EXECUTE_STATE_NONE) begin //decoder_ready ||
         if (executor_state == EXECUTE_STATE_NONE) begin
+        
+           $display(  //DEBUG info
+          $sformatf("%02d", $time),  //DEBUG info
+          pc_physical," decoder ", " b1 %c",  //DEBUG info
+          instruction1_1 / 16 >= 10 ? instruction1_1 / 16 + 65 - 10 : instruction1_1 / 16 + 48,  //DEBUG info
+          "%c",  //DEBUG info
+          instruction1_1 % 16 >= 10 ? instruction1_1 % 16 + 65 - 10 : instruction1_1 % 16 + 48,  //DEBUG info
+          "%c",  //DEBUG info
+          instruction1_2 / 16 >= 10 ? instruction1_2 / 16 + 65 - 10 : instruction1_2 / 16 + 48,  //DEBUG info
+          "%c",  //DEBUG info
+          instruction1_2 % 16 >= 10 ? instruction1_2 % 16 + 65 - 10 : instruction1_2 % 16 + 48,  //DEBUG info
+          "h (",  //DEBUG info
+          instruction1_2_1,  //DEBUG info
+          "-",  //DEBUG info
+          instruction1_2_2,  //DEBUG info
+          ") b2 ",  //DEBUG info
+          read_value2,  //DEBUG info
+          " (", instruction2_1, "-", instruction2_2, ") ", read_value, " ",
+          read_value2);  //DEBUG info
+
+      decoder_error_code <= 0;
+      decoder_start_ram_address_or_numeric = read_value2;
+      decoder_register_start = instruction1_2_1;
+      decoder_register_len = instruction1_2_2;
+      decoder_instruction_state = instruction1_1;
+
+      for (i = 0; i < 33; i = i + 1) begin
+        decoder_do_op[i] = (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) ? 1 : 0;
+      end
+      case (instruction1_1)
+        //register num (5 bits), how many-1 (3 bits), 16 bit addr
+        OPCODE_RAM2REG, OPCODE_REG2RAM: begin
+          if (instruction1_2_1 + instruction1_2_2 >= 32) begin
+            decoder_error_code = ERROR_WRONG_REG_NUM;
+          end else if (read_value2 < ADDRESS_PROGRAM) begin
+            decoder_error_code = ERROR_WRONG_ADDRESS;
+          end else if (instruction1_1 == OPCODE_RAM2REG) begin
+            $display(  //DEBUG info
+                $sformatf("%02d", $time),  //DEBUG info
+                " opcode = ram2reg read value from logical address ",  //DEBUG info
+                read_value2,  //DEBUG info
+                "+ to reg ",  //DEBUG info
+                instruction1_2_1,  //DEBUG info
+                "-",  //DEBUG info
+                (instruction1_2_1 + instruction1_2_2)  //DEBUG info
+            );  //DEBUG info
+          end else begin
+            $display(  //DEBUG info
+                $sformatf("%02d", $time),  //DEBUG info
+                " opcode = reg2ram save reg ",  //DEBUG info
+                instruction1_2_1,  //DEBUG info
+                "-",  //DEBUG info
+                (instruction1_2_1 + instruction1_2_2),  //DEBUG info
+                " to ram logical address ",  //DEBUG info
+                read_value2,  //DEBUG info
+                "+"  //DEBUG info
+            );  //DEBUG info
+          end
+        end
+        //register num (5 bits), how many-1 (3 bits), 16 bit value
+        OPCODE_NUM2REG, OPCODE_REG_PLUS, OPCODE_REG_MUL, OPCODE_REG_DIV: begin
+          if (instruction1_2_1 + instruction1_2_2 >= 32) begin
+            decoder_error_code = ERROR_WRONG_REG_NUM;
+          end else begin
+            $write(  //DEBUG info
+                $sformatf("%02d", $time),  //DEBUG info
+                " opcode = ");  //DEBUG info
+            case (instruction1_1)  //DEBUG info
+              OPCODE_NUM2REG:  $write("num2reg save");  //DEBUG info
+              OPCODE_REG_PLUS: $write("regplus add");  //DEBUG info
+              OPCODE_REG_MUL:  $write("regmul mul");  //DEBUG info
+              OPCODE_REG_DIV:  $write("regdiv div");  //DEBUG info
+            endcase  //DEBUG info
+            $display(" value ",  //DEBUG info
+                     read_value2,  //DEBUG info
+                     " to reg ",  //DEBUG info
+                     instruction1_2_1,  //DEBUG info
+                     "-",  //DEBUG info
+                     (instruction1_2_1 + instruction1_2_2)  //DEBUG info
+            );  //DEBUG info
+          end
+        end
+        //x, 16 bit how many instructions
+        OPCODE_JMP_PLUS, OPCODE_JMP_MINUS: begin
+        end
+        default: begin
+          decoder_instruction_state                        = ERROR_WRONG_OPCODE;
+          decoder_start_ram_address_or_numeric = 0;
+          decoder_register_start               = 0;
+          decoder_register_len                 = 0;
+        end
+      endcase
+      
+        
+        
           $display($sformatf("%02d", $time), pc_logical, " executor1   ", " ", executor_state,
                    " ",  //DEBUG info
                    decoder_instruction_state, " ", decoder_register_start, " ",  //DEBUG info
@@ -433,7 +529,7 @@ module x_out_of_order2 (
         read_address  <= pc_physical;
         read_address2 <= pc_physical + 1;
         $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical);
-        decoder_input_address <= pc_logical;
+       // decoder_input_address <= pc_logical;
         decoder_inp <= 1;
         pc_logical <= pc_logical + 2;
         pc_physical <= pc_physical + 2;
@@ -482,6 +578,7 @@ module x_out_of_order2 (
   end
 endmodule
 
+/*
 module decoder (
     input clk,
     input reg [15:0] address,
@@ -611,6 +708,7 @@ module decoder (
     end
   end
 endmodule
+*/
 
 module mmu (
     input clk,
