@@ -116,12 +116,27 @@ module x_out_of_order2 (
   //---------------------------------------------------------decoder--------------------------
 
 
-  reg [5:0] decoder_instruction_state;
-  reg [3:0] decoder_error_code;
-  reg [15:0] decoder_start_ram_address_or_numeric;
-  reg [15:0] decoder_register_len;
-  reg [10:0] decoder_register_start;
-  reg [32:0] decoder_do_op;
+//  reg [5:0] decoder_instruction_state;
+  //reg [3:0] decoder_error_code;
+  //reg [15:0] decoder_start_ram_address_or_numeric;
+  //reg [15:0] decoder_register_len;
+  //reg [10:0] decoder_register_start;
+  //reg [32:0] decoder_do_op;
+
+
+  bit [7:0] instruction1_1;
+  bit [7:0] instruction1_2;
+  bit [4:0] instruction1_2_1;
+  bit [2:0] instruction1_2_2;
+  bit [7:0] instruction2_1;
+  bit [7:0] instruction2_2;
+
+  assign instruction1_1   = read_value[15:8];
+  assign instruction1_2   = read_value[7:0];
+  assign instruction1_2_1 = read_value[4:0];
+  assign instruction1_2_2 = read_value[7:5];
+  assign instruction2_1   = read_value2[15:8];
+  assign instruction2_2   = read_value2[7:0];
 
 
   //--------------------------------------------------------------------executor------------------
@@ -130,7 +145,7 @@ module x_out_of_order2 (
   reg [15:0] executor_register_len;
   reg [10:0] executor_register_start;
   reg [15:0] executor_start_ram_address_or_numeric;
-  reg [32:0] executor_do_op;
+  //reg [32:0] executor_do_op;
 
   reg [15:0] register[0:1];  //, register2[0:1];
   reg [15:0] register_inside[0:1];
@@ -145,14 +160,16 @@ module x_out_of_order2 (
   reg [15:0] reg_register_len;
   reg [10:0] reg_register_start;
   reg [15:0] reg_start_ram_address_or_numeric;
-  reg [32:0] reg_do_op;
+  //reg [32:0] reg_do_op;
 
-  assign reg_register_start =  executor_state == EXECUTE_STATE_NONE?decoder_register_start:executor_register_start;
-  assign reg_register_len =  executor_state == EXECUTE_STATE_NONE ? decoder_register_len : executor_register_len;
-  assign reg_instruction_state =  executor_state == EXECUTE_STATE_NONE?decoder_instruction_state:executor_instruction_state;
-  assign reg_start_ram_address_or_numeric = executor_state == EXECUTE_STATE_NONE?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric;
-  assign reg_do_op = executor_state == EXECUTE_STATE_NONE ? decoder_do_op : executor_do_op;
+  assign reg_register_start =  executor_state == EXECUTE_STATE_NONE?instruction1_2_1:executor_register_start;
+  assign reg_register_len =  executor_state == EXECUTE_STATE_NONE ? instruction1_2_2 : executor_register_len;
+  assign reg_instruction_state =  executor_state == EXECUTE_STATE_NONE?instruction1_1:executor_instruction_state;
+  assign reg_start_ram_address_or_numeric = executor_state == EXECUTE_STATE_NONE?read_value2:executor_start_ram_address_or_numeric;
+  //assign reg_do_op = executor_state == EXECUTE_STATE_NONE ? decoder_do_op : executor_do_op;
 
+
+      
   parameter REGISTER_NUM = 32;
 
   reg [15:0] process_hardware_address = 0;
@@ -181,6 +198,8 @@ module x_out_of_order2 (
 
   //----------------------------------------------------------------other---------------------------
 
+reg decoder_inp;
+
   assign x = decoder_inp;  //without this we will have empty circuit
 
   reg rst = 1;
@@ -191,24 +210,7 @@ module x_out_of_order2 (
   reg [15:0] read_valueee, read_valueee2;
   reg [6:0] registers_save_countereeee, registers_save_countereeee2;
   reg [6:0] p, q;
-  
-  
-  
-  bit [7:0] instruction1_1;
-  bit [7:0] instruction1_2;
-  bit [4:0] instruction1_2_1;
-  bit [2:0] instruction1_2_2;
-  bit [7:0] instruction2_1;
-  bit [7:0] instruction2_2;
-
-  assign instruction1_1   = read_value[15:8];
-  assign instruction1_2   = read_value[7:0];
-  assign instruction1_2_1 = read_value[4:0];
-  assign instruction1_2_2 = read_value[7:5];
-  assign instruction2_1   = read_value2[15:8];
-  assign instruction2_2   = read_value2[7:0];
-
-reg decoder_inp;
+ 
 
 /*
   always @(posedge clk) begin
@@ -304,16 +306,12 @@ reg decoder_inp;
           " (", instruction2_1, "-", instruction2_2, ") ", read_value, " ",
           read_value2);  //DEBUG info
 
-      decoder_error_code <= 0;
-      decoder_start_ram_address_or_numeric = read_value2;
-      decoder_register_start = instruction1_2_1;
-      decoder_register_len = instruction1_2_2;
-      decoder_instruction_state = instruction1_1;
-
-      for (i = 0; i < 33; i = i + 1) begin
-        decoder_do_op[i] = (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) ? 1 : 0;
-      end
-      case (instruction1_1)
+  //    decoder_error_code = 0;
+   
+  //    for (i = 0; i < 33; i = i + 1) begin
+//        decoder_do_op[i] = (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) ? 1 : 0;
+//      end
+    /*  case (instruction1_1)
         //register num (5 bits), how many-1 (3 bits), 16 bit addr
         OPCODE_RAM2REG, OPCODE_REG2RAM: begin
           if (instruction1_2_1 + instruction1_2_2 >= 32) begin
@@ -369,28 +367,32 @@ reg decoder_inp;
         //x, 16 bit how many instructions
         OPCODE_JMP_PLUS, OPCODE_JMP_MINUS: begin
         end
-        default: begin
-          decoder_instruction_state                        = ERROR_WRONG_OPCODE;
-          decoder_start_ram_address_or_numeric = 0;
-          decoder_register_start               = 0;
-          decoder_register_len                 = 0;
-        end
+      //  default: begin
+//          decoder_instruction_state                        = ERROR_WRONG_OPCODE;
+//          decoder_start_ram_address_or_numeric = 0;
+//          decoder_register_start               = 0;
+//          decoder_register_len                 = 0;
+//        end
       endcase
       
         
         
-          $display($sformatf("%02d", $time), pc_logical, " executor1   ", " ", executor_state,
+/*          $display($sformatf("%02d", $time), pc_logical, " executor1   ", " ", executor_state,
                    " ",  //DEBUG info
                    decoder_instruction_state, " ", decoder_register_start, " ",  //DEBUG info
                    decoder_register_len, " ", decoder_start_ram_address_or_numeric,
                    " ",  //DEBUG info
                    decoder_error_code);  //DEBUG info
-          executor_instruction_state <= decoder_instruction_state;
-          executor_register_start <= decoder_register_start;
-          executor_register_len <= decoder_register_len;
-          executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
-          executor_do_op <= decoder_do_op;
+                   
+                   */
+          executor_instruction_state <= instruction1_1;
+          executor_register_start <= instruction1_2_1;
+          executor_register_len <= instruction1_2_2;
+          executor_start_ram_address_or_numeric <= read_value2;
+    //      executor_do_op <= decoder_do_op;
           instr_num <= instr_num + 1;
+        
+
         end
         if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
           $display($sformatf("%02d", $time), pc_logical, " executor2   ", " ", executor_state,
@@ -430,24 +432,24 @@ reg decoder_inp;
         end
         //cannot join with previous loop
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (reg_do_op[i]) begin
+          if (i >= reg_register_start && i <= reg_register_start+reg_register_len) begin
             case (reg_instruction_state)
               OPCODE_RAM2REG: begin
-                executor_do_op[i] <= 0;
+    //            executor_do_op[i] <= 0;
                 //this register should be read next time
                 registers_init[i] = 0;
                 registers_src_mmu_done[i] <= 0;
-                registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
+                registers_src_address[i] <= reg_start_ram_address_or_numeric+i-instruction1_2_1;
                 registers_save_counter[i] <= save_counter;
               end
               OPCODE_NUM2REG: begin
-                executor_do_op[i] <= 0;
+      //          executor_do_op[i] <= 0;
                 //not important if register had value earlier
                 registers_init[i] = 1;
                 registers_src_mmu_done[i] <= 1;
-                registers[i] = decoder_start_ram_address_or_numeric;
+                registers[i] = reg_start_ram_address_or_numeric;
                 $display($sformatf("%02d", $time), pc_logical, " set reg ", i, " with value ",
-                         decoder_start_ram_address_or_numeric);
+                         reg_start_ram_address_or_numeric);
               end
               default: begin
                 if (!registers_init[i]) begin
@@ -476,7 +478,7 @@ reg decoder_inp;
                         // for (z=0;z<32;z=z+1) begin
                         //                    if (registers_save_address[z] == reg_start_ram_address_or_numeric+i-reg_register_start) register_save_lock[z] <= 0;
                         //                  end
-                        executor_do_op[i] <= 0;
+        //                executor_do_op[i] <= 0;
                         registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
                         register_save_lock[i] <= 1;
                         registers_save[i] <= registers[i];
@@ -484,7 +486,7 @@ reg decoder_inp;
                       end
                     end
                     OPCODE_REG_PLUS: begin
-                      executor_do_op[i] <= 0;
+          //            executor_do_op[i] <= 0;
                       $display($sformatf("%02d", $time), pc_logical, " ", register[0], " ",
                                register[1], " ", read_value, " ", read_value2);
                       $display($sformatf("%02d", $time), pc_logical, " reg ", i,
@@ -493,7 +495,7 @@ reg decoder_inp;
                       registers[i] = registers[i] + reg_start_ram_address_or_numeric;
                     end
                     OPCODE_REG_MINUS: begin
-                      executor_do_op[i] <= 0;
+            //          executor_do_op[i] <= 0;
                       $display($sformatf("%02d", $time), pc_logical, " reg ", i,
                                " minus with value ", reg_start_ram_address_or_numeric, " old ",
                                registers[i]);
