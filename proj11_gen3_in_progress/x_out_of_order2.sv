@@ -116,14 +116,14 @@ module x_out_of_order2 (
   //---------------------------------------------------------decoder--------------------------
 
 
-//  reg [5:0] decoder_instruction_state;
+  //  reg [5:0] decoder_instruction_state;
   //reg [3:0] decoder_error_code;
   //reg [15:0] decoder_start_ram_address_or_numeric;
   //reg [15:0] decoder_register_len;
   //reg [10:0] decoder_register_start;
   //reg [32:0] decoder_do_op;
 
-/*
+  /*
   bit [7:0] instruction1_1;
   bit [7:0] instruction1_2;
   bit [4:0] instruction1_2_1;
@@ -140,7 +140,7 @@ module x_out_of_order2 (
 
 */
 
-`define instruction1_1 \
+  `define instruction1_1 \
    read_value[15:8]
   `define instruction1_2 \
   read_value[7:0]
@@ -183,7 +183,7 @@ module x_out_of_order2 (
   //assign reg_do_op = executor_state == EXECUTE_STATE_NONE ? decoder_do_op : executor_do_op;
 
 
-      
+
   parameter REGISTER_NUM = 32;
 
   reg [15:0] process_hardware_address = 0;
@@ -212,7 +212,7 @@ module x_out_of_order2 (
 
   //----------------------------------------------------------------other---------------------------
 
-reg decoder_inp;
+  reg decoder_inp;
 
   assign x = decoder_inp;  //without this we will have empty circuit
 
@@ -224,9 +224,9 @@ reg decoder_inp;
   reg [15:0] read_valueee, read_valueee2;
   reg [6:0] registers_save_countereeee, registers_save_countereeee2;
   reg [6:0] p, q;
- 
 
-/*
+
+  /*
   always @(posedge clk) begin
       //registers_save_countereeee2 = 0;
       read_valueee2 = 32; 
@@ -245,10 +245,10 @@ reg decoder_inp;
   always @(posedge clk) begin
     if (rst) begin
       registers = '{default: 0};
-      read_address <= 52;
+      read_address  <= 52;
       read_address2 <= 53;
-      decoder_inp <= 1;
-    
+      decoder_inp   <= 1;
+
       $display($sformatf("%02d", $time), "   52 starting initial fetch ");  //DEBUG info
       pc_logical <= 54;
       pc_physical <= 54;
@@ -296,36 +296,36 @@ reg decoder_inp;
             saveram_q_num <= i;
           end
         end
-      end     
+      end
       //executor
-      if (decoder_inp || executor_state != EXECUTE_STATE_NONE) begin //decoder_ready ||
+      if (decoder_inp || executor_state != EXECUTE_STATE_NONE) begin  //decoder_ready ||
         if (executor_state == EXECUTE_STATE_NONE) begin
-        
-           $display(  //DEBUG info
-          $sformatf("%02d", $time),  //DEBUG info
-          pc_physical," decoder ", " b1 %c",  //DEBUG info
-          `instruction1_1 / 16 >= 10 ? `instruction1_1 / 16 + 65 - 10 : `instruction1_1 / 16 + 48,  //DEBUG info
-          "%c",  //DEBUG info
-          `instruction1_1 % 16 >= 10 ? `instruction1_1 % 16 + 65 - 10 : `instruction1_1 % 16 + 48,  //DEBUG info
-          "%c",  //DEBUG info
-          `instruction1_2 / 16 >= 10 ? `instruction1_2 / 16 + 65 - 10 : `instruction1_2 / 16 + 48,  //DEBUG info
-          "%c",  //DEBUG info
-          `instruction1_2 % 16 >= 10 ? `instruction1_2 % 16 + 65 - 10 : `instruction1_2 % 16 + 48,  //DEBUG info
-          "h (",  //DEBUG info
-          `instruction1_2_1,  //DEBUG info
-          "-",  //DEBUG info
-          `instruction1_2_2,  //DEBUG info
-          ") b2 ",  //DEBUG info
-          read_value2,  //DEBUG info
-          " (", `instruction2_1, "-", `instruction2_2, ") ", read_value, " ",
-          read_value2);  //DEBUG info
 
-  //    decoder_error_code = 0;
-   
-  //    for (i = 0; i < 33; i = i + 1) begin
-//        decoder_do_op[i] = (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) ? 1 : 0;
-//      end
-    /*  case (instruction1_1)
+          $display(  //DEBUG info
+              $sformatf("%02d", $time),  //DEBUG info
+              pc_physical, " decoder ", " b1 %c",  //DEBUG info
+              `instruction1_1 / 16 >= 10 ? `instruction1_1 / 16 + 65 - 10 : `instruction1_1 / 16 + 48,  //DEBUG info
+              "%c",  //DEBUG info
+              `instruction1_1 % 16 >= 10 ? `instruction1_1 % 16 + 65 - 10 : `instruction1_1 % 16 + 48,  //DEBUG info
+              "%c",  //DEBUG info
+              `instruction1_2 / 16 >= 10 ? `instruction1_2 / 16 + 65 - 10 : `instruction1_2 / 16 + 48,  //DEBUG info
+              "%c",  //DEBUG info
+              `instruction1_2 % 16 >= 10 ? `instruction1_2 % 16 + 65 - 10 : `instruction1_2 % 16 + 48,  //DEBUG info
+              "h (",  //DEBUG info
+              `instruction1_2_1,  //DEBUG info
+              "-",  //DEBUG info
+              `instruction1_2_2,  //DEBUG info
+              ") b2 ",  //DEBUG info
+              read_value2,  //DEBUG info
+              " (", `instruction2_1, "-", `instruction2_2, ") ", read_value, " ",
+              read_value2);  //DEBUG info
+
+          //    decoder_error_code = 0;
+
+          //    for (i = 0; i < 33; i = i + 1) begin
+          //        decoder_do_op[i] = (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) ? 1 : 0;
+          //      end
+          /*  case (instruction1_1)
         //register num (5 bits), how many-1 (3 bits), 16 bit addr
         OPCODE_RAM2REG, OPCODE_REG2RAM: begin
           if (instruction1_2_1 + instruction1_2_2 >= 32) begin
@@ -403,9 +403,9 @@ reg decoder_inp;
           executor_register_start <= `instruction1_2_1;
           executor_register_len <= `instruction1_2_2;
           executor_start_ram_address_or_numeric <= read_value2;
-    //      executor_do_op <= decoder_do_op;
+          //      executor_do_op <= decoder_do_op;
           instr_num <= instr_num + 1;
-        
+
 
         end
         if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
@@ -446,10 +446,10 @@ reg decoder_inp;
         end
         //cannot join with previous loop
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (i >= reg_register_start && i <= reg_register_start+reg_register_len) begin
+          if (i >= reg_register_start && i <= reg_register_start + reg_register_len) begin
             case (reg_instruction_state)
               OPCODE_RAM2REG: begin
-    //            executor_do_op[i] <= 0;
+                //            executor_do_op[i] <= 0;
                 //this register should be read next time
                 registers_init[i] = 0;
                 registers_src_mmu_done[i] <= 0;
@@ -457,7 +457,7 @@ reg decoder_inp;
                 registers_save_counter[i] <= save_counter;
               end
               OPCODE_NUM2REG: begin
-      //          executor_do_op[i] <= 0;
+                //          executor_do_op[i] <= 0;
                 //not important if register had value earlier
                 registers_init[i] = 1;
                 registers_src_mmu_done[i] <= 1;
@@ -492,7 +492,7 @@ reg decoder_inp;
                         // for (z=0;z<32;z=z+1) begin
                         //                    if (registers_save_address[z] == reg_start_ram_address_or_numeric+i-reg_register_start) register_save_lock[z] <= 0;
                         //                  end
-        //                executor_do_op[i] <= 0;
+                        //                executor_do_op[i] <= 0;
                         registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
                         register_save_lock[i] <= 1;
                         registers_save[i] <= registers[i];
@@ -500,7 +500,7 @@ reg decoder_inp;
                       end
                     end
                     OPCODE_REG_PLUS: begin
-          //            executor_do_op[i] <= 0;
+                      //            executor_do_op[i] <= 0;
                       $display($sformatf("%02d", $time), pc_logical, " ", register[0], " ",
                                register[1], " ", read_value, " ", read_value2);
                       $display($sformatf("%02d", $time), pc_logical, " reg ", i,
@@ -509,7 +509,7 @@ reg decoder_inp;
                       registers[i] = registers[i] + reg_start_ram_address_or_numeric;
                     end
                     OPCODE_REG_MINUS: begin
-            //          executor_do_op[i] <= 0;
+                      //          executor_do_op[i] <= 0;
                       $display($sformatf("%02d", $time), pc_logical, " reg ", i,
                                " minus with value ", reg_start_ram_address_or_numeric, " old ",
                                registers[i]);
@@ -545,9 +545,9 @@ reg decoder_inp;
         read_address  <= pc_physical;
         read_address2 <= pc_physical + 1;
         $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical);
-       // decoder_input_address <= pc_logical;
+        // decoder_input_address <= pc_logical;
         decoder_inp <= 1;
-        pc_logical <= pc_logical + 2;
+        pc_logical  <= pc_logical + 2;
         pc_physical <= pc_physical + 2;
       end
       //mmu
