@@ -175,14 +175,14 @@ module x_out_of_order2 (
   reg [10:0] reg_register_start;
   reg [10:0] reg_register_end;
   reg [15:0] reg_start_ram_address_or_numeric;
-  reg [32:0] reg_do_op;
+  reg [32:0] decoder_do_op, executor_do_op, reg_do_op;
 
   assign reg_register_start =  executor_state == EXECUTE_STATE_NONE? `instruction1_2_1 :executor_register_start;
   assign reg_register_len =  executor_state == EXECUTE_STATE_NONE ? `instruction1_2_2 : executor_register_len;
   assign reg_register_end =  `instruction1_2_1+`instruction1_2_2;
   assign reg_instruction_state =  executor_state == EXECUTE_STATE_NONE?`instruction1_1:executor_instruction_state;
   assign reg_start_ram_address_or_numeric = executor_state == EXECUTE_STATE_NONE?read_value2:executor_start_ram_address_or_numeric;
-  //assign reg_do_op = executor_state == EXECUTE_STATE_NONE ? decoder_do_op : executor_do_op;
+  assign reg_do_op = executor_state == EXECUTE_STATE_NONE ? decoder_do_op : executor_do_op;
 
 
 
@@ -244,6 +244,20 @@ module x_out_of_order2 (
   end
 */
 
+integer j;
+
+ always @(negedge clk) begin
+ 
+   if (decoder_inp && executor_state == EXECUTE_STATE_NONE) begin
+   
+            for (j = 0; j < 33; j = j + 1) begin
+                  decoder_do_op[j] = (j >= `instruction1_2_1 && j <= reg_register_end) ? 1 :0;
+                end
+             
+   end
+   
+   end
+   
   always @(posedge clk) begin
     if (rst) begin
       registers = '{default: 0};
@@ -409,7 +423,7 @@ module x_out_of_order2 (
           executor_register_start <= `instruction1_2_1;
           executor_register_len <= `instruction1_2_2;
           executor_start_ram_address_or_numeric <= read_value2;
-          //reg_do_op <= decoder_do_op;
+          executor_do_op <= decoder_do_op;
           instr_num <= instr_num + 1;
 
 
@@ -455,10 +469,10 @@ module x_out_of_order2 (
         end
         //cannot join with previous loop
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (executor_state == EXECUTE_STATE_NONE?(i>=`instruction1_2_1 && i <= reg_register_end): reg_do_op[i]) begin
+          if (reg_do_op[i]) begin
             case (reg_instruction_state)
               OPCODE_RAM2REG: begin
-                            reg_do_op[i] <= 0;
+                            executor_do_op[i] <= 0;
                 //this register should be read next time
                 registers_init[i] = 0;
                 registers_src_mmu_done[i] <= 0;
@@ -466,7 +480,7 @@ module x_out_of_order2 (
                 registers_save_counter[i] <= save_counter;
               end
               OPCODE_NUM2REG: begin
-                reg_do_op[i] <= 0;
+                executor_do_op[i] <= 0;
                 //not important if register had value earlier
                 registers_init[i] = 1;
                 registers_src_mmu_done[i] <= 1;
@@ -501,7 +515,7 @@ module x_out_of_order2 (
                         // for (z=0;z<32;z=z+1) begin
                         //                    if (registers_save_address[z] == reg_start_ram_address_or_numeric+i-reg_register_start) register_save_lock[z] <= 0;
                         //                  end
-                        reg_do_op[i] <= 0;
+                        executor_do_op[i] <= 0;
                         registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
                         register_save_lock[i] <= 1;
                         registers_save[i] <= registers[i];
@@ -509,7 +523,7 @@ module x_out_of_order2 (
                       end
                     end
                     OPCODE_REG_PLUS: begin
-                      reg_do_op[i] <= 0;
+                      executor_do_op[i] <= 0;
                       $display($sformatf("%02d", $time), pc_logical, " ", register[0], " ",
                                register[1], " ", read_value, " ", read_value2);
                       $display($sformatf("%02d", $time), pc_logical, " reg ", i,
@@ -518,7 +532,7 @@ module x_out_of_order2 (
                       registers[i] = registers[i] + reg_start_ram_address_or_numeric;
                     end
                     OPCODE_REG_MINUS: begin
-                      reg_do_op[i] <= 0;
+                      executor_do_op[i] <= 0;
                       $display($sformatf("%02d", $time), pc_logical, " reg ", i,
                                " minus with value ", reg_start_ram_address_or_numeric, " old ",
                                registers[i]);
@@ -985,7 +999,7 @@ module single_blockram (
   assign read_value  = ram[read_address];
   assign read_value2 = ram[read_address2];
 
-  always @(posedge clk) begin
+  always @(negedge clk) begin
     if (write_enabled)  // && RAM_WRITE_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
       $display(
           $sformatf("%02d", $time), " ram write ", write_address, " = ", write_value
