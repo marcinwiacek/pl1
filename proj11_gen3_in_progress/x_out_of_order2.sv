@@ -173,11 +173,13 @@ module x_out_of_order2 (
   reg [ 5:0] reg_instruction_state;
   reg [15:0] reg_register_len;
   reg [10:0] reg_register_start;
+  reg [10:0] reg_register_end;
   reg [15:0] reg_start_ram_address_or_numeric;
   reg [32:0] reg_do_op;
 
   assign reg_register_start =  executor_state == EXECUTE_STATE_NONE? `instruction1_2_1 :executor_register_start;
   assign reg_register_len =  executor_state == EXECUTE_STATE_NONE ? `instruction1_2_2 : executor_register_len;
+  assign reg_register_end =  `instruction1_2_1+`instruction1_2_2;
   assign reg_instruction_state =  executor_state == EXECUTE_STATE_NONE?`instruction1_1:executor_instruction_state;
   assign reg_start_ram_address_or_numeric = executor_state == EXECUTE_STATE_NONE?read_value2:executor_start_ram_address_or_numeric;
   //assign reg_do_op = executor_state == EXECUTE_STATE_NONE ? decoder_do_op : executor_do_op;
@@ -298,8 +300,7 @@ module x_out_of_order2 (
         end
       end
       //executor
-      if (decoder_inp || executor_state != EXECUTE_STATE_NONE) begin  //decoder_ready ||
-        if (executor_state == EXECUTE_STATE_NONE) begin
+      if (decoder_inp && executor_state == EXECUTE_STATE_NONE) begin
 
           $display(  //DEBUG info
               $sformatf("%02d", $time),  //DEBUG info
@@ -401,7 +402,7 @@ module x_out_of_order2 (
                    */
                    
                        for (i = 0; i < 33; i = i + 1) begin
-                  reg_do_op[i] = (i >= `instruction1_2_1 && i <= `instruction1_2_1 + `instruction1_2_2) ? 1 : 0;
+                  reg_do_op[i] = (i >= `instruction1_2_1 && i <= reg_register_end) ? 1 :0;
                 end
           
           executor_instruction_state <= `instruction1_1;
@@ -412,14 +413,17 @@ module x_out_of_order2 (
           instr_num <= instr_num + 1;
 
 
-        end
-        if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
+     end
+      
+      
+      if (decoder_inp || executor_state != EXECUTE_STATE_NONE) begin  //decoder_ready ||
+/*        if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
           $display($sformatf("%02d", $time), pc_logical, " executor2   ", " ", executor_state,
                    " ",  //DEBUG info
                    executor_instruction_state, " ", executor_register_start, " ",  //DEBUG info
                    executor_register_len, " ",
                    executor_start_ram_address_or_numeric);  //DEBUG info 
-        end
+        end*/
         executor_state <= EXECUTE_STATE_NONE;
         if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[0],
