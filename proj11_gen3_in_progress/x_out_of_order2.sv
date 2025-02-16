@@ -300,7 +300,12 @@ module x_out_of_order2 (
         end
       end
       //executor
-      if (decoder_inp && executor_state == EXECUTE_STATE_NONE) begin
+      
+      
+      
+      if (decoder_inp || executor_state != EXECUTE_STATE_NONE) begin  //decoder_ready ||
+      
+      if (executor_state == EXECUTE_STATE_NONE) begin
           $display(  //DEBUG info
               $sformatf("%02d", $time),  //DEBUG info
               pc_physical, " decoder ", " b1 %c",  //DEBUG info
@@ -414,8 +419,6 @@ module x_out_of_order2 (
 
      end
       
-      
-      if (decoder_inp || executor_state != EXECUTE_STATE_NONE) begin  //decoder_ready ||
 /*        if (executor_state == EXECUTE_STATE_READ_EXECUTE) begin
           $display($sformatf("%02d", $time), pc_logical, " executor2   ", " ", executor_state,
                    " ",  //DEBUG info
