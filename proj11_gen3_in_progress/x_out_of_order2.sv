@@ -455,7 +455,8 @@ module x_out_of_order2 (
         end
         //cannot join with previous loop
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (executor_state == EXECUTE_STATE_NONE?(i>=`instruction1_2_1 && i <= reg_register_end): reg_do_op[i]) begin
+          reg_do_op[i] = executor_state == EXECUTE_STATE_NONE?((i>=`instruction1_2_1 && i <= reg_register_end)?1:0):reg_do_op[i];
+          if (reg_do_op[i]) begin
             case (reg_instruction_state)
               OPCODE_RAM2REG: begin
                             reg_do_op[i] <= 0;
