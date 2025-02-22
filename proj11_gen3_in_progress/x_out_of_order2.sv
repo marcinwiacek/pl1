@@ -167,7 +167,7 @@ module x_out_of_order2 (
 
   reg [15:0] register_save_lock[0:31];
 
-  parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = 50;
+  parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = 32;
 
   //--------------------------------------------------------------------process------------------
 
@@ -194,7 +194,7 @@ module x_out_of_order2 (
 
   reg [15:0] save_counter, save_counter_for_read, save_counter_for_read2;
 
-  reg [15:0] registers[0:REGISTER_NUM-1], registers_save[0:REGISTER_NUM-1];
+  reg [15:0] registers[0:REGISTER_NUM], registers_save[0:REGISTER_NUM-1];
   reg [6:0] registers_save_counter[0:REGISTER_NUM-1], registers_save_save_counter[0:REGISTER_NUM-1];
   reg [15:0]
       registers_src_address[0:REGISTER_NUM-1],
@@ -203,9 +203,9 @@ module x_out_of_order2 (
       registers_save_address2[0:REGISTER_NUM-1];
   reg
       registers_src_mmu_done[0:REGISTER_NUM-1],
-      registers_init[0:REGISTER_NUM-1] = {
+      registers_init[0:REGISTER_NUM] = {
         // verilog_format:off
-        1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0
         // verilog_format:on
       },  //Read from RAM?
       registers_save_ready[0:REGISTER_NUM-1],
@@ -326,18 +326,20 @@ module x_out_of_order2 (
         $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[0],
                  " with address ",  //DEBUG info
                  read_address, "=", read_value);  //DEBUG info
+      end                
         registers[register[0]] = read_value; //read_valueee!=32 ? registers_save[read_valueee] : read_value;
         registers_init[register[0]] = 1;
         register[0]<= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      end
+    //  end
       if (register[1]!= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[1],
                  " with address ",  //DEBUG info
                  read_address2, "=", read_value2);  //DEBUG info
+      end
         registers[register[1]] = read_value2; //read_valueee2!=32? registers_save[read_valueee2] : read_value2;
         registers_init[register[1]] = 1;
         register[1]<= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      end
+    //  end
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         if (!registers_init[i] && registers_src_mmu_done[i] && registers_save_counter[i] == 0) begin
           if (i % 2 == 0) begin
