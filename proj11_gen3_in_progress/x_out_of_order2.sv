@@ -322,21 +322,21 @@ module x_out_of_order2 (
         executor_start_ram_address_or_numeric <= read_value2;
         instr_num <= instr_num + 1;
       end
-      if (register2[0]) begin
+      if (register[0]!= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[0],
                  " with address ",  //DEBUG info
                  read_address, "=", read_value);  //DEBUG info
         registers[register[0]] = read_value; //read_valueee!=32 ? registers_save[read_valueee] : read_value;
         registers_init[register[0]] = 1;
-        register2[0] <= 0;
+        register[0]<= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
-      if (register2[1]) begin
+      if (register[1]!= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[1],
                  " with address ",  //DEBUG info
                  read_address2, "=", read_value2);  //DEBUG info
         registers[register[1]] = read_value2; //read_valueee2!=32? registers_save[read_valueee2] : read_value2;
         registers_init[register[1]] = 1;
-        register2[1] <= 0;
+        register[1]<= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         if (!registers_init[i] && registers_src_mmu_done[i] && registers_save_counter[i] == 0) begin
@@ -348,7 +348,7 @@ module x_out_of_order2 (
             save_counter_for_read2 <= registers_save_counter[i];
           end
           register[i%2]  <= i;
-          register2[i%2] <= 1;
+     
         end
         reg_do_op[i] = executor_state_start?((i>=`instruction1_2_1 && i <= reg_register_end)?1:0):reg_do_op[i];
       end
@@ -388,7 +388,7 @@ module x_out_of_order2 (
                     save_counter_for_read2 <= registers_save_counter[i];
                   end
                   register[i%2]  <= i;
-                  register2[i%2] <= 1;
+                 
                 end
               end else begin
                 case (reg_instruction_state)
