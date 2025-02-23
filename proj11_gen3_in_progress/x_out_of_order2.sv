@@ -341,7 +341,7 @@ module x_out_of_order2 (
         register[1]<= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-        if (!registers_init[i] && registers_src_mmu_done[i] && registers_save_counter[i] == 0) begin
+     /*   if (!registers_init[i] && registers_src_mmu_done[i] && registers_save_counter[i] == 0) begin
           if (i % 2 == 0) begin
             read_address <= registers_src_address2[i];
             save_counter_for_read <= registers_save_counter[i];
@@ -351,7 +351,7 @@ module x_out_of_order2 (
           end
           register[i%2]  <= i;
      
-        end
+        end*/
         reg_do_op[i] = executor_state_start?((i>=`instruction1_2_1 && i <= reg_register_end)?1:0):reg_do_op[i];
       end
       executor_state_start = 1;
