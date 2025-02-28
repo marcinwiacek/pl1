@@ -322,12 +322,12 @@ module x_out_of_order2 (
         executor_start_ram_address_or_numeric <= read_value2;
         instr_num <= instr_num + 1;
         
-        case (reg_instruction_state)
+        case (`instruction1_1)
           OPCODE_REG2RAM,
           OPCODE_RAM2REG: begin
             //start calculating physical address
-            mmuqueue_q_addr[mmuqueue_q_new_pos] <= reg_start_ram_address_or_numeric;
-            mmuqueue_q_len[mmuqueue_q_new_pos] <= reg_register_len;
+            mmuqueue_q_addr[mmuqueue_q_new_pos] <= read_value2;
+            mmuqueue_q_len[mmuqueue_q_new_pos] <= `instruction1_2_2;
             mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
           end
         endcase
