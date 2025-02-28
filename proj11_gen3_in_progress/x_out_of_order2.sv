@@ -321,16 +321,12 @@ module x_out_of_order2 (
         executor_register_len <= `instruction1_2_2;
         executor_start_ram_address_or_numeric <= read_value2;
         instr_num <= instr_num + 1;
-        
-        case (`instruction1_1)
-          OPCODE_REG2RAM,
-          OPCODE_RAM2REG: begin
+       
             //start calculating physical address
             mmuqueue_q_addr[mmuqueue_q_new_pos] <= read_value2;
             mmuqueue_q_len[mmuqueue_q_new_pos] <= `instruction1_2_2;
-            mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
-          end
-        endcase
+            mmuqueue_q_new_pos <= `instruction1_1 ==  OPCODE_REG2RAM || `instruction1_1 == OPCODE_RAM2REG?            mmuqueue_q_new_pos + 1:mmuqueue_q_new_pos;          
+       
         
       end
       if (register[0]!= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
@@ -450,7 +446,7 @@ module x_out_of_order2 (
         end
       end
       if (executor_state_start) begin
-        if (reg_instruction_state==OPCODE_REG2RAM) save_counter = save_counter + 1;
+        save_counter = reg_instruction_state==OPCODE_REG2RAM?save_counter + 1:save_counter;
         //fetch
        // if (!jmp_stall_exists) begin
           read_address  <= pc_physical;
