@@ -321,6 +321,17 @@ module x_out_of_order2 (
         executor_register_len <= `instruction1_2_2;
         executor_start_ram_address_or_numeric <= read_value2;
         instr_num <= instr_num + 1;
+        
+        case (reg_instruction_state)
+          OPCODE_REG2RAM,
+          OPCODE_RAM2REG: begin
+            //start calculating physical address
+            mmuqueue_q_addr[mmuqueue_q_new_pos] <= reg_start_ram_address_or_numeric;
+            mmuqueue_q_len[mmuqueue_q_new_pos] <= reg_register_len;
+            mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
+          end
+        endcase
+        
       end
       if (register[0]!= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[0],
@@ -439,21 +450,7 @@ module x_out_of_order2 (
         end
       end
       if (executor_state_start) begin
-        case (reg_instruction_state)
-          OPCODE_REG2RAM: begin
-            save_counter = save_counter + 1;
-            //start calculating physical address
-            mmuqueue_q_addr[mmuqueue_q_new_pos] <= reg_start_ram_address_or_numeric;
-            mmuqueue_q_len[mmuqueue_q_new_pos] <= reg_register_len;
-            mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
-          end
-          OPCODE_RAM2REG: begin
-            //start calculating physical address
-            mmuqueue_q_addr[mmuqueue_q_new_pos] <= reg_start_ram_address_or_numeric;
-            mmuqueue_q_len[mmuqueue_q_new_pos] <= reg_register_len;
-            mmuqueue_q_new_pos <= mmuqueue_q_new_pos + 1;
-          end
-        endcase
+        if (reg_instruction_state==OPCODE_REG2RAM) save_counter = save_counter + 1;
         //fetch
        // if (!jmp_stall_exists) begin
           read_address  <= pc_physical;
