@@ -158,7 +158,7 @@ module x_out_of_order2 (
 
   reg jmp_stall_exists = 0;
 
-  reg [15:0] save_counter, save_counter_for_read, save_counter_for_read2;
+ // reg [15:0] save_counter, save_counter_for_read, save_counter_for_read2;
 
   reg [15:0] registers[0:REGISTER_NUM], registers_save[0:REGISTER_NUM-1];
   //  reg [6:0] registers_save_counter[0:REGISTER_NUM-1], registers_save_save_counter[0:REGISTER_NUM-1];
@@ -222,7 +222,7 @@ module x_out_of_order2 (
         registers_src_address[i]   <= process_hardware_address + ADDRESS_REG + i;
       end
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      save_counter = 0;
+     // save_counter = 0;
     end else if (instr_num < 10) begin
       $write($sformatf("%02d", $time), " reg");
       //for (i = 0; i < 20; i = i + 1) begin
@@ -242,7 +242,7 @@ module x_out_of_order2 (
         registers_save_ready[saveram_q_num] <= 0;
         registers_save_mmu_done[saveram_q_num] <= 0;
 
-        save_counter = save_counter > 0 ? save_counter - 1 : 0;
+      //  save_counter = save_counter > 0 ? save_counter - 1 : 0;
       end
       if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[0],
@@ -307,7 +307,7 @@ module x_out_of_order2 (
           executor_state <= EXECUTE_STATE_EXECUTE_START;
           read_address <= pc_physical + 2;
           read_address2 <= pc_physical + 1 + 2;
-          save_counter <= reg_instruction_state == OPCODE_REG2RAM ? save_counter + 1 : save_counter;
+     //     save_counter <= reg_instruction_state == OPCODE_REG2RAM ? save_counter + 1 : save_counter;
           for (i = 0; i < REGISTER_NUM; i = i + 1) begin
             if (i >= reg_register_start && i <= reg_register_end) begin
               case (reg_instruction_state)
