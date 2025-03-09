@@ -177,8 +177,8 @@ module x_out_of_order2 (
       registers_save_ready[0:REGISTER_NUM-1],
       registers_save_mmu_done[0:REGISTER_NUM-1];
 
-  `define REG_VALUE(ARG) \
-  ARG==register[0]? read_value:(ARG==register[1]?read_value2:registers[ARG])
+ // `define REG_VALUE(ARG) \
+  //ARG==register[0]? read_value:(ARG==register[1]?read_value2:registers[ARG])
 
 
   //----------------------------------------------------------------other---------------------------
@@ -242,23 +242,16 @@ module x_out_of_order2 (
           end
         end
       end
-      if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      for (i = 0;i<1;i=i+1) begin
+      if (register[i] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[0],
                  " with address ",  //DEBUG info
                  read_address, "=", read_value);  //DEBUG info
 
-        registers[register[0]] <= read_value;
-        registers_init[register[0]] = 1;
-        register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+        registers[register[i]] = i==0?read_value:read_value2;
+        registers_init[register[i]] = 1;
+        register[i] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
-      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-        $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[1],
-                 " with address ",  //DEBUG info
-                 read_address2, "=", read_value2);  //DEBUG info
-
-        registers[register[1]] <= read_value2;
-        registers_init[register[1]] = 1;
-        register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       if (executor_state == EXECUTE_STATE_EXECUTE_START) begin
         pc_logical  <= pc_logical + 2;
@@ -322,7 +315,7 @@ module x_out_of_order2 (
                   //not important if register had value earlier
                   registers_init[i] = 1;
                   registers_src_mmu_done[i] <= 1;
-                  registers[i] <= reg_start_ram_address_or_numeric;
+                  registers[i] = reg_start_ram_address_or_numeric;
                   $display($sformatf("%02d", $time), pc_logical, " set reg ", i, " with value ",
                            reg_start_ram_address_or_numeric);
                 end
@@ -351,7 +344,7 @@ module x_out_of_order2 (
                           //                        reg_do_op[i] = 0;
                           registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
                           register_save_lock[i] <= 1;
-                          registers_save[i] <= `REG_VALUE(i);
+                          registers_save[i] <= registers[i];
                           //registers_save_save_counter[i] <= save_counter;
                         end
                       end
@@ -362,14 +355,14 @@ module x_out_of_order2 (
                         $display($sformatf("%02d", $time), pc_logical, " reg ", i,
                                  " plus with value ", reg_start_ram_address_or_numeric, " old ",
                                  registers[i]);
-                        registers[i] <= `REG_VALUE(i) + reg_start_ram_address_or_numeric;
+                        registers[i] = registers[i] + reg_start_ram_address_or_numeric;
                       end
                       OPCODE_REG_MINUS: begin
                         //                  reg_do_op[i] = 0;
                         $display($sformatf("%02d", $time), pc_logical, " reg ", i,
                                  " minus with value ", reg_start_ram_address_or_numeric, " old ",
                                  registers[i]);
-                        registers[i] <= `REG_VALUE(i) - reg_start_ram_address_or_numeric;
+                        registers[i] = registers[i] - - reg_start_ram_address_or_numeric;
                       end
                     endcase
                   end
