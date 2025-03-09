@@ -193,11 +193,9 @@ module x_out_of_order2 (
   always @(posedge clk) begin
     write_enabled <= saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
     if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-
       write_address <= registers_save_address2[saveram_q_num];
       write_value   <= registers_save[saveram_q_num];
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-
     end else begin
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
         if (registers_save_ready[j]) begin  // && registers_save_save_counter[i] == 0) begin
