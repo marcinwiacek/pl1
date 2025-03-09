@@ -188,24 +188,24 @@ module x_out_of_order2 (
   reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
 
-  integer i,j;
+  integer i, j;
 
-always @(posedge clk) begin
- write_enabled <= saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-       
-        write_address <= registers_save_address2[saveram_q_num];
-        write_value <= registers_save[saveram_q_num];
-        saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-     
-      end else begin
-        for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-          if (registers_save_ready[j]) begin  // && registers_save_save_counter[i] == 0) begin
-            saveram_q_num <= j;
-          end
+  always @(posedge clk) begin
+    write_enabled <= saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+    if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+
+      write_address <= registers_save_address2[saveram_q_num];
+      write_value   <= registers_save[saveram_q_num];
+      saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+
+    end else begin
+      for (j = 0; j < REGISTER_NUM; j = j + 1) begin
+        if (registers_save_ready[j]) begin  // && registers_save_save_counter[i] == 0) begin
+          saveram_q_num <= j;
         end
       end
-end
+    end
+  end
 
   always @(posedge clk) begin
     if (rst) begin
@@ -239,11 +239,11 @@ end
       // $display("");
       // $display("save ram ", saveram_q_num, " save counter ", save_counter);
       //save ram              
-     if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         register_save_lock[saveram_q_num] <= 0;
         registers_save_ready[saveram_q_num] <= 0;
         registers_save_mmu_done[saveram_q_num] <= 0;
-     
+
         save_counter = save_counter > 0 ? save_counter - 1 : 0;
       end
       if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
