@@ -132,7 +132,7 @@ module x_out_of_order2 (
   reg register2[0:1];
   reg [15:0] register_inside[0:1];
 
-  reg [15:0] register_save_lock[0:31];
+  reg register_save_lock[0:33];
 
   parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = 32;
 
@@ -168,14 +168,14 @@ module x_out_of_order2 (
       registers_save_address[0:REGISTER_NUM-1],
       registers_save_address2[0:REGISTER_NUM-1];
   reg
-      registers_src_mmu_done[0:REGISTER_NUM-1],
+      registers_src_mmu_done[0:REGISTER_NUM+1],
       registers_init[0:REGISTER_NUM] = {
         // verilog_format:off
         1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0
         // verilog_format:on
       },  //Read from RAM?
-      registers_save_ready[0:REGISTER_NUM-1],
-      registers_save_mmu_done[0:REGISTER_NUM-1];
+      //registers_save_ready[0:REGISTER_NUM+1],
+      registers_save_mmu_done[0:REGISTER_NUM+1];
 
   `define REG_VALUE(ARG) \
   ARG==register[0]? read_value:(ARG==register[1]?read_value2:registers[ARG])
@@ -232,7 +232,7 @@ module x_out_of_order2 (
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
     end else begin
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-        if (registers_save_ready[j]) begin  // && registers_save_save_counter[i] == 0) begin
+        if (registers_save_mmu_done[j]) begin  // && registers_save_save_counter[i] == 0) begin
           saveram_q_num <= j;
         end
       end
@@ -255,7 +255,7 @@ module x_out_of_order2 (
         registers_save_mmu_done[i] <= 0;
         registers_src_address[i]   <= process_hardware_address + ADDRESS_REG + i;
       end
-      saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+     // saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
      // save_counter = 0;
     end else if (instr_num < 10) begin
       $write($sformatf("%02d", $time), " reg");
@@ -273,7 +273,7 @@ module x_out_of_order2 (
       //save ram              
       if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         register_save_lock[saveram_q_num] <= 0;
-        registers_save_ready[saveram_q_num] <= 0;
+       // registers_save_ready[saveram_q_num] <= 0;
         registers_save_mmu_done[saveram_q_num] <= 0;
 
       //  save_counter = save_counter > 0 ? save_counter - 1 : 0;
@@ -451,8 +451,8 @@ module x_out_of_order2 (
             //                $sformatf("%02d", $time), pc_logical, " updating save ram ", i,
             //                " src address from ");
             //registers_save_address2[i]<=registers_save_address[i]; //mmu_address_physical_min_in_the_same_page+registers_save_address[i]-mmu_address_logical_min_in_the_same_page;
-            registers_save_mmu_done[i] <= 1;
-            registers_save_ready[i] <= 1;
+            registers_save_mmu_done[i] <= register_save_lock[i];
+          //  registers_save_ready[i] <= 1;
             //      end
           end
           executor_state <= EXECUTE_STATE_EXECUTE;
