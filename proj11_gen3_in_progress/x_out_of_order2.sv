@@ -89,8 +89,11 @@ module x_out_of_order2 (
       .read_value (read_value),
       .read_value2(read_value2)
   );
+  
+   parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = 32;
 
-  reg [10:0] saveram_q_num = 0;
+
+  reg [10:0] saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
 
   //--------------------------------------------------------- mmu ----------------------------
 
@@ -134,7 +137,6 @@ module x_out_of_order2 (
 
   reg [15:0] register_save_lock[0:31];
 
-  parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = 32;
 
   //--------------------------------------------------------------------process------------------
 
@@ -255,7 +257,7 @@ module x_out_of_order2 (
         registers_save_mmu_done[i] <= 0;
         registers_src_address[i]   <= process_hardware_address + ADDRESS_REG + i;
       end
-      saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      //saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
      // save_counter = 0;
     end else if (instr_num < 10) begin
       $write($sformatf("%02d", $time), " reg");
