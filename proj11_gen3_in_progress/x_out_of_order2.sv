@@ -154,7 +154,7 @@ module x_out_of_order2 (
   parameter REGISTER_NUM = 32;
 
   reg [15:0] process_hardware_address = 0;
-  reg [15:0] pc_logical = 54, pc_physical =54;
+  reg [15:0] pc_logical, pc_physical;
 
   reg jmp_stall_exists = 0;
 
@@ -225,9 +225,6 @@ module x_out_of_order2 (
   end
 
   always @(posedge clk) begin
- // if (rst) begin
-   //saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-  //end else begin
     write_enabled <= saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
     if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
       write_address <= registers_save_address2[saveram_q_num];
@@ -240,40 +237,6 @@ module x_out_of_order2 (
         end
       end
     end
-    //end
-  end
-  
-  always @(posedge clk) begin
- // if (rst) begin
-//      pc_logical <= 54;
-//      pc_physical <= 54;
-//  end else  if (executor_state == EXECUTE_STATE_EXECUTE_START) begin
-        pc_logical  <= pc_logical + 2;
-        pc_physical <= pc_physical + 2;
-        $display(  //DEBUG info
-            $sformatf("%02d", $time),  //DEBUG info
-            pc_physical, " decoder ", " b1 %c",  //DEBUG info
-            `instruction1_1 / 16 >= 10 ? `instruction1_1 / 16 + 65 - 10 : `instruction1_1 / 16 + 48,  //DEBUG info
-            "%c",  //DEBUG info
-            `instruction1_1 % 16 >= 10 ? `instruction1_1 % 16 + 65 - 10 : `instruction1_1 % 16 + 48,  //DEBUG info
-            "%c",  //DEBUG info
-            `instruction1_2 / 16 >= 10 ? `instruction1_2 / 16 + 65 - 10 : `instruction1_2 / 16 + 48,  //DEBUG info
-            "%c",  //DEBUG info
-            `instruction1_2 % 16 >= 10 ? `instruction1_2 % 16 + 65 - 10 : `instruction1_2 % 16 + 48,  //DEBUG info
-            "h (",  //DEBUG info
-            `instruction1_2_1,  //DEBUG info
-            "-",  //DEBUG info
-            `instruction1_2_2,  //DEBUG info
-            ") b2 ",  //DEBUG info
-            read_value2,  //DEBUG info
-            " (", `instruction2_1, "-", `instruction2_2, ") ", read_value, " ",
-            read_value2);  //DEBUG info      
-        executor_instruction_state <= `instruction1_1;
-        executor_register_start <= `instruction1_2_1;
-        executor_register_len <= `instruction1_2_2;
-        executor_start_ram_address_or_numeric <= read_value2;
-        instr_num <= instr_num + 1;
-  //    end
   end
 
   always @(posedge clk) begin
@@ -283,6 +246,8 @@ module x_out_of_order2 (
       read_address2 <= 53;
       executor_state <= EXECUTE_STATE_EXECUTE_START;
       $display($sformatf("%02d", $time), "   52 starting initial fetch ");  //DEBUG info
+      pc_logical <= 54;
+      pc_physical <= 54;
       //mmu_input <= 0;
       rst <= 0;
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
@@ -290,7 +255,7 @@ module x_out_of_order2 (
         registers_save_mmu_done[i] <= 0;
         registers_src_address[i]   <= process_hardware_address + ADDRESS_REG + i;
       end
-     // saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
      // save_counter = 0;
     end else if (instr_num < 10) begin
       $write($sformatf("%02d", $time), " reg");
@@ -331,7 +296,33 @@ module x_out_of_order2 (
         registers_init[register[1]] = 1;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
-     
+      if (executor_state == EXECUTE_STATE_EXECUTE_START) begin
+        pc_logical  <= pc_logical + 2;
+        pc_physical <= pc_physical + 2;
+        $display(  //DEBUG info
+            $sformatf("%02d", $time),  //DEBUG info
+            pc_physical, " decoder ", " b1 %c",  //DEBUG info
+            `instruction1_1 / 16 >= 10 ? `instruction1_1 / 16 + 65 - 10 : `instruction1_1 / 16 + 48,  //DEBUG info
+            "%c",  //DEBUG info
+            `instruction1_1 % 16 >= 10 ? `instruction1_1 % 16 + 65 - 10 : `instruction1_1 % 16 + 48,  //DEBUG info
+            "%c",  //DEBUG info
+            `instruction1_2 / 16 >= 10 ? `instruction1_2 / 16 + 65 - 10 : `instruction1_2 / 16 + 48,  //DEBUG info
+            "%c",  //DEBUG info
+            `instruction1_2 % 16 >= 10 ? `instruction1_2 % 16 + 65 - 10 : `instruction1_2 % 16 + 48,  //DEBUG info
+            "h (",  //DEBUG info
+            `instruction1_2_1,  //DEBUG info
+            "-",  //DEBUG info
+            `instruction1_2_2,  //DEBUG info
+            ") b2 ",  //DEBUG info
+            read_value2,  //DEBUG info
+            " (", `instruction2_1, "-", `instruction2_2, ") ", read_value, " ",
+            read_value2);  //DEBUG info      
+        executor_instruction_state <= `instruction1_1;
+        executor_register_start <= `instruction1_2_1;
+        executor_register_len <= `instruction1_2_2;
+        executor_start_ram_address_or_numeric <= read_value2;
+        instr_num <= instr_num + 1;
+      end
       case (executor_state)
         EXECUTE_STATE_EXECUTE_START, EXECUTE_STATE_EXECUTE: begin
           /*for (i = 0; i < REGISTER_NUM; i = i + 1) begin
