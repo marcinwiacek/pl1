@@ -132,7 +132,9 @@ module x_out_of_order2 (
   reg register2[0:1];
   reg [15:0] register_inside[0:1];
 
-  reg [15:0] register_save_lock[0:31];
+ parameter REGISTER_NUM = 32;
+ 
+   reg register_save_lock[0:REGISTER_NUM-1];
 
   parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = 32;
 
@@ -151,7 +153,6 @@ module x_out_of_order2 (
   assign reg_instruction_state =  executor_state == EXECUTE_STATE_EXECUTE_START?`instruction1_1:executor_instruction_state;
   assign reg_start_ram_address_or_numeric = executor_state == EXECUTE_STATE_EXECUTE_START?read_value2:executor_start_ram_address_or_numeric;
 
-  parameter REGISTER_NUM = 32;
 
   reg [15:0] process_hardware_address = 0;
   reg [15:0] pc_logical, pc_physical;
