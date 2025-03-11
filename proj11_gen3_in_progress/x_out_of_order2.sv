@@ -177,18 +177,9 @@ module x_out_of_order2 (
       registers_save_ready[0:REGISTER_NUM-1],
       registers_save_mmu_done[0:REGISTER_NUM-1];
 
-  //`define REG_VALUE(ARG) \
-  //ARG==register[0]? read_value:(ARG==register[1]?read_value2:registers[ARG])
+  `define REG_VALUE(ARG) \
+  ARG==register[0]? read_value:(ARG==register[1]?read_value2:registers[ARG])
 
-
-reg [15:0] reg_num;
-reg [15:0] reg_num_value;
-reg [2:0] reg_num_init;
-reg [2:0] reg_num2;
-
-assign reg_num2 = reg_num==register[0]? 1:(reg_num==register[1]?2:0);
-assign reg_num_value = reg_num2 == 1?read_value: (reg_num2==2?read_value2:registers[reg_num]);
-assign reg_num_init = reg_num2>0 || registers_init[reg_num];
 
   //----------------------------------------------------------------other---------------------------
 
@@ -264,7 +255,7 @@ assign reg_num_init = reg_num2>0 || registers_init[reg_num];
         registers_save_mmu_done[i] <= 0;
         registers_src_address[i]   <= process_hardware_address + ADDRESS_REG + i;
       end
-    //  saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
      // save_counter = 0;
     end else if (instr_num < 10) begin
       $write($sformatf("%02d", $time), " reg");
@@ -293,7 +284,7 @@ assign reg_num_init = reg_num2>0 || registers_init[reg_num];
                  read_address, "=", read_value);  //DEBUG info
 
         registers[register[0]] <= read_value;
-        registers_init[register[0]] <= 1;
+        registers_init[register[0]] = 1;
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
@@ -302,7 +293,7 @@ assign reg_num_init = reg_num2>0 || registers_init[reg_num];
                  read_address2, "=", read_value2);  //DEBUG info
 
         registers[register[1]] <= read_value2;
-        registers_init[register[1]] <= 1;
+        registers_init[register[1]] = 1;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       if (executor_state == EXECUTE_STATE_EXECUTE_START) begin
@@ -357,7 +348,7 @@ assign reg_num_init = reg_num2>0 || registers_init[reg_num];
                 OPCODE_RAM2REG: begin
                   //  reg_do_op[i] = 0;
                   //this register should be read next time
-                  registers_init[i] <= 0;
+                  registers_init[i] = 0;
                   registers_src_mmu_done[i] <= 0;
                   registers_src_address[i]  <= reg_start_ram_address_or_numeric + i - `instruction1_2_1;
                   //registers_save_counter[i] <= save_counter;
@@ -365,20 +356,14 @@ assign reg_num_init = reg_num2>0 || registers_init[reg_num];
                 OPCODE_NUM2REG: begin
                   //                  reg_do_op[i] = 0;
                   //not important if register had value earlier
-                  registers_init[i] <= 1;
+                  registers_init[i] = 1;
                   registers_src_mmu_done[i] <= 1;
                   registers[i] <= reg_start_ram_address_or_numeric;
                   $display($sformatf("%02d", $time), pc_logical, " set reg ", i, " with value ",
                            reg_start_ram_address_or_numeric);
                 end
                 default: begin
-
- reg_num =i;
-//reg [15:0] reg_num_value;
-//reg [2:0] reg_num_init;
-//reg [2:0] reg_num2;
-
-                  if (!reg_num_init) begin
+                  if (!registers_init[i]) begin
                     executor_state<=registers_src_mmu_done[i]?EXECUTE_STATE_EXECUTE:EXECUTE_STATE_MMU;
                     if (registers_src_mmu_done[i]) begin // && registers_save_counter[i] == 0) begin
                       $display($sformatf("%02d", $time), pc_logical, " need to fetch register ", i,
@@ -402,7 +387,7 @@ assign reg_num_init = reg_num2>0 || registers_init[reg_num];
                           //                        reg_do_op[i] = 0;
                           registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
                           register_save_lock[i] <= 1;
-                          registers_save[i] <= reg_num_value;
+                          registers_save[i] <= `REG_VALUE(i);
                           //registers_save_save_counter[i] <= save_counter;
                         end
                       end
@@ -413,14 +398,14 @@ assign reg_num_init = reg_num2>0 || registers_init[reg_num];
                         $display($sformatf("%02d", $time), pc_logical, " reg ", i,
                                  " plus with value ", reg_start_ram_address_or_numeric, " old ",
                                  registers[i]);
-                        registers[i] <= reg_num_value + reg_start_ram_address_or_numeric;
+                        registers[i] <= `REG_VALUE(i) + reg_start_ram_address_or_numeric;
                       end
                       OPCODE_REG_MINUS: begin
                         //                  reg_do_op[i] = 0;
                         $display($sformatf("%02d", $time), pc_logical, " reg ", i,
                                  " minus with value ", reg_start_ram_address_or_numeric, " old ",
                                  registers[i]);
-                        registers[i] <= reg_num_value - reg_start_ram_address_or_numeric;
+                        registers[i] <= `REG_VALUE(i) - reg_start_ram_address_or_numeric;
                       end
                     endcase
                   end
