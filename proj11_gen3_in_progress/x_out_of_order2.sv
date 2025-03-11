@@ -247,7 +247,8 @@ module x_out_of_order2 (
  // if (rst) begin
 //      pc_logical <= 54;
 //      pc_physical <= 54;
-//  end else  if (executor_state == EXECUTE_STATE_EXECUTE_START) begin
+//  end else  
+if (executor_state == EXECUTE_STATE_EXECUTE_START) begin
         pc_logical  <= pc_logical + 2;
         pc_physical <= pc_physical + 2;
         $display(  //DEBUG info
@@ -273,7 +274,7 @@ module x_out_of_order2 (
         executor_register_len <= `instruction1_2_2;
         executor_start_ram_address_or_numeric <= read_value2;
         instr_num <= instr_num + 1;
-  //    end
+      end
   end
 
   always @(posedge clk) begin
