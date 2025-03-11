@@ -284,7 +284,7 @@ module x_out_of_order2 (
                  read_address, "=", read_value);  //DEBUG info
 
         registers[register[0]] <= read_value;
-        registers_init[register[0]] = 1;
+        registers_init[register[0]] <= 1;
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
@@ -293,7 +293,7 @@ module x_out_of_order2 (
                  read_address2, "=", read_value2);  //DEBUG info
 
         registers[register[1]] <= read_value2;
-        registers_init[register[1]] = 1;
+        registers_init[register[1]] <= 1;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       if (executor_state == EXECUTE_STATE_EXECUTE_START) begin
@@ -348,7 +348,7 @@ module x_out_of_order2 (
                 OPCODE_RAM2REG: begin
                   //  reg_do_op[i] = 0;
                   //this register should be read next time
-                  registers_init[i] = 0;
+                  registers_init[i] <= 0;
                   registers_src_mmu_done[i] <= 0;
                   registers_src_address[i]  <= reg_start_ram_address_or_numeric + i - `instruction1_2_1;
                   //registers_save_counter[i] <= save_counter;
@@ -356,7 +356,7 @@ module x_out_of_order2 (
                 OPCODE_NUM2REG: begin
                   //                  reg_do_op[i] = 0;
                   //not important if register had value earlier
-                  registers_init[i] = 1;
+                  registers_init[i] <= 1;
                   registers_src_mmu_done[i] <= 1;
                   registers[i] <= reg_start_ram_address_or_numeric;
                   $display($sformatf("%02d", $time), pc_logical, " set reg ", i, " with value ",
