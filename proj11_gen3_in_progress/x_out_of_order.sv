@@ -144,17 +144,17 @@ module x_out_of_order (
   //--------------------------------------------------------------------executor------------------
 
   reg [5:0] executor_state, executor_instruction_state;
-  reg [15:0] executor_register_len;
-  reg [10:0] executor_register_start;
+  reg [6:0] executor_register_len;
+  reg [6:0] executor_register_start;
   reg [15:0] executor_start_ram_address_or_numeric;
   reg [32:0] executor_do_op;
 
-  reg [15:0] register[0:1];  //, register2[0:1];
-  reg [15:0] register_inside[0:1];
+  reg [6:0] register[0:1];  //, register2[0:1];
+  //reg [15:0] register_inside[0:1];
 
-  reg [15:0] register_save_lock[0:31];
+  reg register_save_lock[0:32];
 
-  parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = 50;
+  parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = 33;
 
   //--------------------------------------------------------------------process------------------
 
@@ -177,7 +177,7 @@ module x_out_of_order (
 
   reg jmp_stall_exists = 0, fetch_stall_exists = 0;
 
-  reg [15:0] save_counter, save_counter_for_read, save_counter_for_read2;
+  reg [6:0] save_counter, save_counter_for_read, save_counter_for_read2;
 
   reg [15:0] registers[0:REGISTER_NUM-1], registers_save[0:REGISTER_NUM-1];
   reg [6:0] registers_save_counter[0:REGISTER_NUM-1], registers_save_save_counter[0:REGISTER_NUM-1];
