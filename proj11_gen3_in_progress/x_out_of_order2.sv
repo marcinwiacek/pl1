@@ -281,7 +281,7 @@ module x_out_of_order2 (
         save_counter = save_counter > 0 ? save_counter - 1 : 0;
       end else begin
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (registers_save_ready[i]) begin // && registers_save_save_counter[i] == 0) begin
+          if (registers_save_ready[i]) begin  // && registers_save_save_counter[i] == 0) begin
             saveram_q_num <= i;
           end
         end
@@ -304,7 +304,8 @@ module x_out_of_order2 (
         end
         case (executor_state)
           EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
-          $display("executor state ",executor_state, " ",register[0], " ",register[1], " ",save_counter);
+            $display("executor state ", executor_state, " ", register[0], " ", register[1], " ",
+                     save_counter);
             executor_state <= EXECUTE_STATE_START;
             fetch_stall_exists = 0;
             if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
