@@ -162,7 +162,7 @@ module x_out_of_order2 (
   reg [15:0] process_hardware_address = 0;
   reg [15:0] pc_logical, pc_physical;
 
-  reg fetch_stall_exists = 0, save_stall_exists =0;
+  reg fetch_stall_exists = 0, save_stall_exists = 0;
 
   reg [15:0] registers_value[0:REGISTER_NUM-1], registers_save_value[0:REGISTER_NUM-1];
   reg [15:0]
@@ -218,28 +218,28 @@ module x_out_of_order2 (
         $write($sformatf(" %02d:%02d:%02d ", i, registers_init[i], registers_value[i]));
       end
       $display("");
-       save_stall_exists = 0;
+      save_stall_exists = 0;
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-         if (!registers_init[i]) begin
-           if (registers_src_address[i]>=last_save_address_min && registers_src_address[i]<=last_save_address_max) begin
-             save_stall_exists = 1;
-           end
-        if (registers_src_mmu_done[i]) begin
-          if (i % 2 == 0) begin
-            read_address <= registers_src_address2[i];
-          end else begin
-            read_address2 <= registers_src_address2[i];
+        if (!registers_init[i]) begin
+          if (registers_src_address[i]>=last_save_address_min && registers_src_address[i]<=last_save_address_max) begin
+            save_stall_exists = 1;
           end
-          register[i%2] <= i;
-        end
+          if (registers_src_mmu_done[i]) begin
+            if (i % 2 == 0) begin
+              read_address <= registers_src_address2[i];
+            end else begin
+              read_address2 <= registers_src_address2[i];
+            end
+            register[i%2] <= i;
+          end
         end
       end
-       if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), pc_logical, " first slot fetch register ", register[0],
                  " with address ",  //DEBUG info
                  read_address, "=", read_value);  //DEBUG info
         registers_value[register[0]] = read_value;
-        registers_init[register[0]] = 1;
+        registers_init[register[0]]  = 1;
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
@@ -247,9 +247,9 @@ module x_out_of_order2 (
                  " with address ",  //DEBUG info
                  read_address2, "=", read_value2);  //DEBUG info
         registers_value[register[1]] = read_value2;
-        registers_init[register[1]] = 1;
+        registers_init[register[1]]  = 1;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      end     
+      end
       //save ram              
       write_enabled <= saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
@@ -265,7 +265,7 @@ module x_out_of_order2 (
             saveram_q_num <= i;
           end
         end
-      end     
+      end
       //executor
       if (!save_stall_exists && (decoder_ready || executor_state != EXECUTE_STATE_START)) begin
         if (executor_state == EXECUTE_STATE_START) begin
@@ -281,12 +281,12 @@ module x_out_of_order2 (
           executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
           executor_do_op <= decoder_do_op;
           instr_num <= instr_num + 1;
-               last_save_address_min<=0;
-               last_save_address_max<=0;
-            if (decoder_instruction_state ==OPCODE_REG2RAM) begin            
-               last_save_address_min<=decoder_start_ram_address_or_numeric;
-               last_save_address_max<=decoder_start_ram_address_or_numeric+decoder_register_len;
-            end
+          last_save_address_min <= 0;
+          last_save_address_max <= 0;
+          if (decoder_instruction_state == OPCODE_REG2RAM) begin
+            last_save_address_min <= decoder_start_ram_address_or_numeric;
+            last_save_address_max <= decoder_start_ram_address_or_numeric + decoder_register_len;
+          end
         end else begin
           $display($sformatf("%02d", $time), " executor state ", executor_state, " ", register[0],
                    " ", register[1]);
@@ -318,8 +318,8 @@ module x_out_of_order2 (
                     if (!registers_init[i]) begin
                       fetch_stall_exists = 1;
                       executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
-                      mmu_address_logical <= registers_src_address[i];                                                                 
-                      if (registers_src_mmu_done[i]) begin                
+                      mmu_address_logical <= registers_src_address[i];
+                      if (registers_src_mmu_done[i]) begin
                         $display($sformatf("%02d", $time), pc_logical, " need to fetch register ",
                                  i, " src address ", registers_src_address2[i]);
                         if (i % 2 == 0) begin
@@ -337,10 +337,10 @@ module x_out_of_order2 (
                             mmu_address_logical <= registers_save_address[i];
                             $display($sformatf("%02d", $time), pc_logical, " write memory slot ",
                                      i, " is already filled, stall");
-                          end else begin                          
-                           registers_save_value[i] <= registers_value[i];
-                           registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start; 
-                            executor_do_op[i] <= 0;                           
+                          end else begin
+                            registers_save_value[i] <= registers_value[i];
+                            registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
+                            executor_do_op[i] <= 0;
                             register_save_lock[i] <= 1;
                           end
                         end
