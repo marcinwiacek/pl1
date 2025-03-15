@@ -183,7 +183,7 @@ module x_out_of_order2 (
   reg [15:0] process_hardware_address = 0;
   reg [15:0] pc_logical, pc_physical;
 
-  reg jmp_stall_exists = 0, fetch_stall_exists = 0;
+  reg jmp_stall_exists = 0, fetch_stall_exists = 0, save_stall_exists =0;
 
   // reg [6:0] save_counter, save_counter_for_read, save_counter_for_read2;
 
@@ -232,6 +232,19 @@ module x_out_of_order2 (
       end
   end
 */
+
+
+  always @(posedge clk) begin
+save_stall_exists = 0;                          
+                       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
+                       for (z = 0; z < REGISTER_NUM; z = z + 1) begin
+                                 if (!registers_init[j] && registers_src_address[j] == registers_save_address[z]) begin
+                            save_stall_exists = 1;
+          end
+          end
+          end
+end
+
 
   always @(posedge clk) begin
     if (rst) begin
@@ -318,7 +331,7 @@ module x_out_of_order2 (
         end
       end
       //executor
-      if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
+      if (!save_stall_exists && (decoder_ready || executor_state != EXECUTE_STATE_START)) begin
         if (executor_state == EXECUTE_STATE_START) begin
           $display($sformatf("%02d", $time), pc_logical, " executor1   ", " ", executor_state,
                    " ",  //DEBUG info
@@ -340,7 +353,6 @@ module x_out_of_order2 (
           EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
             executor_state <= EXECUTE_STATE_START;
             fetch_stall_exists = 0;
-
             //cannot join with previous loop
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (reg_do_op[i]) begin
@@ -367,7 +379,9 @@ module x_out_of_order2 (
                       fetch_stall_exists = 1;
                       executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
                       mmu_address_logical <= registers_src_address[i];
+                                                                 
                       if (registers_src_mmu_done[i]) begin // && registers_save_counter[i] == 0) begin
+                      
                         $display($sformatf("%02d", $time), pc_logical, " need to fetch register ",
                                  i, " src address ", registers_src_address2[i]);
                         if (i % 2 == 0) begin
@@ -388,10 +402,12 @@ module x_out_of_order2 (
                             $display($sformatf("%02d", $time), pc_logical, " write memory slot ",
                                      i, " is already filled, stall");
                           end else begin
-                            executor_do_op[i] <= 0;
-                            registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
+                          
+                           registers_save[i] <= registers[i];
+                           registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start; 
+                            executor_do_op[i] <= 0;                           
                             register_save_lock[i] <= 1;
-                            registers_save[i] <= registers[i];
+                           
                             //  registers_save_save_counter[i] <= save_counter;
                           end
                         end
