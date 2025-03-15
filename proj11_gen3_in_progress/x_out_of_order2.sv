@@ -289,8 +289,6 @@ module x_out_of_order2 (
           end
         end
       end
-
-
       if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), pc_logical, " first slot fetch register ", register[0],
                  " with address ",  //DEBUG info
@@ -319,7 +317,6 @@ module x_out_of_order2 (
           register[i%2] <= i;
         end
       end
-
       //executor
       if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
         if (executor_state == EXECUTE_STATE_START) begin
@@ -420,7 +417,6 @@ module x_out_of_order2 (
                 endcase
               end
             end
-
           end
           EXECUTE_STATE_MMU: begin
             //mmu
@@ -453,10 +449,8 @@ module x_out_of_order2 (
             executor_state <= EXECUTE_STATE_CONTINUE;
           end
         endcase
-
-
       end
-
+      //decoder & fetcher
       decoder_inp <= 0;
       if (!fetch_stall_exists) begin
         // if (reg_instruction_state == OPCODE_REG2RAM) save_counter = save_counter + 1;
