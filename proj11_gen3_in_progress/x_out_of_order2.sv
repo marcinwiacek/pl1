@@ -213,7 +213,7 @@ module x_out_of_order2 (
 
   integer i, j, z;
 
-  reg [15:0] read_valueee, read_valueee2;
+  reg [15:0] last_save_min, last_save_max;
   reg [6:0] registers_save_countereeee, registers_save_countereeee2;
   reg [6:0] p, q;
 
@@ -232,19 +232,6 @@ module x_out_of_order2 (
       end
   end
 */
-
-
-  always @(posedge clk) begin
-save_stall_exists = 0;                          
-                       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-                       for (z = 0; z < REGISTER_NUM; z = z + 1) begin
-                                 if (!registers_init[j] && registers_src_address[j] == registers_save_address[z]) begin
-                            save_stall_exists = 1;
-          end
-          end
-          end
-end
-
 
   always @(posedge clk) begin
     if (rst) begin
@@ -318,7 +305,13 @@ end
         registers_init[register[1]] = 1;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
+      save_stall_exists = 0;
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+         if (!registers_init[i] && registers_src_address[i]>=last_save_min && registers_src_address[i]<=last_save_max) begin
+           save_stall_exists = 1;
+         end
+
+      
         if (!registers_init[i] && registers_src_mmu_done[i]) begin // && registers_save_counter[i]==0) begin
           if (i % 2 == 0) begin
             read_address <= registers_src_address2[i];
@@ -345,6 +338,12 @@ end
           executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
           executor_do_op <= decoder_do_op;
           instr_num <= instr_num + 1;
+               last_save_min<=0;
+               last_save_max<=0;
+            if (decoder_instruction_state ==OPCODE_REG2RAM) begin            
+               last_save_min<=decoder_start_ram_address_or_numeric;
+               last_save_max<=decoder_start_ram_address_or_numeric+decoder_register_len;
+            end
         end else begin
           $display($sformatf("%02d", $time), " executor state ", executor_state, " ", register[0],
                    " ", register[1]);
