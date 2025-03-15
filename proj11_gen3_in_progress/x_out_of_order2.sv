@@ -253,9 +253,9 @@ module x_out_of_order2 (
       fetch_stall_exists = 0;
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       save_counter  <= 0;
-      
-                  register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-            register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+
+      register[0]   <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      register[1]   <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
 
     end else if (instr_num < 10) begin
       $write($sformatf("%02d", $time), " reg");
@@ -306,10 +306,10 @@ module x_out_of_order2 (
           executor_do_op <= decoder_do_op;
           instr_num <= instr_num + 1;
         end
-           $display("executor state ", executor_state, " ", register[0], " ", register[1], " ",
-                     save_counter);
+        $display("executor state ", executor_state, " ", register[0], " ", register[1], " ",
+                 save_counter);
         case (executor_state)
-          EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin         
+          EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
             executor_state <= EXECUTE_STATE_START;
             fetch_stall_exists = 0;
             if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
@@ -318,7 +318,7 @@ module x_out_of_order2 (
                        read_address, "=", read_value);  //DEBUG info
               registers[register[0]] = read_value; //read_valueee!=32 ? registers_save[read_valueee] : read_value;
               registers_init[register[0]] = 1;
-               register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+              register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
             end
             if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
               $display($sformatf("%02d", $time), pc_logical, " no fetch register ", register[1],
@@ -326,10 +326,10 @@ module x_out_of_order2 (
                        read_address2, "=", read_value2);  //DEBUG info
               registers[register[1]] = read_value2; //read_valueee2!=32? registers_save[read_valueee2] : read_value2;
               registers_init[register[1]] = 1;
-                          register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+              register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
 
             end
-                                   for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+            for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (!registers_init[i] && registers_src_mmu_done[i]) begin // && registers_save_counter[i]==0) begin
                 if (i % 2 == 0) begin
                   read_address <= registers_src_address2[i];
@@ -428,8 +428,8 @@ module x_out_of_order2 (
               decoder_inp <= 1;
               pc_logical <= pc_logical + 2;
               pc_physical <= pc_physical + 2;
-                 register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-                    register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+              register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+              register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
             end
           end
           EXECUTE_STATE_MMU: begin
