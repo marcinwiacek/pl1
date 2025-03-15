@@ -218,39 +218,7 @@ module x_out_of_order2 (
         $write($sformatf(" %02d:%02d:%02d ", i, registers_init[i], registers[i]));
       end
       $display("");
-      //save ram              
-      write_enabled <= saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-        register_save_lock[saveram_q_num] <= 0;
-        registers_save_ready[saveram_q_num] <= 0;
-        registers_save_mmu_done[saveram_q_num] <= 0;
-        write_address <= registers_save_address2[saveram_q_num];
-        write_value <= registers_save[saveram_q_num];
-        saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      end else begin
-        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (registers_save_ready[i]) begin  // && registers_save_save_counter[i] == 0) begin
-            saveram_q_num <= i;
-          end
-        end
-      end
-      if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-        $display($sformatf("%02d", $time), pc_logical, " first slot fetch register ", register[0],
-                 " with address ",  //DEBUG info
-                 read_address, "=", read_value);  //DEBUG info
-        registers[register[0]] = read_value;
-        registers_init[register[0]] = 1;
-        register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      end
-      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-        $display($sformatf("%02d", $time), pc_logical, " second slot register ", register[1],
-                 " with address ",  //DEBUG info
-                 read_address2, "=", read_value2);  //DEBUG info
-        registers[register[1]] = read_value2;
-        registers_init[register[1]] = 1;
-        register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      end
-      save_stall_exists = 0;
+       save_stall_exists = 0;
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
          if (!registers_init[i]) begin
            if (registers_src_address[i]>=last_save_min && registers_src_address[i]<=last_save_max) begin
@@ -266,6 +234,38 @@ module x_out_of_order2 (
         end
         end
       end
+       if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+        $display($sformatf("%02d", $time), pc_logical, " first slot fetch register ", register[0],
+                 " with address ",  //DEBUG info
+                 read_address, "=", read_value);  //DEBUG info
+        registers[register[0]] = read_value;
+        registers_init[register[0]] = 1;
+        register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      end
+      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+        $display($sformatf("%02d", $time), pc_logical, " second slot register ", register[1],
+                 " with address ",  //DEBUG info
+                 read_address2, "=", read_value2);  //DEBUG info
+        registers[register[1]] = read_value2;
+        registers_init[register[1]] = 1;
+        register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      end     
+      //save ram              
+      write_enabled <= saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+        register_save_lock[saveram_q_num] <= 0;
+        registers_save_ready[saveram_q_num] <= 0;
+        registers_save_mmu_done[saveram_q_num] <= 0;
+        write_address <= registers_save_address2[saveram_q_num];
+        write_value <= registers_save[saveram_q_num];
+        saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      end else if (!save_stall_exists) begin
+        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+          if (registers_save_ready[i]) begin
+            saveram_q_num <= i;
+          end
+        end
+      end     
       //executor
       if (!save_stall_exists && (decoder_ready || executor_state != EXECUTE_STATE_START)) begin
         if (executor_state == EXECUTE_STATE_START) begin
