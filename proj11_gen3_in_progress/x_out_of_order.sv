@@ -257,7 +257,7 @@ module x_out_of_order (
                            registers_save_save_counter[i]));
         end
       end
-      // $display("");
+      $display("");
       // $display("save ram ", saveram_q_num, " save counter ", save_counter);
       //save ram              
       write_enabled <= saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
