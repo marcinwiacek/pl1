@@ -198,7 +198,7 @@ module x_out_of_order2 (
       read_address2 <= 53;
       decoder_inp <= 1;
       decoder_input_address <= 52;
-      $display($sformatf("%02d", $time), "   52 starting initial fetch ");  //DEBUG info
+      //$display($sformatf("%02d", $time), "   52 starting initial fetch ");  //DEBUG info
       pc_logical <= 54;
       pc_physical <= 54;
       rst <= 0;
@@ -243,6 +243,7 @@ module x_out_of_order2 (
         registers_init[register[0]]  = 1;
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
+      if (decoder_ready) $display($sformatf("%02d", $time), pc_logical, " was fetch ",read_address,"=",read_value," ",read_address2,"=",read_value2);  //DEBUG info
       if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), pc_logical, " second slot register ", register[1],
                  " with address ",  //DEBUG info
@@ -320,7 +321,7 @@ module x_out_of_order2 (
                     if (!registers_init[i]) begin
                       fetch_stall_exists = 1;
                       executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
-                            if (!registers_src_mmu_done[i]) $display($sformatf("%02d", $time), pc_logical, " starting mmu");
+                            if (!registers_src_mmu_done[i]) $display($sformatf("%02d", $time), pc_logical, " starting mmu from read");
                       mmu_address_logical <= registers_src_address[i];
                       if (registers_src_mmu_done[i]) begin
                         $display($sformatf("%02d", $time), pc_logical, " need to fetch register ",
@@ -337,7 +338,7 @@ module x_out_of_order2 (
                         OPCODE_REG2RAM: begin
                           if (register_save_lock[i]) begin
                             executor_state <= registers_save_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
-                            if (!registers_save_mmu_done[i]) $display($sformatf("%02d", $time), pc_logical, " starting mmu");
+                            if (!registers_save_mmu_done[i]) $display($sformatf("%02d", $time), pc_logical, " starting mmu from save");
                             mmu_address_logical <= registers_save_address[i];
                             $display($sformatf("%02d", $time), pc_logical, " write memory slot ",
                                      i, " is already filled, stall");
@@ -409,7 +410,7 @@ module x_out_of_order2 (
         //decoder            
         read_address  <= pc_physical;
         read_address2 <= pc_physical + 1;
-        $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical);
+        //$display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical);
         decoder_input_address <= pc_logical;
         decoder_inp <= 1;
         pc_logical <= pc_logical + 2;
