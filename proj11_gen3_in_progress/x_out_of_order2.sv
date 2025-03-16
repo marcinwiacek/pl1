@@ -187,9 +187,20 @@ module x_out_of_order2 (
   reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
 
-  integer i;
+  integer i,j;
 
-  reg [15:0] last_save_address_min, last_save_address_max;
+  reg [15:0] last_save_address_min, last_save_address_max, readaddress1,readaddress2, readvalueeee1, readvalueeee2;
+  reg readval1,readval2;
+
+always @(posedge clk) begin
+readval1 = 0;
+for (j = 0; j < REGISTER_NUM; j = j + 1) begin
+           if (registers_save_address[j] == readaddress1) begin
+              readvalueeee1 = registers_save_value[j];
+              readval1 = 1;
+            end  
+         end
+end
 
   always @(posedge clk) begin
     if (rst) begin
@@ -222,23 +233,26 @@ module x_out_of_order2 (
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         if (!registers_init[i]) begin
           if (registers_src_address[i]>=last_save_address_min && registers_src_address[i]<=last_save_address_max) begin
-            save_stall_exists = 1;
+            save_stall_exists = 1; //do reads before save
           end
           if (registers_src_mmu_done[i]) begin
             if (i % 2 == 0) begin
               read_address <= registers_src_address2[i];
+               readaddress1 <=registers_src_address[i];
             end else begin
               read_address2 <= registers_src_address2[i];
+               readaddress2 <=registers_src_address[i];
             end
             register[i%2] <= i;
           end
         end
       end
+      //todo: doing saves (in correct order) before read
       if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), pc_logical, " first slot fetch register ", register[0],
                  " with address ",  //DEBUG info
                  read_address, "=", read_value);  //DEBUG info
-        registers_value[register[0]] = read_value;
+        registers_value[register[0]] = readval1?readvalueeee1:read_value;        
         registers_init[register[0]]  = 1;
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
@@ -256,6 +270,7 @@ module x_out_of_order2 (
         register_save_lock[saveram_q_num] <= 0;
         registers_save_ready[saveram_q_num] <= 0;
         registers_save_mmu_done[saveram_q_num] <= 0;
+        registers_save_address[saveram_q_num]<=0;
         write_address <= registers_save_address2[saveram_q_num];
         write_value <= registers_save_value[saveram_q_num];
         saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
@@ -324,8 +339,10 @@ module x_out_of_order2 (
                                  i, " src address ", registers_src_address2[i]);
                         if (i % 2 == 0) begin
                           read_address <= registers_src_address2[i];
+                          readaddress1 <=registers_src_address[i];
                         end else begin
                           read_address2 <= registers_src_address2[i];
+                          readaddress2 <=registers_src_address[i];
                         end
                         register[i%2] <= i;
                       end
