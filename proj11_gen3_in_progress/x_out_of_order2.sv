@@ -199,13 +199,14 @@ module x_out_of_order2 (
           if (!registers_init[j] && registers_src_address[j]>=decoder_start_ram_address_or_numeric && 
                     registers_src_address[j]<=decoder_start_ram_address_or_numeric + decoder_register_len) begin
             save_stall_exists <= 1;  //do reads before save
-          end
+          end          
         end
-      end else if (decoder_instruction_state == OPCODE_RAM2REG) begin
+      end
+      if (decoder_instruction_state == OPCODE_REG2RAM || decoder_instruction_state == OPCODE_RAM2REG) begin
         for (j = 0; j < REGISTER_NUM; j = j + 1) begin
           if (register_save_lock[j] && registers_save_address[j]>=decoder_start_ram_address_or_numeric && 
                     registers_save_address[j]<=decoder_start_ram_address_or_numeric + decoder_register_len) begin
-            read_stall_exists <= 1;  //do save before save
+            read_stall_exists <= 1;  //do save before
           end
         end
       end
@@ -241,14 +242,14 @@ module x_out_of_order2 (
       $display("");
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;      
-      if (!read_stall_exists && register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      if (((save_stall_exists && read_stall_exists) || !read_stall_exists) && register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), pc_logical, " first slot fetch register ", register[0],
                  " with address ",  //DEBUG info
                  read_address, "=", read_value);  //DEBUG info
         registers_value[register[0]] = read_value;
         registers_init[register[0]]  = 1;
       end
-      if (!read_stall_exists && register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      if (((save_stall_exists && read_stall_exists) || !read_stall_exists) && register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), pc_logical, " second slot register ", register[1],
                  " with address ",  //DEBUG info
                  read_address2, "=", read_value2);  //DEBUG info
