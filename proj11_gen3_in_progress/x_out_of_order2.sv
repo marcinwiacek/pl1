@@ -143,16 +143,19 @@ module x_out_of_order2 (
 
 //--------------------------------------------------------------------process------------------
 
+
+  reg fetch_stall_exists = 0, save_stall_exists = 0, read_stall_exists=0;
+  
   reg [ 5:0] reg_instruction_state;
   reg [15:0] reg_register_len;
   reg [10:0] reg_register_start;
   reg [15:0] reg_start_ram_address_or_numeric;
   reg [32:0] reg_do_op;
 
-  assign reg_register_start =  executor_state == EXECUTE_STATE_START?decoder_register_start:executor_register_start;
-  assign reg_register_len =  executor_state == EXECUTE_STATE_START ? decoder_register_len : executor_register_len;
-  assign reg_instruction_state =  executor_state == EXECUTE_STATE_START?decoder_instruction_state:executor_instruction_state;
-  assign reg_start_ram_address_or_numeric = executor_state == EXECUTE_STATE_START?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric;
+  assign reg_register_start =  executor_state == EXECUTE_STATE_START ?decoder_register_start:executor_register_start;
+  assign reg_register_len =  !save_stall_exists && !read_stall_exists && executor_state == EXECUTE_STATE_START ? decoder_register_len : executor_register_len;
+  assign reg_instruction_state =  !save_stall_exists && !read_stall_exists && executor_state == EXECUTE_STATE_START?decoder_instruction_state:executor_instruction_state;
+  assign reg_start_ram_address_or_numeric = !save_stall_exists && !read_stall_exists && executor_state == EXECUTE_STATE_START?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric;
   assign reg_do_op = executor_state == EXECUTE_STATE_START ? decoder_do_op : executor_do_op;
 
   reg [15:0] process_hardware_address = 0;
@@ -174,9 +177,7 @@ module x_out_of_order2 (
       registers_save_ready[0:REGISTER_NUM-1],
       registers_save_mmu_done[0:REGISTER_NUM-1];
 
-  reg fetch_stall_exists = 0, save_stall_exists = 0, read_stall_exists=0;
-  
-  reg[15:0] dep_start, dep_end, dep_state;
+//  reg[15:0] dep_start, dep_end, dep_state;
 
   //----------------------------------------------------------------other---------------------------
 
@@ -185,11 +186,11 @@ module x_out_of_order2 (
 
   assign x = decoder_inp;  //without this we will have empty circuit
 
-  integer i, j;
+  integer i, j, z;
 
-  always @(posedge clk) begin
+always @(posedge clk) begin
     save_stall_exists = 0;
-    read_stall_exists = 0;
+   
    // if (executor_state == EXECUTE_STATE_START) begin
      // $display($sformatf("%02d", $time), pc_logical, " check stall   ", " ", executor_state,
 //               " ",  //DEBUG info
@@ -205,10 +206,23 @@ module x_out_of_order2 (
           end          
         end
       end
+     
+   // end
+  end
+  
+  always @(posedge clk) begin
+   
+    read_stall_exists = 0;
+   // if (executor_state == EXECUTE_STATE_START) begin
+     // $display($sformatf("%02d", $time), pc_logical, " check stall   ", " ", executor_state,
+//               " ",  //DEBUG info
+//               decoder_instruction_state, " ", decoder_register_start, " ",  //DEBUG info
+//               decoder_register_len, " ", decoder_start_ram_address_or_numeric, " ",  //DEBUG info
+//               decoder_error_code);  //DEBUG info
       if (reg_instruction_state == OPCODE_REG2RAM || reg_instruction_state == OPCODE_RAM2REG) begin
-        for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-          if (register_save_lock[j] && registers_save_address[j]>=reg_start_ram_address_or_numeric && 
-                    registers_save_address[j]<=reg_start_ram_address_or_numeric + reg_register_len) begin
+        for (z = 0; z < REGISTER_NUM;z = z + 1) begin
+          if (register_save_lock[z] && registers_save_address[z]>=reg_start_ram_address_or_numeric && 
+                    registers_save_address[z]<=reg_start_ram_address_or_numeric + reg_register_len) begin
             read_stall_exists = 1;  //do save before
              $display($sformatf("%02d", $time), pc_logical, " read stall exists");
           end
