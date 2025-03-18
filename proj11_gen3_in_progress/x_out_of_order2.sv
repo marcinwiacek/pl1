@@ -283,6 +283,7 @@ module x_out_of_order2 (
           end else if (register_save_lock[i] && !registers_save_mmu_done[i]) begin
             mmu_address_logical <= registers_save_address[i];
             executor_state <= EXECUTE_STATE_MMU;
+            $display($sformatf("%02d", $time), pc_logical, " starting mmu from write");
           end
         end
         if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
