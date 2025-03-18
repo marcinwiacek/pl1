@@ -139,7 +139,7 @@ module x_out_of_order2 (
   reg [6:0] register[0:1];
   reg register_save_lock[0:REGISTER_NUM-1];
 
-  parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM+1;
+  parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
 
   //--------------------------------------------------------------------process------------------
 
@@ -229,9 +229,9 @@ module x_out_of_order2 (
       end
       executor_state <= EXECUTE_STATE_START;
       fetch_stall_exists = 0;
-    //  saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      register[0]   <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      register[1]   <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      //  saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
     end else if (instr_num < 10) begin
       $write($sformatf("%02d", $time), " reg");
       for (i = 0; i < 20; i = i + 1) begin
@@ -240,23 +240,23 @@ module x_out_of_order2 (
                          registers_save_address[i]));
       end
       $display("");
-  //    register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-   //   register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      //    register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      //   register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       if (((save_stall_exists && read_stall_exists) || !read_stall_exists)) begin
         if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-        $display($sformatf("%02d", $time), pc_logical, " first slot fetch register ", register[0],
-                 " with address ",  //DEBUG info
-                 read_address, "=", read_value);  //DEBUG info
-        registers_value[register[0]] = read_value;
-        registers_init[register[0]]  = 1;
+          $display($sformatf("%02d", $time), pc_logical, " first slot fetch register ",
+                   register[0], " with address ",  //DEBUG info
+                   read_address, "=", read_value);  //DEBUG info
+          registers_value[register[0]] = read_value;
+          registers_init[register[0]]  = 1;
         end
-      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-        $display($sformatf("%02d", $time), pc_logical, " second slot register ", register[1],
-                 " with address ",  //DEBUG info
-                 read_address2, "=", read_value2);  //DEBUG info
-        registers_value[register[1]] = read_value2;
-        registers_init[register[1]]  = 1;
-      end
+        if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+          $display($sformatf("%02d", $time), pc_logical, " second slot register ", register[1],
+                   " with address ",  //DEBUG info
+                   read_address2, "=", read_value2);  //DEBUG info
+          registers_value[register[1]] = read_value2;
+          registers_init[register[1]]  = 1;
+        end
       end
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         if (!registers_init[i]) begin
@@ -288,7 +288,7 @@ module x_out_of_order2 (
         if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           register_save_lock[saveram_q_num] <= 0;
           registers_save_ready[saveram_q_num] <= 0;
-        //  registers_save_mmu_done[saveram_q_num] <= 0;
+          //  registers_save_mmu_done[saveram_q_num] <= 0;
           registers_save_address[saveram_q_num] <= 0;
           write_enabled <= 1;
           write_address <= registers_save_address2[saveram_q_num];
@@ -296,7 +296,7 @@ module x_out_of_order2 (
         end
       end
       //executor
-      fetch_stall_exists = 0;      
+      fetch_stall_exists = 0;
       if (!save_stall_exists && !read_stall_exists && (decoder_ready || executor_state != EXECUTE_STATE_START)) begin
         if (executor_state == EXECUTE_STATE_START) begin
           $display($sformatf("%02d", $time), pc_logical, " executor1   ", " ", executor_state,
