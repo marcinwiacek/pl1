@@ -187,44 +187,41 @@ module x_out_of_order2 (
   reg rst = 1;
   reg [7:0] instr_num = 0;  // how many done
 
-  integer i,j;
+  integer i, j;
 
   reg [15:0] last_save_address_min, last_save_address_max, firstxvalue;
 
   always @(posedge clk) begin
-                       save_stall_exists <=0;
+    save_stall_exists <= 0;
 
- if (executor_state == EXECUTE_STATE_START) begin
-   $display($sformatf("%02d", $time), pc_logical, " check stall   ", " ", executor_state,
-                   " ",  //DEBUG info
-                   decoder_instruction_state, " ", decoder_register_start, " ",  //DEBUG info
-                   decoder_register_len, " ", decoder_start_ram_address_or_numeric,
-                   " ",  //DEBUG info
-                   decoder_error_code);  //DEBUG info
-          if (decoder_instruction_state == OPCODE_REG2RAM) begin
-           
-             for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-                 if (!registers_init[j] && registers_src_address[j]>=decoder_start_ram_address_or_numeric && 
+    if (executor_state == EXECUTE_STATE_START) begin
+      $display($sformatf("%02d", $time), pc_logical, " check stall   ", " ", executor_state,
+               " ",  //DEBUG info
+               decoder_instruction_state, " ", decoder_register_start, " ",  //DEBUG info
+               decoder_register_len, " ", decoder_start_ram_address_or_numeric, " ",  //DEBUG info
+               decoder_error_code);  //DEBUG info
+      if (decoder_instruction_state == OPCODE_REG2RAM) begin
+
+        for (j = 0; j < REGISTER_NUM; j = j + 1) begin
+          if (!registers_init[j] && registers_src_address[j]>=decoder_start_ram_address_or_numeric && 
                     registers_src_address[j]<=decoder_start_ram_address_or_numeric + decoder_register_len) begin
-                       save_stall_exists <= 1; //do reads before save
-                  end
-              end         
-          end 
-          else
-          if (decoder_instruction_state == OPCODE_RAM2REG) begin
-          
-                    
-             for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-               if (register_save_lock[j] && registers_save_address[j]>=decoder_start_ram_address_or_numeric && 
-                    registers_save_address[j]<=decoder_start_ram_address_or_numeric + decoder_register_len) begin
-                       save_stall_exists <= 1; //do save before save
-               end
-             end
+            save_stall_exists <= 1;  //do reads before save
           end
-      end    
-             
-end
-             
+        end
+      end else if (decoder_instruction_state == OPCODE_RAM2REG) begin
+
+
+        for (j = 0; j < REGISTER_NUM; j = j + 1) begin
+          if (register_save_lock[j] && registers_save_address[j]>=decoder_start_ram_address_or_numeric && 
+                    registers_save_address[j]<=decoder_start_ram_address_or_numeric + decoder_register_len) begin
+            save_stall_exists <= 1;  //do save before save
+          end
+        end
+      end
+    end
+
+  end
+
   always @(posedge clk) begin
     if (rst) begin
       registers_value = '{default: 0};
@@ -239,20 +236,20 @@ end
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         registers_src_mmu_done[i]  <= 1;
         registers_save_mmu_done[i] <= 0;
-        registers_src_address2[i]   <= process_hardware_address + ADDRESS_REG + i;
+        registers_src_address2[i]  <= process_hardware_address + ADDRESS_REG + i;
       end
       executor_state <= EXECUTE_STATE_START;
       fetch_stall_exists = 0;
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register[0]   <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register[1]   <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-    end else if (instr_num < 10) begin     
+    end else if (instr_num < 10) begin
       $write($sformatf("%02d", $time), " reg");
       for (i = 0; i < 20; i = i + 1) begin
         $write($sformatf(" %02d:%02d:%02d ", i, registers_init[i], registers_value[i]));
       end
       $display("");
- 
+
       //todo: doing saves (in correct order) before read  
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
@@ -260,11 +257,11 @@ end
         $display($sformatf("%02d", $time), pc_logical, " first slot fetch register ", register[0],
                  " with address ",  //DEBUG info
                  read_address, "=", read_value);  //DEBUG info
-        registers_value[register[0]] = read_value;        
+        registers_value[register[0]] = read_value;
         registers_init[register[0]]  = 1;
-              
-     
-       
+
+
+
       end
       if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), pc_logical, " second slot register ", register[1],
@@ -272,30 +269,30 @@ end
                  read_address2, "=", read_value2);  //DEBUG info
         registers_value[register[1]] = read_value2;
         registers_init[register[1]]  = 1;
-       
+
       end
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         if (!registers_init[i]) begin
           if (registers_src_mmu_done[i]) begin
-              $display($sformatf("%02d", $time), pc_logical, " reg to read, with mmu ",i);
+            $display($sformatf("%02d", $time), pc_logical, " reg to read, with mmu ", i);
             if (i % 2 == 0) begin
-              read_address <= registers_src_address2[i];             
+              read_address <= registers_src_address2[i];
             end else begin
               read_address2 <= registers_src_address2[i];
             end
             register[i%2] <= i;
           end else begin
-              $display($sformatf("%02d", $time), pc_logical, " reg to read, but no mmu ",i);
+            $display($sformatf("%02d", $time), pc_logical, " reg to read, but no mmu ", i);
           end
         end
-      end       
+      end
       //save ram              
       write_enabled <= saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         register_save_lock[saveram_q_num] <= 0;
         registers_save_ready[saveram_q_num] <= 0;
         registers_save_mmu_done[saveram_q_num] <= 0;
-        registers_save_address[saveram_q_num]<=0;
+        registers_save_address[saveram_q_num] <= 0;
         write_address <= registers_save_address2[saveram_q_num];
         write_value <= registers_save_value[saveram_q_num];
         saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
@@ -306,8 +303,8 @@ end
           end
         end
       end
-      
-      
+
+
       //executor
       if (!save_stall_exists && (decoder_ready || executor_state != EXECUTE_STATE_START)) begin
         if (executor_state == EXECUTE_STATE_START) begin
@@ -332,9 +329,9 @@ end
                    executor_register_len, " ", executor_start_ram_address_or_numeric,
                    " ",  //DEBUG info
                    decoder_error_code);  //DEBUG info
-                   
+
           //$display($sformatf("%02d", $time), " executor state ", executor_state, " ", register[0],
-//                   " ", register[1]);
+          //                   " ", register[1]);
         end
         case (executor_state)
           EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
@@ -361,17 +358,18 @@ end
                   end
                   default: begin
                     if (!registers_init[i]) begin
-                    
-                    
-                     fetch_stall_exists = 1;
+
+
+                      fetch_stall_exists = 1;
                       executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
-                            if (!registers_src_mmu_done[i]) $display($sformatf("%02d", $time), pc_logical, " starting mmu from read");
+                      if (!registers_src_mmu_done[i])
+                        $display($sformatf("%02d", $time), pc_logical, " starting mmu from read");
                       mmu_address_logical <= registers_src_address[i];
                       if (registers_src_mmu_done[i]) begin
                         $display($sformatf("%02d", $time), pc_logical, " need to fetch register ",
                                  i, " src address ", registers_src_address2[i]);
                         if (i % 2 == 0) begin
-                          read_address <= registers_src_address2[i];                         
+                          read_address <= registers_src_address2[i];
                         end else begin
                           read_address2 <= registers_src_address2[i];
                         end
@@ -382,7 +380,10 @@ end
                         OPCODE_REG2RAM: begin
                           if (register_save_lock[i]) begin
                             executor_state <= registers_save_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
-                            if (!registers_save_mmu_done[i]) $display($sformatf("%02d", $time), pc_logical, " starting mmu from save");
+                            if (!registers_save_mmu_done[i])
+                              $display(
+                                  $sformatf("%02d", $time), pc_logical, " starting mmu from save"
+                              );
                             mmu_address_logical <= registers_save_address[i];
                             $display($sformatf("%02d", $time), pc_logical, " write memory slot ",
                                      i, " is already filled, stall");
@@ -417,7 +418,7 @@ end
             end
           end
           EXECUTE_STATE_MMU: begin
-          fetch_stall_exists=1;
+            fetch_stall_exists = 1;
             //mmu
             $display($sformatf("%02d", $time), pc_logical, " mmu processing ");  //DEBUG info
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
@@ -463,7 +464,7 @@ end
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
-       $display("");
+      $display("");
     end else begin
       decoder_inp <= 0;
     end
