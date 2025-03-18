@@ -191,16 +191,7 @@ module x_out_of_order2 (
 
   reg [15:0] last_save_address_min, last_save_address_max, firstxvalue;
 
-reg firstx;
- 
-  always @(negedge clk) begin
-  firstx =1;
-  for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-               if (registers_save_address[j]==read_address) begin
-        firstx = 0;        
-               end
-             end
-end
+
              
   always @(posedge clk) begin
     if (rst) begin
@@ -238,7 +229,7 @@ end
                  " with address ",  //DEBUG info
                  read_address, "=", read_value);  //DEBUG info
         registers_value[register[0]] = read_value;        
-        registers_init[register[0]]  = !firstx;
+        registers_init[register[0]]  = 1;
               
         
 
@@ -286,8 +277,31 @@ end
           end
         end
       end
+      
+       if (executor_state == EXECUTE_STATE_START) begin
+          if (decoder_instruction_state == OPCODE_REG2RAM) begin
+           
+             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+                 if (!registers_init[i] && registers_src_address[i]>=decoder_start_ram_address_or_numeric && 
+                    registers_src_address[i]<=decoder_start_ram_address_or_numeric + decoder_register_len) begin
+                       save_stall_exists = 1; //do reads before save
+                  end
+              end         
+          end 
+          else
+          if (decoder_instruction_state == OPCODE_RAM2REG) begin
+          
+                    
+             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+               if (register_save_lock[i] && registers_save_address[i]>=decoder_start_ram_address_or_numeric && 
+                    registers_save_address[i]<=decoder_start_ram_address_or_numeric + decoder_register_len) begin
+                       save_stall_exists = 1; //do save before save
+               end
+             end
+          end
+      end    
       //executor
-      if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
+      if (!save_stall_exists && (decoder_ready || executor_state != EXECUTE_STATE_START)) begin
         if (executor_state == EXECUTE_STATE_START) begin
           $display($sformatf("%02d", $time), pc_logical, " executor1   ", " ", executor_state,
                    " ",  //DEBUG info
@@ -303,27 +317,6 @@ end
           instr_num <= instr_num + 1;
           last_save_address_min <= 0;
           last_save_address_max <= 0;
-          if (decoder_instruction_state == OPCODE_REG2RAM) begin
-           
-             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-                 if (!registers_init[i] && registers_src_address[i]>=decoder_start_ram_address_or_numeric && 
-                    registers_src_address[i]<=decoder_start_ram_address_or_numeric + decoder_register_len) begin
-                       save_stall_exists = 1; //do reads before save
-                  end
-              end         
-          end 
-          /*else
-          if (decoder_instruction_state == OPCODE_RAM2REG) begin
-          
-                    
-             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-               if (register_save_lock[i] && registers_save_address[i]>=decoder_start_ram_address_or_numeric && 
-                    registers_save_address[i]<=decoder_start_ram_address_or_numeric + decoder_register_len) begin
-                               registers_value[registers_save_address[i]-decoder_start_ram_address_or_numeric+1] = registers_save_value[i];
-                                registers_init[registers_save_address[i]-decoder_start_ram_address_or_numeric+1]  = 1;
-               end
-             end
-          end*/
         end else begin
           $display($sformatf("%02d", $time), pc_logical, " executor2   ", " ", executor_state,
                    " ",  //DEBUG info
