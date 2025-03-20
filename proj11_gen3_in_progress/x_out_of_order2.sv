@@ -340,7 +340,7 @@ module x_out_of_order2 (
                     //this register should be read next time
                     registers_init[i] = 0;
                     registers_src_mmu_done[i] <= 0;
-                    registers_src_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
+                    registers_src_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start; //FIXME: why we need reg here with STATE_CONTINUE?
                   end
                   OPCODE_NUM2REG: begin
                     executor_do_op[i] <= 0;
