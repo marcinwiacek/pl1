@@ -284,7 +284,7 @@ module x_out_of_order2 (
             saveram_q_num = i;
           end else if (register_save_lock[i] && !registers_save_mmu_done[i]) begin
             mmu_address_logical <= registers_save_address[i];
-            executor_state <= EXECUTE_STATE_MMU_2;
+            executor_state <= EXECUTE_STATE_MMU;
             $display($sformatf("%02d", $time), pc_logical, " starting mmu from write");
           end
         end
@@ -300,7 +300,7 @@ module x_out_of_order2 (
       end
       //executor
       fetch_stall_exists = 0;
-      if (!save_stall_exists && !read_stall_exists && (decoder_ready || executor_state != EXECUTE_STATE_START)) begin
+      if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
         if (executor_state == EXECUTE_STATE_START) begin
           $display($sformatf("%02d", $time), pc_logical, " executor1   ", " exec_state=", executor_state,
                    " b1 %c%c%c%c",  //DEBUG info
@@ -328,6 +328,7 @@ module x_out_of_order2 (
                    " b2 ",  //DEBUG info
                    executor_register_len, "-", executor_start_ram_address_or_numeric);
         end
+        if (!save_stall_exists && !read_stall_exists) begin
         case (executor_state)
           EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
             executor_state <= EXECUTE_STATE_START;
@@ -339,7 +340,7 @@ module x_out_of_order2 (
                     //this register should be read next time
                     registers_init[i] = 0;
                     registers_src_mmu_done[i] <= 0;
-                    registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
+                    registers_src_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
                   end
                   OPCODE_NUM2REG: begin
                     executor_do_op[i] <= 0;
@@ -410,9 +411,10 @@ module x_out_of_order2 (
             end
           end
         endcase
+        end
       end
       case (executor_state)
-        EXECUTE_STATE_MMU, EXECUTE_STATE_MMU_2: begin
+        EXECUTE_STATE_MMU: begin
           fetch_stall_exists = 1;
           //mmu
           $display($sformatf("%02d", $time), pc_logical, " mmu processing ");  //DEBUG info
@@ -441,7 +443,9 @@ module x_out_of_order2 (
               registers_save_ready[i] <= 1;
             end
           end
-          executor_state <= executor_state == EXECUTE_STATE_MMU_2?EXECUTE_STATE_START:EXECUTE_STATE_CONTINUE;
+          executor_state <= EXECUTE_STATE_CONTINUE;
+          
+          //executor_state == EXECUTE_STATE_MMU_2?EXECUTE_STATE_START:EXECUTE_STATE_CONTINUE;
         end
       endcase
       //decoder
