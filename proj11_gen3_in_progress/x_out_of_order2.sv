@@ -427,7 +427,8 @@ module x_out_of_order2 (
               registers_src_address[i]<=mmu_address_logical_max_in_the_same_page) begin
               $display(  //DEBUG info
                   $sformatf("%02d", $time), pc_logical, " updating reg ", i,
-                  " src address to ",  //DEBUG info
+                  " src address from ",  //DEBUG info
+                  registers_src_address[i]," to ",
                   mmu_address_physical_min_in_the_same_page + registers_src_address[i] - mmu_address_logical_min_in_the_same_page);  //DEBUG info
               registers_src_address2[i]<= mmu_address_physical_min_in_the_same_page+registers_src_address[i]-mmu_address_logical_min_in_the_same_page;
               registers_src_mmu_done[i] <= 1;
@@ -436,7 +437,7 @@ module x_out_of_order2 (
               registers_save_address[i]<=mmu_address_logical_max_in_the_same_page) begin
               $display(  //DEBUG info
                   $sformatf("%02d", $time), pc_logical, " updating save ram ", i,
-                  " src address from ");
+                  " src address from ",registers_save_address[i]," to ",mmu_address_physical_min_in_the_same_page+registers_save_address[i]-mmu_address_logical_min_in_the_same_page);
               registers_save_address2[i]<= mmu_address_physical_min_in_the_same_page+registers_save_address[i]-mmu_address_logical_min_in_the_same_page;
               registers_save_mmu_done[i] <= 1;
               registers_save_ready[i] <= 1;
