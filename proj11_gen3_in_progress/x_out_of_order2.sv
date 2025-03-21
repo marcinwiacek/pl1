@@ -328,19 +328,22 @@ module x_out_of_order2 (
                    " b2 ",  //DEBUG info
                    executor_register_len, "-", executor_start_ram_address_or_numeric);
         end
-        if (!save_stall_exists && !read_stall_exists) begin
+       
         case (executor_state)
           EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
+          if (!save_stall_exists && !read_stall_exists) begin
             executor_state <= EXECUTE_STATE_START;
+            end
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (reg_do_op[i]) begin
                 case (reg_instruction_state)
                   OPCODE_RAM2REG: begin
+                  $display($sformatf("%02d", $time), pc_logical, " ram2reg saving");
                     executor_do_op[i] <= 0;
                     //this register should be read next time
                     registers_init[i] = 0;
                     registers_src_mmu_done[i] <= 0;
-                    registers_src_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start; //FIXME: why we need reg here with STATE_CONTINUE?
+                    registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
                   end
                   OPCODE_NUM2REG: begin
                     executor_do_op[i] <= 0;
@@ -352,6 +355,7 @@ module x_out_of_order2 (
                              decoder_start_ram_address_or_numeric);
                   end
                   default: begin
+                   if (!save_stall_exists && !read_stall_exists) begin
                     if (!registers_init[i]) begin
                       fetch_stall_exists = 1;
                       executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
@@ -405,6 +409,7 @@ module x_out_of_order2 (
                         end
                       endcase
                     end
+                    end
                   end
                 endcase
               end
@@ -412,7 +417,7 @@ module x_out_of_order2 (
           end
         endcase
         end
-      end
+      
       case (executor_state)
         EXECUTE_STATE_MMU: begin
           fetch_stall_exists = 1;
