@@ -59,7 +59,6 @@ parameter OPCODE_REG2REG = 33;
 parameter EXECUTE_STATE_START = 0;
 parameter EXECUTE_STATE_CONTINUE = 1;
 parameter EXECUTE_STATE_MMU = 2;
-parameter EXECUTE_STATE_MMU_2 = 3;
 
 module x_out_of_order2 (
     input clk,
@@ -230,8 +229,6 @@ module x_out_of_order2 (
         registers_src_address2[i]  <= process_hardware_address + ADDRESS_REG + i;
       end
       executor_state <= EXECUTE_STATE_START;
-      fetch_stall_exists = 0;
-      //  saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
     end else if (instr_num < 10) begin
@@ -242,8 +239,6 @@ module x_out_of_order2 (
                          registers_save_address[i]));
       end
       $display("");
-      //    register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      //   register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       if (((save_stall_exists && read_stall_exists) || !read_stall_exists)) begin
         if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), " read first slot register ", register[0],
@@ -291,7 +286,6 @@ module x_out_of_order2 (
         if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           register_save_lock[saveram_q_num] <= 0;
           registers_save_ready[saveram_q_num] <= 0;
-          //  registers_save_mmu_done[saveram_q_num] <= 0;
           registers_save_address[saveram_q_num] <= 0;
           write_enabled <= 1;
           write_address <= registers_save_address2[saveram_q_num];
@@ -330,7 +324,6 @@ module x_out_of_order2 (
               " b2 ",  //DEBUG info
               executor_register_len, "-", executor_start_ram_address_or_numeric);
         end
-
         case (executor_state)
           EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
             if (!save_stall_exists && !read_stall_exists) begin
@@ -419,7 +412,6 @@ module x_out_of_order2 (
           end
         endcase
       end
-
       case (executor_state)
         EXECUTE_STATE_MMU: begin
           fetch_stall_exists = 1;
@@ -451,8 +443,6 @@ module x_out_of_order2 (
             end
           end
           executor_state <= EXECUTE_STATE_CONTINUE;
-
-          //executor_state == EXECUTE_STATE_MMU_2?EXECUTE_STATE_START:EXECUTE_STATE_CONTINUE;
         end
       endcase
       //decoder
@@ -602,29 +592,6 @@ module decoder (
     end
   end
 endmodule
-
-/*module mmu (
-    input clk,
-    input inp,
-    output bit ready = 0,
-    input reg [15:0] address_logical,
-    output reg [15:0] address_physical_min_in_the_same_page,
-    output reg [15:0] address_logical_min_in_the_same_page,
-    output reg [15:0] address_logical_max_in_the_same_page
-);
-
-  always @(negedge clk) begin
-    ready <= inp;
-    if (inp) begin
-      address_physical_min_in_the_same_page <= 0;
-      address_logical_min_in_the_same_page  <= 0;
-      address_logical_max_in_the_same_page  <= 500;
-      $display($sformatf("%02d", $time), " mmu ", address_logical, " -> ",
-               (0 + address_logical - 0));
-    end
-  end
-endmodule
-*/
 
 module single_blockram (
     input clk,
