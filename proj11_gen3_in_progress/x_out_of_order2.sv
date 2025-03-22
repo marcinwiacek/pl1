@@ -190,7 +190,7 @@ module x_out_of_order2 (
     save_stall_exists = 0;
     if (reg_instruction_state == OPCODE_REG2RAM) begin
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
-        if (registers_non_init[j] && registers_src_address[j]>=reg_start_ram_address_or_numeric && 
+        if (registers_src_address[j]>=reg_start_ram_address_or_numeric && 
                     registers_src_address[j]<=reg_start_ram_address_or_numeric + reg_register_len) begin
           save_stall_exists = 1;  //do reads before save
           $display($sformatf("%02d", $time), pc_logical, " save stall exists");
@@ -249,7 +249,7 @@ module x_out_of_order2 (
                    read_address, "=", read_value);  //DEBUG info
           registers_value[register[0]] = read_value;
           registers_non_init[register[0]]  = 0;
-        //  registers_src_address[register[0]]<=0;
+          registers_src_address[register[0]]<=0;
         end
         if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), " read second slot register ", register[1],
@@ -257,7 +257,7 @@ module x_out_of_order2 (
                    read_address2, "=", read_value2);  //DEBUG info
           registers_value[register[1]] = read_value2;
           registers_non_init[register[1]]  = 0;
-        //  registers_src_address[register[1]]<=0;
+          registers_src_address[register[1]]<=0;
         end
       //end
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
