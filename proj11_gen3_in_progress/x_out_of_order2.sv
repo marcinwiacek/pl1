@@ -217,6 +217,7 @@ module x_out_of_order2 (
   always @(posedge clk) begin
     if (rst) begin
       registers_value = '{default: 0};
+      registers_value[9] = 1;
       read_address <= 52;
       read_address2 <= 53;
       decoder_inp <= 1;
@@ -242,19 +243,23 @@ module x_out_of_order2 (
                          registers_save_address[i]));
       end
       $display("");
-      if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 && !registers_read_stall[register[0]]) begin
+      if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 ) begin
+      if ( !registers_read_stall[register[0]]) begin
         $display($sformatf("%02d", $time), " read first slot register ", register[0],
                  " with address ",  //DEBUG info
                  read_address, "=", read_value);  //DEBUG info
         registers_value[register[0]] = read_value;
         registers_init[register[0]]  = 1;
+        end
       end
-      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 && !registers_read_stall[register[1]]) begin
+      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 ) begin
+       if ( !registers_read_stall[register[1]]) begin
         $display($sformatf("%02d", $time), " read second slot register ", register[1],
                  " with address ",  //DEBUG info
                  read_address2, "=", read_value2);  //DEBUG info
         registers_value[register[1]] = read_value2;
         registers_init[register[1]]  = 1;
+        end
       end
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         //don't merge ifs - performance will decrease
@@ -281,10 +286,12 @@ module x_out_of_order2 (
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           if (registers_save_ready[i]) begin
             saveram_q_num = i;
-          end else if (register_save_lock[i] && !registers_save_mmu_done[i]) begin
+          end else if (register_save_lock[i] ) begin
+            if (!registers_save_mmu_done[i]) begin
             mmu_address_logical <= registers_save_address[i];
             executor_state <= EXECUTE_STATE_MMU;
             $display($sformatf("%02d", $time), pc_logical, " starting mmu from write");
+            end
           end
         end
         if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
@@ -332,8 +339,10 @@ module x_out_of_order2 (
         end
         case (executor_state)
           EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
-            if (!save_stall_exists && !read_stall_exists) begin
+            if (!save_stall_exists) begin
+              if (!read_stall_exists) begin
               executor_state <= EXECUTE_STATE_START;
+              end
             end
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (reg_do_op[i]) begin
@@ -356,7 +365,8 @@ module x_out_of_order2 (
                              decoder_start_ram_address_or_numeric);
                   end
                   default: begin
-                    if (!save_stall_exists && !read_stall_exists) begin
+                    if (!save_stall_exists) begin
+                    if ( !read_stall_exists) begin
                       if (!registers_init[i]) begin
                         fetch_stall_exists = 1;
                         executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
@@ -410,6 +420,7 @@ module x_out_of_order2 (
                           end
                         endcase
                       end
+                    end
                     end
                   end
                 endcase
@@ -826,8 +837,8 @@ module single_blockram (
 
   // verilog_format:on
 
-  assign read_value  = ram[read_address];
-  assign read_value2 = ram[read_address2];
+  assign read_value  = write_enabled && write_address==read_address? write_value:ram[read_address];
+  assign read_value2 = write_enabled && write_address==read_address2? write_value: ram[read_address2];
 
   always @(posedge clk) begin
     if (write_enabled)  // && RAM_WRITE_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
