@@ -217,6 +217,7 @@ module x_out_of_order2 (
   always @(posedge clk) begin
     if (rst) begin
       registers_value = '{default: 0};
+      registers_value[9]=1;
       read_address <= 52;
       read_address2 <= 53;
       decoder_inp <= 1;
@@ -277,6 +278,12 @@ module x_out_of_order2 (
       //save ram              
       write_enabled <= 0;
       if (!save_stall_exists) begin
+       if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+          register_save_lock[saveram_q_num] <= 0;
+          registers_save_ready[saveram_q_num] <= 0;
+          registers_save_address[saveram_q_num] <= 0;
+          
+        end
         saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           if (registers_save_ready[i]) begin
@@ -288,9 +295,6 @@ module x_out_of_order2 (
           end
         end
         if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-          register_save_lock[saveram_q_num] <= 0;
-          registers_save_ready[saveram_q_num] <= 0;
-          registers_save_address[saveram_q_num] <= 0;
           write_enabled <= 1;
           write_address <= registers_save_address2[saveram_q_num];
           write_value <= registers_save_value[saveram_q_num];
@@ -334,6 +338,8 @@ module x_out_of_order2 (
           EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
             if (!save_stall_exists && !read_stall_exists) begin
               executor_state <= EXECUTE_STATE_START;
+            end else begin
+              executor_state <= EXECUTE_STATE_CONTINUE;
             end
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (reg_do_op[i]) begin
@@ -615,7 +621,7 @@ module single_blockram (
 
   // verilog_format:off
    //(* ram_style = "block" *)
-   bit [15:0] ram  [0:699]= {  // in Vivado (required by board)
+    bit [15:0] ram  [0:699]= {  // in Vivado (required by board)
   //  reg [0:559] [15:0] ram = {  // in iVerilog
 
       //first process - 2 pages (200 elements)
