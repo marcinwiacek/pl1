@@ -203,9 +203,9 @@ module x_out_of_order2 (
 
   always @(posedge clk) begin
     read_stall_exists <= 0;
+    registers_read_stall <= '{default: 0};
     if (reg_instruction_state == OPCODE_REG2RAM || reg_instruction_state == OPCODE_RAM2REG) begin
       for (z = 0; z < REGISTER_NUM; z = z + 1) begin
-      registers_read_stall[z] <= 0;
         if (registers_save_address[z]>=reg_start_ram_address_or_numeric && 
                     registers_save_address[z]<=reg_start_ram_address_or_numeric + reg_register_len) begin
           read_stall_exists <= 1;  //do save before
