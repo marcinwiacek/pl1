@@ -244,14 +244,14 @@ module x_out_of_order2 (
                          registers_save_address[i]));
       end
       $display("");
-      if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 && !registers_read_stall[register[0]]) begin
         $display($sformatf("%02d", $time), " read first slot register ", register[0],
                  " with address ",  //DEBUG info
                  read_address, "=", read_value);  //DEBUG info
         registers_value[register[0]] = read_value;
         registers_init[register[0]]  = 1;
       end
-      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 && !registers_read_stall[register[1]]) begin
         $display($sformatf("%02d", $time), " read second slot register ", register[1],
                  " with address ",  //DEBUG info
                  read_address2, "=", read_value2);  //DEBUG info
@@ -259,8 +259,9 @@ module x_out_of_order2 (
         registers_init[register[1]]  = 1;
       end
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-        //don't merge two ifs - performance will decrease
-        if (!registers_init[i] && !registers_read_stall[i]) begin
+        //don't merge ifs - performance will decrease
+        if (!registers_init[i]) begin
+          if (!registers_read_stall[i]) begin
           if (registers_src_mmu_done[i]) begin
             //  $display($sformatf("%02d", $time), pc_logical, " reg to read, with mmu ", i);
             if (i % 2 == 0) begin
@@ -271,6 +272,7 @@ module x_out_of_order2 (
             register[i%2] <= i;
           //end else begin
             //   $display($sformatf("%02d", $time), pc_logical, " reg to read, but no mmu ", i);
+          end
           end
         end
       end
@@ -300,8 +302,16 @@ module x_out_of_order2 (
       fetch_stall_exists = 0;
       if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
         if (executor_state == EXECUTE_STATE_START) begin
+          executor_instruction_state <= decoder_instruction_state;
+          executor_register_start <= decoder_register_start;
+          executor_register_len <= decoder_register_len;
+          executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
+          executor_do_op <= decoder_do_op;
+          instr_num <= instr_num + 1;
+        end
+        if (!save_stall_exists && !read_stall_exists && executor_state == EXECUTE_STATE_START) begin
           $display(
-              $sformatf("%02d", $time), pc_logical, " executor1   ", " exec_state=",
+              $sformatf("%02d", $time), pc_logical, " executor   ", " exec_state=",
               executor_state, " b1 %c%c%c%c",  //DEBUG info
               decoder_instruction_state / 16 >= 10 ? decoder_instruction_state / 16 + 65 - 10 : decoder_instruction_state / 16 + 48,
               decoder_instruction_state % 16 >= 10 ? decoder_instruction_state % 16 + 65 - 10 : decoder_instruction_state % 16 + 48,
@@ -311,15 +321,9 @@ module x_out_of_order2 (
               decoder_register_len, "-", decoder_start_ram_address_or_numeric,
               " dec_error_code=",  //DEBUG info
               decoder_error_code);  //DEBUG info
-          executor_instruction_state <= decoder_instruction_state;
-          executor_register_start <= decoder_register_start;
-          executor_register_len <= decoder_register_len;
-          executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
-          executor_do_op <= decoder_do_op;
-          instr_num <= instr_num + 1;
         end else begin
           $display(
-              $sformatf("%02d", $time), pc_logical, " executor2   ", " exec_state=",
+              $sformatf("%02d", $time), pc_logical, " executor   ", " exec_state=",
               executor_state, " b1 %c%c%c%c",  //DEBUG info
               executor_instruction_state / 16 >= 10 ? executor_instruction_state / 16 + 65 - 10 : executor_instruction_state / 16 + 48,
               executor_instruction_state % 16 >= 10 ? executor_instruction_state % 16 + 65 - 10 : executor_instruction_state % 16 + 48,
