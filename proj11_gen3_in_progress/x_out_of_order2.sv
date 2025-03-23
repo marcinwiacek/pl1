@@ -155,7 +155,7 @@ module x_out_of_order2 (
   assign reg_register_len =  !save_stall_exists && !read_stall_exists && executor_state == EXECUTE_STATE_START ? decoder_register_len : executor_register_len;
   assign reg_instruction_state =  !save_stall_exists && !read_stall_exists && executor_state == EXECUTE_STATE_START?decoder_instruction_state:executor_instruction_state;
   assign reg_start_ram_address_or_numeric = !save_stall_exists && !read_stall_exists && executor_state == EXECUTE_STATE_START?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric;
-  assign reg_do_op = executor_state == EXECUTE_STATE_START ? decoder_do_op : executor_do_op;
+  assign reg_do_op = !save_stall_exists && !read_stall_exists && executor_state == EXECUTE_STATE_START ? decoder_do_op : executor_do_op;
 
   reg [15:0] process_hardware_address = 0;
   reg [15:0] pc_logical, pc_physical;
