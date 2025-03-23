@@ -187,32 +187,31 @@ module x_out_of_order2 (
   integer i, j, z;
 
   always @(posedge clk) begin
-    save_stall_exists = 0;
+
+    save_stall_exists <= 0;
     if (reg_instruction_state == OPCODE_REG2RAM) begin
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
         if (!registers_init[j] && registers_src_address[j]>=reg_start_ram_address_or_numeric && 
                     registers_src_address[j]<=reg_start_ram_address_or_numeric + reg_register_len) begin
-          save_stall_exists = 1;  //do reads before save
+          save_stall_exists <= 1;  //do reads before save
           $display($sformatf("%02d", $time), pc_logical, " save stall exists");
         end
       end
     end
+
   end
 
   always @(posedge clk) begin
-    read_stall_exists = 0;
+    read_stall_exists <= 0;
     if (reg_instruction_state == OPCODE_REG2RAM || reg_instruction_state == OPCODE_RAM2REG) begin
       for (z = 0; z < REGISTER_NUM; z = z + 1) begin
+      registers_read_stall[z] <= 0;
         if (registers_save_address[z]>=reg_start_ram_address_or_numeric && 
                     registers_save_address[z]<=reg_start_ram_address_or_numeric + reg_register_len) begin
-          read_stall_exists = 1;  //do save before
+          read_stall_exists <= 1;  //do save before
           $display($sformatf("%02d", $time), pc_logical, " read stall exists");
+          registers_read_stall[z] <= 1;
         end
-      end
-    end
-    if (read_stall_exists) begin
-      for (z = 0; z < REGISTER_NUM; z = z + 1) begin
-        registers_read_stall[z] = reg_do_op[z];
       end
     end
   end
