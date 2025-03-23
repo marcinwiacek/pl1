@@ -187,7 +187,6 @@ module x_out_of_order2 (
   integer i, j, z;
 
   always @(posedge clk) begin
-
     save_stall_exists <= 0;
     if (reg_instruction_state == OPCODE_REG2RAM) begin
       for (j = 0; j < REGISTER_NUM; j = j + 1) begin
@@ -198,7 +197,6 @@ module x_out_of_order2 (
         end
       end
     end
-
   end
 
   always @(posedge clk) begin
@@ -262,17 +260,17 @@ module x_out_of_order2 (
         //don't merge ifs - performance will decrease
         if (!registers_init[i]) begin
           if (!registers_read_stall[i]) begin
-          if (registers_src_mmu_done[i]) begin
-            //  $display($sformatf("%02d", $time), pc_logical, " reg to read, with mmu ", i);
-            if (i % 2 == 0) begin
-              read_address <= registers_src_address2[i];
-            end else begin
-              read_address2 <= registers_src_address2[i];
+            if (registers_src_mmu_done[i]) begin
+              //  $display($sformatf("%02d", $time), pc_logical, " reg to read, with mmu ", i);
+              if (i % 2 == 0) begin
+                read_address <= registers_src_address2[i];
+              end else begin
+                read_address2 <= registers_src_address2[i];
+              end
+              register[i%2] <= i;
+              //end else begin
+              //   $display($sformatf("%02d", $time), pc_logical, " reg to read, but no mmu ", i);
             end
-            register[i%2] <= i;
-          //end else begin
-            //   $display($sformatf("%02d", $time), pc_logical, " reg to read, but no mmu ", i);
-          end
           end
         end
       end
@@ -311,8 +309,8 @@ module x_out_of_order2 (
         end
         if (!save_stall_exists && !read_stall_exists && executor_state == EXECUTE_STATE_START) begin
           $display(
-              $sformatf("%02d", $time), pc_logical, " executor   ", " exec_state=",
-              executor_state, " b1 %c%c%c%c",  //DEBUG info
+              $sformatf("%02d", $time), pc_logical, " executor   ", " exec_state=", executor_state,
+              " b1 %c%c%c%c",  //DEBUG info
               decoder_instruction_state / 16 >= 10 ? decoder_instruction_state / 16 + 65 - 10 : decoder_instruction_state / 16 + 48,
               decoder_instruction_state % 16 >= 10 ? decoder_instruction_state % 16 + 65 - 10 : decoder_instruction_state % 16 + 48,
               decoder_register_start / 16 >= 10 ? decoder_register_start / 16 + 65 - 10 : decoder_register_start / 16 + 48,
@@ -323,8 +321,8 @@ module x_out_of_order2 (
               decoder_error_code);  //DEBUG info
         end else begin
           $display(
-              $sformatf("%02d", $time), pc_logical, " executor   ", " exec_state=",
-              executor_state, " b1 %c%c%c%c",  //DEBUG info
+              $sformatf("%02d", $time), pc_logical, " executor   ", " exec_state=", executor_state,
+              " b1 %c%c%c%c",  //DEBUG info
               executor_instruction_state / 16 >= 10 ? executor_instruction_state / 16 + 65 - 10 : executor_instruction_state / 16 + 48,
               executor_instruction_state % 16 >= 10 ? executor_instruction_state % 16 + 65 - 10 : executor_instruction_state % 16 + 48,
               executor_register_start / 16 >= 10 ? executor_register_start / 16 + 65 - 10 : executor_register_start / 16 + 48,
