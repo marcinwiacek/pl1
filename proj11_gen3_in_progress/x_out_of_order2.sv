@@ -207,7 +207,8 @@ module x_out_of_order2 (
         if (registers_save_address[z]>=reg_start_ram_address_or_numeric && 
                     registers_save_address[z]<=reg_start_ram_address_or_numeric + reg_register_len) begin
           read_stall_exists <= 1;  //do save before
-          $display($sformatf("%02d", $time), pc_logical, " read stall exists (visible next cycle) num ",z);
+          $display($sformatf("%02d", $time), pc_logical,
+                   " read stall exists (visible next cycle) num ", z);
           registers_read_stall[z] <= 1;
         end
       end
@@ -244,93 +245,79 @@ module x_out_of_order2 (
       end
       $display("");
       if (read_stall_exists) begin
-      
-        if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 ) begin
-      
-         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-           if (read_address == registers_src_address[i]) begin
-           
-             $display($sformatf("%02d", $time), " read first slot register ", i,
-                 " with value ",  //DEBUG info
-                 registers_save_value[register[0]]);  //DEBUG info
-                 
-             registers_value[i] = registers_save_value[register[0]];
-             registers_init[i]  = 1;
-             registers_src_address[i]<=0;
-           end
-         end
-      end
-      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 ) begin
-        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-           if (read_address2 == registers_src_address[i]) begin
-             $display($sformatf("%02d", $time), " read first slot register ", i,
-                 " with value ",  //DEBUG info
-                 registers_save_value[register[1]]);  //DEBUG info
-             registers_value[i] = registers_save_value[register[1]];
-             registers_init[i]  = 1;
-             registers_src_address[i]<=0;
-           end
-         end
-      end
-       register[0] <= 33;
-      register[1] <= 33;
-      
-      for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-        //don't merge ifs - performance will decrease
-       // if (!registers_init[i]) begin
-          if (registers_read_stall[i]) begin
-       
-       $display($sformatf("%02d", $time), pc_logical, " trying to forward ",i);
-       if (i % 2 == 0) begin
-                read_address <= registers_save_address[i];
-              end else begin
-                read_address2 <= registers_save_address[i];
-              end
-              register[i%2] <= i;
-              //end else begin
-              //   $display($sformatf("%02d", $time), pc_logical, " reg to read, but no mmu ", i);
-           end
-         // end
-       // end
-      end
-      
-      end else begin
-      
-            if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 && !registers_read_stall[register[0]]) begin
-        $display($sformatf("%02d", $time), " read first slot register ", register[0],
-                 " with address ",  //DEBUG info
-                 read_address, "=", read_value);  //DEBUG info
-        registers_value[register[0]] = read_value;
-        registers_init[register[0]]  = 1;
-      end
-      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 && !registers_read_stall[register[1]]) begin
-        $display($sformatf("%02d", $time), " read second slot register ", register[1],
-                 " with address ",  //DEBUG info
-                 read_address2, "=", read_value2);  //DEBUG info
-        registers_value[register[1]] = read_value2;
-        registers_init[register[1]]  = 1;
-      end
-      for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-        //don't merge ifs - performance will decrease
-        if (!registers_init[i]) begin
-          if (!registers_read_stall[i]) begin
-            if (registers_src_mmu_done[i]) begin
-              //  $display($sformatf("%02d", $time), pc_logical, " reg to read, with mmu ", i);
-              if (i % 2 == 0) begin
-                read_address <= registers_src_address2[i];
-              end else begin
-                read_address2 <= registers_src_address2[i];
-              end
-              register[i%2] <= i;
-              //end else begin
-              //   $display($sformatf("%02d", $time), pc_logical, " reg to read, but no mmu ", i);
+        if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+          for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+            if (read_address == registers_src_address[i]) begin
+              $display($sformatf("%02d", $time), " read first slot register ", i,
+                       " with value ",  //DEBUG info
+                       registers_save_value[register[0]]);  //DEBUG info
+              registers_value[i] = registers_save_value[register[0]];
+              registers_init[i]  = 1;
+              registers_src_address[i] <= 0;
             end
           end
         end
-      end
-
-      
-      
+        if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+          for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+            if (read_address2 == registers_src_address[i]) begin
+              $display($sformatf("%02d", $time), " read first slot register ", i,
+                       " with value ",  //DEBUG info
+                       registers_save_value[register[1]]);  //DEBUG info
+              registers_value[i] = registers_save_value[register[1]];
+              registers_init[i]  = 1;
+              registers_src_address[i] <= 0;
+            end
+          end
+        end
+        register[0] <= 33;
+        register[1] <= 33;
+        executor_instruction_state<=0;
+        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+          //don't merge ifs - performance will decrease
+          if (registers_read_stall[i]) begin
+            executor_instruction_state<=OPCODE_RAM2REG;
+            $display($sformatf("%02d", $time), pc_logical, " trying to forward ", i);
+            if (i % 2 == 0) begin
+              read_address <= registers_save_address[i];
+            end else begin
+              read_address2 <= registers_save_address[i];
+            end
+            register[i%2] <= i;
+           end
+        end
+      end else begin
+        if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 && !registers_read_stall[register[0]]) begin
+          $display($sformatf("%02d", $time), " read first slot register ", register[0],
+                   " with address ",  //DEBUG info
+                   read_address, "=", read_value);  //DEBUG info
+          registers_value[register[0]] = read_value;
+          registers_init[register[0]]  = 1;
+        end
+        if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 && !registers_read_stall[register[1]]) begin
+          $display($sformatf("%02d", $time), " read second slot register ", register[1],
+                   " with address ",  //DEBUG info
+                   read_address2, "=", read_value2);  //DEBUG info
+          registers_value[register[1]] = read_value2;
+          registers_init[register[1]]  = 1;
+        end
+        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+          //don't merge ifs - performance will decrease
+          if (!registers_init[i]) begin
+            if (!registers_read_stall[i]) begin
+              if (registers_src_mmu_done[i]) begin
+                //  $display($sformatf("%02d", $time), pc_logical, " reg to read, with mmu ", i);
+                if (i % 2 == 0) begin
+                  read_address <= registers_src_address2[i];
+                end else begin
+                  read_address2 <= registers_src_address2[i];
+                end
+                register[i%2] <= i;
+                //end else begin
+                //   $display($sformatf("%02d", $time), pc_logical, " reg to read, but no mmu ", i);
+              end
+            end
+          end
+        end
       end
       //save ram              
       write_enabled <= 0;
@@ -344,16 +331,16 @@ module x_out_of_order2 (
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           if (registers_save_ready[i]) begin
             saveram_q_num = i;
-        //  end else if (register_save_lock[i] && !registers_save_mmu_done[i]) begin
-//            mmu_address_logical <= registers_save_address[i];
-//            executor_state <= EXECUTE_STATE_MMU;
-//            $display($sformatf("%02d", $time), pc_logical, " starting mmu from write");
+            //  end else if (register_save_lock[i] && !registers_save_mmu_done[i]) begin
+            //            mmu_address_logical <= registers_save_address[i];
+            //            executor_state <= EXECUTE_STATE_MMU;
+            //            $display($sformatf("%02d", $time), pc_logical, " starting mmu from write");
           end
         end
-        if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin     
+        if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           write_enabled <= 1;
           write_address <= registers_save_address2[saveram_q_num];
-          write_value <= registers_save_value[saveram_q_num];
+          write_value   <= registers_save_value[saveram_q_num];
         end
       end
       //executor
@@ -366,7 +353,7 @@ module x_out_of_order2 (
           executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
           executor_do_op <= decoder_do_op;
           instr_num <= instr_num + 1;
-           $display(  $sformatf("%02d", $time), pc_logical, " copying");
+          $display($sformatf("%02d", $time), pc_logical, " copying");
         end
         if (!save_stall_exists && !read_stall_exists && executor_state == EXECUTE_STATE_START) begin
           $display(
@@ -397,7 +384,7 @@ module x_out_of_order2 (
               executor_state <= EXECUTE_STATE_START;
             end else begin
               fetch_stall_exists = 1;
-               executor_state <= EXECUTE_STATE_CONTINUE;
+              executor_state <= EXECUTE_STATE_CONTINUE;
             end
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (reg_do_op[i]) begin
