@@ -143,7 +143,7 @@ module x_out_of_order2 (
 
   //--------------------------------------------------------------------process------------------
 
-  reg fetch_stall_exists = 0, save_stall_exists = 0; // read_stall_exists = 0;
+  reg fetch_stall_exists = 0, save_stall_exists = 0, read_stall_exists = 0;
 
   reg [ 5:0] reg_instruction_state;
   reg [15:0] reg_register_len;
@@ -174,8 +174,8 @@ module x_out_of_order2 (
         // verilog_format:on
       },  //Read from RAM?
       registers_save_ready[0:REGISTER_NUM-1],
-      registers_save_mmu_done[0:REGISTER_NUM-1];
-    //  registers_read_stall[0:REGISTER_NUM-1];
+      registers_save_mmu_done[0:REGISTER_NUM-1],
+      registers_read_stall[0:REGISTER_NUM-1];
 
   //----------------------------------------------------------------other---------------------------
 
@@ -199,32 +199,32 @@ module x_out_of_order2 (
     end
   end
 
-/*
+
   always @(posedge clk) begin
-    read_stall_exists <= 0;
-  //  registers_read_stall <= '{default: 0};
+   read_stall_exists <= 0;
+    registers_read_stall <= '{default: 0};
     if (reg_instruction_state == OPCODE_REG2RAM || reg_instruction_state == OPCODE_RAM2REG) begin
       for (z = 0; z < REGISTER_NUM; z = z + 1) begin
         if (registers_save_address[z]>=reg_start_ram_address_or_numeric && 
                     registers_save_address[z]<=reg_start_ram_address_or_numeric + reg_register_len) begin
           read_stall_exists <= 1;  //do save before
-          $display($sformatf("%02d", $time), pc_logical, " read stall exists (next clock)");
-       //   registers_read_stall[z] <= 1;
+          $display($sformatf("%02d", $time), pc_logical, " read stall exists (next clock) ",z);
+          registers_read_stall[z] <= 1;
         end
       end
     end
   end
-  */
+  
   
   reg[15:0] addra,addrb, vala, valb;
   reg valaready, valbready;
   
   integer a,b;
 
-  always @(negedge clk) begin
+ /* always @(negedge clk) begin
       valaready <=0;
       valbready <=0;
-      $display($sformatf("%02d", $time), pc_logical, " addra ",addra);    
+     // $display($sformatf("%02d", $time), pc_logical, " addra ",addra);    
       for (a = 0; a < REGISTER_NUM; a = a + 1) begin
         if (registers_save_address[a]==addra) begin
           vala <= a;
@@ -237,7 +237,7 @@ module x_out_of_order2 (
           $display($sformatf("%02d", $time), pc_logical, " found value ",registers_save_value[a], " for address ",addrb);          
         end
       end
-  end
+  end*/
 
   always @(posedge clk) begin
     if (rst) begin
@@ -268,6 +268,23 @@ module x_out_of_order2 (
                          registers_save_address[i]));
       end
       $display("");
+   /*   if (read_stall_exists) begin
+      $display("read stall processing");
+      for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+       
+        if (registers_read_stall[i]) begin
+         for (a = 0; a < REGISTER_NUM; a = a + 1) begin
+           if (registers_save_address[a]==registers_src_address[i]) begin
+             registers_value[i] = registers_save_value[a];
+             registers_init[i]  = 1;
+             registers_src_address[i]<=0;
+           end
+         end
+        end
+      end
+      executor_state <= EXECUTE_STATE_START;
+      
+      end else begin*/
       if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), " read first slot register ", register[0],
                  " with address ",  //DEBUG info
@@ -309,10 +326,10 @@ module x_out_of_order2 (
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           if (registers_save_ready[i]) begin
             saveram_q_num = i;
-          end else if (register_save_lock[i] && !registers_save_mmu_done[i]) begin
-            mmu_address_logical <= registers_save_address[i];
-            executor_state <= EXECUTE_STATE_MMU;
-            $display($sformatf("%02d", $time), pc_logical, " starting mmu from write (next clock)");
+         // end else if (register_save_lock[i] && !registers_save_mmu_done[i]) begin
+         //   mmu_address_logical <= registers_save_address[i];
+         //   executor_state <= EXECUTE_STATE_MMU;
+         //   $display($sformatf("%02d", $time), pc_logical, " starting mmu from write (next clock)");
           end
         end
         if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
@@ -325,7 +342,7 @@ module x_out_of_order2 (
       //executor
       fetch_stall_exists = 0;
       if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
-        if (executor_state == EXECUTE_STATE_START) begin //!read_stall_exists && 
+        if (executor_state == EXECUTE_STATE_START) begin
           executor_instruction_state <= decoder_instruction_state;
           executor_register_start <= decoder_register_start;
           executor_register_len <= decoder_register_len;
@@ -335,10 +352,34 @@ module x_out_of_order2 (
             $display(
               $sformatf("%02d", $time), pc_logical, " copying");
         end
+      end
+      
+      
+          if (read_stall_exists) begin
+      $display("read stall processing");
+      for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+       
+        if (registers_read_stall[i]) begin
+         for (a = 0; a < REGISTER_NUM; a = a + 1) begin
+           if (registers_src_address[a]==registers_save_address[i]) begin
+      $display("copying ",a," to ",i);
+           
+             registers_value[a] = registers_save_value[i];
+             registers_init[a]  = 1;
+             registers_src_address[a]<=0;
+           end
+         end
+        end
+      end
+      executor_state <= EXECUTE_STATE_CONTINUE;
+      
+      end else begin
+       if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
+      
         if (executor_state == EXECUTE_STATE_START) begin
           $display(
               $sformatf("%02d", $time), pc_logical, " executor   ", " exec_state=", executor_state,
-              " b1 %c%c%c%c",  //DEBUG info
+              " b1 %c%c%c%ch",  //DEBUG info
               decoder_instruction_state / 16 >= 10 ? decoder_instruction_state / 16 + 65 - 10 : decoder_instruction_state / 16 + 48,
               decoder_instruction_state % 16 >= 10 ? decoder_instruction_state % 16 + 65 - 10 : decoder_instruction_state % 16 + 48,
               decoder_register_start / 16 >= 10 ? decoder_register_start / 16 + 65 - 10 : decoder_register_start / 16 + 48,
@@ -350,7 +391,7 @@ module x_out_of_order2 (
         end else begin
           $display(
               $sformatf("%02d", $time), pc_logical, " executor   ", " exec_state=", executor_state,
-              " b1 %c%c%c%c",  //DEBUG info
+              " b1 %c%c%c%ch",  //DEBUG info
               executor_instruction_state / 16 >= 10 ? executor_instruction_state / 16 + 65 - 10 : executor_instruction_state / 16 + 48,
               executor_instruction_state % 16 >= 10 ? executor_instruction_state % 16 + 65 - 10 : executor_instruction_state % 16 + 48,
               executor_register_start / 16 >= 10 ? executor_register_start / 16 + 65 - 10 : executor_register_start / 16 + 48,
@@ -360,7 +401,7 @@ module x_out_of_order2 (
         end
        case (executor_state)
           EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
-              if (!save_stall_exists) begin // && !read_stall_exists) begin
+              if (!save_stall_exists ) begin
                  executor_state <= EXECUTE_STATE_START;
          
                end else begin
@@ -392,6 +433,7 @@ module x_out_of_order2 (
                     if (!save_stall_exists) begin //&& !read_stall_exists) begin
                       if (!registers_init[i]) begin
                         fetch_stall_exists = 1;
+                       
                         executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
                         if (!registers_src_mmu_done[i])
                           $display($sformatf("%02d", $time), pc_logical, " starting mmu from read (next clock)");
@@ -409,6 +451,7 @@ module x_out_of_order2 (
 
                           end
                           register[i%2] <= i;
+                        
                         end
                       end else begin
                         case (reg_instruction_state)
@@ -503,6 +546,7 @@ module x_out_of_order2 (
         pc_physical <= pc_physical + 2;
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      end
       end
       $display("");
     end else begin
