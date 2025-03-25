@@ -174,8 +174,8 @@ module x_out_of_order2 (
         // verilog_format:on
       },  //Read from RAM?
       registers_save_ready[0:REGISTER_NUM-1],
-      registers_save_mmu_done[0:REGISTER_NUM-1],
-      registers_read_stall[0:REGISTER_NUM-1];
+      registers_save_mmu_done[0:REGISTER_NUM-1];
+     // registers_read_stall[0:REGISTER_NUM-1];
 
   //----------------------------------------------------------------other---------------------------
 
@@ -201,22 +201,25 @@ module x_out_of_order2 (
 
   always @(posedge clk) begin
     read_stall_exists <= 0;
-    registers_read_stall <= '{default: 0};
+    //registers_read_stall <= '{default: 0};
     if (reg_instruction_state == OPCODE_REG2RAM || reg_instruction_state == OPCODE_RAM2REG) begin
       for (z = 0; z < REGISTER_NUM; z = z + 1) begin
         if (registers_save_address[z]>=reg_start_ram_address_or_numeric && 
                     registers_save_address[z]<=reg_start_ram_address_or_numeric + reg_register_len) begin
           read_stall_exists <= 1;  //do save before
           $display($sformatf("%02d", $time), pc_logical, " read stall exists");
-          registers_read_stall[z] <= 1;
+        //  registers_read_stall[z] <= 1;
         end
       end
     end
   end
+  
+  reg[15:0] write_current_address;
 
   always @(posedge clk) begin
     if (rst) begin
       registers_value = '{default: 0};
+      registers_value[9]<=1;
       read_address <= 52;
       read_address2 <= 53;
       decoder_inp <= 1;
@@ -242,14 +245,14 @@ module x_out_of_order2 (
                          registers_save_address[i]));
       end
       $display("");
-      if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 && !registers_read_stall[register[0]]) begin
+      if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 && write_current_address!=read_address) begin
         $display($sformatf("%02d", $time), " read first slot register ", register[0],
                  " with address ",  //DEBUG info
                  read_address, "=", read_value);  //DEBUG info
         registers_value[register[0]] = read_value;
         registers_init[register[0]]  = 1;
       end
-      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 && !registers_read_stall[register[1]]) begin
+      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 && write_current_address!=read_address2) begin
         $display($sformatf("%02d", $time), " read second slot register ", register[1],
                  " with address ",  //DEBUG info
                  read_address2, "=", read_value2);  //DEBUG info
@@ -259,7 +262,7 @@ module x_out_of_order2 (
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         //don't merge ifs - performance will decrease
         if (!registers_init[i]) begin
-          if (!registers_read_stall[i]) begin
+        //  if (!registers_read_stall[i]) begin
             if (registers_src_mmu_done[i]) begin
               //  $display($sformatf("%02d", $time), pc_logical, " reg to read, with mmu ", i);
               if (i % 2 == 0) begin
@@ -271,11 +274,12 @@ module x_out_of_order2 (
               //end else begin
               //   $display($sformatf("%02d", $time), pc_logical, " reg to read, but no mmu ", i);
             end
-          end
+         // end
         end
       end
       //save ram              
       write_enabled <= 0;
+       write_current_address<=0;
       if (!save_stall_exists) begin
         saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
@@ -294,6 +298,7 @@ module x_out_of_order2 (
           write_enabled <= 1;
           write_address <= registers_save_address2[saveram_q_num];
           write_value <= registers_save_value[saveram_q_num];
+          write_current_address<=registers_save_address[saveram_q_num];
         end
       end
       //executor
