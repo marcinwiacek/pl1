@@ -206,26 +206,25 @@ always @(posedge clk) begin
     end
   end
 
+*/
+
+  reg [15:0] readx_address, readx_address2, readx_value, readx_value2, readx_num, readx2_num;
+  reg readx_ready, readx_ready2;
+
   always @(posedge clk) begin
-   
-    read_stall2_exists <= 0;
-    //registers_read_stall <= '{default: 0};
-    if (reg_instruction_state == OPCODE_RAM2REG) begin
+            readx_ready<=0;  
+             if (readx_address!=0) begin
       for (z = 0; z < REGISTER_NUM; z = z + 1) begin
-        if (registers_save_address[z] >= reg_start_ram_address_or_numeric) begin
-          if (registers_save_address[z]<=reg_start_ram_address_or_numeric + reg_register_len) begin
-            read_stall2_exists <= 1;  //do save before
-            $display($sformatf("%02d", $time), pc_logical, " read2 stall exists (next cycle)");
-            //  registers_read_stall[z] <= 1;
+     
+          if (registers_save_address[z] == readx_address) begin
+            readx_value<= registers_save_value[z];  //do save before
+            readx_ready<=1;
+            $display($sformatf("%02d", $time), pc_logical, " readx prepared (next cycle)");
           end
-          
+          end
        
         end
-      end
-    end
-  end
-*/
-  reg [15:0] write_current_address;
+end
 
 
   always @(posedge clk) begin
@@ -264,13 +263,13 @@ always @(posedge clk) begin
                  read_address, "=", read_value);  //DEBUG info
         registers_value[register[0]] = read_value;
         registers_init[register[0]]  = 1;
-        if (executor_state == EXECUTE_STATE_CONTINUE2) begin
+       /* if (executor_state == EXECUTE_STATE_CONTINUE2) begin
            for (z = 0; z < REGISTER_NUM; z = z + 1) begin
                 if (registers_save_address[z] == read_address) begin
                     registers_value[register[0]] = registers_save_value[z];
                 end
               end
-        end
+        end*/
       end
       if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         //   if (write_current_address != read_address2) begin
@@ -279,14 +278,18 @@ always @(posedge clk) begin
                  read_address2, "=", read_value2);  //DEBUG info
         registers_value[register[1]] = read_value2;
         registers_init[register[1]]  = 1;
-        if (executor_state == EXECUTE_STATE_CONTINUE2) begin
+        /*if (executor_state == EXECUTE_STATE_CONTINUE2) begin
            for (z = 0; z < REGISTER_NUM; z = z + 1) begin
                 if (registers_save_address[z] == read_address2) begin
                     registers_value[register[1]] = registers_save_value[z];
                 end
               end
-        end
+        end*/
         //  end
+      end
+      if (readx_ready) begin
+        registers_value[readx_num] = readx_value;
+        registers_init[readx_num]  = 1;        
       end
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         //don't merge ifs - performance will decrease
@@ -370,7 +373,7 @@ always @(posedge clk) begin
         case (executor_state)
           EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE, EXECUTE_STATE_CONTINUE2: begin
             executor_state <= EXECUTE_STATE_START;
-            if (reg_instruction_state == OPCODE_RAM2REG) begin
+          /*  if (reg_instruction_state == OPCODE_RAM2REG) begin
 
               for (z = 0; z < REGISTER_NUM; z = z + 1) begin
                 if (registers_save_address[z] >= reg_start_ram_address_or_numeric) begin
@@ -382,7 +385,10 @@ always @(posedge clk) begin
                 end
               end
 
-            end
+            end*/
+            readx_address <= 0;
+            readx_address2 <= 0;
+            
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (reg_do_op[i]) begin
                 case (reg_instruction_state)
@@ -399,12 +405,17 @@ always @(posedge clk) begin
                     end else if (!registers_init[i]) begin
 
                         if (i % 2 == 0) begin
-                          read_address <= registers_src_address[i];
+                          read_address <= registers_src_address2[i];
+                          readx_address <= registers_src_address[i];
+                          readx_num <=i;
                         end else begin
-                          read_address2 <= registers_src_address[i];
+                          read_address2 <= registers_src_address2[i];
+                          readx_address2 <= registers_src_address[i];
+                          readx2_num <=i;
+                          
                         end
                         register[i%2] <= i;
-
+                
                     end
  //for (z = 0; z < REGISTER_NUM; z = z + 1) begin
 //                if (registers_save_address[z] == decoder_start_ram_address_or_numeric+i-decoder_register_start) begin
