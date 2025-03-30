@@ -185,7 +185,7 @@ module x_out_of_order2 (
 
   assign x = decoder_inp;  //without this we will have empty circuit
 
-  integer i, j, z;
+  integer i, j, z, zz;
 
   /*
 always @(posedge clk) begin
@@ -239,6 +239,22 @@ always @(posedge clk) begin
     end
   end
   
+  reg read_stall = 0;
+  
+  always @(posedge clk) begin
+    read_stall <= 0;
+
+      for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
+      
+          if (registers_save_address[zz] >= reg_start_ram_address_or_numeric) begin
+            if (registers_save_address[zz]<=reg_start_ram_address_or_numeric + reg_register_len) begin
+             read_stall <= 1;
+             $display($sformatf("%02d", $time), pc_logical, " read stall");
+            end
+          end
+      end
+  end
+  
   always @(posedge clk) begin
     if (rst) begin
       registers_value = '{default: 0};
@@ -290,6 +306,8 @@ always @(posedge clk) begin
         registers_value[readx2_num] = readx_value2;
         registers_init[readx2_num]  = 1;        
       end
+      if (read_stall) begin
+      end else begin
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         //don't merge ifs - performance will decrease
         if (!registers_init[i]) begin
@@ -376,19 +394,17 @@ always @(posedge clk) begin
                       registers_init[i] = 0;
                       registers_src_mmu_done[i] <= 0;
                       registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
+                    end                   
+                    if (i % 2 == 0) begin
+                      read_address <= registers_src_address2[i];
+                      readx_address <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
+                      readx_num <= i;
+                    end else begin
+                      read_address2 <= registers_src_address2[i];
+                      readx_address2 <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
+                      readx2_num <= i;
                     end
-                   // if (!registers_init[i]) begin
-                      if (i % 2 == 0) begin
-                        read_address <= registers_src_address2[i];
-                        readx_address <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
-                        readx_num <= i;
-                      end else begin
-                        read_address2 <= registers_src_address2[i];
-                        readx_address2 <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
-                        readx2_num <= i;
-                      end
-                      register[i%2] <= i;
-                    //end
+                    register[i%2] <= i;                    
                   end
                   OPCODE_NUM2REG: begin
                     executor_do_op[i] <= 0;
@@ -512,6 +528,7 @@ always @(posedge clk) begin
         pc_physical <= pc_physical + 2;
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      end
       end
       $display("");
     end else begin
