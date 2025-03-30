@@ -297,16 +297,37 @@ always @(posedge clk) begin
                  read_address2, "=", read_value2);  //DEBUG info
         registers_value[register[1]] = read_value2;
         registers_init[register[1]]  = 1;
-      end
-      if (readx_ready) begin
+      end      
+         readx_address  <= 0;
+        readx_address2 <= 0;
+      if (read_stall && executor_state != EXECUTE_STATE_START) begin
+        if (readx_ready) begin
         registers_value[readx_num] = readx_value;
         registers_init[readx_num]  = 1;
+        executor_do_op[readx_num] <= 0;
       end
       if (readx_ready2) begin
         registers_value[readx2_num] = readx_value2;
         registers_init[readx2_num]  = 1;
+        executor_do_op[readx2_num] <= 0;
       end
-      if (read_stall) begin
+      executor_state <= EXECUTE_STATE_START;
+       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+                if (reg_do_op[i]) begin
+executor_state <= EXECUTE_STATE_CONTINUE;
+                      if (i % 2 == 0) begin
+                        read_address <= registers_src_address2[i];
+                        readx_address <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
+                        readx_num <= i;
+                      end else begin
+                        read_address2 <= registers_src_address2[i];
+                        readx_address2 <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
+                        readx2_num <= i;
+                      end
+                      register[i%2] <= i;
+
+end
+       end
       end else begin
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           //don't merge ifs - performance will decrease
@@ -345,8 +366,7 @@ always @(posedge clk) begin
           write_value <= registers_save_value[saveram_q_num];
         end
         //executor
-        readx_address  <= 0;
-        readx_address2 <= 0;
+     
         fetch_stall_exists = 0;
         if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
           if (executor_state == EXECUTE_STATE_START) begin
@@ -389,22 +409,13 @@ always @(posedge clk) begin
                   case (reg_instruction_state)
                     OPCODE_RAM2REG: begin
                       $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
-                      if (executor_state == EXECUTE_STATE_START) begin
+                      //if (executor_state == EXECUTE_STATE_START) begin
                         //this register should be read next time                    
                         registers_init[i] = 0;
                         registers_src_mmu_done[i] <= 0;
                         registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
-                      end
-                      if (i % 2 == 0) begin
-                        read_address <= registers_src_address2[i];
-                        readx_address <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
-                        readx_num <= i;
-                      end else begin
-                        read_address2 <= registers_src_address2[i];
-                        readx_address2 <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
-                        readx2_num <= i;
-                      end
-                      register[i%2] <= i;
+                        executor_state <= EXECUTE_STATE_CONTINUE;
+                      //end
                     end
                     OPCODE_NUM2REG: begin
                       executor_do_op[i] <= 0;
