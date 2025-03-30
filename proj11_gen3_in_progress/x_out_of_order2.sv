@@ -266,9 +266,9 @@ always @(posedge clk) begin
         registers_init[register[0]]  = 1;
         if (executor_state == EXECUTE_STATE_CONTINUE2) begin
            for (z = 0; z < REGISTER_NUM; z = z + 1) begin
-                //if (registers_save_address[z] == read_address) begin
-                    registers_value[register[0]] = registers_save_address[z] == read_address?registers_save_value[z]:registers_value[register[0]];
-                //end
+                if (registers_save_address[z] == read_address) begin
+                    registers_value[register[0]] = registers_save_value[z];
+                end
               end
         end
       end
@@ -281,8 +281,9 @@ always @(posedge clk) begin
         registers_init[register[1]]  = 1;
         if (executor_state == EXECUTE_STATE_CONTINUE2) begin
            for (z = 0; z < REGISTER_NUM; z = z + 1) begin
-                     registers_value[register[1]] = registers_save_address[z] == read_address2?registers_save_value[z]:registers_value[register[1]];
-              
+                if (registers_save_address[z] == read_address2) begin
+                    registers_value[register[1]] = registers_save_value[z];
+                end
               end
         end
         //  end
