@@ -300,7 +300,7 @@ always @(posedge clk) begin
       end
       readx_address  <= 0;
       readx_address2 <= 0;
-      if (read_stall && executor_state != EXECUTE_STATE_START) begin
+    //  if (read_stall && executor_state != EXECUTE_STATE_START) begin
         if (readx_ready) begin
           registers_value[readx_num] = readx_value;
           registers_init[readx_num]  = 1;
@@ -311,24 +311,8 @@ always @(posedge clk) begin
           registers_init[readx2_num]  = 1;
           executor_do_op[readx2_num] <= 0;
         end
-        executor_state <= EXECUTE_STATE_START;
-        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (reg_do_op[i]) begin
-            executor_state <= EXECUTE_STATE_CONTINUE;
-            if (i % 2 == 0) begin
-              read_address <= registers_src_address2[i];
-              readx_address <= decoder_start_ram_address_or_numeric + i - decoder_register_start;
-              readx_num <= i;
-            end else begin
-              read_address2 <= registers_src_address2[i];
-              readx_address2 <= decoder_start_ram_address_or_numeric + i - decoder_register_start;
-              readx2_num <= i;
-            end
-            register[i%2] <= i;
-
-          end
-        end
-      end else begin
+      
+      //end else begin
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           //don't merge ifs - performance will decrease
           if (!registers_init[i]) begin
@@ -409,12 +393,28 @@ always @(posedge clk) begin
                   case (reg_instruction_state)
                     OPCODE_RAM2REG: begin
                       $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
+                      if (read_stall) begin
+                      
+            executor_state <= EXECUTE_STATE_CONTINUE;
+            if (i % 2 == 0) begin
+              read_address <= registers_src_address2[i];
+              readx_address <= executor_start_ram_address_or_numeric + i - executor_register_start;
+              readx_num <= i;
+            end else begin
+              read_address2 <= registers_src_address2[i];
+              readx_address2 <= executor_start_ram_address_or_numeric + i - executor_register_start;
+              readx2_num <= i;
+            end
+            register[i%2] <= i;
+
+                      end else begin
                       //if (executor_state == EXECUTE_STATE_START) begin
                       //this register should be read next time                    
                       registers_init[i] = 0;
                       registers_src_mmu_done[i] <= 0;
                       registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
                       executor_state <= EXECUTE_STATE_CONTINUE;
+                      end
                       //end
                     end
                     OPCODE_NUM2REG: begin
@@ -540,7 +540,7 @@ always @(posedge clk) begin
           register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
           register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         end
-      end
+   //   end
       $display("");
     end else begin
       decoder_inp <= 0;
