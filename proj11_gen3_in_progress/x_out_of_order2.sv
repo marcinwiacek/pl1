@@ -254,7 +254,7 @@ always @(posedge clk) begin
         end
       end
     end
-    if (read_stall_processed) read_stall<=0;
+  //  if (read_stall_processed) read_stall<=0;
   end
 
   always @(posedge clk) begin
@@ -373,7 +373,7 @@ always @(posedge clk) begin
        // if (executor_state == EXECUTE_STATE_START) begin
           $display(
               $sformatf("%02d", $time), pc_logical, " executor1   ", 
-              (!read_stall || executor_state == EXECUTE_STATE_START?"1":"0"),
+              (!read_stall || executor_state == EXECUTE_STATE_START?1:0),
               " exec_state=", executor_state,
               " b1 %c%c%c%c",  //DEBUG info
               decoder_instruction_state / 16 >= 10 ? decoder_instruction_state / 16 + 65 - 10 : decoder_instruction_state / 16 + 48,
@@ -387,7 +387,7 @@ always @(posedge clk) begin
       //  end else begin
           $display(
               $sformatf("%02d", $time), pc_logical, " executor2   ", 
-                            (!read_stall || executor_state == EXECUTE_STATE_START?"0":"1"),
+                            (!read_stall || executor_state == EXECUTE_STATE_START?0:1),
 
               " exec_state=", executor_state,
               " b1 %c%c%c%c",  //DEBUG info
