@@ -256,11 +256,16 @@ always @(posedge clk) begin
         end
       end
     end
-    if (read_stall_processed) read_stall<=0;
+    if (read_stall_processed) begin
+       read_stall<=0;
+       $display($sformatf("%02d", $time), pc_logical, " read stall blocked (next cycle)");
+    end
   end
 
   always @(posedge clk) begin
     if (rst) begin
+          readx_num  <= 33;
+      readx2_num <= 33;
       read_stall_processed<=0;
       registers_value = '{default: 0};
       registers_value[9] <= 1;
@@ -303,8 +308,10 @@ always @(posedge clk) begin
         registers_value[register[1]] = read_value2;
         registers_init[register[1]]  = 1;
       end
-      readx_address  <= 0;
-      readx_address2 <= 0;
+     // readx_num  <= 33;
+    //  readx2_num <= 33;
+      readx_address<=0;
+      readx_address2<=0;    
       //  if (read_stall && executor_state != EXECUTE_STATE_START) begin
       if (readx_ready) begin
         registers_value[readx_num] = readx_value;
@@ -312,7 +319,7 @@ always @(posedge clk) begin
         executor_do_op[readx_num] <= 0;
         $display($sformatf("%02d", $time), pc_logical, " readx2 reg ", readx_num, " to ",
                  readx_value);
-                 read_stall_processed<=1;
+                       readx_num  <= 33;
       end
       if (readx_ready2) begin
         registers_value[readx2_num] = readx_value2;
@@ -320,7 +327,7 @@ always @(posedge clk) begin
         executor_do_op[readx2_num] <= 0;
         $display($sformatf("%02d", $time), pc_logical, " readx2 reg ", readx2_num, " to ",
                  readx_value2);
-                 read_stall_processed<=1;
+        readx2_num <= 33;
       end
 
       //end else begin
@@ -361,7 +368,9 @@ always @(posedge clk) begin
         write_value <= registers_save_value[saveram_q_num];
       end
       //executor
-                    
+                   
+                
+                 read_stall_processed<=1;
 
       fetch_stall_exists = 0;
       if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
@@ -415,6 +424,7 @@ always @(posedge clk) begin
                       registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
                       fetch_stall_exists = 1;
                     end
+                    if (i!=readx_num && i!=readx2_num) begin
                     executor_state <= EXECUTE_STATE_CONTINUE;
                     if (i % 2 == 0) begin
                       read_address <= registers_src_address2[i];
@@ -426,7 +436,8 @@ always @(posedge clk) begin
                       readx2_num <= i;
                     end
                     register[i%2] <= i;
-                    read_stall_processed<=0;                    
+                    read_stall_processed<=0;                
+                    end    
                   end
                   OPCODE_NUM2REG: begin
                     executor_do_op[i] <= 0;
@@ -436,8 +447,10 @@ always @(posedge clk) begin
                     registers_value[i] = decoder_start_ram_address_or_numeric;
                     $display($sformatf("%02d", $time), pc_logical, " set reg ", i, " with value ",
                              decoder_start_ram_address_or_numeric);
+                               read_stall_processed<=0; 
                   end
                   default: begin
+                    read_stall_processed<=0; 
                     if (!registers_init[i]) begin
                       fetch_stall_exists = 1;
                       executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
