@@ -1,12 +1,12 @@
 `timescale 1ns / 1ps
 
-module x_out_of_order_test;
+module x_out_of_order0_test;
 
 reg clk = 0;
 reg x;
 
 
-x_out_of_order x_out_of_order (
+x_out_of_order0 x_out_of_order0 (
     .clk(clk), .x(x)
 );
 

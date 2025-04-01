@@ -155,11 +155,11 @@ module x_out_of_order2 (
 
   reg read_stall = 0, read_stall_processed;
 
-  assign reg_register_start = !read_stall || executor_state == EXECUTE_STATE_START ?decoder_register_start:executor_register_start;
-  assign reg_register_len =  !read_stall || executor_state == EXECUTE_STATE_START ? decoder_register_len : executor_register_len;
-  assign reg_instruction_state =  !read_stall || executor_state == EXECUTE_STATE_START?decoder_instruction_state:executor_instruction_state;
-  assign reg_start_ram_address_or_numeric = !read_stall || executor_state == EXECUTE_STATE_START?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric;
-  assign reg_do_op = !read_stall || executor_state == EXECUTE_STATE_START ? decoder_do_op : executor_do_op;
+  assign reg_register_start = executor_state == EXECUTE_STATE_START ?decoder_register_start:executor_register_start;
+  assign reg_register_len =  executor_state == EXECUTE_STATE_START ? decoder_register_len : executor_register_len;
+  assign reg_instruction_state =   executor_state == EXECUTE_STATE_START?decoder_instruction_state:executor_instruction_state;
+  assign reg_start_ram_address_or_numeric =  executor_state == EXECUTE_STATE_START?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric;
+  assign reg_do_op =  executor_state == EXECUTE_STATE_START ? decoder_do_op : executor_do_op;
 
   reg [15:0] process_hardware_address = 0;
   reg [15:0] pc_logical, pc_physical;
@@ -241,6 +241,8 @@ always @(posedge clk) begin
       end
     end
   end
+  
+  
 
   always @(posedge clk) begin
     read_stall <= 0;
@@ -254,7 +256,7 @@ always @(posedge clk) begin
         end
       end
     end
-  //  if (read_stall_processed) read_stall<=0;
+    if (read_stall_processed) read_stall<=0;
   end
 
   always @(posedge clk) begin
@@ -310,6 +312,7 @@ always @(posedge clk) begin
         executor_do_op[readx_num] <= 0;
         $display($sformatf("%02d", $time), pc_logical, " readx2 reg ", readx_num, " to ",
                  readx_value);
+                 read_stall_processed<=1;
       end
       if (readx_ready2) begin
         registers_value[readx2_num] = readx_value2;
@@ -317,6 +320,7 @@ always @(posedge clk) begin
         executor_do_op[readx2_num] <= 0;
         $display($sformatf("%02d", $time), pc_logical, " readx2 reg ", readx2_num, " to ",
                  readx_value2);
+                 read_stall_processed<=1;
       end
 
       //end else begin
@@ -357,7 +361,7 @@ always @(posedge clk) begin
         write_value <= registers_save_value[saveram_q_num];
       end
       //executor
-                    read_stall_processed<=1;
+                    
 
       fetch_stall_exists = 0;
       if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
@@ -370,7 +374,6 @@ always @(posedge clk) begin
           instr_num <= instr_num + 1;
           $display($sformatf("%02d", $time), pc_logical, " copying");
         end
-       // if (executor_state == EXECUTE_STATE_START) begin
           $display(
               $sformatf("%02d", $time), pc_logical, " executor1   ", 
               (!read_stall || executor_state == EXECUTE_STATE_START?1:0),
@@ -384,7 +387,6 @@ always @(posedge clk) begin
               decoder_register_len, "-", decoder_start_ram_address_or_numeric,
               " dec_error_code=",  //DEBUG info
               decoder_error_code);  //DEBUG info
-      //  end else begin
           $display(
               $sformatf("%02d", $time), pc_logical, " executor2   ", 
                             (!read_stall || executor_state == EXECUTE_STATE_START?0:1),
@@ -397,10 +399,10 @@ always @(posedge clk) begin
               executor_register_start % 16 >= 10 ? executor_register_start % 16 + 65 - 10 : executor_register_start % 16 + 48,
               " b2 ",  //DEBUG info
               executor_register_len, "-", executor_start_ram_address_or_numeric);
-      //  end
         case (executor_state)
           EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE, EXECUTE_STATE_CONTINUE2: begin
             executor_state <= EXECUTE_STATE_START;
+            if (read_stall) executor_state <= EXECUTE_STATE_CONTINUE;
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (reg_do_op[i]) begin
                 case (reg_instruction_state)
@@ -411,6 +413,7 @@ always @(posedge clk) begin
                       registers_init[i] = 0;
                       registers_src_mmu_done[i] <= 0;
                       registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
+                      fetch_stall_exists = 1;
                     end
                     executor_state <= EXECUTE_STATE_CONTINUE;
                     if (i % 2 == 0) begin
