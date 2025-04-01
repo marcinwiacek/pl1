@@ -373,7 +373,7 @@ always @(posedge clk) begin
         $display(
             $sformatf("%02d", $time), pc_logical, " executor1   ",
             (!read_stall || executor_state == EXECUTE_STATE_START ? 1 : 0), " exec_state=",
-            executor_state, " b1 %c%c%c%c",  //DEBUG info
+            executor_state, " b1 %c%c%c%ch",  //DEBUG info
             decoder_instruction_state / 16 >= 10 ? decoder_instruction_state / 16 + 65 - 10 : decoder_instruction_state / 16 + 48,
             decoder_instruction_state % 16 >= 10 ? decoder_instruction_state % 16 + 65 - 10 : decoder_instruction_state % 16 + 48,
             decoder_register_start / 16 >= 10 ? decoder_register_start / 16 + 65 - 10 : decoder_register_start / 16 + 48,
@@ -385,7 +385,7 @@ always @(posedge clk) begin
         $display(
             $sformatf("%02d", $time), pc_logical, " executor2   ",
             (!read_stall || executor_state == EXECUTE_STATE_START ? 0 : 1), " exec_state=",
-            executor_state, " b1 %c%c%c%c",  //DEBUG info
+            executor_state, " b1 %c%c%c%ch",  //DEBUG info
             executor_instruction_state / 16 >= 10 ? executor_instruction_state / 16 + 65 - 10 : executor_instruction_state / 16 + 48,
             executor_instruction_state % 16 >= 10 ? executor_instruction_state % 16 + 65 - 10 : executor_instruction_state % 16 + 48,
             executor_register_start / 16 >= 10 ? executor_register_start / 16 + 65 - 10 : executor_register_start / 16 + 48,
