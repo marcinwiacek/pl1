@@ -1,20 +1,20 @@
 `timescale 1ns / 1ps
 
-module x_out_of_order0_test;
+module x_out_of_order1_test;
 
 reg clk = 0;
 reg x;
 
 
-x_out_of_order0 x_out_of_order0 (
+x_out_of_order1 x_out_of_order1 (
     .clk(clk), .x(x)
 );
 
 always #1 clk = ~clk;
 
 initial begin
-    $dumpfile("x_out_of_order0.vcd");
-    $dumpvars(0,x_out_of_order0_test);
+    $dumpfile("x_out_of_order1.vcd");
+    $dumpvars(0,x_out_of_order1_test);
     #200
     $finish();
 end
