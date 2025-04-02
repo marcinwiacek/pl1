@@ -59,15 +59,15 @@ parameter OPCODE_REG2REG = 33;
 parameter EXECUTE_STATE_START = 0;
 parameter EXECUTE_STATE_CONTINUE = 1;
 parameter EXECUTE_STATE_MMU = 2;
-parameter EXECUTE_STATE_CONTINUE2 = 3;
+
+
+parameter REGISTER_NUM = 32;
 
 module x_out_of_order2 (
     input clk,
 
     output reg x
 );
-
-  parameter REGISTER_NUM = 32;
 
   //------------------------------------------------------------ram---------------------------
 
@@ -91,7 +91,7 @@ module x_out_of_order2 (
       .read_value2(read_value2)
   );
 
-  reg [10:0] saveram_q_num = 0;
+  reg [ 6:0] saveram_q_num = 0;
 
   //--------------------------------------------------------- mmu ----------------------------
 
@@ -109,9 +109,9 @@ module x_out_of_order2 (
   wire [5:0] decoder_instruction_state;
   wire [3:0] decoder_error_code;
   wire [15:0] decoder_start_ram_address_or_numeric;
-  wire [15:0] decoder_register_len;
-  wire [10:0] decoder_register_start;
-  wire [32:0] decoder_do_op;
+  wire [6:0] decoder_register_len;
+  wire [6:0] decoder_register_start;
+  wire [REGISTER_NUM-1:0] decoder_do_op;
 
   decoder decoder (
       .clk(clk),
@@ -135,7 +135,7 @@ module x_out_of_order2 (
   reg [6:0] executor_register_len;
   reg [6:0] executor_register_start;
   reg [15:0] executor_start_ram_address_or_numeric;
-  reg [32:0] executor_do_op;
+  reg [REGISTER_NUM-1:0] executor_do_op;
 
   reg [6:0] register[0:1];
   reg register_save_lock[0:REGISTER_NUM-1];
@@ -144,16 +144,13 @@ module x_out_of_order2 (
 
   //--------------------------------------------------------------------process------------------
 
-  reg fetch_stall_exists = 0;
+  reg fetch_stall_exists = 0, read_stall = 0, read_stall_processed;
 
   reg [5:0] reg_instruction_state;
   reg [15:0] reg_register_len;
   reg [10:0] reg_register_start;
   reg [15:0] reg_start_ram_address_or_numeric;
-  reg [32:0] reg_do_op;
-
-
-  reg read_stall = 0, read_stall_processed;
+  reg [REGISTER_NUM-1:0] reg_do_op;
 
   assign reg_register_start = executor_state == EXECUTE_STATE_START ?decoder_register_start:executor_register_start;
   assign reg_register_len =  executor_state == EXECUTE_STATE_START ? decoder_register_len : executor_register_len;
@@ -179,7 +176,6 @@ module x_out_of_order2 (
       },  //Read from RAM?
       registers_save_ready[0:REGISTER_NUM-1],
       registers_save_mmu_done[0:REGISTER_NUM-1];
-  // registers_read_stall[0:REGISTER_NUM-1];
 
   //----------------------------------------------------------------other---------------------------
 
@@ -211,7 +207,8 @@ always @(posedge clk) begin
 
 */
 
-  reg [15:0] readx_address, readx_address2, readx_value, readx_value2, readx_num, readx2_num;
+  reg [15:0] readx_address, readx_address2, readx_value, readx_value2;
+  reg [6:0] readx_num, readx2_num;
   reg readx_ready, readx_ready2;
 
   always @(posedge clk) begin
@@ -309,8 +306,8 @@ always @(posedge clk) begin
       if (readx_ready) begin
         registers_value[readx_num] = readx_value;
         registers_init[readx_num]  = 1;
-        executor_do_op[readx_num] <= 0;    
-        readx_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32; 
+        executor_do_op[readx_num] <= 0;
+        readx_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         $display($sformatf("%02d", $time), pc_logical, " readx2 reg ", readx_num, " to ",
                  readx_value);
       end
@@ -341,12 +338,6 @@ always @(posedge clk) begin
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         if (registers_save_ready[i]) begin
           saveram_q_num = i;
-          //        end else if (register_save_lock[i]) begin
-          //          if (!registers_save_mmu_done[i]) begin
-          //            mmu_address_logical <= registers_save_address[i];
-          //            executor_state <= EXECUTE_STATE_MMU;
-          //            $display($sformatf("%02d", $time), pc_logical, " starting mmu from write");
-          //          end
         end
       end
       if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
@@ -372,7 +363,7 @@ always @(posedge clk) begin
         end
         $display(
             $sformatf("%02d", $time), pc_logical, " executor1   ",
-            (!read_stall || executor_state == EXECUTE_STATE_START ? 1 : 0), " exec_state=",
+            (!read_stall && executor_state == EXECUTE_STATE_START ? 1 : 0), " exec_state=",
             executor_state, " b1 %c%c%c%ch",  //DEBUG info
             decoder_instruction_state / 16 >= 10 ? decoder_instruction_state / 16 + 65 - 10 : decoder_instruction_state / 16 + 48,
             decoder_instruction_state % 16 >= 10 ? decoder_instruction_state % 16 + 65 - 10 : decoder_instruction_state % 16 + 48,
@@ -384,7 +375,7 @@ always @(posedge clk) begin
             decoder_error_code);  //DEBUG info
         $display(
             $sformatf("%02d", $time), pc_logical, " executor2   ",
-            (!read_stall || executor_state == EXECUTE_STATE_START ? 0 : 1), " exec_state=",
+            (!read_stall && executor_state == EXECUTE_STATE_START ? 0 : 1), " exec_state=",
             executor_state, " b1 %c%c%c%ch",  //DEBUG info
             executor_instruction_state / 16 >= 10 ? executor_instruction_state / 16 + 65 - 10 : executor_instruction_state / 16 + 48,
             executor_instruction_state % 16 >= 10 ? executor_instruction_state % 16 + 65 - 10 : executor_instruction_state % 16 + 48,
@@ -393,7 +384,7 @@ always @(posedge clk) begin
             " b2 ",  //DEBUG info
             executor_register_len, "-", executor_start_ram_address_or_numeric);
         case (executor_state)
-          EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE, EXECUTE_STATE_CONTINUE2: begin
+          EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
             executor_state <= EXECUTE_STATE_START;
             if (read_stall) executor_state <= EXECUTE_STATE_CONTINUE;
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
@@ -401,7 +392,7 @@ always @(posedge clk) begin
                 case (reg_instruction_state)
                   OPCODE_RAM2REG: begin
                     $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
-                    if (!read_stall) begin
+                    if (executor_state == EXECUTE_STATE_START) begin
                       //this register should be read next time                    
                       registers_init[i] = 0;
                       registers_src_mmu_done[i] <= 0;
@@ -463,6 +454,7 @@ always @(posedge clk) begin
                             mmu_address_logical <= registers_save_address[i];
                             $display($sformatf("%02d", $time), pc_logical, " write memory slot ",
                                      i, " is already filled, stall");
+                            fetch_stall_exists = 1;
                           end else begin
                             registers_save_value[i] <= registers_value[i];
                             registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
@@ -558,17 +550,17 @@ endmodule
 module decoder (
     input clk,
     input reg [15:0] address,
-    input reg [15:0] instruction1,
+    instruction1,
     instruction2,
     input bit inp,
 
-    output bit [32:0] do_op,
+    output bit [REGISTER_NUM-1:0] do_op,
     output bit ready,
     output bit [5:0] state,
     output bit [3:0] error_code,
     output bit [15:0] start_ram_address_or_numeric,
-    output bit [15:0] register_len,
-    output bit [10:0] register_start
+    output bit [6:0] register_len,
+    output bit [6:0] register_start
 );
 
   bit [7:0] instruction1_1;
@@ -615,7 +607,7 @@ module decoder (
       register_len <= instruction1_2_2;
       state <= instruction1_1;
 
-      for (i = 0; i < 33; i = i + 1) begin
+      for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         do_op[i] <= (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) ? 1 : 0;
       end
       case (instruction1_1)
