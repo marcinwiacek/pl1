@@ -261,7 +261,7 @@ always @(posedge clk) begin
       readx2_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       read_stall_processed <= 0;
       registers_value = '{default: 0};
-      registers_value[9] <= 1;
+      registers_value[9] = 1;
       read_address <= 52;
       read_address2 <= 53;
       decoder_inp <= 1;
@@ -279,6 +279,7 @@ always @(posedge clk) begin
       executor_state <= EXECUTE_STATE_START;
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
     end else if (instr_num < 10) begin
       $write($sformatf("%02d", $time), " reg");
       for (i = 0; i < 20; i = i + 1) begin
@@ -333,8 +334,7 @@ always @(posedge clk) begin
         end
       end
       //save ram              
-      write_enabled <= 0;
-      saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      write_enabled <= 0;      
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         if (registers_save_ready[i]) begin
           saveram_q_num = i;
@@ -347,10 +347,10 @@ always @(posedge clk) begin
         write_enabled <= 1;
         write_address <= registers_save_address2[saveram_q_num];
         write_value <= registers_save_value[saveram_q_num];
+        saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       //executor
       read_stall_processed <= 1;
-      fetch_stall_exists = 0;
       if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
         if (executor_state == EXECUTE_STATE_START) begin
           executor_instruction_state <= decoder_instruction_state;
@@ -542,6 +542,7 @@ always @(posedge clk) begin
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
+            fetch_stall_exists = 0;
       $display("");
     end else begin
       decoder_inp <= 0;
