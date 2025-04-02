@@ -399,19 +399,21 @@ always @(posedge clk) begin
                       registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
                       fetch_stall_exists = 1;
                     end
-                    if (i != readx_num && i != readx2_num) begin
-                      executor_state <= EXECUTE_STATE_CONTINUE;
-                      if (i % 2 == 0) begin
-                        read_address <= registers_src_address2[i];
-                        readx_address <= reg_start_ram_address_or_numeric + i - reg_register_start;
-                        readx_num <= i;
-                      end else begin
-                        read_address2 <= registers_src_address2[i];
-                        readx_address2 <= reg_start_ram_address_or_numeric + i - reg_register_start;
-                        readx2_num <= i;
+                    if (i != readx_num) begin
+                      if (i != readx2_num) begin
+                        executor_state <= EXECUTE_STATE_CONTINUE;
+                        if (i % 2 == 0) begin
+                          read_address <= registers_src_address2[i];
+                          readx_address <= reg_start_ram_address_or_numeric + i - reg_register_start;
+                          readx_num <= i;
+                        end else begin
+                          read_address2 <= registers_src_address2[i];
+                          readx_address2 <= reg_start_ram_address_or_numeric + i - reg_register_start;
+                          readx2_num <= i;
+                        end
+                        register[i%2] <= i;
+                        read_stall_processed <= 0;
                       end
-                      register[i%2] <= i;
-                      read_stall_processed <= 0;
                     end
                   end
                   OPCODE_NUM2REG: begin
