@@ -47,8 +47,8 @@ parameter OPCODE_INT_RET = 'h1c;  //int number
 parameter OPCODE_RAM2OUT = 'h1d;  //port number, 16 bit source address
 parameter OPCODE_REG_IN2RAM = 'h1e;  //port number, 16 bit source address
 parameter OPCODE_IN2RAM_RET = 'h1f;
-parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions (8 bit value) // do..while
-parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions (8 bit value) //do..while
+parameter OPCODE_TILL_VALUE =23;   //register num (8 bit), value (8 bit), how many instructions back (8 bit value) // do..while
+parameter OPCODE_TILL_NON_VALUE=24;   //register num, value, how many instructions back (8 bit value) //do..while
 parameter OPCODE_LOOP = 25;  //x, x, how many instructions (8 bit value) //for...
 parameter OPCODE_FREE = 31;  //free ram pages x-y 
 parameter OPCODE_FREE_LEVEL =32; //free ram pages allocated after page x (or pages with concrete level)
@@ -387,6 +387,12 @@ always @(posedge clk) begin
           EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
             executor_state <= EXECUTE_STATE_START;
             if (read_stall) executor_state <= EXECUTE_STATE_CONTINUE;
+                case (reg_instruction_state)
+      OPCODE_TILL_VALUE: begin
+      end
+      OPCODE_TILL_NON_VALUE: begin
+      end
+      default:            
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (reg_do_op[i]) begin
                 case (reg_instruction_state)
@@ -486,7 +492,8 @@ always @(posedge clk) begin
                 endcase
               end
             end
-          end
+          endcase
+          end 
         endcase
       end
       case (executor_state)
@@ -613,7 +620,18 @@ module decoder (
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         do_op[i] <= (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) ? 1 : 0;
       end
-      case (instruction1_1)
+      case (instruction1_1)   
+      //register num (5 bits), how many-1 instcutions back (3 bits), 16 bit reg value // do..while
+      OPCODE_TILL_VALUE: begin
+      $write(  //DEBUG info              
+                " opcode = till_value reg ",instruction1_2_1,"=",instruction2," jmp ",instruction1_2_2  //DEBUG info
+            );  //DEBUG info
+      end      
+      OPCODE_TILL_NON_VALUE: begin
+      $write(  //DEBUG info              
+                " opcode = till_non_value reg ",instruction1_2_1,"=",instruction2," jmp ",instruction1_2_2  //DEBUG info
+            );  //DEBUG info
+      end
         //register num (5 bits), how many-1 (3 bits), 16 bit addr
         OPCODE_RAM2REG, OPCODE_REG2RAM: begin
           if (instruction1_2_1 + instruction1_2_2 >= 32) begin
