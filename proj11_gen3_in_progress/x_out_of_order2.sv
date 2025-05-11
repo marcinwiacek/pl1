@@ -268,8 +268,8 @@ always @(posedge clk) begin
       decoder_input_address <= 52;
       $display($sformatf("%02d", $time), "   52 starting initial fetch ");  //DEBUG info
       $display("");
-      pc_logical <= 54;
-      pc_physical <= 54;
+      pc_logical = 54;
+      pc_physical = 54;
       rst <= 0;
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         registers_src_mmu_done[i]  <= 1;
@@ -387,15 +387,17 @@ always @(posedge clk) begin
           EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
             executor_state <= EXECUTE_STATE_START;
             if (read_stall) executor_state <= EXECUTE_STATE_CONTINUE;
-            case (reg_instruction_state)
-              OPCODE_TILL_VALUE: begin
-              end
-              OPCODE_TILL_NON_VALUE: begin
-              end
-              default: begin
+           
                 for (i = 0; i < REGISTER_NUM; i = i + 1) begin
                   if (reg_do_op[i]) begin
-                    case (reg_instruction_state)
+                  
+                     case (reg_instruction_state)
+              OPCODE_TILL_VALUE: begin
+              if (registers_value[i]!=decoder_start_ram_address_or_numeric) pc_physical=pc_physical-reg_register_len;
+              end
+              OPCODE_TILL_NON_VALUE: begin
+              if (registers_value[i]==decoder_start_ram_address_or_numeric) pc_physical=pc_physical-reg_register_len;
+              end
                       OPCODE_RAM2REG: begin
                         $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
                         if (executor_state == EXECUTE_STATE_START) begin
@@ -500,8 +502,7 @@ always @(posedge clk) begin
                   end
                 end
               end
-            endcase
-          end
+           
         endcase
       end
       case (executor_state)
@@ -547,13 +548,13 @@ always @(posedge clk) begin
       //decoder
       decoder_inp <= 0;
       if (!fetch_stall_exists && !read_stall) begin
-        read_address  <= pc_physical;
-        read_address2 <= pc_physical + 1;
+        read_address  = pc_physical;
+        read_address2 = pc_physical + 1;
         $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical);
         decoder_input_address <= pc_logical;
         decoder_inp <= 1;
-        pc_logical <= pc_logical + 2;
-        pc_physical <= pc_physical + 2;
+        pc_logical = pc_logical + 2;
+        pc_physical = pc_physical + 2;
         register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
@@ -626,8 +627,11 @@ module decoder (
       state <= instruction1_1;
 
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-        do_op[i] <= (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) ? 1 : 0;
+        do_op[i] <= (instruction1_1==OPCODE_TILL_VALUE || instruction1_1==OPCODE_TILL_NON_VALUE? i == instruction1_2_1:
+                i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) ? 1 : 0;
       end
+
+        
       case (instruction1_1)
         //register num (5 bits), how many-1 instcutions back (3 bits), 16 bit reg value // do..while
         OPCODE_TILL_VALUE: begin
@@ -635,13 +639,15 @@ module decoder (
               " opcode = till_value reg ", instruction1_2_1, "=", instruction2, " jmp ",
               instruction1_2_2  //DEBUG info
           );  //DEBUG info
+      
         end
         OPCODE_TILL_NON_VALUE: begin
           $write(  //DEBUG info              
               " opcode = till_non_value reg ", instruction1_2_1, "=", instruction2, " jmp ",
               instruction1_2_2  //DEBUG info
           );  //DEBUG info
-        end
+        
+        end        
         //register num (5 bits), how many-1 (3 bits), 16 bit addr
         OPCODE_RAM2REG, OPCODE_REG2RAM: begin
           if (instruction1_2_1 + instruction1_2_2 >= 32) begin
