@@ -392,12 +392,12 @@ always @(posedge clk) begin
                   if (reg_do_op[i]) begin
                   
                      case (reg_instruction_state)
-              OPCODE_TILL_VALUE: begin
+             /* OPCODE_TILL_VALUE: begin
               if (registers_value[i]!=decoder_start_ram_address_or_numeric) pc_physical=pc_physical-reg_register_len;
               end
               OPCODE_TILL_NON_VALUE: begin
               if (registers_value[i]==decoder_start_ram_address_or_numeric) pc_physical=pc_physical-reg_register_len;
-              end
+              end*/
                       OPCODE_RAM2REG: begin
                         $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
                         if (executor_state == EXECUTE_STATE_START) begin
