@@ -317,15 +317,15 @@ always @(posedge clk) begin
       if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), " read first slot register ", register[0],
                  " with address ",  //DEBUG info
-                 read_address, "=", read_value);  //DEBUG info
-        registers_value[register[0]] = read_value;
+                 read_address, "=", read_value, " ",cache_read1," ",cache_read_address,"=",cache_read_value);  //DEBUG info
+        registers_value[register[0]] = cache_read1?cache_read_value:read_value;
         registers_init[register[0]]  = 1;
       end
       if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), " read second slot register ", register[1],
                  " with address ",  //DEBUG info
-                 read_address2, "=", read_value2);  //DEBUG info
-        registers_value[register[1]] = read_value2;
+                 read_address2, "=", read_value2, " ",cache_read2," ",cache_read_address2,"=",cache_read_value2);  //DEBUG info
+        registers_value[register[1]] = cache_read2?cache_read_value2:read_value2;
         registers_init[register[1]]  = 1;
       end
       /* readx_address  <= 0;
@@ -622,9 +622,9 @@ module ramsavecache (
     read1 <= 0;
     read2 <= 0;
     save_ram_blocked <= 0;
+    if (new_save)   $display("new_save");
     for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-      if (new_save) begin
-        $display("new_save");
+      if (new_save) begin      
         if (reg_do_op[i]) begin
           if (register_save_lock[i]) begin
             save_ram_blocked <= 1;
