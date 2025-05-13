@@ -439,7 +439,7 @@ always @(posedge clk) begin
                     end
                     //                    if (i != readx_num) begin
                     //                      if (i != readx2_num) begin
-                    executor_state <= EXECUTE_STATE_CONTINUE;
+             /*       executor_state <= EXECUTE_STATE_CONTINUE;
                     if (i % 2 == 0) begin
                       read_address <= registers_src_address2[i];
                       cache_read_address <= reg_start_ram_address_or_numeric + i - reg_register_start;
@@ -453,6 +453,7 @@ always @(posedge clk) begin
                     read_stall_processed <= 0;
                     //                    end
                     //                    end
+                    */
                   end
                   OPCODE_NUM2REG: begin
                     executor_do_op[i] <= 0;
@@ -477,8 +478,10 @@ always @(posedge clk) begin
                                  i, " src address ", registers_src_address2[i]);
                         if (i % 2 == 0) begin
                           read_address <= registers_src_address2[i];
+                           cache_read_address <= registers_src_address[i];
                         end else begin
                           read_address2 <= registers_src_address2[i];
+                           cache_read_address2 <= registers_src_address2[i];
                         end
                         register[i%2] <= i;
                       end
@@ -572,8 +575,8 @@ always @(posedge clk) begin
       //decoder
       decoder_inp <= 0;
       if (!fetch_stall_exists && !read_stall) begin
-        read_address  = pc_physical;
-        read_address2 = pc_physical + 1;
+        read_address  <= pc_physical;
+        read_address2 <= pc_physical + 1;
         $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical);
         decoder_input_address <= pc_logical;
         decoder_inp <= 1;
