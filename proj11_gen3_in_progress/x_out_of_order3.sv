@@ -138,7 +138,6 @@ module x_out_of_order3 (
   reg [REGISTER_NUM-1:0] executor_do_op;
 
   reg [6:0] register[0:1];
-  reg register_save_lock[0:REGISTER_NUM-1];
 
   parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
 
@@ -161,7 +160,7 @@ module x_out_of_order3 (
   reg [15:0] process_hardware_address = 0;
   reg [15:0] pc_logical, pc_physical;
 
-  reg [15:0] registers_value[0:REGISTER_NUM-1], registers_save_value[0:REGISTER_NUM-1];
+  reg [15:0] registers_value[0:REGISTER_NUM-1];
   reg [15:0] registers_src_address[0:REGISTER_NUM-1], registers_src_address2[0:REGISTER_NUM-1];
   reg
       registers_src_mmu_done[0:REGISTER_NUM-1],
@@ -169,9 +168,8 @@ module x_out_of_order3 (
         // verilog_format:off
         1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1
         // verilog_format:on
-      },  //Read from RAM?
-      registers_save_ready[0:REGISTER_NUM-1],
-      registers_save_mmu_done[0:REGISTER_NUM-1];
+      };  //Read from RAM?
+      
 
   //----------------------------------------------------------------other---------------------------
 
@@ -181,6 +179,34 @@ module x_out_of_order3 (
   assign x = decoder_inp;  //without this we will have empty circuit
 
   integer i, j, z, zz;
+  
+  reg cache_new_save;
+  wire cache_save_ram_blocked;
+    wire [15:0] cache_read_value;
+    wire [15:0] cache_read_value2;
+    wire cache_read1;
+    wire cache_read2;
+  bit [15:0] cache_read_address,cache_read_address2;
+  
+   ramsavecache ramsavecache (
+    .clk(clk),
+    .registers_value(registers_value),
+    .reg_register_len(reg_register_start),
+    .reg_register_start(reg_register_start),
+    .reg_start_ram_address_or_numeric(reg_start_ram_address_or_numeric),
+    .reg_do_op(reg_do_op),
+    .new_save(cache_new_save),
+.save_ram_blocked(cache_save_ram_blocked),
+
+    .read_address(cache_read_address),
+    .read_value(cache_read_value),
+    .read1(cache_read1),
+    .read_address2(cache_read_address2),
+    .read_value2(cache_read_value2),
+    .read2(cache_read2)
+
+);
+
 
   /*
 always @(posedge clk) begin
@@ -203,6 +229,7 @@ always @(posedge clk) begin
 
 */
 
+/*
   reg [15:0] readx_address, readx_address2, readx_value, readx_value2;
   reg [6:0] readx_num, readx2_num;
   reg readx_ready, readx_ready2;
@@ -250,11 +277,12 @@ always @(posedge clk) begin
       $display($sformatf("%02d", $time), pc_logical, " read stall blocked (next cycle)");
     end
   end
+*/
 
   always @(posedge clk) begin
     if (rst) begin
-      readx_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      readx2_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+   //   readx_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+//      readx2_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       read_stall_processed <= 0;
       registers_value = '{default: 0};
       registers_value[9] = 1;
@@ -269,7 +297,7 @@ always @(posedge clk) begin
       rst <= 0;
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         registers_src_mmu_done[i]  <= 1;
-        registers_save_mmu_done[i] <= 0;
+    //    registers_save_mmu_done[i] <= 0;
         registers_src_address2[i]  <= process_hardware_address + ADDRESS_REG + i;
       end
       executor_state <= EXECUTE_STATE_START;
@@ -279,9 +307,11 @@ always @(posedge clk) begin
     end else if (instr_num < 10) begin
       $write($sformatf("%02d", $time), " reg");
       for (i = 0; i < 20; i = i + 1) begin
-        $write($sformatf(" %02d:%02d:%02d:%02d:%02d:%02d ", i, registers_init[i],
-                         registers_src_address[i], registers_value[i], register_save_lock[i],
-                         registers_save_address[i]));
+        $write($sformatf(" %02d:%02d:%02d:%02d ", i, registers_init[i],
+                         registers_src_address[i], registers_value[i])); 
+                         
+                         //register_save_lock[i],
+                         //registers_save_address[i]));
       end
       $display("");
       if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
@@ -298,7 +328,7 @@ always @(posedge clk) begin
         registers_value[register[1]] = read_value2;
         registers_init[register[1]]  = 1;
       end
-      readx_address  <= 0;
+     /* readx_address  <= 0;
       readx_address2 <= 0;
       if (readx_ready) begin
         registers_value[readx_num] = readx_value;
@@ -315,15 +345,17 @@ always @(posedge clk) begin
         $display($sformatf("%02d", $time), pc_logical, " readx2 reg ", readx2_num, " to ",
                  readx_value2);
         readx2_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      end
+      end*/
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         //don't merge ifs - performance will decrease
         if (!registers_init[i]) begin
           if (registers_src_mmu_done[i]) begin
             if (i % 2 == 0) begin
               read_address <= registers_src_address2[i];
+              cache_read_address<=registers_src_address[i];
             end else begin
               read_address2 <= registers_src_address2[i];
+              cache_read_address2<=registers_src_address[i];
             end
             register[i%2] <= i;
           end
@@ -331,7 +363,7 @@ always @(posedge clk) begin
       end
       //save ram              
       write_enabled <= 0;
-      for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+    /*  for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         if (registers_save_ready[i]) begin
           saveram_q_num = i;
         end
@@ -344,8 +376,9 @@ always @(posedge clk) begin
         write_address <= registers_save_address2[saveram_q_num];
         write_value <= registers_save_value[saveram_q_num];
         saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      end
+      end*/
       //executor
+                        cache_new_save<=0;
       read_stall_processed <= 1;
       if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
         if (executor_state == EXECUTE_STATE_START) begin
@@ -404,22 +437,22 @@ always @(posedge clk) begin
                       registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
                       fetch_stall_exists = 1;
                     end
-                    if (i != readx_num) begin
-                      if (i != readx2_num) begin
+//                    if (i != readx_num) begin
+//                      if (i != readx2_num) begin
                         executor_state <= EXECUTE_STATE_CONTINUE;
                         if (i % 2 == 0) begin
                           read_address <= registers_src_address2[i];
-                          readx_address <= reg_start_ram_address_or_numeric + i - reg_register_start;
-                          readx_num <= i;
+                          cache_read_address <= reg_start_ram_address_or_numeric + i - reg_register_start;
+                          //readx_num <= i;
                         end else begin
                           read_address2 <= registers_src_address2[i];
-                          readx_address2 <= reg_start_ram_address_or_numeric + i - reg_register_start;
-                          readx2_num <= i;
+                          cache_read_address2 <= reg_start_ram_address_or_numeric + i - reg_register_start;
+                          //readx2_num <= i;
                         end
                         register[i%2] <= i;
                         read_stall_processed <= 0;
-                      end
-                    end
+  //                    end
+//                    end
                   end
                   OPCODE_NUM2REG: begin
                     executor_do_op[i] <= 0;
@@ -452,7 +485,8 @@ always @(posedge clk) begin
                     end else begin
                       case (reg_instruction_state)
                         OPCODE_REG2RAM: begin
-                          if (register_save_lock[i]) begin
+                        cache_new_save<=1;
+/*                          if (register_save_lock[i]) begin
                             executor_state <= registers_save_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
                             if (!registers_save_mmu_done[i])
                               $display(
@@ -467,7 +501,7 @@ always @(posedge clk) begin
                             registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
                             executor_do_op[i] <= 0;
                             register_save_lock[i] <= 1;
-                          end
+                          end*/
                         end
                         OPCODE_REG_PLUS: begin
                           executor_do_op[i] <= 0;
@@ -518,7 +552,7 @@ always @(posedge clk) begin
                 end
               end
             end
-            if (register_save_lock[i]) begin
+          /*  if (register_save_lock[i]) begin
               if (registers_save_address[i] >= mmu_address_logical_min_in_the_same_page) begin
                 if (registers_save_address[i] <= mmu_address_logical_max_in_the_same_page) begin
                   $display(  //DEBUG info
@@ -530,7 +564,7 @@ always @(posedge clk) begin
                   registers_save_ready[i] <= 1;
                 end
               end
-            end
+            end*/
           end
           executor_state <= EXECUTE_STATE_CONTINUE;
         end
@@ -564,6 +598,7 @@ module ramsavecache (
     input [15:0] reg_start_ram_address_or_numeric,
     input [REGISTER_NUM-1:0] reg_do_op,
     input new_save,
+output reg save_ram_blocked,
 
     input [15:0] read_address,
     output reg [15:0] read_value,
@@ -576,17 +611,24 @@ module ramsavecache (
 
   reg [15:0] registers_save_address[0:REGISTER_NUM-1];
   reg [15:0] registers_save_value[0:REGISTER_NUM-1];
+  reg register_save_lock[0:REGISTER_NUM-1];
 
   integer i;
 
   always @(posedge clk) begin
     read1 <= 0;
     read2 <= 0;
+    save_ram_blocked<=0;
     for (i = 0; i < REGISTER_NUM; i = i + 1) begin
       if (new_save) begin
+      $display("new_save");
         if (reg_do_op[i]) begin
+          if (register_save_lock[i]) begin
+    save_ram_blocked<=1;          
+          end else begin 
           registers_save_value[i]   <= registers_value[i];
           registers_save_address[i] <= reg_start_ram_address_or_numeric + i - reg_register_start;
+          end
         end
       end else begin
         if (read_address == registers_save_address[i]) begin
