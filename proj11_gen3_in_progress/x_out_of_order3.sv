@@ -162,11 +162,7 @@ module x_out_of_order3 (
   reg [15:0] pc_logical, pc_physical;
 
   reg [15:0] registers_value[0:REGISTER_NUM-1], registers_save_value[0:REGISTER_NUM-1];
-  reg [15:0]
-      registers_src_address[0:REGISTER_NUM-1],
-      registers_src_address2[0:REGISTER_NUM-1],
-      registers_save_address[0:REGISTER_NUM-1],
-      registers_save_address2[0:REGISTER_NUM-1];
+  reg [15:0] registers_src_address[0:REGISTER_NUM-1], registers_src_address2[0:REGISTER_NUM-1];
   reg
       registers_src_mmu_done[0:REGISTER_NUM-1],
       registers_init[0:REGISTER_NUM-1] = {
@@ -392,10 +388,11 @@ always @(posedge clk) begin
               if (reg_do_op[i]) begin
 
                 case (reg_instruction_state)
-                  /* OPCODE_TILL_VALUE: begin
-              if (registers_value[i]!=decoder_start_ram_address_or_numeric) pc_physical=pc_physical-reg_register_len;
-              end
-              OPCODE_TILL_NON_VALUE: begin
+                  OPCODE_TILL_VALUE: begin
+                    //              if (registers_value[i]!=decoder_start_ram_address_or_numeric) 
+                    pc_physical = pc_physical - decoder_register_len;
+                  end
+                  /* OPCODE_TILL_NON_VALUE: begin
               if (registers_value[i]==decoder_start_ram_address_or_numeric) pc_physical=pc_physical-reg_register_len;
               end*/
                   OPCODE_RAM2REG: begin
@@ -557,6 +554,53 @@ always @(posedge clk) begin
       decoder_inp <= 0;
     end
   end
+endmodule
+
+module ramsavecache (
+    input clk,
+    input [15:0] registers_value[0:REGISTER_NUM-1],
+    input [15:0] reg_register_len,
+    input [10:0] reg_register_start,
+    input [15:0] reg_start_ram_address_or_numeric,
+    input [REGISTER_NUM-1:0] reg_do_op,
+    input new_save,
+
+    input [15:0] read_address,
+    output reg [15:0] read_value,
+    output reg read1,
+    input [15:0] read_address2,
+    output reg [15:0] read_value2,
+    output reg read2
+
+);
+
+  reg [15:0] registers_save_address[0:REGISTER_NUM-1];
+  reg [15:0] registers_save_value[0:REGISTER_NUM-1];
+
+  integer i;
+
+  always @(posedge clk) begin
+    read1 <= 0;
+    read2 <= 0;
+    for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+      if (new_save) begin
+        if (reg_do_op[i]) begin
+          registers_save_value[i]   <= registers_value[i];
+          registers_save_address[i] <= reg_start_ram_address_or_numeric + i - reg_register_start;
+        end
+      end else begin
+        if (read_address == registers_save_address[i]) begin
+          read_value <= registers_save_value[i];
+          read1 <= 1;
+        end
+        if (read_address2 == registers_save_address[i]) begin
+          read_value2 <= registers_save_value[i];
+          read2 <= 1;
+        end
+      end
+    end
+  end
+
 endmodule
 
 module decoder (
