@@ -143,7 +143,7 @@ module x_out_of_order3 (
 
   //--------------------------------------------------------------------process------------------
 
-  reg fetch_stall_exists = 0, read_stall = 0, read_stall_processed;
+  reg fetch_stall_exists = 0, read_stall = 0;
 
   reg [5:0] reg_instruction_state;
   reg [15:0] reg_register_len;
@@ -180,7 +180,7 @@ module x_out_of_order3 (
 
   integer i, j, z, zz;
 
-  reg cache_new_save;
+
   wire cache_save_ram_blocked;
   wire [15:0] cache_read_value;
   wire [15:0] cache_read_value2;
@@ -283,7 +283,6 @@ always @(posedge clk) begin
     if (rst) begin
       //   readx_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       //      readx2_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      read_stall_processed <= 0;
       registers_value = '{default: 0};
       registers_value[9] = 1;
       read_address <= 52;
@@ -378,8 +377,7 @@ always @(posedge clk) begin
         saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end*/
       //executor
-      cache_new_save <= 0;
-      read_stall_processed <= 1;
+    
       if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
         if (executor_state == EXECUTE_STATE_START) begin
           executor_instruction_state <= decoder_instruction_state;
@@ -463,10 +461,8 @@ always @(posedge clk) begin
                     registers_value[i] = decoder_start_ram_address_or_numeric;
                     $display($sformatf("%02d", $time), pc_logical, " set reg ", i, " with value ",
                              decoder_start_ram_address_or_numeric);
-                    read_stall_processed <= 0;
                   end
                   default: begin
-                    read_stall_processed <= 0;
                     if (!registers_init[i]) begin
                       fetch_stall_exists = 1;
                       executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
@@ -488,7 +484,7 @@ always @(posedge clk) begin
                     end else begin
                       case (reg_instruction_state)
                         OPCODE_REG2RAM: begin
-                          cache_new_save <= 1;
+                         
                           /*                          if (register_save_lock[i]) begin
                             executor_state <= registers_save_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
                             if (!registers_save_mmu_done[i])
