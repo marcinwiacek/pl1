@@ -195,7 +195,7 @@ module x_out_of_order3 (
       .reg_register_start(reg_register_start),
       .reg_start_ram_address_or_numeric(reg_start_ram_address_or_numeric),
       .reg_do_op(reg_do_op),
-      .new_save(cache_new_save),
+      .reg_instruction_state(reg_instruction_state),
       .save_ram_blocked(cache_save_ram_blocked),
 
       .read_address(cache_read_address),
@@ -430,13 +430,13 @@ always @(posedge clk) begin
               end*/
                   OPCODE_RAM2REG: begin
                     $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
-                    if (executor_state == EXECUTE_STATE_START) begin
+                   // if (executor_state == EXECUTE_STATE_START) begin
                       //this register should be read next time                    
                       registers_init[i] = 0;
                       registers_src_mmu_done[i] <= 0;
                       registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
-                      fetch_stall_exists = 1;
-                    end
+                   //   fetch_stall_exists = 1;
+                  //  end
                     //                    if (i != readx_num) begin
                     //                      if (i != readx2_num) begin
              /*       executor_state <= EXECUTE_STATE_CONTINUE;
@@ -481,7 +481,7 @@ always @(posedge clk) begin
                            cache_read_address <= registers_src_address[i];
                         end else begin
                           read_address2 <= registers_src_address2[i];
-                           cache_read_address2 <= registers_src_address2[i];
+                           cache_read_address2 <= registers_src_address[i];
                         end
                         register[i%2] <= i;
                       end
@@ -600,7 +600,7 @@ module ramsavecache (
     input [10:0] reg_register_start,
     input [15:0] reg_start_ram_address_or_numeric,
     input [REGISTER_NUM-1:0] reg_do_op,
-    input new_save,
+    input [5:0] reg_instruction_state,
     output reg save_ram_blocked,
 
     input [15:0] read_address,
@@ -622,23 +622,27 @@ module ramsavecache (
     read1 <= 0;
     read2 <= 0;
     save_ram_blocked <= 0;
-    if (new_save)   $display("new_save");
+    //if (new_save)   $display("new_save");
     for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-      if (new_save) begin      
+       if (reg_instruction_state==OPCODE_REG2RAM) begin                              
         if (reg_do_op[i]) begin
           if (register_save_lock[i]) begin
             save_ram_blocked <= 1;
           end else begin
+          $display("reg ",i," value ",registers_value[i]," to addr ",reg_start_ram_address_or_numeric + i - reg_register_start);
             registers_save_value[i]   <= registers_value[i];
             registers_save_address[i] <= reg_start_ram_address_or_numeric + i - reg_register_start;
           end
         end
       end else begin
+       $display($sformatf("%02d", $time), " ",i," comparing ",read_address, " ",read_address2," ",registers_save_address[i]);
         if (read_address == registers_save_address[i]) begin
           read_value <= registers_save_value[i];
+           $display(i," found value ",registers_save_value[i]);
           read1 <= 1;
         end
         if (read_address2 == registers_save_address[i]) begin
+           $display(i," found value ",registers_save_value[i]);
           read_value2 <= registers_save_value[i];
           read2 <= 1;
         end
