@@ -245,7 +245,7 @@ always @(posedge clk) begin
       if (registers_save_address[zz] >= reg_start_ram_address_or_numeric) begin
         if (registers_save_address[zz] <= reg_start_ram_address_or_numeric + reg_register_len) begin
           read_stall <= 1;
-          $display($sformatf("%02d", $time), pc_logical, " read stall (next cycle)");
+          $display($sformatf("%02d", $time), pc_logical, " read stall (next cycle) - register ",registers_save_address[zz]-reg_start_ram_address_or_numeric+1);
         end
       end
     end
@@ -392,7 +392,7 @@ always @(posedge clk) begin
                   if (reg_do_op[i]) begin
                   
                      case (reg_instruction_state)
-              OPCODE_TILL_VALUE: begin
+            /*  OPCODE_TILL_VALUE: begin
               if (registers_value[i]!=decoder_start_ram_address_or_numeric) begin
                  pc_physical<=pc_physical-decoder_register_len;
               end
@@ -401,7 +401,7 @@ always @(posedge clk) begin
               if (registers_value[i]==decoder_start_ram_address_or_numeric) begin
                  pc_physical<=pc_physical-decoder_register_len;
                  end
-              end
+              end*/
                       OPCODE_RAM2REG: begin
                         $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
                         if (executor_state == EXECUTE_STATE_START) begin
