@@ -245,20 +245,18 @@ always @(posedge clk) begin
   always @(posedge clk) begin
     read_stall <= 0;
     for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
-      if (registers_save_address[zz] >= reg_start_ram_address_or_numeric) begin
-        if (registers_save_address[zz] <= reg_start_ram_address_or_numeric + reg_register_len) begin
+      if (registers_save_address[zz] >= reg_start_ram_address_or_numeric &&       registers_save_address[zz] <= reg_start_ram_address_or_numeric + reg_register_len) begin
           read_stall <= 1;
           readstallnumber <= registers_save_address[zz]-reg_start_ram_address_or_numeric+reg_register_start;
-          readstallvalue <=i;
-          $display($sformatf("%02d", $time), pc_logical, " read stall (next cycle) - register ",
+          readstallvalue <= registers_save_value[zz];
+          $display($sformatf("%02d", $time), pc_logical, " read stall (next cycle) ",zz," - register ",
               registers_save_address[zz]-reg_start_ram_address_or_numeric+reg_register_start);
-        end
       end
     end
-    if (read_stall_processed) begin
-      read_stall <= 0;
-      $display($sformatf("%02d", $time), pc_logical, " read stall blocked (next cycle)");
-    end
+    //if (read_stall_processed) begin
+//      read_stall <= 0;
+//      $display($sformatf("%02d", $time), pc_logical, " read stall blocked (next cycle)");
+//    end
   end
 
   always @(posedge clk) begin
@@ -266,8 +264,8 @@ always @(posedge clk) begin
      // readx_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       //readx2_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       read_stall_processed <= 0;
-      registers_value = '{default: 0};
-      registers_value[9] = 1;
+      registers_value <= '{default: 0};
+      registers_value[9] <= 1;
       read_address <= 52;
       read_address2 <= 53;
       decoder_inp <= 1;
@@ -281,6 +279,7 @@ always @(posedge clk) begin
         registers_src_mmu_done[i]  <= 1;
         registers_save_mmu_done[i] <= 0;
         registers_src_address2[i]  <= process_hardware_address + ADDRESS_REG + i;
+        registers_save_address[i]<=0;
       end
       executor_state <= EXECUTE_STATE_START;
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
@@ -295,24 +294,24 @@ always @(posedge clk) begin
       end
       $display("");
       if (read_stall) begin
-        $display($sformatf("%02d", $time), " read register from read stall ", readstallnumber,
+        $display($sformatf("%02d", $time), " read register from read stall ", (readstallnumber),
                  " with value ",readstallvalue);  //DEBUG info
-        registers_value[readstallnumber] = registers_value[readstallvalue];
-        registers_init[readstallnumber]  = 1;
+        registers_value[readstallnumber] <= readstallvalue;
+        registers_init[readstallnumber]  <= 1;
       end
       if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), " read first slot register ", register[0],
                  " with address ",  //DEBUG info
                  read_address, "=", read_value);  //DEBUG info
-        registers_value[register[0]] = read_value;
-        registers_init[register[0]]  = 1;
+        registers_value[register[0]] <= read_value;
+        registers_init[register[0]]  <= 1;
       end
       if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), " read second slot register ", register[1],
                  " with address ",  //DEBUG info
                  read_address2, "=", read_value2);  //DEBUG info
-        registers_value[register[1]] = read_value2;
-        registers_init[register[1]]  = 1;
+        registers_value[register[1]] <= read_value2;
+        registers_init[register[1]]  <= 1;
       end
       /*readx_address  <= 0;
       readx_address2 <= 0;
@@ -445,7 +444,7 @@ always @(posedge clk) begin
                         //not important if register had value earlier
                         registers_init[i] = 1;
                         registers_src_mmu_done[i] <= 1;
-                        registers_value[i] = decoder_start_ram_address_or_numeric;
+                        registers_value[i] <= decoder_start_ram_address_or_numeric;
                         $display($sformatf("%02d", $time), pc_logical, " set reg ", i,
                                  " with value ", decoder_start_ram_address_or_numeric);
                         read_stall_processed <= 0;
@@ -502,14 +501,14 @@ always @(posedge clk) begin
                               $display($sformatf("%02d", $time), pc_logical, " reg ", i,
                                        " plus with value ", reg_start_ram_address_or_numeric,
                                        " old ", registers_value[i]);
-                              registers_value[i] = registers_value[i] + reg_start_ram_address_or_numeric;
+                              registers_value[i] <= registers_value[i] + reg_start_ram_address_or_numeric;
                             end
                             OPCODE_REG_MINUS: begin
                               executor_do_op[i] <= 0;
                               $display($sformatf("%02d", $time), pc_logical, " reg ", i,
                                        " minus with value ", reg_start_ram_address_or_numeric,
                                        " old ", registers_value[i]);
-                              registers_value[i] = registers_value[i] - reg_start_ram_address_or_numeric;
+                              registers_value[i] <= registers_value[i] - reg_start_ram_address_or_numeric;
                             end
                           endcase
                         end
