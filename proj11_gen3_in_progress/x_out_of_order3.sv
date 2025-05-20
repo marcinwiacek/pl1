@@ -617,11 +617,10 @@ module ramsavecache (
   reg [15:0] registers_save_value[0:REGISTER_NUM-1];
   reg register_save_lock[0:REGISTER_NUM-1];
 
-  integer i;
+  integer i, ii, iii;
 
   always @(posedge clk) begin
-    read1 <= 0;
-    read2 <= 0;
+   
     save_ram_blocked <= 0;
     //if (new_save)   $display("new_save");
     for (i = 0; i < REGISTER_NUM; i = i + 1) begin
@@ -635,19 +634,36 @@ module ramsavecache (
             registers_save_address[i] <= reg_start_ram_address_or_numeric + i - reg_register_start;
           end
         end
-      end else begin
-       $display($sformatf("%02d", $time), " ",i," comparing ",read_address, " ",read_address2," ",registers_save_address[i]);
-        if (read_address == registers_save_address[i]) begin
-          read_value <= registers_save_value[i];
-           $display(i," found value ",registers_save_value[i]);
+      
+      end
+    end
+  end
+  
+   always @(posedge clk) begin
+    read1 <= 0;
+  
+    for (ii = 0; ii < REGISTER_NUM; ii = ii + 1) begin
+       if (read_address == registers_save_address[ii]) begin
+          read_value <= registers_save_value[ii];
+           $display(ii," found value ",registers_save_value[ii]);
           read1 <= 1;
         end
-        if (read_address2 == registers_save_address[i]) begin
-           $display(i," found value ",registers_save_value[i]);
-          read_value2 <= registers_save_value[i];
+       
+      
+    end
+  end
+  
+   always @(posedge clk) begin
+    read2 <= 0;
+  
+    for (iii = 0; iii < REGISTER_NUM; iii = iii + 1) begin
+       if (read_address2 == registers_save_address[iii]) begin
+          read_value2 <= registers_save_value[iii];
+           $display(iii," found value ",registers_save_value[iii]);
           read2 <= 1;
         end
-      end
+       
+      
     end
   end
 

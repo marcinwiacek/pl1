@@ -248,7 +248,7 @@ always @(posedge clk) begin
       if (registers_save_address[zz] >= reg_start_ram_address_or_numeric &&       registers_save_address[zz] <= reg_start_ram_address_or_numeric + reg_register_len) begin
         read_stall <= 1;
         readstallnumber <= registers_save_address[zz]-reg_start_ram_address_or_numeric+reg_register_start;
-        readstallvalue <= registers_save_value[zz];
+        readstallvalue <= zz;
         $display(
             $sformatf("%02d", $time), pc_logical, " read stall (next cycle) ", zz, " - register ",
             registers_save_address[zz] - reg_start_ram_address_or_numeric + reg_register_start);
@@ -261,8 +261,7 @@ always @(posedge clk) begin
   end
 
   always @(posedge clk) begin
-    register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+   
     if (rst) begin
       // readx_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       //readx2_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
@@ -285,7 +284,8 @@ always @(posedge clk) begin
         registers_save_address[i]  <= 0;
       end
       executor_state <= EXECUTE_STATE_START;
-    
+     register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       fetch_stall_exists = 0;
     end else if (instr_num < 10) begin
@@ -299,9 +299,9 @@ always @(posedge clk) begin
       if (read_stall) begin
         $display($sformatf("%02d", $time), " read register from read stall ", (readstallnumber),
                  " with value ", readstallvalue);  //DEBUG info
-        registers_value[readstallnumber] <= readstallvalue;
+        registers_value[readstallnumber] <= registers_save_value[readstallvalue];
         registers_init[readstallnumber]  <= 1;
-      end
+      end else begin
       if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), " read first slot register ", register[0],
                  " with address ",  //DEBUG info
@@ -571,6 +571,7 @@ always @(posedge clk) begin
         end
       endcase
       $display("");
+      end
     end else begin
       decoder_inp <= 0;
     end
