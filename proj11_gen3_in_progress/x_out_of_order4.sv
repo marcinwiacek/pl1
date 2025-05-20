@@ -261,6 +261,8 @@ always @(posedge clk) begin
   end
 
   always @(posedge clk) begin
+    register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
     if (rst) begin
       // readx_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       //readx2_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
@@ -283,8 +285,7 @@ always @(posedge clk) begin
         registers_save_address[i]  <= 0;
       end
       executor_state <= EXECUTE_STATE_START;
-      register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+    
       saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       fetch_stall_exists = 0;
     end else if (instr_num < 10) begin
@@ -307,6 +308,7 @@ always @(posedge clk) begin
                  read_address, "=", read_value);  //DEBUG info
         registers_value[register[0]] <= read_value;
         registers_init[register[0]]  <= 1;
+       
       end
       if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         $display($sformatf("%02d", $time), " read second slot register ", register[1],
@@ -314,6 +316,7 @@ always @(posedge clk) begin
                  read_address2, "=", read_value2);  //DEBUG info
         registers_value[register[1]] <= read_value2;
         registers_init[register[1]]  <= 1;
+           
       end
       /*readx_address  <= 0;
       readx_address2 <= 0;
@@ -354,7 +357,7 @@ always @(posedge clk) begin
       case (executor_state)
         EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
           if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
-           for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+        /*   for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         //don't merge ifs - performance will decrease
         if (!registers_init[i]) begin
           if (registers_src_mmu_done[i]) begin
@@ -366,7 +369,7 @@ always @(posedge clk) begin
             register[i%2] <= i;
           end
         end
-      end
+      end*/
             if (executor_state == EXECUTE_STATE_START) begin
               executor_instruction_state <= decoder_instruction_state;
               executor_register_start <= decoder_register_start;
