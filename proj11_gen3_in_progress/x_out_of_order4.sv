@@ -207,7 +207,7 @@ always @(posedge clk) begin
 
 */
 
- /* reg [15:0] readx_address, readx_address2, readx_value, readx_value2;
+  /* reg [15:0] readx_address, readx_address2, readx_value, readx_value2;
   reg [6:0] readx_num, readx2_num;
   reg readx_ready, readx_ready2;
 
@@ -238,7 +238,7 @@ always @(posedge clk) begin
       end
     end
   end*/
-  
+
   reg [15:0] readstallnumber;
   reg [15:0] readstallvalue;
 
@@ -246,22 +246,23 @@ always @(posedge clk) begin
     read_stall <= 0;
     for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
       if (registers_save_address[zz] >= reg_start_ram_address_or_numeric &&       registers_save_address[zz] <= reg_start_ram_address_or_numeric + reg_register_len) begin
-          read_stall <= 1;
-          readstallnumber <= registers_save_address[zz]-reg_start_ram_address_or_numeric+reg_register_start;
-          readstallvalue <= registers_save_value[zz];
-          $display($sformatf("%02d", $time), pc_logical, " read stall (next cycle) ",zz," - register ",
-              registers_save_address[zz]-reg_start_ram_address_or_numeric+reg_register_start);
+        read_stall <= 1;
+        readstallnumber <= registers_save_address[zz]-reg_start_ram_address_or_numeric+reg_register_start;
+        readstallvalue <= registers_save_value[zz];
+        $display(
+            $sformatf("%02d", $time), pc_logical, " read stall (next cycle) ", zz, " - register ",
+            registers_save_address[zz] - reg_start_ram_address_or_numeric + reg_register_start);
       end
     end
     //if (read_stall_processed) begin
-//      read_stall <= 0;
-//      $display($sformatf("%02d", $time), pc_logical, " read stall blocked (next cycle)");
-//    end
+    //      read_stall <= 0;
+    //      $display($sformatf("%02d", $time), pc_logical, " read stall blocked (next cycle)");
+    //    end
   end
 
   always @(posedge clk) begin
     if (rst) begin
-     // readx_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      // readx_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       //readx2_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       read_stall_processed <= 0;
       registers_value <= '{default: 0};
@@ -279,15 +280,15 @@ always @(posedge clk) begin
         registers_src_mmu_done[i]  <= 1;
         registers_save_mmu_done[i] <= 0;
         registers_src_address2[i]  <= process_hardware_address + ADDRESS_REG + i;
-        registers_save_address[i]<=0;
+        registers_save_address[i]  <= 0;
       end
       executor_state <= EXECUTE_STATE_START;
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-            fetch_stall_exists = 0;
+      fetch_stall_exists = 0;
     end else if (instr_num < 10) begin
-  
+
       $write($sformatf("%02d", $time), " reg");
       for (i = 0; i < 20; i = i + 1) begin
         $write($sformatf(" %02d:%02d:%02d:%02d:%02d:%02d ", i, registers_init[i],
@@ -297,7 +298,7 @@ always @(posedge clk) begin
       $display("");
       if (read_stall) begin
         $display($sformatf("%02d", $time), " read register from read stall ", (readstallnumber),
-                 " with value ",readstallvalue);  //DEBUG info
+                 " with value ", readstallvalue);  //DEBUG info
         registers_value[readstallnumber] <= readstallvalue;
         registers_init[readstallnumber]  <= 1;
       end
@@ -366,49 +367,48 @@ always @(posedge clk) begin
       read_stall_processed <= 1;
 
       case (executor_state)
-        EXECUTE_STATE_START,
-        EXECUTE_STATE_CONTINUE: begin        
-      if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
-       if (executor_state == EXECUTE_STATE_START) begin
-          executor_instruction_state <= decoder_instruction_state;
-          executor_register_start <= decoder_register_start;
-          executor_register_len <= decoder_register_len;
-          executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
-          executor_do_op <= decoder_do_op;
-          instr_num <= instr_num + 1;
-          $display($sformatf("%02d", $time), pc_logical, " copying");
-        end
-        $display(
-            $sformatf("%02d", $time), pc_logical, " executor1   ",
-            (!read_stall && executor_state == EXECUTE_STATE_START ? 1 : 0), " exec_state=",
-            executor_state, " b1 %c%c%c%ch",  //DEBUG info
-            decoder_instruction_state / 16 >= 10 ? decoder_instruction_state / 16 + 65 - 10 : decoder_instruction_state / 16 + 48,
-            decoder_instruction_state % 16 >= 10 ? decoder_instruction_state % 16 + 65 - 10 : decoder_instruction_state % 16 + 48,
-            decoder_register_start / 16 >= 10 ? decoder_register_start / 16 + 65 - 10 : decoder_register_start / 16 + 48,
-            decoder_register_start % 16 >= 10 ? decoder_register_start % 16 + 65 - 10 : decoder_register_start % 16 + 48,
-            " b2 ",  //DEBUG info
-            decoder_register_len, "-", decoder_start_ram_address_or_numeric,
-            " dec_error_code=",  //DEBUG info
-            decoder_error_code);  //DEBUG info
-        $display(
-            $sformatf("%02d", $time), pc_logical, " executor2   ",
-            (!read_stall && executor_state == EXECUTE_STATE_START ? 0 : 1), " exec_state=",
-            executor_state, " b1 %c%c%c%ch",  //DEBUG info
-            executor_instruction_state / 16 >= 10 ? executor_instruction_state / 16 + 65 - 10 : executor_instruction_state / 16 + 48,
-            executor_instruction_state % 16 >= 10 ? executor_instruction_state % 16 + 65 - 10 : executor_instruction_state % 16 + 48,
-            executor_register_start / 16 >= 10 ? executor_register_start / 16 + 65 - 10 : executor_register_start / 16 + 48,
-            executor_register_start % 16 >= 10 ? executor_register_start % 16 + 65 - 10 : executor_register_start % 16 + 48,
-            " b2 ",  //DEBUG info
-            executor_register_len, "-", executor_start_ram_address_or_numeric);
-  
+        EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
+          if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
+            if (executor_state == EXECUTE_STATE_START) begin
+              executor_instruction_state <= decoder_instruction_state;
+              executor_register_start <= decoder_register_start;
+              executor_register_len <= decoder_register_len;
+              executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
+              executor_do_op <= decoder_do_op;
+              instr_num <= instr_num + 1;
+              $display($sformatf("%02d", $time), pc_logical, " copying");
+            end
+            $display(
+                $sformatf("%02d", $time), pc_logical, " executor1   ",
+                (!read_stall && executor_state == EXECUTE_STATE_START ? 1 : 0), " exec_state=",
+                executor_state, " b1 %c%c%c%ch",  //DEBUG info
+                decoder_instruction_state / 16 >= 10 ? decoder_instruction_state / 16 + 65 - 10 : decoder_instruction_state / 16 + 48,
+                decoder_instruction_state % 16 >= 10 ? decoder_instruction_state % 16 + 65 - 10 : decoder_instruction_state % 16 + 48,
+                decoder_register_start / 16 >= 10 ? decoder_register_start / 16 + 65 - 10 : decoder_register_start / 16 + 48,
+                decoder_register_start % 16 >= 10 ? decoder_register_start % 16 + 65 - 10 : decoder_register_start % 16 + 48,
+                " b2 ",  //DEBUG info
+                decoder_register_len, "-", decoder_start_ram_address_or_numeric,
+                " dec_error_code=",  //DEBUG info
+                decoder_error_code);  //DEBUG info
+            $display(
+                $sformatf("%02d", $time), pc_logical, " executor2   ",
+                (!read_stall && executor_state == EXECUTE_STATE_START ? 0 : 1), " exec_state=",
+                executor_state, " b1 %c%c%c%ch",  //DEBUG info
+                executor_instruction_state / 16 >= 10 ? executor_instruction_state / 16 + 65 - 10 : executor_instruction_state / 16 + 48,
+                executor_instruction_state % 16 >= 10 ? executor_instruction_state % 16 + 65 - 10 : executor_instruction_state % 16 + 48,
+                executor_register_start / 16 >= 10 ? executor_register_start / 16 + 65 - 10 : executor_register_start / 16 + 48,
+                executor_register_start % 16 >= 10 ? executor_register_start % 16 + 65 - 10 : executor_register_start % 16 + 48,
+                " b2 ",  //DEBUG info
+                executor_register_len, "-", executor_start_ram_address_or_numeric);
+
             executor_state <= EXECUTE_STATE_START;
             if (read_stall) executor_state <= EXECUTE_STATE_CONTINUE;
-               
-                for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-                  if (reg_do_op[i]) begin
-                  
-                     case (reg_instruction_state)
-            /*  OPCODE_TILL_VALUE: begin
+
+            for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+              if (reg_do_op[i]) begin
+
+                case (reg_instruction_state)
+                  /*  OPCODE_TILL_VALUE: begin
               if (registers_value[i]!=decoder_start_ram_address_or_numeric) begin
                  pc_physical<=pc_physical-decoder_register_len;
               end
@@ -418,128 +418,121 @@ always @(posedge clk) begin
                  pc_physical<=pc_physical-decoder_register_len;
                  end
               end*/
-                      OPCODE_RAM2REG: begin
-                        $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
-                        if (executor_state == EXECUTE_STATE_START) begin
-                          //this register should be read next time                    
-                          registers_init[i] = 0;
-                          registers_src_mmu_done[i] <= 0;
-                          registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
-                          fetch_stall_exists = 1;
-                        end
-                      //  if (i != readx_num) begin
-                        //  if (i != readx2_num) begin
-                            executor_state <= EXECUTE_STATE_CONTINUE;
-                            if (i % 2 == 0) begin
-                              read_address <= registers_src_address2[i];
-                          //    readx_address <= reg_start_ram_address_or_numeric + i - reg_register_start;
-                            //  readx_num <= i;
-                            end else begin
-                              read_address2 <= registers_src_address2[i];
-                              //readx_address2 <= reg_start_ram_address_or_numeric + i - reg_register_start;
-                              //readx2_num <= i;
-                            end
-                            register[i%2] <= i;
-                            read_stall_processed <= 0;
-                          //end
-                        //end
-                      end
-                      OPCODE_NUM2REG: begin
-                        executor_do_op[i] <= 0;
-                        //not important if register had value earlier
-                        registers_init[i] = 1;
-                        registers_src_mmu_done[i] <= 1;
-                        registers_value[i] <= decoder_start_ram_address_or_numeric;
-                        $display($sformatf("%02d", $time), pc_logical, " set reg ", i,
-                                 " with value ", decoder_start_ram_address_or_numeric);
-                        read_stall_processed <= 0;
-                      end
-                      default: begin
-                        read_stall_processed <= 0;
-                        if (!registers_init[i]) begin
-                          fetch_stall_exists = 1;
-                          executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
-                          if (!registers_src_mmu_done[i])
-                            $display(
-                                $sformatf("%02d", $time), pc_logical, " starting mmu from read"
-                            );
-                          mmu_address_logical <= registers_src_address[i];
-                          if (registers_src_mmu_done[i]) begin
-                            $display($sformatf("%02d", $time), pc_logical,
-                                     " need to fetch register ", i, " src address ",
-                                     registers_src_address2[i]);
-                            if (i % 2 == 0) begin
-                              read_address <= registers_src_address2[i];
-                            end else begin
-                              read_address2 <= registers_src_address2[i];
-                            end
-                            register[i%2] <= i;
-                          end
-                        end else begin
-                          case (reg_instruction_state)
-                            OPCODE_REG2RAM: begin
-                              if (register_save_lock[i]) begin
-                                executor_state <= registers_save_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
-                                if (!registers_save_mmu_done[i])
-                                  $display(
-                                      $sformatf(
-                                          "%02d", $time
-                                      ),
-                                      pc_logical,
-                                      " starting mmu from save"
-                                  );
-                                mmu_address_logical <= registers_save_address[i];
-                                $display($sformatf("%02d", $time), pc_logical,
-                                         " write memory slot ", i, " is already filled, stall");
-                                fetch_stall_exists = 1;
-                              end else begin
-                                registers_save_value[i] <= registers_value[i];
-                                registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
-                                executor_do_op[i] <= 0;
-                                register_save_lock[i] <= 1;
-                              end
-                            end
-                            OPCODE_REG_PLUS: begin
-                              executor_do_op[i] <= 0;
-                              $display($sformatf("%02d", $time), pc_logical, " ", register[0], " ",
-                                       register[1], " ", read_value, " ", read_value2);
-                              $display($sformatf("%02d", $time), pc_logical, " reg ", i,
-                                       " plus with value ", reg_start_ram_address_or_numeric,
-                                       " old ", registers_value[i]);
-                              registers_value[i] <= registers_value[i] + reg_start_ram_address_or_numeric;
-                            end
-                            OPCODE_REG_MINUS: begin
-                              executor_do_op[i] <= 0;
-                              $display($sformatf("%02d", $time), pc_logical, " reg ", i,
-                                       " minus with value ", reg_start_ram_address_or_numeric,
-                                       " old ", registers_value[i]);
-                              registers_value[i] <= registers_value[i] - reg_start_ram_address_or_numeric;
-                            end
-                          endcase
-                        end
-                      end
-                    endcase
+                  OPCODE_RAM2REG: begin
+                    $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
+                    if (executor_state == EXECUTE_STATE_START) begin
+                      //this register should be read next time                    
+                      registers_init[i] = 0;
+                      registers_src_mmu_done[i] <= 0;
+                      registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
+                      fetch_stall_exists = 1;
+                    end
+                    //  if (i != readx_num) begin
+                    //  if (i != readx2_num) begin
+                    executor_state <= EXECUTE_STATE_CONTINUE;
+                    if (i % 2 == 0) begin
+                      read_address <= registers_src_address2[i];
+                      //    readx_address <= reg_start_ram_address_or_numeric + i - reg_register_start;
+                      //  readx_num <= i;
+                    end else begin
+                      read_address2 <= registers_src_address2[i];
+                      //readx_address2 <= reg_start_ram_address_or_numeric + i - reg_register_start;
+                      //readx2_num <= i;
+                    end
+                    register[i%2] <= i;
+                    read_stall_processed <= 0;
+                    //end
+                    //end
                   end
-                end
+                  OPCODE_NUM2REG: begin
+                    executor_do_op[i] <= 0;
+                    //not important if register had value earlier
+                    registers_init[i] = 1;
+                    registers_src_mmu_done[i] <= 1;
+                    registers_value[i] <= decoder_start_ram_address_or_numeric;
+                    $display($sformatf("%02d", $time), pc_logical, " set reg ", i, " with value ",
+                             decoder_start_ram_address_or_numeric);
+                    read_stall_processed <= 0;
+                  end
+                  default: begin
+                    read_stall_processed <= 0;
+                    if (!registers_init[i]) begin
+                      fetch_stall_exists = 1;
+                      executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
+                      if (!registers_src_mmu_done[i])
+                        $display($sformatf("%02d", $time), pc_logical, " starting mmu from read");
+                      mmu_address_logical <= registers_src_address[i];
+                      if (registers_src_mmu_done[i]) begin
+                        $display($sformatf("%02d", $time), pc_logical, " need to fetch register ",
+                                 i, " src address ", registers_src_address2[i]);
+                        if (i % 2 == 0) begin
+                          read_address <= registers_src_address2[i];
+                        end else begin
+                          read_address2 <= registers_src_address2[i];
+                        end
+                        register[i%2] <= i;
+                      end
+                    end else begin
+                      case (reg_instruction_state)
+                        OPCODE_REG2RAM: begin
+                          if (register_save_lock[i]) begin
+                            executor_state <= registers_save_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
+                            if (!registers_save_mmu_done[i])
+                              $display(
+                                  $sformatf("%02d", $time), pc_logical, " starting mmu from save"
+                              );
+                            mmu_address_logical <= registers_save_address[i];
+                            $display($sformatf("%02d", $time), pc_logical, " write memory slot ",
+                                     i, " is already filled, stall");
+                            fetch_stall_exists = 1;
+                          end else begin
+                            registers_save_value[i] <= registers_value[i];
+                            registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
+                            executor_do_op[i] <= 0;
+                            register_save_lock[i] <= 1;
+                          end
+                        end
+                        OPCODE_REG_PLUS: begin
+                          executor_do_op[i] <= 0;
+                          $display($sformatf("%02d", $time), pc_logical, " ", register[0], " ",
+                                   register[1], " ", read_value, " ", read_value2);
+                          $display($sformatf("%02d", $time), pc_logical, " reg ", i,
+                                   " plus with value ", reg_start_ram_address_or_numeric, " old ",
+                                   registers_value[i]);
+                          registers_value[i] <= registers_value[i] + reg_start_ram_address_or_numeric;
+                        end
+                        OPCODE_REG_MINUS: begin
+                          executor_do_op[i] <= 0;
+                          $display($sformatf("%02d", $time), pc_logical, " reg ", i,
+                                   " minus with value ", reg_start_ram_address_or_numeric, " old ",
+                                   registers_value[i]);
+                          registers_value[i] <= registers_value[i] - reg_start_ram_address_or_numeric;
+                        end
+                      endcase
+                    end
+                  end
+                endcase
               end
-           
-     //decoder
-      decoder_inp <= 0;
-      if (!fetch_stall_exists && !read_stall) begin
-        read_address  <= pc_physical;
-        read_address2 <= pc_physical + 1;
-        $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical);
-        decoder_input_address <= pc_logical;
-        decoder_inp <= 1;
-        pc_logical <= pc_logical + 2;
-        pc_physical <= pc_physical + 2;
-        register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-        register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      end else begin
-          fetch_stall_exists = 0;
-      end
+            end
+          end
 
-     
+          //decoder
+          decoder_inp <= 0;
+          if (!fetch_stall_exists && !read_stall) begin
+            read_address  <= pc_physical;
+            read_address2 <= pc_physical + 1;
+            $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical);
+            decoder_input_address <= pc_logical;
+            decoder_inp <= 1;
+            pc_logical <= pc_logical + 2;
+            pc_physical <= pc_physical + 2;
+            register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+            register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+          end else begin
+            fetch_stall_exists = 0;
+          end
+
+
         end
         EXECUTE_STATE_MMU: begin
           //fetch_stall_exists = 1;
@@ -580,7 +573,7 @@ always @(posedge clk) begin
           executor_state <= EXECUTE_STATE_CONTINUE;
         end
       endcase
-      
+
       $display("");
     end else begin
       decoder_inp <= 0;
@@ -650,10 +643,10 @@ module decoder (
 
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         //(instruction1_1==OPCODE_TILL_VALUE || instruction1_1==OPCODE_TILL_NON_VALUE? i == instruction1_2_1:
-        do_op[i] <= ( i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) ? 1 : 0;
+        do_op[i] <= (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) ? 1 : 0;
       end
 
-        
+
       case (instruction1_1)
         //register num (5 bits), how many-1 instcutions back (3 bits), 16 bit reg value // do..while
         OPCODE_TILL_VALUE: begin
@@ -661,15 +654,15 @@ module decoder (
               " opcode = till_value reg ", instruction1_2_1, "=", instruction2, " jmp ",
               instruction1_2_2  //DEBUG info
           );  //DEBUG info
-      
+
         end
         OPCODE_TILL_NON_VALUE: begin
           $write(  //DEBUG info              
               " opcode = till_non_value reg ", instruction1_2_1, "=", instruction2, " jmp ",
               instruction1_2_2  //DEBUG info
           );  //DEBUG info
-        
-        end        
+
+        end
         //register num (5 bits), how many-1 (3 bits), 16 bit addr
         OPCODE_RAM2REG, OPCODE_REG2RAM: begin
           if (instruction1_2_1 + instruction1_2_2 >= 32) begin
@@ -967,14 +960,14 @@ module single_blockram (
       $display(
           $sformatf("%02d", $time), " ram write ", write_address, " = ", write_value
       );  //DEBUG info
-   // if (RAM_READ_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
-     // $display(
-       //   $sformatf("%02d", $time), " ram read ", read_address, " = ", ram[read_address]
-     // );  //DEBUG info
-      
-       //  $display(
-     //     $sformatf("%02d", $time), " ram read2 ", read_address2, " = ", ram[read_address2]
-     // );  //DEBUG info
+    // if (RAM_READ_DEBUG && !HARDWARE_DEBUG)  //DEBUG info
+    // $display(
+    //   $sformatf("%02d", $time), " ram read ", read_address, " = ", ram[read_address]
+    // );  //DEBUG info
+
+    //  $display(
+    //     $sformatf("%02d", $time), " ram read2 ", read_address2, " = ", ram[read_address2]
+    // );  //DEBUG info
 
     if (write_enabled) ram[write_address] <= write_value;
   end
