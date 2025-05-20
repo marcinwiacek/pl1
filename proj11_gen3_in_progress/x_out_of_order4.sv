@@ -264,7 +264,7 @@ always @(posedge clk) begin
     if (rst) begin
       // readx_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       //readx2_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      read_stall_processed <= 0;
+    //  read_stall_processed <= 0;
       registers_value <= '{default: 0};
       registers_value[9] <= 1;
       read_address <= 52;
@@ -364,8 +364,7 @@ always @(posedge clk) begin
         saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end
       //executor
-      read_stall_processed <= 1;
-
+     // read_stall_processed <= 1;
       case (executor_state)
         EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
           if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
@@ -406,7 +405,6 @@ always @(posedge clk) begin
 
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (reg_do_op[i]) begin
-
                 case (reg_instruction_state)
                   /*  OPCODE_TILL_VALUE: begin
               if (registers_value[i]!=decoder_start_ram_address_or_numeric) begin
@@ -440,7 +438,7 @@ always @(posedge clk) begin
                       //readx2_num <= i;
                     end
                     register[i%2] <= i;
-                    read_stall_processed <= 0;
+                  //  read_stall_processed <= 0;
                     //end
                     //end
                   end
@@ -452,10 +450,10 @@ always @(posedge clk) begin
                     registers_value[i] <= decoder_start_ram_address_or_numeric;
                     $display($sformatf("%02d", $time), pc_logical, " set reg ", i, " with value ",
                              decoder_start_ram_address_or_numeric);
-                    read_stall_processed <= 0;
+                    //read_stall_processed <= 0;
                   end
                   default: begin
-                    read_stall_processed <= 0;
+                   // read_stall_processed <= 0;
                     if (!registers_init[i]) begin
                       fetch_stall_exists = 1;
                       executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
@@ -515,7 +513,6 @@ always @(posedge clk) begin
               end
             end
           end
-
           //decoder
           decoder_inp <= 0;
           if (!fetch_stall_exists && !read_stall) begin
@@ -531,8 +528,6 @@ always @(posedge clk) begin
           end else begin
             fetch_stall_exists = 0;
           end
-
-
         end
         EXECUTE_STATE_MMU: begin
           //fetch_stall_exists = 1;
@@ -573,7 +568,6 @@ always @(posedge clk) begin
           executor_state <= EXECUTE_STATE_CONTINUE;
         end
       endcase
-
       $display("");
     end else begin
       decoder_inp <= 0;
