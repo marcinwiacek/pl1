@@ -288,7 +288,6 @@ always @(posedge clk) begin
       saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       fetch_stall_exists = 0;
     end else if (instr_num < 10) begin
-
       $write($sformatf("%02d", $time), " reg");
       for (i = 0; i < 20; i = i + 1) begin
         $write($sformatf(" %02d:%02d:%02d:%02d:%02d:%02d ", i, registers_init[i],
@@ -333,20 +332,7 @@ always @(posedge clk) begin
         $display($sformatf("%02d", $time), pc_logical, " readx2 reg ", readx2_num, " to ",
                  readx_value2);
         readx2_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      end*/
-      for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-        //don't merge ifs - performance will decrease
-        if (!registers_init[i]) begin
-          if (registers_src_mmu_done[i]) begin
-            if (i % 2 == 0) begin
-              read_address <= registers_src_address2[i];
-            end else begin
-              read_address2 <= registers_src_address2[i];
-            end
-            register[i%2] <= i;
-          end
-        end
-      end
+      end*/     
       //save ram              
       write_enabled <= 0;
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
@@ -368,6 +354,19 @@ always @(posedge clk) begin
       case (executor_state)
         EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
           if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
+           for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+        //don't merge ifs - performance will decrease
+        if (!registers_init[i]) begin
+          if (registers_src_mmu_done[i]) begin
+            if (i % 2 == 0) begin
+              read_address <= registers_src_address2[i];
+            end else begin
+              read_address2 <= registers_src_address2[i];
+            end
+            register[i%2] <= i;
+          end
+        end
+      end
             if (executor_state == EXECUTE_STATE_START) begin
               executor_instruction_state <= decoder_instruction_state;
               executor_register_start <= decoder_register_start;
