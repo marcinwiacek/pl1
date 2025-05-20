@@ -285,7 +285,9 @@ always @(posedge clk) begin
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+            fetch_stall_exists = 0;
     end else if (instr_num < 10) begin
+  
       $write($sformatf("%02d", $time), " reg");
       for (i = 0; i < 20; i = i + 1) begin
         $write($sformatf(" %02d:%02d:%02d:%02d:%02d:%02d ", i, registers_init[i],
@@ -362,8 +364,12 @@ always @(posedge clk) begin
       end
       //executor
       read_stall_processed <= 1;
+
+      case (executor_state)
+        EXECUTE_STATE_START,
+        EXECUTE_STATE_CONTINUE: begin        
       if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
-        if (executor_state == EXECUTE_STATE_START) begin
+       if (executor_state == EXECUTE_STATE_START) begin
           executor_instruction_state <= decoder_instruction_state;
           executor_register_start <= decoder_register_start;
           executor_register_len <= decoder_register_len;
@@ -394,11 +400,10 @@ always @(posedge clk) begin
             executor_register_start % 16 >= 10 ? executor_register_start % 16 + 65 - 10 : executor_register_start % 16 + 48,
             " b2 ",  //DEBUG info
             executor_register_len, "-", executor_start_ram_address_or_numeric);
-        case (executor_state)
-          EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
+  
             executor_state <= EXECUTE_STATE_START;
             if (read_stall) executor_state <= EXECUTE_STATE_CONTINUE;
-           
+               
                 for (i = 0; i < REGISTER_NUM; i = i + 1) begin
                   if (reg_do_op[i]) begin
                   
@@ -518,11 +523,26 @@ always @(posedge clk) begin
                 end
               end
            
-        endcase
+     //decoder
+      decoder_inp <= 0;
+      if (!fetch_stall_exists && !read_stall) begin
+        read_address  <= pc_physical;
+        read_address2 <= pc_physical + 1;
+        $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical);
+        decoder_input_address <= pc_logical;
+        decoder_inp <= 1;
+        pc_logical <= pc_logical + 2;
+        pc_physical <= pc_physical + 2;
+        register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+        register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      end else begin
+          fetch_stall_exists = 0;
       end
-      case (executor_state)
+
+     
+        end
         EXECUTE_STATE_MMU: begin
-          fetch_stall_exists = 1;
+          //fetch_stall_exists = 1;
           //mmu
           $display($sformatf("%02d", $time), pc_logical, " mmu processing ");  //DEBUG info
           for (i = 0; i < REGISTER_NUM; i = i + 1) begin
@@ -560,20 +580,7 @@ always @(posedge clk) begin
           executor_state <= EXECUTE_STATE_CONTINUE;
         end
       endcase
-      //decoder
-      decoder_inp <= 0;
-      if (!fetch_stall_exists && !read_stall) begin
-        read_address  <= pc_physical;
-        read_address2 <= pc_physical + 1;
-        $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical);
-        decoder_input_address <= pc_logical;
-        decoder_inp <= 1;
-        pc_logical <= pc_logical + 2;
-        pc_physical <= pc_physical + 2;
-        register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-        register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      end
-      fetch_stall_exists = 0;
+      
       $display("");
     end else begin
       decoder_inp <= 0;
