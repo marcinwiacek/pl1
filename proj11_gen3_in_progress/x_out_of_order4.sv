@@ -246,9 +246,12 @@ always @(posedge clk) begin
   reg [15:0] readstallvalue;
 
   always @(posedge clk) begin
+  
     read_stall <= 0;
+    
     for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
-      if (registers_save_address[zz] >= reg_start_ram_address_or_numeric) begin
+      if (register_save_lock[zz]) begin
+       if(registers_save_address[zz] >= reg_start_ram_address_or_numeric) begin
       if(      registers_save_address[zz] <= reg_start_ram_address_or_numeric + reg_register_len) begin
         read_stall <= 1;
         readstallnumber <= registers_save_address[zz]-reg_start_ram_address_or_numeric+reg_register_start;
@@ -259,6 +262,8 @@ always @(posedge clk) begin
       end
     end
     end
+    end
+    
     //if (read_stall_processed) begin
     //      read_stall <= 0;
     //      $display($sformatf("%02d", $time), pc_logical, " read stall blocked (next cycle)");
@@ -281,8 +286,8 @@ always @(posedge clk) begin
       decoder_input_address <= 52;
       $display($sformatf("%02d", $time), "   52 starting initial fetch ");  //DEBUG info
       $display("");
-      pc_logical <= 54;
-      pc_physical <= 54;
+      pc_logical <= 52;
+      pc_physical <= 52;
       //was_fetch<=1;
       rst <= 0;
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
@@ -362,9 +367,9 @@ always @(posedge clk) begin
       end
 //      was_fetch<=1;
             decoder_inp <= 1;
-            read_address  <= pc_physical+3;
-            read_address2 <= pc_physical + 4;
-            $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical+3);
+            read_address  <= pc_physical+2;
+            read_address2 <= pc_physical + 3;
+            $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical+2);
             decoder_input_address <= pc_logical+2;
 if (decoder_inp) begin
             pc_logical <= pc_logical + 2;
