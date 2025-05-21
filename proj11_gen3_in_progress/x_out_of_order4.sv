@@ -252,7 +252,7 @@ always @(posedge clk) begin
         if (registers_save_address[zz] >= reg_start_ram_address_or_numeric) begin
           if(      registers_save_address[zz] <= reg_start_ram_address_or_numeric + reg_register_len) begin
             read_stall <= 1;
-            readstallnumber <= registers_save_address[zz]-reg_start_ram_address_or_numeric+reg_register_start;
+         //   readstallnumber <= registers_save_address[zz];
             readstallvalue <= zz;
             $display(
                 $sformatf("%02d", $time), pc_logical, " read stall (next cycle) ", zz,
@@ -303,11 +303,15 @@ always @(posedge clk) begin
                          registers_save_address[i]));
       end
       $display("");
-      if (read_stall) begin
-        $display($sformatf("%02d", $time), " read register from read stall ", (readstallnumber),
-                 " with value ", readstallvalue);  //DEBUG info
-        registers_value[readstallnumber] <= registers_save_value[readstallvalue];
-        registers_init[readstallnumber]  <= 1;
+      if (read_stall) begin              
+         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+        if (registers_src_address[i] == registers_save_address[readstallvalue]) begin
+         $display($sformatf("%02d", $time), " read register from read stall ", i,
+                 " with value ", registers_save_value[readstallvalue]);  //DEBUG info
+        registers_value[i] <= registers_save_value[readstallvalue];
+        registers_init[i]  <= 1;
+      end
+    end
       end else begin
         if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), " read first slot register ", register[0],
@@ -587,9 +591,10 @@ always @(posedge clk) begin
             executor_state <= EXECUTE_STATE_CONTINUE;
           end
         endcase
-        $display("");
+
       end
-    end else begin
+        $display("");
+            end else begin
       decoder_inp <= 0;
     end
   end
