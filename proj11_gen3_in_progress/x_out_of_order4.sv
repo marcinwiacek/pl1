@@ -252,7 +252,7 @@ always @(posedge clk) begin
         if (registers_save_address[zz] >= reg_start_ram_address_or_numeric) begin
           if(      registers_save_address[zz] <= reg_start_ram_address_or_numeric + reg_register_len) begin
             read_stall <= 1;
-         //   readstallnumber <= registers_save_address[zz];
+            //   readstallnumber <= registers_save_address[zz];
             readstallvalue <= zz;
             $display(
                 $sformatf("%02d", $time), pc_logical, " read stall (next cycle) ", zz,
@@ -303,15 +303,15 @@ always @(posedge clk) begin
                          registers_save_address[i]));
       end
       $display("");
-      if (read_stall) begin              
-         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-        if (registers_src_address[i] == registers_save_address[readstallvalue]) begin
-         $display($sformatf("%02d", $time), " read register from read stall ", i,
-                 " with value ", registers_save_value[readstallvalue]);  //DEBUG info
-        registers_value[i] <= registers_save_value[readstallvalue];
-        registers_init[i]  <= 1;
-      end
-    end
+      if (read_stall) begin
+        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+          if (registers_src_address[i] == registers_save_address[readstallvalue]) begin
+            $display($sformatf("%02d", $time), " read register from read stall ", i,
+                     " with value ", registers_save_value[readstallvalue]);  //DEBUG info
+            registers_value[i] <= registers_save_value[readstallvalue];
+            registers_init[i]  <= 1;
+          end
+        end
       end else begin
         if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), " read first slot register ", register[0],
@@ -425,7 +425,7 @@ always @(posedge clk) begin
                   executor_register_start % 16 >= 10 ? executor_register_start % 16 + 65 - 10 : executor_register_start % 16 + 48,
                   " b2 ",  //DEBUG info
                   executor_register_len, "-", executor_start_ram_address_or_numeric);
-              
+
               executor_state <= read_stall ? EXECUTE_STATE_CONTINUE : EXECUTE_STATE_START;
               for (i = 0; i < REGISTER_NUM; i = i + 1) begin
                 if (reg_do_op[i]) begin
@@ -593,8 +593,8 @@ always @(posedge clk) begin
         endcase
 
       end
-        $display("");
-            end else begin
+      $display("");
+    end else begin
       decoder_inp <= 0;
     end
   end
