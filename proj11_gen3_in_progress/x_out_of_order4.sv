@@ -242,8 +242,8 @@ always @(posedge clk) begin
     end
   end*/
 
-  reg [15:0] readstallnumber;
-  reg [15:0] readstallvalue;
+  //reg [15:0] readstallnumber;
+  reg [6:0] readstallvalue;
 
   always @(posedge clk) begin
     read_stall <= 0;
@@ -464,7 +464,7 @@ always @(posedge clk) begin
                       //end
                     end
                     OPCODE_NUM2REG: begin
-                      executor_do_op[i] <= 0;
+                     // executor_do_op[i] <= 0;
                       //not important if register had value earlier
                       registers_init[i] <= 1;
                       registers_src_mmu_done[i] <= 1;
@@ -478,10 +478,13 @@ always @(posedge clk) begin
                       if (!registers_init[i]) begin
                         decoder_inp <= 0;
                         executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
+                          mmu_address_logical <= registers_src_address[i];
                         if (!registers_src_mmu_done[i])
                           $display($sformatf("%02d", $time), pc_logical, " starting mmu from read");
-                        mmu_address_logical <= registers_src_address[i];
+                        
                         if (registers_src_mmu_done[i]) begin
+  //                        executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
+                      //    executor_state <= EXECUTE_STATE_CONTINUE;
                           $display($sformatf("%02d", $time), pc_logical, " need to fetch register ",
                                    i, " src address ", registers_src_address2[i]);
                           if (i % 2 == 0) begin
@@ -490,6 +493,8 @@ always @(posedge clk) begin
                             read_address2 <= registers_src_address2[i];
                           end
                           register[i%2] <= i;
+//                        end else begin
+  //                        executor_state <= EXECUTE_STATE_MMU;
                         end
                       end else begin
                         case (reg_instruction_state)
@@ -508,8 +513,8 @@ always @(posedge clk) begin
                               registers_save_value[i] <= registers_value[i];
                               registers_save_address[i] <= reg_start_ram_address_or_numeric+i-reg_register_start;
                               executor_do_op[i] <= 0;
-                              register_save_lock[i] <= 1;
-                            end
+                              register_save_lock[i] <= 1;                              
+                            end                           
                           end
                           OPCODE_REG_PLUS: begin
                             executor_do_op[i] <= 0;
@@ -588,7 +593,6 @@ always @(posedge clk) begin
             executor_state <= EXECUTE_STATE_CONTINUE;
           end
         endcase
-
       end
       $display("");
     end else begin
