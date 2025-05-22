@@ -430,22 +430,22 @@ always @(posedge clk) begin
               for (i = 0; i < REGISTER_NUM; i = i + 1) begin
                 if (reg_do_op[i]) begin
                   case (reg_instruction_state)
-                      OPCODE_TILL_VALUE: begin
-              if (registers_value[i]!=decoder_start_ram_address_or_numeric) begin
-                 pc_physical<=pc_physical-decoder_register_len-2;
-                 read_address  <= pc_physical-decoder_register_len;
-        read_address2 <= pc_physical-decoder_register_len+1 ;
-        decoder_input_address <= pc_physical-decoder_register_len-2;
-              end
-              end
-              OPCODE_TILL_NON_VALUE: begin
-              if (registers_value[i]==decoder_start_ram_address_or_numeric) begin
-                 pc_physical<=pc_physical-decoder_register_len-2;
-                 read_address  <= pc_physical-decoder_register_len;
-        read_address2 <= pc_physical-decoder_register_len+1 ;
-        decoder_input_address <= pc_physical-decoder_register_len-2;
-                 end
-              end
+                    OPCODE_TILL_VALUE: begin
+                      if (registers_value[i] != decoder_start_ram_address_or_numeric) begin
+                        pc_physical <= pc_physical - decoder_register_len - 2;
+                        read_address <= pc_physical - decoder_register_len;
+                        read_address2 <= pc_physical - decoder_register_len + 1;
+                        decoder_input_address <= pc_physical - decoder_register_len - 2;
+                      end
+                    end
+                    OPCODE_TILL_NON_VALUE: begin
+                      if (registers_value[i] == decoder_start_ram_address_or_numeric) begin
+                        pc_physical <= pc_physical - decoder_register_len - 2;
+                        read_address <= pc_physical - decoder_register_len;
+                        read_address2 <= pc_physical - decoder_register_len + 1;
+                        decoder_input_address <= pc_physical - decoder_register_len - 2;
+                      end
+                    end
                     OPCODE_RAM2REG: begin
                       $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
                       //  if (executor_state == EXECUTE_STATE_START) begin
