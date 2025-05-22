@@ -293,7 +293,7 @@ always @(posedge clk) begin
       executor_state <= EXECUTE_STATE_START;
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       //  fetch_stall_exists = 0;
     end else if (instr_num < 10) begin
       $write($sformatf("%02d", $time), " reg");
@@ -319,7 +319,7 @@ always @(posedge clk) begin
                    read_address, "=", read_value);  //DEBUG info
           registers_value[register[0]] <= read_value;
           registers_init[register[0]]  <= 1;
-
+          register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         end
         if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), " read second slot register ", register[1],
@@ -327,7 +327,7 @@ always @(posedge clk) begin
                    read_address2, "=", read_value2);  //DEBUG info
           registers_value[register[1]] <= read_value2;
           registers_init[register[1]]  <= 1;
-
+          register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         end
         /*readx_address  <= 0;
       readx_address2 <= 0;
@@ -373,8 +373,6 @@ always @(posedge clk) begin
           pc_logical  <= pc_logical + 2;
           pc_physical <= pc_physical + 2;
         end
-        register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-        register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
 
         //executor
         // read_stall_processed <= 1;
@@ -405,7 +403,7 @@ always @(posedge clk) begin
               end
               $display(
                   $sformatf("%02d", $time), pc_logical, " executor1   ",
-                  (!read_stall && executor_state == EXECUTE_STATE_START ? 1 : 0), " exec_state=",
+                  (executor_state == EXECUTE_STATE_START ? 1 : 0), " exec_state=",
                   executor_state, " b1 %c%c%c%ch",  //DEBUG info
                   decoder_instruction_state / 16 >= 10 ? decoder_instruction_state / 16 + 65 - 10 : decoder_instruction_state / 16 + 48,
                   decoder_instruction_state % 16 >= 10 ? decoder_instruction_state % 16 + 65 - 10 : decoder_instruction_state % 16 + 48,
@@ -417,7 +415,7 @@ always @(posedge clk) begin
                   decoder_error_code);  //DEBUG info
               $display(
                   $sformatf("%02d", $time), pc_logical, " executor2   ",
-                  (!read_stall && executor_state == EXECUTE_STATE_START ? 0 : 1), " exec_state=",
+                  (executor_state == EXECUTE_STATE_START ? 0 : 1), " exec_state=",
                   executor_state, " b1 %c%c%c%ch",  //DEBUG info
                   executor_instruction_state / 16 >= 10 ? executor_instruction_state / 16 + 65 - 10 : executor_instruction_state / 16 + 48,
                   executor_instruction_state % 16 >= 10 ? executor_instruction_state % 16 + 65 - 10 : executor_instruction_state % 16 + 48,
@@ -426,20 +424,13 @@ always @(posedge clk) begin
                   " b2 ",  //DEBUG info
                   executor_register_len, "-", executor_start_ram_address_or_numeric);
 
-              executor_state <= read_stall ? EXECUTE_STATE_CONTINUE : EXECUTE_STATE_START;
+              executor_state <= EXECUTE_STATE_START;
               for (i = 0; i < REGISTER_NUM; i = i + 1) begin
                 if (reg_do_op[i]) begin
                   case (reg_instruction_state)
-                    OPCODE_TILL_VALUE: begin
-                      if (registers_value[i] != decoder_start_ram_address_or_numeric) begin
-                        pc_physical <= pc_physical - decoder_register_len - 2;
-                        read_address <= pc_physical - decoder_register_len;
-                        read_address2 <= pc_physical - decoder_register_len + 1;
-                        decoder_input_address <= pc_physical - decoder_register_len - 2;
-                      end
-                    end
-                    OPCODE_TILL_NON_VALUE: begin
-                      if (registers_value[i] == decoder_start_ram_address_or_numeric) begin
+                    OPCODE_TILL_VALUE, OPCODE_TILL_NON_VALUE: begin
+                      if ((reg_instruction_state == OPCODE_TILL_VALUE && registers_value[i] != decoder_start_ram_address_or_numeric) ||
+                          (reg_instruction_state != OPCODE_TILL_VALUE && registers_value[i] == decoder_start_ram_address_or_numeric)) begin
                         pc_physical <= pc_physical - decoder_register_len - 2;
                         read_address <= pc_physical - decoder_register_len;
                         read_address2 <= pc_physical - decoder_register_len + 1;
