@@ -329,20 +329,22 @@ always @(posedge clk) begin
           registers_init[register[1]]  <= 1;
         end
         write_enabled <= 0;
-        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (registers_save_ready[i]) begin
-            saveram_q_num <= i;
-          end
-        end
+    
         if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           register_save_lock[saveram_q_num] <= 0;
           registers_save_ready[saveram_q_num] <= 0;
-          registers_save_address[saveram_q_num] <= 0;
+         // registers_save_address[saveram_q_num] <= 0;
           write_enabled <= 1;
           write_address <= registers_save_address2[saveram_q_num];
           write_value <= registers_save_value[saveram_q_num];
           saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+            for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+          if (registers_save_ready[i]) begin
+            saveram_q_num <= i;
+          end
+          end
         end
+          
       end  
         /*readx_address  <= 0;
       readx_address2 <= 0;
@@ -590,6 +592,7 @@ always @(posedge clk) begin
                     registers_save_address2[i]<= mmu_address_physical_min_in_the_same_page+registers_save_address[i]-mmu_address_logical_min_in_the_same_page;
                     registers_save_mmu_done[i] <= 1;
                     registers_save_ready[i] <= 1;
+                      saveram_q_num <= i;
                   end
                 end
               end
