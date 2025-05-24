@@ -303,8 +303,17 @@ always @(posedge clk) begin
                          registers_save_address[i]));
       end
       $display("");
-      
-      //else begin
+      if (read_stall) begin
+        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+          if (registers_src_address[i] == registers_save_address[readstallindex]) begin
+            $display($sformatf("%02d", $time), " read register from read stall ", i,
+                     " with value ", registers_save_value[readstallindex]);  //DEBUG info
+            registers_value[i] <= registers_save_value[readstallindex];
+            registers_init[i]  <= 1;
+          end
+        end
+      end 
+      else begin
         if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), " read first slot register ", register[0],
                    " with address ",  //DEBUG info
@@ -319,16 +328,7 @@ always @(posedge clk) begin
           registers_value[register[1]] <= read_value2;
           registers_init[register[1]]  <= 1;
         end
-        if (read_stall) begin
-        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (registers_src_address[i] == registers_save_address[readstallindex]) begin
-            $display($sformatf("%02d", $time), " read register from read stall ", i,
-                     " with value ", registers_save_value[readstallindex]);  //DEBUG info
-            registers_value[i] <= registers_save_value[readstallindex];
-            registers_init[i]  <= 1;
-          end
-        end
-      end 
+      end  
         /*readx_address  <= 0;
       readx_address2 <= 0;
       if (readx_ready) begin
