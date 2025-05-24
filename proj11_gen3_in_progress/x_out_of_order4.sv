@@ -192,7 +192,7 @@ module x_out_of_order4 (
       if (register_save_lock[zz]) begin
         if (registers_save_address[zz] >= reg_start_ram_address_or_numeric) begin
           if(registers_save_address[zz] <= reg_start_ram_address_or_numeric + reg_register_len) begin
-            readstallindex <= zz;
+            readstallindex <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
             $display(
                 $sformatf("%02d", $time), pc_logical, " read stall (next cycle) ", zz,
                 " - register ",
@@ -302,36 +302,6 @@ module x_out_of_order4 (
               executor_do_op <= decoder_do_op;
               instr_num <= instr_num + 1;
               $display($sformatf("%02d", $time), pc_logical, " copying");
-               for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-              if (reg_do_op[i]) begin
-                case (reg_instruction_state)
-                  OPCODE_TILL_VALUE, OPCODE_TILL_NON_VALUE: begin
-                    if ((reg_instruction_state == OPCODE_TILL_VALUE && registers_value[i] != decoder_start_ram_address_or_numeric) ||
-                          (reg_instruction_state == OPCODE_TILL_NON_VALUE && registers_value[i] == decoder_start_ram_address_or_numeric)) begin
-                      pc_physical <= pc_physical - decoder_register_len - 2;
-                      read_address <= pc_physical - decoder_register_len;
-                      read_address2 <= pc_physical - decoder_register_len + 1;
-                      decoder_input_address <= pc_physical - decoder_register_len - 2;
-                    end
-                  end
-                  OPCODE_RAM2REG: begin
-                    $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
-                      //this register should be read next time                    
-                      registers_init[i] <= 0;
-                      registers_src_mmu_done[i] <= 0;
-                      registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
-                  end
-                  OPCODE_NUM2REG: begin
-                    //not important if register had value earlier
-                    registers_init[i] <= 1;
-                    registers_src_mmu_done[i] <= 1;
-                    registers_value[i] <= decoder_start_ram_address_or_numeric;
-                    $display($sformatf("%02d", $time), pc_logical, " set reg ", i, " with value ",
-                             decoder_start_ram_address_or_numeric);
-                            end                   
-                endcase
-              end
-              end
             end
             $display(
                 $sformatf("%02d", $time), pc_logical, " executor1   ",
@@ -359,7 +329,31 @@ module x_out_of_order4 (
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (reg_do_op[i]) begin
                 case (reg_instruction_state)
-                  OPCODE_TILL_VALUE, OPCODE_TILL_NON_VALUE, OPCODE_RAM2REG: begin
+                  OPCODE_TILL_VALUE, OPCODE_TILL_NON_VALUE: begin
+                    if ((reg_instruction_state == OPCODE_TILL_VALUE && registers_value[i] != decoder_start_ram_address_or_numeric) ||
+                          (reg_instruction_state == OPCODE_TILL_NON_VALUE && registers_value[i] == decoder_start_ram_address_or_numeric)) begin
+                      pc_physical <= pc_physical - decoder_register_len - 2;
+                      read_address <= pc_physical - decoder_register_len;
+                      read_address2 <= pc_physical - decoder_register_len + 1;
+                      decoder_input_address <= pc_physical - decoder_register_len - 2;
+                    end
+                  end
+                  OPCODE_RAM2REG: begin
+                    $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
+                    if (executor_state == EXECUTE_STATE_START) begin
+                      //this register should be read next time                    
+                      registers_init[i] <= 0;
+                      registers_src_mmu_done[i] <= 0;
+                      registers_src_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
+                    end                    
+                  end
+                  OPCODE_NUM2REG: begin
+                    //not important if register had value earlier
+                    registers_init[i] <= 1;
+                    registers_src_mmu_done[i] <= 1;
+                    registers_value[i] <= decoder_start_ram_address_or_numeric;
+                    $display($sformatf("%02d", $time), pc_logical, " set reg ", i, " with value ",
+                             decoder_start_ram_address_or_numeric);                   
                   end
                   default: begin                    
                     if (!registers_init[i]) begin
@@ -542,7 +536,7 @@ module decoder (
               " opcode = till_value reg ", instruction1_2_1, "=", instruction2, " jmp ",
               instruction1_2_2  //DEBUG info
           );  //DEBUG info
- 
+
         end
         OPCODE_TILL_NON_VALUE: begin
           $write(  //DEBUG info              
@@ -550,7 +544,6 @@ module decoder (
               instruction1_2_2  //DEBUG info
           );  //DEBUG info
 
- 
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit addr
         OPCODE_RAM2REG, OPCODE_REG2RAM: begin
