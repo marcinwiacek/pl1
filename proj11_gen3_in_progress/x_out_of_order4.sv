@@ -243,7 +243,7 @@ always @(posedge clk) begin
   end*/
 
   //reg [15:0] readstallnumber;
-  reg [6:0] readstallvalue;
+  reg [6:0] readstallindex;
 
   always @(posedge clk) begin
     read_stall <= 0;
@@ -253,7 +253,7 @@ always @(posedge clk) begin
           if(      registers_save_address[zz] <= reg_start_ram_address_or_numeric + reg_register_len) begin
             read_stall <= 1;
             //   readstallnumber <= registers_save_address[zz];
-            readstallvalue <= zz;
+            readstallindex <= zz;
             $display(
                 $sformatf("%02d", $time), pc_logical, " read stall (next cycle) ", zz,
                 " - register ",
@@ -305,10 +305,10 @@ always @(posedge clk) begin
       $display("");
       if (read_stall) begin
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (registers_src_address[i] == registers_save_address[readstallvalue]) begin
+          if (registers_src_address[i] == registers_save_address[readstallindex]) begin
             $display($sformatf("%02d", $time), " read register from read stall ", i,
-                     " with value ", registers_save_value[readstallvalue]);  //DEBUG info
-            registers_value[i] <= registers_save_value[readstallvalue];
+                     " with value ", registers_save_value[readstallindex]);  //DEBUG info
+            registers_value[i] <= registers_save_value[readstallindex];
             registers_init[i]  <= 1;
           end
         end
@@ -318,8 +318,7 @@ always @(posedge clk) begin
                    " with address ",  //DEBUG info
                    read_address, "=", read_value);  //DEBUG info
           registers_value[register[0]] <= read_value;
-          registers_init[register[0]]  <= 1;
-          register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+          registers_init[register[0]]  <= 1;       
         end
         if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), " read second slot register ", register[1],
@@ -327,7 +326,6 @@ always @(posedge clk) begin
                    read_address2, "=", read_value2);  //DEBUG info
           registers_value[register[1]] <= read_value2;
           registers_init[register[1]]  <= 1;
-          register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         end
         /*readx_address  <= 0;
       readx_address2 <= 0;
@@ -373,6 +371,8 @@ always @(posedge clk) begin
           pc_logical  <= pc_logical + 2;
           pc_physical <= pc_physical + 2;
         end
+        register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+        register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
 
         //executor
         // read_stall_processed <= 1;
@@ -430,7 +430,7 @@ always @(posedge clk) begin
                   case (reg_instruction_state)
                     OPCODE_TILL_VALUE, OPCODE_TILL_NON_VALUE: begin
                       if ((reg_instruction_state == OPCODE_TILL_VALUE && registers_value[i] != decoder_start_ram_address_or_numeric) ||
-                          (reg_instruction_state != OPCODE_TILL_VALUE && registers_value[i] == decoder_start_ram_address_or_numeric)) begin
+                          (reg_instruction_state == OPCODE_TILL_NON_VALUE && registers_value[i] == decoder_start_ram_address_or_numeric)) begin
                         pc_physical <= pc_physical - decoder_register_len - 2;
                         read_address <= pc_physical - decoder_register_len;
                         read_address2 <= pc_physical - decoder_register_len + 1;
@@ -478,7 +478,7 @@ always @(posedge clk) begin
                       if (!registers_init[i]) begin
                         decoder_inp <= 0;
                         executor_state <= registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
-                          mmu_address_logical <= registers_src_address[i];
+                        mmu_address_logical <= registers_src_address[i];
                         if (!registers_src_mmu_done[i])
                           $display($sformatf("%02d", $time), pc_logical, " starting mmu from read");
                         
