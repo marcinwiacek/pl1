@@ -328,6 +328,21 @@ always @(posedge clk) begin
           registers_value[register[1]] <= read_value2;
           registers_init[register[1]]  <= 1;
         end
+        write_enabled <= 0;
+        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+          if (registers_save_ready[i]) begin
+            saveram_q_num <= i;
+          end
+        end
+        if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+          register_save_lock[saveram_q_num] <= 0;
+          registers_save_ready[saveram_q_num] <= 0;
+          registers_save_address[saveram_q_num] <= 0;
+          write_enabled <= 1;
+          write_address <= registers_save_address2[saveram_q_num];
+          write_value <= registers_save_value[saveram_q_num];
+          saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+        end
       end  
         /*readx_address  <= 0;
       readx_address2 <= 0;
@@ -348,21 +363,7 @@ always @(posedge clk) begin
         readx2_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       end*/
         //save ram              
-        write_enabled <= 0;
-        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (registers_save_ready[i]) begin
-            saveram_q_num <= i;
-          end
-        end
-        if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-          register_save_lock[saveram_q_num] <= 0;
-          registers_save_ready[saveram_q_num] <= 0;
-          registers_save_address[saveram_q_num] <= 0;
-          write_enabled <= 1;
-          write_address <= registers_save_address2[saveram_q_num];
-          write_value <= registers_save_value[saveram_q_num];
-          saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-        end
+        
         //      was_fetch<=1;
         decoder_inp   <= 1;
         read_address  <= pc_physical + 2;
