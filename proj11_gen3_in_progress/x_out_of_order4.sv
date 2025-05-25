@@ -182,15 +182,14 @@ module x_out_of_order4 (
 
   assign x = decoder_inp;  //without this we will have empty circuit
 
-  integer i, zz;
+  integer i, zz,pp;
 
   reg [6:0] readstallindex;
   reg [15:0] readsaveaddr;
 
   always @(posedge clk) begin
     readstallindex <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-    for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
-   
+    for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin   
         if (registers_save_address[zz] >= reg_start_ram_address_or_numeric) begin
           if(registers_save_address[zz] <= reg_start_ram_address_or_numeric + reg_register_len) begin
              if (register_save_lock[zz]) begin
@@ -204,6 +203,15 @@ module x_out_of_order4 (
         end
       end
     end
+  end
+
+  always @(posedge clk) begin
+            saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+        for (pp = 0; pp < REGISTER_NUM; pp = pp + 1) begin
+          if (registers_save_ready[pp]) begin
+            saveram_q_num <= pp;
+          end
+        end
   end
 
   always @(posedge clk) begin
@@ -227,8 +235,7 @@ module x_out_of_order4 (
       end
       executor_state <= EXECUTE_STATE_START;
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;      
     end else if (instr_num < 10) begin
       $write($sformatf("%02d", $time), " reg");
       for (i = 0; i < 20; i = i + 1) begin
@@ -262,18 +269,13 @@ module x_out_of_order4 (
           registers_init[register[1]] <= 1;
         end
         write_enabled <= 0;
-        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (registers_save_ready[i]) begin
-            saveram_q_num <= i;
-          end
-        end
         if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           register_save_lock[saveram_q_num] <= 0;
           registers_save_ready[saveram_q_num] <= 0;
           registers_save_address[saveram_q_num] <= 0;
           write_enabled <= 1;
           write_address <= registers_save_address2[saveram_q_num];
-          write_value <= registers_save_value[saveram_q_num];          
+          write_value <= registers_save_value[saveram_q_num];             
         end
       end
       
@@ -288,9 +290,8 @@ module x_out_of_order4 (
         pc_physical <= pc_physical + 2;
       end
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-
+      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;    
+  
       //executor    
       case (executor_state)
         EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
@@ -331,9 +332,10 @@ module x_out_of_order4 (
               if (reg_do_op[i]) begin
                 case (reg_instruction_state)
                   OPCODE_TILL_VALUE, OPCODE_TILL_NON_VALUE: begin
-                   if (executor_state == EXECUTE_STATE_START) begin
+                       if (executor_state == EXECUTE_STATE_START) begin
                     if ((reg_instruction_state == OPCODE_TILL_VALUE && registers_value[i] != decoder_start_ram_address_or_numeric) ||
                           (reg_instruction_state == OPCODE_TILL_NON_VALUE && registers_value[i] == decoder_start_ram_address_or_numeric)) begin
+                      
                       pc_physical <= pc_physical - decoder_register_len - 2;
                       read_address <= pc_physical - decoder_register_len;
                       read_address2 <= pc_physical - decoder_register_len + 1;
