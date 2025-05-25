@@ -192,7 +192,7 @@ module x_out_of_order4 (
       if (register_save_lock[zz]) begin
         if (registers_save_address[zz] >= reg_start_ram_address_or_numeric) begin
           if(registers_save_address[zz] <= reg_start_ram_address_or_numeric + reg_register_len) begin
-            readstallindex <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+            readstallindex <= zz;
             $display(
                 $sformatf("%02d", $time), pc_logical, " read stall (next cycle) ", zz,
                 " - register ",
@@ -218,9 +218,9 @@ module x_out_of_order4 (
       rst <= 0;
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         registers_src_mmu_done[i]  <= 1;
-        registers_save_mmu_done[i] <= 0;
-        registers_src_address2[i]  <= process_hardware_address + ADDRESS_REG + i;
+         registers_src_address2[i]  <= process_hardware_address + ADDRESS_REG + i;
         registers_save_address[i]  <= 0;
+        //registers_save_mmu_done[i] <= 0;       
       end
       executor_state <= EXECUTE_STATE_START;
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
@@ -250,8 +250,6 @@ module x_out_of_order4 (
                    read_address, "=", read_value);  //DEBUG info
           registers_value[register[0]] <= read_value;
           registers_init[register[0]] <= 1;
-          register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-
         end
         if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
           $display($sformatf("%02d", $time), " read second slot register ", register[1],
@@ -259,8 +257,6 @@ module x_out_of_order4 (
                    read_address2, "=", read_value2);  //DEBUG info
           registers_value[register[1]] <= read_value2;
           registers_init[register[1]] <= 1;
-          register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-
         end
         write_enabled <= 0;
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
@@ -274,8 +270,7 @@ module x_out_of_order4 (
           registers_save_address[saveram_q_num] <= 0;
           write_enabled <= 1;
           write_address <= registers_save_address2[saveram_q_num];
-          write_value <= registers_save_value[saveram_q_num];
-          saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+          write_value <= registers_save_value[saveram_q_num];          
         end
       end
       
@@ -289,6 +284,9 @@ module x_out_of_order4 (
         pc_logical  <= pc_logical + 2;
         pc_physical <= pc_physical + 2;
       end
+      register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
 
       //executor    
       case (executor_state)
@@ -330,12 +328,14 @@ module x_out_of_order4 (
               if (reg_do_op[i]) begin
                 case (reg_instruction_state)
                   OPCODE_TILL_VALUE, OPCODE_TILL_NON_VALUE: begin
+                   if (executor_state == EXECUTE_STATE_START) begin
                     if ((reg_instruction_state == OPCODE_TILL_VALUE && registers_value[i] != decoder_start_ram_address_or_numeric) ||
                           (reg_instruction_state == OPCODE_TILL_NON_VALUE && registers_value[i] == decoder_start_ram_address_or_numeric)) begin
                       pc_physical <= pc_physical - decoder_register_len - 2;
                       read_address <= pc_physical - decoder_register_len;
                       read_address2 <= pc_physical - decoder_register_len + 1;
                       decoder_input_address <= pc_physical - decoder_register_len - 2;
+                    end
                     end
                   end
                   OPCODE_RAM2REG: begin
