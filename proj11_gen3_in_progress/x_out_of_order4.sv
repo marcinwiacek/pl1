@@ -185,14 +185,17 @@ module x_out_of_order4 (
   integer i, zz;
 
   reg [6:0] readstallindex;
+  reg [15:0] readsaveaddr;
 
   always @(posedge clk) begin
     readstallindex <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
     for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
-      if (register_save_lock[zz]) begin
+   
         if (registers_save_address[zz] >= reg_start_ram_address_or_numeric) begin
           if(registers_save_address[zz] <= reg_start_ram_address_or_numeric + reg_register_len) begin
+             if (register_save_lock[zz]) begin
             readstallindex <= zz;
+            readsaveaddr<=registers_save_address[zz];
             $display(
                 $sformatf("%02d", $time), pc_logical, " read stall (next cycle) ", zz,
                 " - register ",
@@ -236,7 +239,7 @@ module x_out_of_order4 (
       $display("");
       if (readstallindex != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (registers_src_address[i] == registers_save_address[readstallindex]) begin
+          if (registers_src_address[i] == readsaveaddr) begin
             $display($sformatf("%02d", $time), " read register from read stall ", i,
                      " with value ", registers_save_value[readstallindex]);  //DEBUG info
             registers_value[i] <= registers_save_value[readstallindex];
