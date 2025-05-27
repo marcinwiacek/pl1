@@ -138,7 +138,7 @@ module x_out_of_order4 (
   reg [REGISTER_NUM-1:0] executor_do_op;
 
   reg [6:0] register[0:1];
-  reg register_save_lock[0:REGISTER_NUM-1];
+  reg register_save_lock[0:REGISTER_NUM];
 
   parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
 
@@ -159,21 +159,21 @@ module x_out_of_order4 (
   reg [15:0] process_hardware_address = 0;
   reg [15:0] pc_logical, pc_physical;
 
-  reg [15:0] registers_value[0:REGISTER_NUM-1], registers_save_value[0:REGISTER_NUM-1];
+  reg [15:0] registers_value[0:REGISTER_NUM], registers_save_value[0:REGISTER_NUM];
   reg [15:0]
-      registers_src_address[0:REGISTER_NUM-1],
-      registers_src_address2[0:REGISTER_NUM-1],
-      registers_save_address[0:REGISTER_NUM-1],
-      registers_save_address2[0:REGISTER_NUM-1];
+      registers_src_address[0:REGISTER_NUM],
+      registers_src_address2[0:REGISTER_NUM],
+      registers_save_address[0:REGISTER_NUM],
+      registers_save_address2[0:REGISTER_NUM];
   reg
-      registers_src_mmu_done[0:REGISTER_NUM-1],
-      registers_init[0:REGISTER_NUM-1] = {
+      registers_src_mmu_done[0:REGISTER_NUM],
+      registers_init[0:REGISTER_NUM] = {
         // verilog_format:off
-        1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1
         // verilog_format:on
       },  //Read from RAM?
-      registers_save_ready[0:REGISTER_NUM-1],
-      registers_save_mmu_done[0:REGISTER_NUM-1];
+      registers_save_ready[0:REGISTER_NUM],
+      registers_save_mmu_done[0:REGISTER_NUM];
 
   //----------------------------------------------------------------other---------------------------
 
@@ -206,12 +206,18 @@ module x_out_of_order4 (
   end
 
   always @(posedge clk) begin
+   write_enabled <= 0;
             saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
         for (pp = 0; pp < REGISTER_NUM; pp = pp + 1) begin
           if (registers_save_ready[pp]) begin
             saveram_q_num <= pp;
+          write_enabled <= 1;
+          write_address <= registers_save_address2[pp];
+          write_value <= registers_save_value[pp];             
           end
         end
+              
+
   end
 
   always @(posedge clk) begin
@@ -253,33 +259,45 @@ module x_out_of_order4 (
             registers_init[i]  <= 1;
           end
         end
-      end else begin
-        if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      end
+   
+//        write_enabled <= 0;
+        if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+          register_save_lock[saveram_q_num] <= 0;
+          registers_save_ready[saveram_q_num] <= 0;
+         //           registers_save_address[saveram_q_num] <= 0;
+                    
+//          write_enabled <= saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+//          write_address <= registers_save_address2[saveram_q_num];
+//          write_value <= registers_save_value[saveram_q_num];             
+        end
+      
+      
+     
+  
+      //executor    
+      case (executor_state)
+        EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
+        
+             if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32)
           $display($sformatf("%02d", $time), " read first slot register ", register[0],
                    " with address ",  //DEBUG info
                    read_address, "=", read_value);  //DEBUG info
           registers_value[register[0]] <= read_value;
           registers_init[register[0]] <= 1;
-        end
-        if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
+      register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      
+       
+               if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) 
           $display($sformatf("%02d", $time), " read second slot register ", register[1],
                    " with address ",  //DEBUG info
                    read_address2, "=", read_value2);  //DEBUG info
           registers_value[register[1]] <= read_value2;
           registers_init[register[1]] <= 1;
-        end
-        write_enabled <= 0;
-        if (saveram_q_num != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32) begin
-          register_save_lock[saveram_q_num] <= 0;
-          registers_save_ready[saveram_q_num] <= 0;
-          registers_save_address[saveram_q_num] <= 0;
-          write_enabled <= 1;
-          write_address <= registers_save_address2[saveram_q_num];
-          write_value <= registers_save_value[saveram_q_num];             
-        end
-      end
-      
-      // fetcher
+      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+     
+        
+         // fetcher
       decoder_inp   <= 1;
       read_address  <= pc_physical + 2;
       read_address2 <= pc_physical + 3;
@@ -289,12 +307,6 @@ module x_out_of_order4 (
         pc_logical  <= pc_logical + 2;
         pc_physical <= pc_physical + 2;
       end
-      register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;    
-  
-      //executor    
-      case (executor_state)
-        EXECUTE_STATE_START, EXECUTE_STATE_CONTINUE: begin
           if (decoder_ready || executor_state != EXECUTE_STATE_START) begin
             if (executor_state == EXECUTE_STATE_START) begin
               executor_instruction_state <= decoder_instruction_state;
@@ -327,7 +339,7 @@ module x_out_of_order4 (
                 executor_register_start % 16 >= 10 ? executor_register_start % 16 + 65 - 10 : executor_register_start % 16 + 48,
                 " b2 ",  //DEBUG info
                 executor_register_len, "-", executor_start_ram_address_or_numeric);
-            executor_state <= readstallindex != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_START;
+            executor_state <= readstallindex == RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32?EXECUTE_STATE_START:EXECUTE_STATE_CONTINUE;
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (reg_do_op[i]) begin
                 case (reg_instruction_state)
