@@ -242,12 +242,12 @@ module x_out_of_order5 (
       pc_physical <= 52;
       rst <= 0;
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-        registers_src_mmu_done[i]  <= 1;
+        registers_src_mmu_done[i] <= 1;
         //registers_save_ready[i] <= 0;
-        registers_src_address2[i]  <= process_hardware_address + ADDRESS_REG + i;
-        registers_save_address[i]  <= 0;
+        registers_src_address2[i] <= process_hardware_address + ADDRESS_REG + i;
+        registers_save_address[i] <= 0;
         registers_save_mmu_done[i] <= 0;
-             register_save_lock[i]<=0;
+        register_save_lock[i] <= 0;
       end
       executor_state <= EXECUTE_STATE_START;
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
@@ -271,7 +271,7 @@ module x_out_of_order5 (
               registers_value[i] <= registers_save_value[readstallindex];
               registers_init[i] <= 1;
               registers_src_address[i] <= 0;
-              readstallnotprocessed <= 0;         
+              readstallnotprocessed <= 0;
             end
           end
         end
@@ -418,17 +418,18 @@ module x_out_of_order5 (
                     end else begin
                       case (decoder_instruction_state)
                         OPCODE_REG2RAM: begin
-                          if (!register_save_lock[i] || saveram_q_num==i) begin
+                          if (!register_save_lock[i] || saveram_q_num == i) begin
                             registers_save_value[i] <= registers_value[i];
                             registers_save_address[i] <= decoder_start_ram_address_or_numeric+i-decoder_register_start;
                             executor_do_op[i] <= 0;
-                            register_save_lock[i] <= 1;                         
+                            register_save_lock[i] <= 1;
                           end else begin
                             executor_state <= registers_save_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
                             mmu_address_logical <= registers_save_address[i];
                             decoder_inp <= 0;
                             $display($sformatf("%02d", $time), pc_logical, " write memory slot ",
-                                     i, " is already filled, stall1 ", saveram_q_num, " " ,register_save_lock[i]);
+                                     i, " is already filled, stall1 ", saveram_q_num, " ",
+                                     register_save_lock[i]);
                             if (!registers_save_mmu_done[i])
                               $display(
                                   $sformatf("%02d", $time), pc_logical, " starting mmu from save"
@@ -484,7 +485,7 @@ module x_out_of_order5 (
               end else begin
                 case (executor_instruction_state)
                   OPCODE_REG2RAM: begin
-                    if (!register_save_lock[i] || saveram_q_num==i) begin
+                    if (!register_save_lock[i] || saveram_q_num == i) begin
                       registers_save_value[i] <= registers_value[i];
                       registers_save_address[i] <= executor_start_ram_address_or_numeric+i-executor_register_start;
                       executor_do_op[i] <= 0;
@@ -494,7 +495,8 @@ module x_out_of_order5 (
                       mmu_address_logical <= registers_save_address[i];
                       decoder_inp <= 0;
                       $display($sformatf("%02d", $time), pc_logical, " write memory slot ", i,
-                               " is already filled, stall2 ", saveram_q_num, " " ,register_save_lock[i]);
+                               " is already filled, stall2 ", saveram_q_num, " ",
+                               register_save_lock[i]);
                       if (!registers_save_mmu_done[i])
                         $display($sformatf("%02d", $time), pc_logical, " starting mmu from save");
                     end
@@ -549,12 +551,11 @@ module x_out_of_order5 (
                   registers_save_address2[i]<= mmu_address_physical_min_in_the_same_page+registers_save_address[i]-mmu_address_logical_min_in_the_same_page;
                   registers_save_mmu_done[i] <= 1;
                   registers_save_ready[i] <= 1;
-                  
-                   saveram_q_num <= i;
-          write_enabled <= 1;
-          write_address <= mmu_address_physical_min_in_the_same_page+registers_save_address[i]-mmu_address_logical_min_in_the_same_page;
-          write_value   <= registers_save_value[i];
-          
+
+                  saveram_q_num <= i;
+                  write_enabled <= 1;
+                  write_address <= mmu_address_physical_min_in_the_same_page+registers_save_address[i]-mmu_address_logical_min_in_the_same_page;
+                  write_value <= registers_save_value[i];
                 end
               end
             end
