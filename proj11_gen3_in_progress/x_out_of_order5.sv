@@ -263,7 +263,6 @@ module x_out_of_order5 (
       $display("");
       readstallnotprocessed <= 1;
       if (readstallavail) begin
-        //$display("processing read stall");
         for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           if (registers_src_address[i] == readsaveaddr) begin
             if (!registers_init[i]) begin
@@ -365,7 +364,6 @@ module x_out_of_order5 (
             executor_register_len <= decoder_register_len;
             executor_start_ram_address_or_numeric <= decoder_start_ram_address_or_numeric;
             executor_do_op <= decoder_do_op;
-
             instr_num <= instr_num + 1;
             $display($sformatf("%02d", $time), pc_logical, " copying");
             executor_state <= readstallavail ? EXECUTE_STATE_CONTINUE : EXECUTE_STATE_START;
@@ -551,6 +549,12 @@ module x_out_of_order5 (
                   registers_save_address2[i]<= mmu_address_physical_min_in_the_same_page+registers_save_address[i]-mmu_address_logical_min_in_the_same_page;
                   registers_save_mmu_done[i] <= 1;
                   registers_save_ready[i] <= 1;
+                  
+                   saveram_q_num <= i;
+          write_enabled <= 1;
+          write_address <= mmu_address_physical_min_in_the_same_page+registers_save_address[i]-mmu_address_logical_min_in_the_same_page;
+          write_value   <= registers_save_value[i];
+          
                 end
               end
             end
