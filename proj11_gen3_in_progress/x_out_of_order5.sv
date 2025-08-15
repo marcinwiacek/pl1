@@ -366,10 +366,7 @@ module x_out_of_order5 (
             executor_do_op <= decoder_do_op;
             instr_num <= instr_num + 1;
             $display($sformatf("%02d", $time), pc_logical, " copying");
-            if (readstallavail) begin
-            executor_state <= EXECUTE_STATE_CONTINUE;
-            end else begin
-            executor_state <=  EXECUTE_STATE_START;
+            executor_state <= readstallavail ? EXECUTE_STATE_CONTINUE : EXECUTE_STATE_START;
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (decoder_do_op[i]) begin
                 case (decoder_instruction_state)
@@ -400,10 +397,11 @@ module x_out_of_order5 (
                   default: begin
                     if (!registers_init[i]) begin
                       decoder_inp <= 0;
-                      executor_state <= EXECUTE_STATE_MMU;                      
+                      //executor_state <= EXECUTE_STATE_MMU;                      
+                      executor_state <= readstallavail||registers_src_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;                      
                       mmu_address_logical <= registers_src_address[i];
-                   if ( registers_src_mmu_done[i]) begin
-                        executor_state <= EXECUTE_STATE_CONTINUE;
+                      if (!readstallavail && registers_src_mmu_done[i]) begin
+                    //    executor_state <= EXECUTE_STATE_CONTINUE;
                         $display($sformatf("%02d", $time), pc_logical, " need to fetch register ",
                                  i, " src address ", registers_src_address2[i]);
                         if (i % 2 == 0) begin
@@ -413,9 +411,8 @@ module x_out_of_order5 (
                           read_address2 <= registers_src_address2[i];
                           register[1]   <= i;
                         end
-                      end else begin
-                        $display($sformatf("%02d", $time), pc_logical, " starting mmu from read");
-                      
+                     // end else begin
+                       // $display($sformatf("%02d", $time), pc_logical, " starting mmu from read");
                       end
                     end else begin
                       case (decoder_instruction_state)
@@ -460,22 +457,18 @@ module x_out_of_order5 (
                 endcase
               end
             end
-            end
           end
         end
         EXECUTE_STATE_CONTINUE: begin
-          if (readstallavail) begin
-            executor_state <= EXECUTE_STATE_CONTINUE;
-          end else begin
-          executor_state <= EXECUTE_STATE_START;
+          executor_state <= readstallavail ? EXECUTE_STATE_CONTINUE : EXECUTE_STATE_START;
           for (i = 0; i < REGISTER_NUM; i = i + 1) begin
             if (executor_do_op[i]) begin
               if (!registers_init[i]) begin
                 decoder_inp <= 0;
-                executor_state <= registers_src_mmu_done[i]? EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
+                executor_state <= EXECUTE_STATE_MMU;
                 mmu_address_logical <= registers_src_address[i];
                 if (registers_src_mmu_done[i]) begin
-                  //executor_state <= ;
+                  executor_state <= EXECUTE_STATE_CONTINUE;
                   $display($sformatf("%02d", $time), pc_logical, " need to fetch register ", i,
                            " src address ", registers_src_address2[i]);
                   if (i % 2 == 0) begin
@@ -524,7 +517,6 @@ module x_out_of_order5 (
                 endcase
               end
             end
-          end
           end
         end
         EXECUTE_STATE_MMU: begin
