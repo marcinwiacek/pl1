@@ -199,9 +199,9 @@ wire  decoder_do_op0[REGISTER_NUM-1:0] [0:1];
     readstallavail <= 0;
     if (readstallnotprocessed) begin
       for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
+         if (register_save_lock[zz]) begin
         if (registers_save_address[zz] >= decoder_start_ram_address_or_numeric[!decoder_slot]) begin
-          if(registers_save_address[zz] <= decoder_start_ram_address_or_numeric[!decoder_slot]+decoder_register_len[!decoder_slot]) begin
-            if (register_save_lock[zz]) begin
+          if(registers_save_address[zz] <= decoder_start_ram_address_or_numeric[!decoder_slot]+decoder_register_len[!decoder_slot]) begin         
               readstallavail <= 1;
               readstallindex <= zz;
               readsaveaddr   <= registers_save_address[zz];
@@ -266,27 +266,24 @@ wire  decoder_do_op0[REGISTER_NUM-1:0] [0:1];
                          registers_save_address[i]));
       end
       $display("");
-      readstallnotprocessed <= 1;
-      if (readstallavail) begin
-        for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          if (registers_src_address[i] == readsaveaddr) begin
-            if (!registers_init[i]) begin
-              $display($sformatf("%02d", $time), " read register from read stall ", i,
-                       " with value ", registers_save_value[readstallindex]);  //DEBUG info
-              registers_value[i] <= registers_save_value[readstallindex];
-              registers_init[i] <= 1;
-              registers_src_address[i] <= 0;
-              readstallnotprocessed <= 0;
-            end
-          end
-        end
-      end
-
+      readstallnotprocessed <= 1;    
       write_enabled <= 0;
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register_save_lock[saveram_q_num] <= 0;
       registers_save_ready[saveram_q_num] <= 0;
       for (pp = 0; pp < REGISTER_NUM; pp = pp + 1) begin
+        if (readstallavail) begin
+         if (!registers_init[pp]) begin
+         if (registers_src_address[pp] == readsaveaddr) begin           
+              $display($sformatf("%02d", $time), " read register from read stall ", pp,
+                       " with value ", registers_save_value[readstallindex]);  //DEBUG info
+              registers_value[pp] <= registers_save_value[readstallindex];
+              registers_init[pp] <= 1;
+              registers_src_address[pp] <= 0;
+              readstallnotprocessed <= 0;
+            end
+          end
+        end
         if (registers_save_ready[pp]) begin
           saveram_q_num <= pp;
           write_enabled <= 1;
@@ -374,10 +371,9 @@ wire  decoder_do_op0[REGISTER_NUM-1:0] [0:1];
             $display($sformatf("%02d", $time), pc_logical, " copying");
             executor_state <= readstallavail ? EXECUTE_STATE_CONTINUE : EXECUTE_STATE_START;
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-          decoder_do_op2[i]<=decoder_do_op0[i][!decoder_slot];   
-          //    $display (" status bit ",decoder_do_op0[i][!decoder_slot]);
-              
+
               if (decoder_do_op0[i][!decoder_slot]) begin
+                decoder_do_op2[i]<=1;   
                 case (decoder_instruction_state[!decoder_slot])
                   OPCODE_TILL_VALUE, OPCODE_TILL_NON_VALUE: begin
                     if ((decoder_instruction_state[!decoder_slot] == OPCODE_TILL_VALUE && registers_value[i] != decoder_start_ram_address_or_numeric[!decoder_slot]) ||
@@ -469,7 +465,10 @@ wire  decoder_do_op0[REGISTER_NUM-1:0] [0:1];
                     end
                   end
                 endcase
+              end else begin
+                              decoder_do_op2[i]<=0;   
               end
+             
             end
           end
         end
