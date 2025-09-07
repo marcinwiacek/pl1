@@ -61,7 +61,7 @@ parameter EXECUTE_STATE_CONTINUE = 1;
 parameter EXECUTE_STATE_MMU = 2;
 
 
-parameter REGISTER_NUM = 24;
+parameter REGISTER_NUM = 32;
 
 module x_out_of_order5 (
     input clk,
@@ -175,7 +175,7 @@ module x_out_of_order5 (
       registers_src_mmu_done[0:REGISTER_NUM],
       registers_init[0:REGISTER_NUM] = {
         // verilog_format:off
-        1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1
         // verilog_format:on
       },  //Read from RAM?
       registers_save_ready[0:REGISTER_NUM],
