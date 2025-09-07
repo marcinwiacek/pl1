@@ -240,7 +240,6 @@ module x_out_of_order5 (
             $display($sformatf("%02d", $time), " read register from read stall ", qq,
                      " with value ", registers_save_value[readstallindex]);  //DEBUG info
             registers_value[qq] <= registers_save_value[readstallindex];
-
           end
         end
       end
@@ -254,25 +253,25 @@ module x_out_of_order5 (
             case (decoder_instruction_state[!decoder_slot])
               OPCODE_NUM2REG: begin
                 //not important if register had value earlier
-                registers_value[i] <= decoder_start_ram_address_or_numeric[!decoder_slot];
+                registers_value[qq] <= decoder_start_ram_address_or_numeric[!decoder_slot];
               end
               OPCODE_REG_PLUS: begin
                 decoder_do_op2[qq] <= 0;
                 $display($sformatf("%02d", $time), pc_logical, " ", register[0], " ", register[1],
                          " ", read_value, " ", read_value2);
-                $display($sformatf("%02d", $time), pc_logical, " reg ", i, " plus with value ",
+                $display($sformatf("%02d", $time), pc_logical, " reg ", qq, " plus with value ",
                          decoder_start_ram_address_or_numeric, " old ", registers_value[qq]);
                 registers_value[qq] <= registers_value[qq][!decoder_slot] + decoder_start_ram_address_or_numeric[!decoder_slot];
               end
               OPCODE_REG_MINUS: begin
                 decoder_do_op2[qq] <= 0;
-                $display($sformatf("%02d", $time), pc_logical, " reg ", i, " minus with value ",
+                $display($sformatf("%02d", $time), pc_logical, " reg ", qq, " minus with value ",
                          decoder_start_ram_address_or_numeric, " old ", registers_value[qq]);
                 registers_value[qq] <= registers_value[qq] - decoder_start_ram_address_or_numeric[!decoder_slot];
               end
               OPCODE_REG2RAM: begin
-                if (!register_save_lock[i] || saveram_q_num == i) begin
-                  decoder_do_op2[i] <= 0;
+                if (!register_save_lock[qq] || saveram_q_num == qq) begin
+                  decoder_do_op2[qq] <= 0;
                 end
               end
             endcase
