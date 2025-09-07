@@ -86,13 +86,11 @@ module x_out_of_order5 (
       .write_value(write_value),
       .read_address(read_address),
       .read_address2(read_address2),
-
       .read_value (read_value),
       .read_value2(read_value2)
   );
 
   parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
-
 
   reg [ 6:0] saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
 
@@ -125,7 +123,6 @@ module x_out_of_order5 (
       .instruction1(read_value),
       .instruction2(read_value2),
       .slot(decoder_slot),
-
       .do_op(decoder_do_op0),
       .ready(decoder_ready),
       .state(decoder_instruction_state),
@@ -133,46 +130,25 @@ module x_out_of_order5 (
       .start_ram_address_or_numeric(decoder_start_ram_address_or_numeric),
       .register_start(decoder_register_start),
       .register_len(decoder_register_len)
-
   );
 
   //--------------------------------------------------------------------executor------------------
 
   reg [5:0] executor_state;
-  // executor_instruction_state;
-  //reg [6:0] executor_register_len;
-  //reg [6:0] executor_register_start;
-  //reg [15:0] executor_start_ram_address_or_numeric;
-  //reg [REGISTER_NUM-1:0] executor_do_op;
-
   reg [6:0] register[0:1];
   reg register_save_lock[0:REGISTER_NUM];
 
   //--------------------------------------------------------------------process------------------
 
-  //  reg [5:0] reg_instruction_state;
-  // reg [15:0] reg_register_len;
-  //reg [10:0] reg_register_start;
-  //reg [15:0] reg_start_ram_address_or_numeric;
-  //  reg [REGISTER_NUM-1:0] reg_do_op;
-
-  // assign reg_register_start = executor_state == EXECUTE_STATE_START ?decoder_register_start:executor_register_start;
-  //assign reg_register_len =  executor_state == EXECUTE_STATE_START ? decoder_register_len : executor_register_len;
-  //assign reg_instruction_state =   executor_state == EXECUTE_STATE_START?decoder_instruction_state:executor_instruction_state;
-  //assign reg_start_ram_address_or_numeric =  executor_state == EXECUTE_STATE_START?decoder_start_ram_address_or_numeric:executor_start_ram_address_or_numeric;
-  //assign reg_do_op = executor_state == EXECUTE_STATE_START ? decoder_do_op : executor_do_op;
-
   reg [15:0] process_hardware_address = 0;
   reg [15:0] pc_logical, pc_physical;
-
   reg [15:0] registers_value[0:REGISTER_NUM], registers_save_value[0:REGISTER_NUM];
   reg [15:0]
       registers_src_address[0:REGISTER_NUM],
       registers_src_address2[0:REGISTER_NUM],
       registers_save_address[0:REGISTER_NUM],
       registers_save_address2[0:REGISTER_NUM];
-  reg
-      registers_src_mmu_done[0:REGISTER_NUM],
+  reg registers_src_mmu_done[0:REGISTER_NUM],
       registers_init[0:REGISTER_NUM] = {
         // verilog_format:off
         1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1
@@ -202,7 +178,6 @@ module x_out_of_order5 (
         if (register_save_lock[zz]) begin
           if (registers_save_address[zz] >= decoder_start_ram_address_or_numeric[!decoder_slot]) begin
             if(registers_save_address[zz] <= decoder_start_ram_address_or_numeric[!decoder_slot]+decoder_register_len[!decoder_slot]) begin
-
               readstallavail <= 1;
               readstallindex <= zz;
               readsaveaddr   <= registers_save_address[zz];
@@ -218,20 +193,6 @@ module x_out_of_order5 (
     end
   end
 
-  /*  always @(posedge clk) begin
-    write_enabled <= 0;
-    saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-    for (pp = 0; pp < REGISTER_NUM; pp = pp + 1) begin
-      if (registers_save_ready[pp]) begin
-        saveram_q_num <= pp;
-        write_enabled <= 1;
-        write_address <= registers_save_address2[pp];
-        write_value   <= registers_save_value[pp];
-      end
-    end
-  end
-*/
-
   always @(posedge clk) begin
     for (qq = 0; qq < REGISTER_NUM; qq = qq + 1) begin
       if (readstallavail) begin
@@ -245,7 +206,6 @@ module x_out_of_order5 (
       end
       if (register[0] == qq) registers_value[qq] <= read_value;
       if (register[1] == qq) registers_value[qq] <= read_value2;
-
       if (decoder_ready && executor_state != EXECUTE_STATE_MMU) begin
         if (executor_state == EXECUTE_STATE_START ?decoder_do_op0[qq][!decoder_slot]:decoder_do_op2[qq]) begin
           decoder_do_op2[qq] <= 1;
@@ -381,9 +341,6 @@ module x_out_of_order5 (
       if (decoder_inp) begin
         pc_logical  <= pc_logical + 2;
         pc_physical <= pc_physical + 2;
-
-
-
       end
 
       $display(
@@ -408,21 +365,11 @@ module x_out_of_order5 (
           decoder_register_start[1] % 16 >= 10 ? decoder_register_start[1] % 16 + 65 - 10 : decoder_register_start[1] % 16 + 48,
           " b2 ",  //DEBUG info
           decoder_register_len[1], "-", decoder_start_ram_address_or_numeric[1]);
-
-
-
+          
       instr_num <= executor_state == EXECUTE_STATE_START ? instr_num + 1 : instr_num;
-
-
       executor_state <= readstallavail ? EXECUTE_STATE_CONTINUE : EXECUTE_STATE_START;
-
-
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-
-
         case (executor_state)
-
-
           EXECUTE_STATE_MMU: begin
             //mmu
             $display($sformatf("%02d", $time), pc_logical, " mmu processing ");  //DEBUG info
@@ -462,11 +409,9 @@ module x_out_of_order5 (
                 end
               end
             end
-
             executor_state <= EXECUTE_STATE_CONTINUE;
           end
           default: begin
-
             if (decoder_ready) begin
               if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[i][!decoder_slot]:decoder_do_op2[i])) begin
                 //  decoder_do_op2[i] <= 1;
@@ -499,7 +444,6 @@ module x_out_of_order5 (
                     if (!registers_init[i]) begin
                       decoder_inp <= 0;
                       decoder_slot <= decoder_slot;
-
                       executor_state <= EXECUTE_STATE_MMU;
                       mmu_address_logical <= registers_src_address[i];
                       if (readstallavail) begin
@@ -531,7 +475,6 @@ module x_out_of_order5 (
                             mmu_address_logical <= registers_save_address[i];
                             decoder_inp <= 0;
                             decoder_slot <= decoder_slot;
-
                             $display($sformatf("%02d", $time), pc_logical, " write memory slot ",
                                      i, " is already filled, stall1 ", saveram_q_num, " ",
                                      register_save_lock[i]);
@@ -541,7 +484,6 @@ module x_out_of_order5 (
                               );
                           end
                         end
-
                       endcase
                     end
                   end
@@ -549,19 +491,10 @@ module x_out_of_order5 (
               end else begin
                 //     decoder_do_op2[i] <= 0;
               end
-
-
             end
-
           end
         endcase
-
-
       end
-
-      //executor
-
-      // end
       $display("");
     end else begin
       decoder_inp <= 0;
@@ -630,7 +563,6 @@ module decoder (
       register_len[slot] <= instruction1_2_2;
       state[slot] <= instruction1_1;
 
-
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         //(instruction1_1==OPCODE_TILL_VALUE || instruction1_1==OPCODE_TILL_NON_VALUE? i == instruction1_2_1:
         do_op[i][slot] <= (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) ? 1 : 0;
@@ -643,14 +575,12 @@ module decoder (
               " opcode = till_value reg ", instruction1_2_1, "=", instruction2, " jmp ",
               instruction1_2_2  //DEBUG info
           );  //DEBUG info
-
         end
         OPCODE_TILL_NON_VALUE: begin
           $write(  //DEBUG info
               " opcode = till_non_value reg ", instruction1_2_1, "=", instruction2, " jmp ",
               instruction1_2_2  //DEBUG info
           );  //DEBUG info
-
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit addr
         OPCODE_RAM2REG, OPCODE_REG2RAM: begin
@@ -678,7 +608,6 @@ module decoder (
                 "+"  //DEBUG info
             );  //DEBUG info
           end
-
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit value
         OPCODE_NUM2REG, OPCODE_REG_PLUS, OPCODE_REG_MUL, OPCODE_REG_DIV: begin
