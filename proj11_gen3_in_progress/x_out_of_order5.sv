@@ -195,19 +195,18 @@ module x_out_of_order5 (
   end
 
   always @(posedge clk) begin  
+      if (decoder_ready) begin
     for (qq = 0; qq < REGISTER_NUM; qq = qq + 1) begin
-      registers_value[qq]<= register[0]==qq?read_value:(register[1]==qq? read_value2:registers_value[qq]);
       if (readstallavail) begin
-        if (!registers_init[qq]) begin
+        if (!registers_init[qq]) begin      
           if (registers_src_address[qq] == readsaveaddr) begin
             $display($sformatf("%02d", $time), " read register from read stall ", qq,
                      " with value ", registers_save_value[readstallindex]);  //DEBUG info
             registers_value[qq] <= registers_save_value[readstallindex];
           end
         end
-      end else if (decoder_ready) begin
-    
-          if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[qq][!decoder_slot]:decoder_do_op2[qq])) begin
+      end else if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[qq][!decoder_slot]:decoder_do_op2[qq])) begin
+      registers_value[qq]<= register[0]==qq?read_value:(register[1]==qq? read_value2:registers_value[qq]);
             decoder_do_op2[qq] <= 1;
             if (registers_init[qq]) begin             
                 case (decoder_instruction_state[!decoder_slot])
@@ -240,6 +239,7 @@ module x_out_of_order5 (
         
         end
       end
+   
     end
   end
 
