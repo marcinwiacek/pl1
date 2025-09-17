@@ -212,14 +212,18 @@ module x_out_of_order5 (
               registers_value[qq] <= registers_save_value[readstallindex];
             end
           end
-        end else if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[qq][!decoder_slot]:decoder_do_op2[qq])) begin
-          registers_value[qq]<= register[0]==qq?read_value:(register[1]==qq? read_value2:registers_value[qq]);
+        end else if ((executor_state == EXECUTE_STATE_START && decoder_do_op0[qq][!decoder_slot]) || decoder_do_op2[qq]) begin
+          if (register[0]==qq) begin
+             registers_value[qq]<= read_value;
+          end else if (register[1]==qq) begin
+             registers_value[qq]<= read_value2;
+          end
           decoder_do_op2[qq] <= 1;
           if (registers_init[qq]) begin
             case (decoder_instruction_state[!decoder_slot])
               OPCODE_NUM2REG: begin
                 //not important if register had value earlier
-                registers_value[qq] <= decoder_numeric[i][!decoder_slot];
+                registers_value[qq] <= decoder_numeric[qq][!decoder_slot];
               end
               OPCODE_REG_PLUS: begin
                 decoder_do_op2[qq] <= 0;
@@ -227,13 +231,13 @@ module x_out_of_order5 (
                          " ", read_value, " ", read_value2);
                 //      $display($sformatf("%02d", $time), pc_logical, " reg ", qq, " plus with value ",
                 //             decoder_start_ram_address_or_numeric, " old ", registers_value[qq]);
-                registers_value[qq] <= registers_value[qq] + decoder_numeric[i][!decoder_slot];
+                registers_value[qq] <= registers_value[qq] + decoder_numeric[qq][!decoder_slot];
               end
               OPCODE_REG_MINUS: begin
                 decoder_do_op2[qq]  <= 0;
                 //  $display($sformatf("%02d", $time), pc_logical, " reg ", qq, " minus with value ",
                 //         decoder_start_ram_address_or_numeric, " old ", registers_value[qq]);
-                registers_value[qq] <= registers_value[qq] - decoder_numeric[i][!decoder_slot];
+                registers_value[qq] <= registers_value[qq] - decoder_numeric[qq][!decoder_slot];
               end
               OPCODE_REG2RAM: begin
                 if (!register_save_lock[qq] || saveram_q_num == qq) begin
@@ -362,7 +366,7 @@ module x_out_of_order5 (
           decoder_in2_1[0] % 16 >= 10 ? decoder_in2_1[0] % 16 + 65 - 10 : decoder_in2_1[0] % 16 + 48,  //DEBUG info
           decoder_in2_2[0] / 16 >= 10 ? decoder_in2_2[0] / 16 + 65 - 10 : decoder_in2_2[0] / 16 + 48,  //DEBUG info
           decoder_in2_2[0] % 16 >= 10 ? decoder_in2_2[0] % 16 + 65 - 10 : decoder_in2_2[0] % 16 + 48,  //DEBUG info
-          "h state ", decoder_instruction_state[0]);
+          "h state ", decoder_instruction_state[0], " start ", decoder_start[0]," end ",decoder_end[0]);
 
       $display(
           $sformatf("%02d", $time), pc_logical, " executor slot 1 opcode %c%c%c%c",  //DEBUG info
@@ -375,7 +379,7 @@ module x_out_of_order5 (
           decoder_in2_1[1] % 16 >= 10 ? decoder_in2_1[1] % 16 + 65 - 10 : decoder_in2_1[1] % 16 + 48,  //DEBUG info
           decoder_in2_2[1] / 16 >= 10 ? decoder_in2_2[1] / 16 + 65 - 10 : decoder_in2_2[1] / 16 + 48,  //DEBUG info
           decoder_in2_2[1] % 16 >= 10 ? decoder_in2_2[1] % 16 + 65 - 10 : decoder_in2_2[1] % 16 + 48,  //DEBUG info
-          "h state ", decoder_instruction_state[1]);
+          "h state ", decoder_instruction_state[1], " start ", decoder_start[1]," end ",decoder_end[1]);
 
       $write("numeric");
       for (i = 0; i < 20; i = i + 1) begin
@@ -580,8 +584,8 @@ module decoder (
 
       error_code[slot] <= 0;
       //start_ram_address_or_numeric[slot] <= instruction2;
-      numstart[slot] <= instruction1_2_1;
-      numend[slot] <= instruction1_2_1 + instruction1_2_2;
+      numstart[slot] <= instruction2;
+      numend[slot] <= instruction2 + instruction1_2_2;
       state[slot] <= instruction1_1;
       in1_1[slot] <= instruction1_1;
       in1_2[slot] <= instruction1_2;
