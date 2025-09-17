@@ -135,12 +135,9 @@ module x_out_of_order5 (
       .in1_2(decoder_in1_2),
       .in2_1(decoder_in2_1),
       .in2_2(decoder_in2_2),
-      //  .start_ram_address_or_numeric(decoder_start_ram_address_or_numeric),
       .numeric(decoder_numeric),
       .numstart(decoder_start),
       .numend(decoder_end)
-      //.register_start(decoder_register_start),
-      //.register_len(decoder_register_len)
   );
 
   //--------------------------------------------------------------------executor------------------
@@ -183,10 +180,9 @@ module x_out_of_order5 (
   reg readstallnotprocessed, readstallavail;
 
   always @(posedge clk) begin
-    //$display("decoder slot is ",decoder_slot," ",decoder_start_ram_address_or_numeric[!decoder_slot]);
-    readstallavail <= 0;
-    if (decoder_instruction_state[!decoder_slot] == OPCODE_RAM2REG) begin
-      if (readstallnotprocessed) begin
+    readstallavail <= 0;    
+    if (readstallnotprocessed) begin
+      if (decoder_instruction_state[!decoder_slot] == OPCODE_RAM2REG) begin
         for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
           if (register_save_lock[zz]) begin
             if (registers_save_address[zz] >= decoder_start[!decoder_slot]) begin
@@ -195,9 +191,8 @@ module x_out_of_order5 (
                 readstallindex <= zz;
                 readsaveaddr   <= registers_save_address[zz];
                 $display($sformatf("%02d", $time), pc_logical, " read stall (next cycle) ", zz,
-                         " - register, value ", registers_save_address[zz], " between ");
-                //                  decoder_start_ram_address_or_numeric[!decoder_slot], " and ",
-                //                  (decoder_start_ram_address_or_numeric[!decoder_slot] + decoder_register_len[!decoder_slot]));
+                         " - register, value ", registers_save_address[zz], " between ",
+                         decoder_start[!decoder_slot]," and ",decoder_end[!decoder_slot]);
               end
             end
           end
@@ -382,7 +377,6 @@ module x_out_of_order5 (
           decoder_in2_2[1] % 16 >= 10 ? decoder_in2_2[1] % 16 + 65 - 10 : decoder_in2_2[1] % 16 + 48,  //DEBUG info
           "h state ", decoder_instruction_state[1]);
 
-
       $write("numeric");
       for (i = 0; i < 20; i = i + 1) begin
         $write($sformatf(" %02d:%02d ", i, decoder_numeric[i][0]));
@@ -401,7 +395,6 @@ module x_out_of_order5 (
           EXECUTE_STATE_MMU: begin
             //mmu
             //     $display($sformatf("%02d", $time), pc_logical, " mmu processing ");  //DEBUG info
-
             //      $display($sformatf("%02d", $time), pc_logical, " ", i, " ", registers_init[i], " ",
             //                     registers_src_mmu_done[i], " ", registers_src_address[i], " ",
             //                     mmu_address_logical_min_in_the_same_page, " ",
@@ -550,9 +543,6 @@ module decoder (
     in1_2[0:1],
     in2_1[0:1],
     in2_2[0:1]
-
-    //output bit [6:0] register_len[0:1],
-    //output bit [6:0] register_start[0:1]
 );
 
   bit [7:0] instruction1_1;
@@ -588,15 +578,6 @@ module decoder (
           instruction2_2 % 16 >= 10 ? instruction2_2 % 16 + 65 - 10 : instruction2_2 % 16 + 48,  //DEBUG info
           "h state ", instruction1_1);
 
-      /* (",  //DEBUG info
-          instruction1_2_1,  //DEBUG info
-          "-",  //DEBUG info
-          instruction1_2_2,  //DEBUG info
-          ") b2 ",  //DEBUG info
-          instruction2,  //DEBUG info
-          " (", instruction2_1, "-", instruction2_2, ") ", instruction1, " ",
-          instruction2);  //DEBUG info*/
-
       error_code[slot] <= 0;
       //start_ram_address_or_numeric[slot] <= instruction2;
       numstart[slot] <= instruction1_2_1;
@@ -606,7 +587,6 @@ module decoder (
       in1_2[slot] <= instruction1_2;
       in2_1[slot] <= instruction2_1;
       in2_2[slot] <= instruction2_2;
-
 
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         if (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) begin
@@ -677,7 +657,6 @@ module decoder (
                    "-",  //DEBUG info
                    (instruction1_2_1 + instruction1_2_2)  //DEBUG info
             );  //DEBUG info
-
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               if (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) begin
                 numeric[i][slot] <= instruction2;
