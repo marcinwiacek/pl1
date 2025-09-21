@@ -649,12 +649,12 @@ end
           end
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit value
-        OPCODE_REG_PLUS, OPCODE_REG_MINUS, OPCODE_REG_MUL, OPCODE_REG_DIV: begin
+        OPCODE_NUM2REG, OPCODE_REG_PLUS, OPCODE_REG_MINUS, OPCODE_REG_MUL, OPCODE_REG_DIV: begin
           if (instruction1_2_1 + instruction1_2_2 >= 32) begin
             error_code[slot] <= ERROR_WRONG_REG_NUM;
           end else begin
             case (instruction1_1)  //DEBUG info
-             
+              OPCODE_NUM2REG: $write(" num2reg save");  //DEBUG info
               OPCODE_REG_PLUS: $write(" regplus add");  //DEBUG info
               OPCODE_REG_MINUS: $write(" regplus minus");  //DEBUG info
               OPCODE_REG_MUL:  $write(" regmul mul");  //DEBUG info
@@ -674,27 +674,7 @@ end
               end
             end
           end
-        end
-         OPCODE_NUM2REG: begin
-          if (instruction1_2_1 + instruction1_2_2 >= 32) begin
-            error_code[slot] <= ERROR_WRONG_REG_NUM;
-          end else begin
-            $write(" num2reg save");  //DEBUG info
-            $write(" value ",  //DEBUG info
-                   instruction2,  //DEBUG info
-                   " to reg ",  //DEBUG info
-                   instruction1_2_1,  //DEBUG info
-                   "-",  //DEBUG info
-                   (instruction1_2_1 + instruction1_2_2)  //DEBUG info
-            );  //DEBUG info
-            for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-               do_op[i][slot]   <= 0;
-              if (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) begin                
-                  do_op[i][slot]   <= 1;
-              end
-            end
-          end
-        end
+        end        
         //x, 16 bit how many instructions
         OPCODE_JMP_PLUS, OPCODE_JMP_MINUS: begin
         end
