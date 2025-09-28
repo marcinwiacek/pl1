@@ -61,7 +61,7 @@ parameter EXECUTE_STATE_CONTINUE = 1;
 parameter EXECUTE_STATE_MMU = 2;
 
 
-parameter REGISTER_NUM = 32;
+parameter REGISTER_NUM = 26;
 
 module x_out_of_order5 (
     input clk,
@@ -108,14 +108,14 @@ module x_out_of_order5 (
   reg [15:0] decoder_input_address;
   reg decoder_inp;
   wire decoder_ready;
-  wire [5:0] decoder_instruction_state[0:1];
+  wire [7:0] decoder_instruction_state[0:1];
   wire [3:0] decoder_error_code[0:1];
   wire [15:0] decoder_numeric[REGISTER_NUM-1:0][0:1];
   wire [15:0] decoder_end[0:1];
   wire [15:0] decoder_start[0:1];
   reg decoder_do_op2[REGISTER_NUM-1:0];
   wire decoder_do_op0[REGISTER_NUM-1:0][0:1];
-  wire [7:0] decoder_in1_1[0:1];
+//  wire [7:0] decoder_in1_1[0:1];
   wire [7:0] decoder_in1_2[0:1];
   wire [7:0] decoder_in2_1[0:1];
   wire [7:0] decoder_in2_2[0:1];
@@ -131,7 +131,7 @@ module x_out_of_order5 (
       .ready(decoder_ready),
       .state(decoder_instruction_state),
       .error_code(decoder_error_code),
-      .in1_1(decoder_in1_1),
+     // .in1_1(decoder_in1_1),
       .in1_2(decoder_in1_2),
       .in2_1(decoder_in2_1),
       .in2_2(decoder_in2_2),
@@ -160,7 +160,7 @@ module x_out_of_order5 (
       registers_src_mmu_done[0:REGISTER_NUM],
       registers_init[0:REGISTER_NUM] = {
         // verilog_format:off
-        1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1
         // verilog_format:on
       },  //Read from RAM?
       registers_save_ready[0:REGISTER_NUM],
@@ -212,7 +212,8 @@ module x_out_of_order5 (
               registers_value[qq] <= registers_save_value[readstallindex];
             end
           end
-        end else if ((executor_state == EXECUTE_STATE_START && decoder_do_op0[qq][!decoder_slot]) || decoder_do_op2[qq]) begin
+        end 
+        if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[i][!decoder_slot]:decoder_do_op2[i])) begin
           if (register[0] == qq) begin
             registers_value[qq] <= read_value;
           end else if (register[1] == qq) begin
@@ -357,8 +358,8 @@ module x_out_of_order5 (
 
       $display(
           $sformatf("%02d", $time), pc_logical, " executor slot 0 opcode %c%c%c%c",  //DEBUG info
-          decoder_in1_1[0] / 16 >= 10 ? decoder_in1_1[0] / 16 + 65 - 10 : decoder_in1_1[0] / 16 + 48,  //DEBUG info
-          decoder_in1_1[0] % 16 >= 10 ? decoder_in1_1[0] % 16 + 65 - 10 : decoder_in1_1[0] % 16 + 48,  //DEBUG info
+          decoder_instruction_state[0] / 16 >= 10 ? decoder_instruction_state[0] / 16 + 65 - 10 : decoder_instruction_state[0] / 16 + 48,  //DEBUG info
+          decoder_instruction_state[0] % 16 >= 10 ? decoder_instruction_state[0] % 16 + 65 - 10 : decoder_instruction_state[0] % 16 + 48,  //DEBUG info
           decoder_in1_2[0] / 16 >= 10 ? decoder_in1_2[0] / 16 + 65 - 10 : decoder_in1_2[0] / 16 + 48,  //DEBUG info
           decoder_in1_2[0] % 16 >= 10 ? decoder_in1_2[0] % 16 + 65 - 10 : decoder_in1_2[0] % 16 + 48,  //DEBUG info
           "h %c%c%c%c",  //DEBUG info
@@ -371,8 +372,8 @@ module x_out_of_order5 (
 
       $display(
           $sformatf("%02d", $time), pc_logical, " executor slot 1 opcode %c%c%c%c",  //DEBUG info
-          decoder_in1_1[1] / 16 >= 10 ? decoder_in1_1[1] / 16 + 65 - 10 : decoder_in1_1[1] / 16 + 48,  //DEBUG info
-          decoder_in1_1[1] % 16 >= 10 ? decoder_in1_1[1] % 16 + 65 - 10 : decoder_in1_1[1] % 16 + 48,  //DEBUG info
+          decoder_instruction_state[1] / 16 >= 10 ? decoder_instruction_state[1] / 16 + 65 - 10 : decoder_instruction_state[1] / 16 + 48,  //DEBUG info
+          decoder_instruction_state[1] % 16 >= 10 ? decoder_instruction_state[1] % 16 + 65 - 10 : decoder_instruction_state[1] % 16 + 48,  //DEBUG info
           decoder_in1_2[1] / 16 >= 10 ? decoder_in1_2[1] / 16 + 65 - 10 : decoder_in1_2[1] / 16 + 48,  //DEBUG info
           decoder_in1_2[1] % 16 >= 10 ? decoder_in1_2[1] % 16 + 65 - 10 : decoder_in1_2[1] % 16 + 48,  //DEBUG info
           "h %c%c%c%c",  //DEBUG info
@@ -443,9 +444,17 @@ module x_out_of_order5 (
               if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[i][!decoder_slot]:decoder_do_op2[i])) begin
                 //  decoder_do_op2[i] <= 1;
                 case (decoder_instruction_state[!decoder_slot])
-                  OPCODE_TILL_VALUE, OPCODE_TILL_NON_VALUE: begin
-                     if ((decoder_instruction_state[!decoder_slot] == OPCODE_TILL_VALUE && registers_value[i] != decoder_start[!decoder_slot]) ||
-                          (decoder_instruction_state[!decoder_slot] == OPCODE_TILL_NON_VALUE && registers_value[i] == decoder_start[!decoder_slot])) begin
+                  OPCODE_TILL_VALUE: begin
+                     if (registers_value[i] != decoder_start[!decoder_slot]) begin
+                      pc_physical <= pc_physical - decoder_end[!decoder_slot] - 2;
+                      read_address <= pc_physical - decoder_end[!decoder_slot];
+                      read_address2 <= pc_physical - decoder_end[!decoder_slot] + 1;
+                      decoder_input_address <= pc_physical - decoder_end[!decoder_slot] - 2;
+                      $display($sformatf("%02d", $time), pc_logical, " jump");
+                    end
+                  end
+                   OPCODE_TILL_NON_VALUE: begin
+                     if (registers_value[i] == decoder_start[!decoder_slot]) begin
                       pc_physical <= pc_physical - decoder_end[!decoder_slot] - 2;
                       read_address <= pc_physical - decoder_end[!decoder_slot];
                       read_address2 <= pc_physical - decoder_end[!decoder_slot] + 1;
@@ -540,14 +549,13 @@ module decoder (
 
     output bit do_op[REGISTER_NUM-1:0][0:1],
     output bit ready,
-    output bit [5:0] state[0:1],
+    output bit [7:0] state[0:1],
     output bit [3:0] error_code[0:1],
     output bit [15:0] numeric[REGISTER_NUM-1:0][0:1],
     output bit [15:0] numstart[0:1],
     output bit [15:0] numend[0:1],
 
-    output bit [7:0] in1_1[0:1],
-    in1_2[0:1],
+    output bit [7:0] /*in1_1[0:1],*/   in1_2[0:1],
     in2_1[0:1],
     in2_2[0:1]
 );
@@ -590,7 +598,7 @@ module decoder (
       numstart[slot] <= instruction2;
       numend[slot] <= instruction2 + instruction1_2_2;
       state[slot] <= instruction1_1;
-      in1_1[slot] <= instruction1_1;
+    //  in1_1[slot] <= instruction1_1;
       in1_2[slot] <= instruction1_2;
       in2_1[slot] <= instruction2_1;
       in2_2[slot] <= instruction2_2;
