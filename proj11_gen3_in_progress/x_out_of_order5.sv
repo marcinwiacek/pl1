@@ -180,7 +180,7 @@ module x_out_of_order5 (
   reg readstallnotprocessed, readstallavail;
 
   always @(posedge clk) begin
-    readstallavail <= 0;    
+    readstallavail <= 0;
     if (readstallnotprocessed) begin
       if (decoder_instruction_state[!decoder_slot] == OPCODE_RAM2REG) begin
         for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
@@ -192,7 +192,7 @@ module x_out_of_order5 (
                 readsaveaddr   <= registers_save_address[zz];
                 $display($sformatf("%02d", $time), pc_logical, " read stall (next cycle) ", zz,
                          " - register, value ", registers_save_address[zz], " between ",
-                         decoder_start[!decoder_slot]," and ",decoder_end[!decoder_slot]);
+                         decoder_start[!decoder_slot], " and ", decoder_end[!decoder_slot]);
               end
             end
           end
@@ -213,10 +213,10 @@ module x_out_of_order5 (
             end
           end
         end else if ((executor_state == EXECUTE_STATE_START && decoder_do_op0[qq][!decoder_slot]) || decoder_do_op2[qq]) begin
-          if (register[0]==qq) begin
-             registers_value[qq]<= read_value;
-          end else if (register[1]==qq) begin
-             registers_value[qq]<= read_value2;
+          if (register[0] == qq) begin
+            registers_value[qq] <= read_value;
+          end else if (register[1] == qq) begin
+            registers_value[qq] <= read_value2;
           end
           decoder_do_op2[qq] <= 1;
           if (registers_init[qq]) begin
@@ -366,7 +366,8 @@ module x_out_of_order5 (
           decoder_in2_1[0] % 16 >= 10 ? decoder_in2_1[0] % 16 + 65 - 10 : decoder_in2_1[0] % 16 + 48,  //DEBUG info
           decoder_in2_2[0] / 16 >= 10 ? decoder_in2_2[0] / 16 + 65 - 10 : decoder_in2_2[0] / 16 + 48,  //DEBUG info
           decoder_in2_2[0] % 16 >= 10 ? decoder_in2_2[0] % 16 + 65 - 10 : decoder_in2_2[0] % 16 + 48,  //DEBUG info
-          "h state ", decoder_instruction_state[0], " start ", decoder_start[0]," end ",decoder_end[0]);
+          "h state ", decoder_instruction_state[0], " start ", decoder_start[0], " end ",
+          decoder_end[0]);
 
       $display(
           $sformatf("%02d", $time), pc_logical, " executor slot 1 opcode %c%c%c%c",  //DEBUG info
@@ -379,7 +380,8 @@ module x_out_of_order5 (
           decoder_in2_1[1] % 16 >= 10 ? decoder_in2_1[1] % 16 + 65 - 10 : decoder_in2_1[1] % 16 + 48,  //DEBUG info
           decoder_in2_2[1] / 16 >= 10 ? decoder_in2_2[1] / 16 + 65 - 10 : decoder_in2_2[1] / 16 + 48,  //DEBUG info
           decoder_in2_2[1] % 16 >= 10 ? decoder_in2_2[1] % 16 + 65 - 10 : decoder_in2_2[1] % 16 + 48,  //DEBUG info
-          "h state ", decoder_instruction_state[1], " start ", decoder_start[1]," end ",decoder_end[1]);
+          "h state ", decoder_instruction_state[1], " start ", decoder_start[1], " end ",
+          decoder_end[1]);
 
       $write("numeric");
       for (i = 0; i < 20; i = i + 1) begin
@@ -600,52 +602,52 @@ module decoder (
               " till_value reg ", instruction1_2_1, "=", instruction2, " jmp ",
               instruction1_2_2  //DEBUG info
           );  //DEBUG info
-           numend[slot] <=  instruction1_2_2;
+          numend[slot] <= instruction1_2_2;
         end
         OPCODE_TILL_NON_VALUE: begin
           $write(  //DEBUG info
               " till_non_value reg ", instruction1_2_1, "=", instruction2, " jmp ",
               instruction1_2_2  //DEBUG info
           );  //DEBUG info
-           numend[slot] <=  instruction1_2_2;
+          numend[slot] <= instruction1_2_2;
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit addr
         OPCODE_RAM2REG, OPCODE_REG2RAM: begin
           if (instruction1_2_1 + instruction1_2_2 >= 32) begin
             error_code[slot] <= ERROR_WRONG_REG_NUM;
-         // end else if (instruction2 < ADDRESS_PROGRAM) begin
-           // error_code[slot] <= ERROR_WRONG_ADDRESS;
+            // end else if (instruction2 < ADDRESS_PROGRAM) begin
+            // error_code[slot] <= ERROR_WRONG_ADDRESS;
           end else begin
             if (instruction1_1 == OPCODE_RAM2REG) begin
-            $write(  //DEBUG info
-                " ram2reg read value from logical address ",  //DEBUG info
-                instruction2,  //DEBUG info
-                "+ to reg ",  //DEBUG info
-                instruction1_2_1,  //DEBUG info
-                "-",  //DEBUG info
-                (instruction1_2_1 + instruction1_2_2)  //DEBUG info
-            );  //DEBUG info
-          end else begin
-            $write(  //DEBUG info
-                " reg2ram save reg ",  //DEBUG info
-                instruction1_2_1,  //DEBUG info
-                "-",  //DEBUG info
-                (instruction1_2_1 + instruction1_2_2),  //DEBUG info
-                " to ram logical address ",  //DEBUG info
-                instruction2,  //DEBUG info
-                "+"  //DEBUG info
-            );  //DEBUG info
-          end
-          
-                for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-                   do_op[i][slot]   <= 0;
-          numeric[i][slot] <= 0;       
-          
-        if (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) begin
-          numeric[i][slot] <= instruction2+i - instruction1_2_1;
-            do_op[i][slot]   <= 1;
-      end
-end
+              $write(  //DEBUG info
+                  " ram2reg read value from logical address ",  //DEBUG info
+                  instruction2,  //DEBUG info
+                  "+ to reg ",  //DEBUG info
+                  instruction1_2_1,  //DEBUG info
+                  "-",  //DEBUG info
+                  (instruction1_2_1 + instruction1_2_2)  //DEBUG info
+              );  //DEBUG info
+            end else begin
+              $write(  //DEBUG info
+                  " reg2ram save reg ",  //DEBUG info
+                  instruction1_2_1,  //DEBUG info
+                  "-",  //DEBUG info
+                  (instruction1_2_1 + instruction1_2_2),  //DEBUG info
+                  " to ram logical address ",  //DEBUG info
+                  instruction2,  //DEBUG info
+                  "+"  //DEBUG info
+              );  //DEBUG info
+            end
+
+            for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+              do_op[i][slot]   <= 0;
+              numeric[i][slot] <= 0;
+
+              if (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) begin
+                numeric[i][slot] <= instruction2 + i - instruction1_2_1;
+                do_op[i][slot]   <= 1;
+              end
+            end
           end
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit value
@@ -654,11 +656,11 @@ end
             error_code[slot] <= ERROR_WRONG_REG_NUM;
           end else begin
             case (instruction1_1)  //DEBUG info
-              OPCODE_NUM2REG: $write(" num2reg save");  //DEBUG info
-              OPCODE_REG_PLUS: $write(" regplus add");  //DEBUG info
+              OPCODE_NUM2REG:   $write(" num2reg save");  //DEBUG info
+              OPCODE_REG_PLUS:  $write(" regplus add");  //DEBUG info
               OPCODE_REG_MINUS: $write(" regplus minus");  //DEBUG info
-              OPCODE_REG_MUL:  $write(" regmul mul");  //DEBUG info
-              OPCODE_REG_DIV:  $write(" regdiv div");  //DEBUG info
+              OPCODE_REG_MUL:   $write(" regmul mul");  //DEBUG info
+              OPCODE_REG_DIV:   $write(" regdiv div");  //DEBUG info
             endcase  //DEBUG info
             $write(" value ",  //DEBUG info
                    instruction2,  //DEBUG info
@@ -668,13 +670,13 @@ end
                    (instruction1_2_1 + instruction1_2_2)  //DEBUG info
             );  //DEBUG info
             for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-               do_op[i][slot]   <= 0;
-              if (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) begin            
-                  do_op[i][slot]   <= 1;
+              do_op[i][slot] <= 0;
+              if (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) begin
+                do_op[i][slot] <= 1;
               end
             end
           end
-        end        
+        end
         //x, 16 bit how many instructions
         OPCODE_JMP_PLUS, OPCODE_JMP_MINUS: begin
         end
