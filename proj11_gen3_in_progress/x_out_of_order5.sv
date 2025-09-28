@@ -444,13 +444,14 @@ module x_out_of_order5 (
                 //  decoder_do_op2[i] <= 1;
                 case (decoder_instruction_state[!decoder_slot])
                   OPCODE_TILL_VALUE, OPCODE_TILL_NON_VALUE: begin
-                    /*                    if ((decoder_instruction_state[!decoder_slot] == OPCODE_TILL_VALUE && registers_value[i] != decoder_start_ram_address_or_numeric[0][!decoder_slot]) ||
-                          (decoder_instruction_state[!decoder_slot] == OPCODE_TILL_NON_VALUE && registers_value[i] == decoder_start_ram_address_or_numeric[0][!decoder_slot])) begin
-                      pc_physical <= pc_physical - decoder_register_len[!decoder_slot] - 2;
-                      read_address <= pc_physical - decoder_register_len[!decoder_slot];
-                      read_address2 <= pc_physical - decoder_register_len[!decoder_slot] + 1;
-                      decoder_input_address <= pc_physical - decoder_register_len[!decoder_slot] - 2;
-                    end*/
+                     if ((decoder_instruction_state[!decoder_slot] == OPCODE_TILL_VALUE && registers_value[i] != decoder_start[!decoder_slot]) ||
+                          (decoder_instruction_state[!decoder_slot] == OPCODE_TILL_NON_VALUE && registers_value[i] == decoder_start[!decoder_slot])) begin
+                      pc_physical <= pc_physical - decoder_end[!decoder_slot] - 2;
+                      read_address <= pc_physical - decoder_end[!decoder_slot];
+                      read_address2 <= pc_physical - decoder_end[!decoder_slot] + 1;
+                      decoder_input_address <= pc_physical - decoder_end[!decoder_slot] - 2;
+                      $display($sformatf("%02d", $time), pc_logical, " jump");
+                    end
                   end
                   OPCODE_RAM2REG: begin
                     $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
