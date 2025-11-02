@@ -181,10 +181,11 @@ module x_out_of_order6 (
 
   always @(posedge clk) begin
     readstallavail <= 0;
-    if (readstallnotprocessed) begin
-      if (decoder_instruction_state[!decoder_slot] == OPCODE_RAM2REG) begin
+    
         for (zz = 0; zz < REGISTER_NUM; zz = zz + 1) begin
-          if (register_save_lock[zz]) begin
+      //  if (readstallnotprocessed) begin
+      if (decoder_instruction_state[!decoder_slot] == OPCODE_RAM2REG) begin
+         // if (register_save_lock[zz]) begin
             if (registers_save_address[zz] >= decoder_start[!decoder_slot]) begin
               if (registers_save_address[zz] <= decoder_end[!decoder_slot]) begin
                 readstallavail <= 1;
@@ -195,15 +196,16 @@ module x_out_of_order6 (
                          decoder_start[!decoder_slot], " and ", decoder_end[!decoder_slot]);
               end
             end
-          end
-        end
+         // end
+       // end
       end
     end
   end
 
   always @(posedge clk) begin
-    if (decoder_ready) begin
+  
       for (qq = 0; qq < REGISTER_NUM; qq = qq + 1) begin
+        if (decoder_ready) begin
         if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[i][!decoder_slot]:decoder_do_op2[i])) begin
           decoder_do_op2[qq] <= 1;
           if (registers_init[qq]) begin
@@ -290,7 +292,7 @@ module x_out_of_order6 (
       register_save_lock[saveram_q_num] <= 0;
       registers_save_ready[saveram_q_num] <= 0;
       for (pp = 0; pp < REGISTER_NUM; pp = pp + 1) begin
-        if (readstallavail) begin
+      //  if (readstallavail) begin
           if (!registers_init[pp]) begin
             if (registers_src_address[pp] == readsaveaddr) begin
               $display($sformatf("%02d", $time), " read register from read stall ", pp,
@@ -300,7 +302,7 @@ module x_out_of_order6 (
               readstallnotprocessed <= 0;
             end
           end
-        end
+       // end
         if (registers_save_ready[pp]) begin
           saveram_q_num <= pp;
           write_enabled <= 1;
