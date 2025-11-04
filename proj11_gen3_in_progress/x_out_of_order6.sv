@@ -234,8 +234,7 @@ module x_out_of_order6 (
                 end
               end
             endcase
-          end else begin
-           if (registers_src_address[qq] == readsaveaddr) begin
+          end else if (registers_src_address[qq] == readsaveaddr) begin
               $display($sformatf("%02d", $time), " read register from read stall ", qq,
                        " with value ", registers_save_value[readstallindex]);  //DEBUG info
               registers_value[qq] <= registers_save_value[readstallindex];
@@ -244,7 +243,7 @@ module x_out_of_order6 (
             end else if (register[1] == qq) begin
               registers_value[qq] <= read_value2;
             end
-          end
+        
         end
       end
     end
@@ -600,7 +599,15 @@ module decoder (
       in1_2[slot] <= instruction1_2;
       in2_1[slot] <= instruction2_1;
       in2_2[slot] <= instruction2_2;
+for (i = 0; i < REGISTER_NUM; i = i + 1) begin
+              do_op[i][slot]   <= 0;
+              numeric[i][slot] <= 0;
 
+              if (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) begin
+                numeric[i][slot] <= instruction2 + i - instruction1_2_1;
+                do_op[i][slot]   <= 1;
+              end
+            end
 
       case (instruction1_1)
         //register num (5 bits), how many-1 instcutions back (3 bits), 16 bit reg value // do..while
@@ -646,15 +653,7 @@ module decoder (
               );  //DEBUG info
             end
 
-            for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-              do_op[i][slot]   <= 0;
-              numeric[i][slot] <= 0;
-
-              if (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) begin
-                numeric[i][slot] <= instruction2 + i - instruction1_2_1;
-                do_op[i][slot]   <= 1;
-              end
-            end
+            
           end
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit value
@@ -676,12 +675,7 @@ module decoder (
                    "-",  //DEBUG info
                    (instruction1_2_1 + instruction1_2_2)  //DEBUG info
             );  //DEBUG info
-            for (i = 0; i < REGISTER_NUM; i = i + 1) begin
-              do_op[i][slot] <= 0;
-              if (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) begin
-                do_op[i][slot] <= 1;
-              end
-            end
+            
           end
         end
         //x, 16 bit how many instructions
