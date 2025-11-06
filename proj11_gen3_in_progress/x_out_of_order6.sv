@@ -18,25 +18,16 @@ parameter ADDRESS_MMU_LEN = ADDRESS_REG + 32;
 parameter ADDRESS_MMU_NEXT_SEGMENT = ADDRESS_REG + 32 + 7;
 parameter ADDRESS_PROGRAM = ADDRESS_REG + 32 + 7 + 1;
 
-parameter OPCODE_JMP = 1;  //24 bit target address
-parameter OPCODE_JMP16 = 2;  //x, register num with target addr (we read one reg)
-//  parameter OPCODE_JMP32 = 3;  //x, first register num with target addr (we read two reg)
-//  parameter OPCODE_JMP64 = 4;  //x, first register num with target addr (we read four reg)  
-parameter OPCODE_JMP_PLUS = 5;  //x, 16 bit how many instructions
-parameter OPCODE_JMP_PLUS16 = 6;  //x, register num with info (we read one reg)
-parameter OPCODE_JMP_MINUS = 7;  //x, 16 bit how many instructions  
-parameter OPCODE_JMP_MINUS16 = 8;  //x, register num with info (we read one reg)
-parameter OPCODE_RAM2REG = 9;  //register num (5 bits), how many-1 (3 bits), 16 bit source addr //ram -> reg
-parameter OPCODE_RAM2REG16 = 'ha; //start register num, how many registers, register num with source addr (we read one reg), //ram -> reg  
-//  parameter OPCODE_RAM2REG32 = 11; //start register num, how many registers, first register num with source addr (we read two reg), //ram -> reg
-//  parameter OPCODE_RAM2REG64 = 12; //start register num, how many registers, first register num with source addr (we read four reg), //ram -> reg
-parameter OPCODE_REG2RAM = 'he; //14 //register num (5 bits), how many-1 (3 bits), 16 bit target addr //reg -> ram
+parameter OPCODE_JMP = 1;  //16 bit target address
+parameter OPCODE_RAM2REG = 2;  //register num (4 bits), how many (4 bits), 16 bit source addr //ram -> reg
+parameter OPCODE_REG2RAM = 'he; //14 //register num (4 bits), how many-1 (4 bits), 16 bit target addr //reg -> ram
+parameter OPCODE_NUM2REG = 'h12; //18;  //register num (4 bits), how many-1 (4 bits), 16 bit value //value -> reg
+parameter OPCODE_REG_PLUS = 'h14;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
+parameter OPCODE_REG_MINUS = 'h15; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+
 parameter OPCODE_REG2RAM16 = 'hf; //15 //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
 //  parameter OPCODE_REG2RAM32 = 16; //start register num, how many registers, first register num with target addr (we read two reg), //reg -> ram
 //  parameter OPCODE_REG2RAM64 = 17; //start register num, how many registers, first register num with target addr (we read four reg), //reg -> ram
-parameter OPCODE_NUM2REG = 'h12; //18;  //register num (5 bits), how many-1 (3 bits), 16 bit value //value -> reg
-parameter OPCODE_REG_PLUS = 'h14;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
-parameter OPCODE_REG_MINUS = 'h15; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
 parameter OPCODE_REG_MUL = 'h16; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
 parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
 parameter OPCODE_EXIT = 'h18;  //exit process
@@ -539,100 +530,97 @@ endmodule
 module decoder (
     input clk,
     input reg [15:0] address,
-    instruction1,
-    instruction2,
+    read1,
+    read2,
     input bit inp,
     input bit slot,
 
-    output bit do_op[REGISTER_NUM-1:0][0:1],
     output bit ready,
-    output bit [7:0] state[0:1],
     output bit [3:0] error_code[0:1],
-    output bit [15:0] numeric[REGISTER_NUM-1:0][0:1],
-    output bit [15:0] numstart[0:1],
-    output bit [15:0] numend[0:1],
 
-    output bit [7:0] /*in1_1[0:1],*/   in1_2[0:1],
-    in2_1[0:1],
-    in2_2[0:1]
+    output bit do_op[REGISTER_NUM-1:0][0:1],
+    output bit [15:0] numeric[REGISTER_NUM-1:0][0:1],       
+    output bit [7:0] in1[0:1],
+    output bit [3:0] in2[0:1], in3[0:1],
+    output bit [15:0] in4[0:1]
+
 );
 
-  bit [7:0] instruction1_1;
-  bit [7:0] instruction1_2;
-  bit [4:0] instruction1_2_1;
-  bit [2:0] instruction1_2_2;
-  bit [7:0] instruction2_1;
-  bit [7:0] instruction2_2;
-
-  assign instruction1_1   = instruction1[15:8];
-  assign instruction1_2   = instruction1[7:0];
-  assign instruction1_2_1 = instruction1[4:0];
-  assign instruction1_2_2 = instruction1[7:5];
-  assign instruction2_1   = instruction2[15:8];
-  assign instruction2_2   = instruction2[7:0];
+  bit [7:0] instruction1;
+  bit [3:0] instruction2;
+  bit [3:0] instruction3;
+  bit [15:0] instruction4;
+  
+  
+  assign instruction1   = read1[15:8];
+  assign instruction2   = read1[7:4];
+  assign instruction3 = read1[3:0];
+  assign instruction4 = read2;
 
   integer i;
 
   always @(posedge clk) begin
     if (inp) begin
       ready <= inp;
-      $write(  //DEBUG info
+         $write(  //DEBUG info
+          $sformatf("%02d", $time),  //DEBUG info
+          address, " decoder slot ", slot, " opcode ",  //DEBUG info
+          read1, read2,
+       "h ");
+      
+   /*   $write(  //DEBUG info
           $sformatf("%02d", $time),  //DEBUG info
           address, " decoder slot ", slot, " opcode %c%c%c%c",  //DEBUG info
-          instruction1_1 / 16 >= 10 ? instruction1_1 / 16 + 65 - 10 : instruction1_1 / 16 + 48,  //DEBUG info
-          instruction1_1 % 16 >= 10 ? instruction1_1 % 16 + 65 - 10 : instruction1_1 % 16 + 48,  //DEBUG info
-          instruction1_2 / 16 >= 10 ? instruction1_2 / 16 + 65 - 10 : instruction1_2 / 16 + 48,  //DEBUG info
-          instruction1_2 % 16 >= 10 ? instruction1_2 % 16 + 65 - 10 : instruction1_2 % 16 + 48,  //DEBUG info
+          read1 / 16 >= 10 ? read1 / 16 + 65 - 10 : instruction1_1 / 16 + 48,  //DEBUG info
+          read1 % 16 >= 10 ? instruction1_1 % 16 + 65 - 10 : instruction1_1 % 16 + 48,  //DEBUG info
+          read1 / 16 >= 10 ? instruction1_2 / 16 + 65 - 10 : instruction1_2 / 16 + 48,  //DEBUG info
+          read1 % 16 >= 10 ? instruction1_2 % 16 + 65 - 10 : instruction1_2 % 16 + 48,  //DEBUG info
           "h %c%c%c%c",  //DEBUG info
-          instruction2_1 / 16 >= 10 ? instruction2_1 / 16 + 65 - 10 : instruction2_1 / 16 + 48,  //DEBUG info
-          instruction2_1 % 16 >= 10 ? instruction2_1 % 16 + 65 - 10 : instruction2_1 % 16 + 48,  //DEBUG info
-          instruction2_2 / 16 >= 10 ? instruction2_2 / 16 + 65 - 10 : instruction2_2 / 16 + 48,  //DEBUG info
-          instruction2_2 % 16 >= 10 ? instruction2_2 % 16 + 65 - 10 : instruction2_2 % 16 + 48,  //DEBUG info
-          "h state ", instruction1_1);
+          read2 / 16 >= 10 ? instruction2_1 / 16 + 65 - 10 : instruction2_1 / 16 + 48,  //DEBUG info
+          read2 % 16 >= 10 ? instruction2_1 % 16 + 65 - 10 : instruction2_1 % 16 + 48,  //DEBUG info
+          read2 / 16 >= 10 ? instruction2_2 / 16 + 65 - 10 : instruction2_2 / 16 + 48,  //DEBUG info
+          read2 % 16 >= 10 ? instruction2_2 % 16 + 65 - 10 : instruction2_2 % 16 + 48,  //DEBUG info
+          "h state ", instruction1_1);*/
+          
+
+      in1[slot] <= instruction1;
+      in2[slot] <= instruction2;
+      in3[slot] <= instruction3;
+      in4[slot] <= instruction4;
 
       error_code[slot] <= 0;
-      //start_ram_address_or_numeric[slot] <= instruction2;
-      numstart[slot] <= instruction2;
-      numend[slot] <= instruction2 + instruction1_2_2;
-      state[slot] <= instruction1_1;
-    //  in1_1[slot] <= instruction1_1;
-      in1_2[slot] <= instruction1_2;
-      in2_1[slot] <= instruction2_1;
-      in2_2[slot] <= instruction2_2;
 for (i = 0; i < REGISTER_NUM; i = i + 1) begin
               do_op[i][slot]   <= 0;
               numeric[i][slot] <= 0;
 
-              if (i >= instruction1_2_1 && i <= instruction1_2_1 + instruction1_2_2) begin
-                numeric[i][slot] <= instruction2 + i - instruction1_2_1;
+              if (i >= instruction2 && i <= instruction2 + instruction3) begin
+                numeric[i][slot] <= instruction4+i - instruction2;
                 do_op[i][slot]   <= 1;
               end
             end
 
-      case (instruction1_1)
+      case (instruction1)
         //register num (5 bits), how many-1 instcutions back (3 bits), 16 bit reg value // do..while
         OPCODE_TILL_VALUE: begin
           $write(  //DEBUG info
               " till_value reg ", instruction1_2_1, "=", instruction2, " jmp ",
               instruction1_2_2  //DEBUG info
           );  //DEBUG info
-          numend[slot] <= instruction1_2_2;
         end
         OPCODE_TILL_NON_VALUE: begin
           $write(  //DEBUG info
               " till_non_value reg ", instruction1_2_1, "=", instruction2, " jmp ",
               instruction1_2_2  //DEBUG info
           );  //DEBUG info
-          numend[slot] <= instruction1_2_2;
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit addr
         OPCODE_RAM2REG, OPCODE_REG2RAM: begin
-          if (instruction1_2_1 + instruction1_2_2 >= 32) begin
+          if (instruction2 + instruction3 >= REGISTER_NUM) begin
             error_code[slot] <= ERROR_WRONG_REG_NUM;
             // end else if (instruction2 < ADDRESS_PROGRAM) begin
             // error_code[slot] <= ERROR_WRONG_ADDRESS;
           end else begin
-            if (instruction1_1 == OPCODE_RAM2REG) begin
+            if (instruction1 == OPCODE_RAM2REG) begin
               $write(  //DEBUG info
                   " ram2reg read value from logical address ",  //DEBUG info
                   instruction2,  //DEBUG info
@@ -658,10 +646,10 @@ for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         end
         //register num (5 bits), how many-1 (3 bits), 16 bit value
         OPCODE_NUM2REG, OPCODE_REG_PLUS, OPCODE_REG_MINUS, OPCODE_REG_MUL, OPCODE_REG_DIV: begin
-          if (instruction1_2_1 + instruction1_2_2 >= 32) begin
+          if (instruction2 + instruction3 >= REGISTER_NUM) begin
             error_code[slot] <= ERROR_WRONG_REG_NUM;
           end else begin
-            case (instruction1_1)  //DEBUG info
+            case (instruction1)  //DEBUG info
               OPCODE_NUM2REG:   $write(" num2reg save");  //DEBUG info
               OPCODE_REG_PLUS:  $write(" regplus add");  //DEBUG info
               OPCODE_REG_MINUS: $write(" regplus minus");  //DEBUG info
@@ -679,10 +667,8 @@ for (i = 0; i < REGISTER_NUM; i = i + 1) begin
           end
         end
         //x, 16 bit how many instructions
-        OPCODE_JMP_PLUS, OPCODE_JMP_MINUS: begin
-        end
         default: begin
-          state[slot] <= ERROR_WRONG_OPCODE;
+          error_code[slot] <= ERROR_WRONG_OPCODE;
           // start_ram_address_or_numeric[slot] <= 0;
           // register_start[slot]               <= 0;
           // register_len[slot]                 <= 0;
