@@ -58,15 +58,15 @@ module x_out_of_order6 (
 
   //------------------------------------------------------------ram---------------------------
 
-  reg [ 6:0] saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+  reg [6:0] saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
 
   bit write_enabled = 0;
   bit [15:0] write_address;
   bit [15:0] write_value;
-  
+
   bit [15:0] read_address;
   wire [15:0] read_value;
-  
+
   bit [15:0] read_address2;
   wire [15:0] read_value2;
 
@@ -325,30 +325,30 @@ module x_out_of_order6 (
         pc_physical <= pc_physical + 2;
       end
 
-         $display(
+      $display(
           $sformatf("%02d", $time), pc_logical, " executor slot 0 opcode %c%c%c%c",  //DEBUG info
           decoder_in1[0] / 16 >= 10 ? decoder_in1[0] / 16 + 65 - 10 : decoder_in1[0] / 16 + 48,  //DEBUG info
           decoder_in1[0] % 16 >= 10 ? decoder_in1[0] % 16 + 65 - 10 : decoder_in1[0] % 16 + 48,  //DEBUG info
-          (decoder_in2[0]*16+decoder_in3[0]) / 16 >= 10 ? (decoder_in2[0]*16+decoder_in3[0]) / 16 + 65 - 10 : (decoder_in2[0]*16+decoder_in3[0]) / 16 + 48,  //DEBUG info
-          (decoder_in2[0]*16+decoder_in3[0]) % 16 >= 10 ? (decoder_in2[0]*16+decoder_in3[0]) % 16 + 65 - 10 : (decoder_in2[0]*16+decoder_in3[0]) % 16 + 48,  //DEBUG info
+          (decoder_in2[0] * 16 + decoder_in3[0]) / 16 >= 10 ? (decoder_in2[0] * 16 + decoder_in3[0]) / 16 + 65 - 10 : (decoder_in2[0] * 16 + decoder_in3[0]) / 16 + 48,  //DEBUG info
+          (decoder_in2[0] * 16 + decoder_in3[0]) % 16 >= 10 ? (decoder_in2[0] * 16 + decoder_in3[0]) % 16 + 65 - 10 : (decoder_in2[0] * 16 + decoder_in3[0]) % 16 + 48,  //DEBUG info
           "h %c%c%c%c",  //DEBUG info
-          (decoder_in4[0] / 256) / 16 >= 10 ?  (decoder_in4[0] / 256) / 16 + 65 - 10 :  (decoder_in4[0] / 256) / 16 + 48,  //DEBUG info
-          (decoder_in4[0] / 256) % 16 >= 10 ?  (decoder_in4[0] / 256) % 16 + 65 - 10 :  (decoder_in4[0] / 256) % 16 + 48,  //DEBUG info
-          (decoder_in4[0] % 256) / 16 >= 10 ?  (decoder_in4[0] % 256) / 16 + 65 - 10 :  (decoder_in4[0] % 256) / 16 + 48,  //DEBUG info
-          (decoder_in4[0] % 256) % 16 >= 10 ?  (decoder_in4[0] % 256) % 16 + 65 - 10 :  (decoder_in4[0] % 256) % 16 + 48,  //DEBUG info
+          (decoder_in4[0] / 256) / 16 >= 10 ? (decoder_in4[0] / 256) / 16 + 65 - 10 : (decoder_in4[0] / 256) / 16 + 48,  //DEBUG info
+          (decoder_in4[0] / 256) % 16 >= 10 ? (decoder_in4[0] / 256) % 16 + 65 - 10 : (decoder_in4[0] / 256) % 16 + 48,  //DEBUG info
+          (decoder_in4[0] % 256) / 16 >= 10 ? (decoder_in4[0] % 256) / 16 + 65 - 10 : (decoder_in4[0] % 256) / 16 + 48,  //DEBUG info
+          (decoder_in4[0] % 256) % 16 >= 10 ? (decoder_in4[0] % 256) % 16 + 65 - 10 : (decoder_in4[0] % 256) % 16 + 48,  //DEBUG info
           "h");
 
       $display(
           $sformatf("%02d", $time), pc_logical, " executor slot 1 opcode %c%c%c%c",  //DEBUG info
           decoder_in1[1] / 16 >= 10 ? decoder_in1[1] / 16 + 65 - 10 : decoder_in1[1] / 16 + 48,  //DEBUG info
           decoder_in1[1] % 16 >= 10 ? decoder_in1[1] % 16 + 65 - 10 : decoder_in1[1] % 16 + 48,  //DEBUG info
-          (decoder_in2[1]*16+decoder_in3[1]) / 16 >= 10 ? (decoder_in2[1]*16+decoder_in3[1]) / 16 + 65 - 10 : (decoder_in2[1]*16+decoder_in3[1]) / 16 + 48,  //DEBUG info
-          (decoder_in2[1]*16+decoder_in3[1]) % 16 >= 10 ? (decoder_in2[1]*16+decoder_in3[1]) % 16 + 65 - 10 : (decoder_in2[1]*16+decoder_in3[1]) % 16 + 48,  //DEBUG info
+          (decoder_in2[1] * 16 + decoder_in3[1]) / 16 >= 10 ? (decoder_in2[1] * 16 + decoder_in3[1]) / 16 + 65 - 10 : (decoder_in2[1] * 16 + decoder_in3[1]) / 16 + 48,  //DEBUG info
+          (decoder_in2[1] * 16 + decoder_in3[1]) % 16 >= 10 ? (decoder_in2[1] * 16 + decoder_in3[1]) % 16 + 65 - 10 : (decoder_in2[1] * 16 + decoder_in3[1]) % 16 + 48,  //DEBUG info
           "h %c%c%c%c",  //DEBUG info
-          (decoder_in4[1] / 256) / 16 >= 10 ?  (decoder_in4[1] / 256) / 16 + 65 - 10 :  (decoder_in4[1] / 256) / 16 + 48,  //DEBUG info
-          (decoder_in4[1] / 256) % 16 >= 10 ?  (decoder_in4[1] / 256) % 16 + 65 - 10 :  (decoder_in4[1] / 256) % 16 + 48,  //DEBUG info
-          (decoder_in4[1] % 256) / 16 >= 10 ?  (decoder_in4[1] % 256) / 16 + 65 - 10 :  (decoder_in4[1] % 256) / 16 + 48,  //DEBUG info
-          (decoder_in4[1] % 256) % 16 >= 10 ?  (decoder_in4[1] % 256) % 16 + 65 - 10 :  (decoder_in4[1] % 256) % 16 + 48,  //DEBUG info
+          (decoder_in4[1] / 256) / 16 >= 10 ? (decoder_in4[1] / 256) / 16 + 65 - 10 : (decoder_in4[1] / 256) / 16 + 48,  //DEBUG info
+          (decoder_in4[1] / 256) % 16 >= 10 ? (decoder_in4[1] / 256) % 16 + 65 - 10 : (decoder_in4[1] / 256) % 16 + 48,  //DEBUG info
+          (decoder_in4[1] % 256) / 16 >= 10 ? (decoder_in4[1] % 256) / 16 + 65 - 10 : (decoder_in4[1] % 256) / 16 + 48,  //DEBUG info
+          (decoder_in4[1] % 256) % 16 >= 10 ? (decoder_in4[1] % 256) % 16 + 65 - 10 : (decoder_in4[1] % 256) % 16 + 48,  //DEBUG info
           "h");
 
       $write("numeric");
@@ -526,64 +526,69 @@ module decoder (
   always @(posedge clk) begin
     if (inp) begin
       ready <= inp;
-         $write(  //DEBUG info
+      $write(  //DEBUG info
           $sformatf("%02d", $time),  //DEBUG info
           address, " decoder slot ", slot, " opcode %c%c%c%c",  //DEBUG info
-          (read1 / 256) / 16 >= 10 ?  (read1 / 256) / 16 + 65 - 10 :  (read1 / 256) / 16 + 48,  //DEBUG info
-          (read1 / 256) % 16 >= 10 ?  (read1 / 256) % 16 + 65 - 10 :  (read1 / 256) % 16 + 48,  //DEBUG info
-          (read1 % 256) / 16 >= 10 ?  (read1 % 256) / 16 + 65 - 10 :  (read1 % 256) / 16 + 48,  //DEBUG info
-          (read1 % 256) % 16 >= 10 ?  (read1 % 256) % 16 + 65 - 10 :  (read1 % 256) % 16 + 48,  //DEBUG info
+          (read1 / 256) / 16 >= 10 ? (read1 / 256) / 16 + 65 - 10 : (read1 / 256) / 16 + 48,  //DEBUG info
+          (read1 / 256) % 16 >= 10 ? (read1 / 256) % 16 + 65 - 10 : (read1 / 256) % 16 + 48,  //DEBUG info
+          (read1 % 256) / 16 >= 10 ? (read1 % 256) / 16 + 65 - 10 : (read1 % 256) / 16 + 48,  //DEBUG info
+          (read1 % 256) % 16 >= 10 ? (read1 % 256) % 16 + 65 - 10 : (read1 % 256) % 16 + 48,  //DEBUG info
           "h %c%c%c%c",  //DEBUG info
-          (read2 / 256) / 16 >= 10 ?  (read2 / 256) / 16 + 65 - 10 :  (read2 / 256) / 16 + 48,  //DEBUG info
-          (read2 / 256) % 16 >= 10 ?  (read2 / 256) % 16 + 65 - 10 :  (read2 / 256) % 16 + 48,  //DEBUG info
-          (read2 % 256) / 16 >= 10 ?  (read2 % 256) / 16 + 65 - 10 :  (read2 % 256) / 16 + 48,  //DEBUG info
-          (read2 % 256) % 16 >= 10 ?  (read2 % 256) % 16 + 65 - 10 :  (read2 % 256) % 16 + 48,  //DEBUG info
-          "h (",read1," ",read2,")");
-          
- case (instruction1)       
+          (read2 / 256) / 16 >= 10 ? (read2 / 256) / 16 + 65 - 10 : (read2 / 256) / 16 + 48,  //DEBUG info
+          (read2 / 256) % 16 >= 10 ? (read2 / 256) % 16 + 65 - 10 : (read2 / 256) % 16 + 48,  //DEBUG info
+          (read2 % 256) / 16 >= 10 ? (read2 % 256) / 16 + 65 - 10 : (read2 % 256) / 16 + 48,  //DEBUG info
+          (read2 % 256) % 16 >= 10 ? (read2 % 256) % 16 + 65 - 10 : (read2 % 256) % 16 + 48,  //DEBUG info
+          "h (", read1, " ", read2, ")");
+
+      case (instruction1)
         OPCODE_RAM2REG:
-              $write(  //DEBUG info
-                  " ram2reg read value from logical address ",  //DEBUG info
-                  instruction4,  //DEBUG info
-                  "+ to reg ",  //DEBUG info
-                  instruction2,  //DEBUG info
-                  "-",  //DEBUG info
-                  (instruction2+instruction3)  //DEBUG info
-              );  //DEBUG info
+        $write(  //DEBUG info
+            " ram2reg read value from logical address ",  //DEBUG info
+            instruction4,  //DEBUG info
+            "+ to reg ",  //DEBUG info
+            instruction2,  //DEBUG info
+            "-",  //DEBUG info
+            (instruction2 + instruction3)  //DEBUG info
+        );  //DEBUG info
         OPCODE_REG2RAM:
-              $write(  //DEBUG info
-                  " reg2ram save value from reg ",  //DEBUG info
-                  instruction2,  //DEBUG info
-                  "-",  //DEBUG info
-                  (instruction2+instruction3),  //DEBUG info
-                  " to logical address ",  //DEBUG info
-                  instruction4  //DEBUG info
-              );  //DEBUG info
+        $write(  //DEBUG info
+            " reg2ram save value from reg ",  //DEBUG info
+            instruction2,  //DEBUG info
+            "-",  //DEBUG info
+            (instruction2 + instruction3),  //DEBUG info
+            " to logical address ",  //DEBUG info
+            instruction4  //DEBUG info
+        );  //DEBUG info
         OPCODE_NUM2REG:
-              $write(  //DEBUG info
-                  " num2reg save value ",instruction4," to reg ",  //DEBUG info
-                  instruction2,  //DEBUG info
-                  "-",  //DEBUG info
-                  (instruction2+instruction3)  //DEBUG info
-              );  //DEBUG info
+        $write(  //DEBUG info
+            " num2reg save value ",
+            instruction4,
+            " to reg ",  //DEBUG info
+            instruction2,  //DEBUG info
+            "-",  //DEBUG info
+            (instruction2 + instruction3)  //DEBUG info
+        );  //DEBUG info
         OPCODE_REG_PLUS:
-              $write(  //DEBUG info
-                  " regplus add value ",instruction4," to reg ",  //DEBUG info
-                  instruction2,  //DEBUG info
-                  "-",  //DEBUG info
-                  (instruction2+instruction3)  //DEBUG info
-              );  //DEBUG info
+        $write(  //DEBUG info
+            " regplus add value ",
+            instruction4,
+            " to reg ",  //DEBUG info
+            instruction2,  //DEBUG info
+            "-",  //DEBUG info
+            (instruction2 + instruction3)  //DEBUG info
+        );  //DEBUG info
         OPCODE_REG_MINUS:
-              $write(  //DEBUG info
-                  " regminus minus value ",instruction4," to reg ",  //DEBUG info
-                  instruction2,  //DEBUG info
-                  "-",  //DEBUG info
-                  (instruction2+instruction3)  //DEBUG info
-              );  //DEBUG info
+        $write(  //DEBUG info
+            " regminus minus value ",
+            instruction4,
+            " to reg ",  //DEBUG info
+            instruction2,  //DEBUG info
+            "-",  //DEBUG info
+            (instruction2 + instruction3)  //DEBUG info
+        );  //DEBUG info
         default: begin
-              $write(  //DEBUG info
-                  " unknown"
-              );  //DEBUG info
+          $write(  //DEBUG info
+              " unknown");  //DEBUG info
         end
       endcase
 
