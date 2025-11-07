@@ -25,9 +25,6 @@ parameter OPCODE_NUM2REG = 'h12; //18;  //register num (4 bits), how many-1 (4 b
 parameter OPCODE_REG_PLUS = 'h14;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
 parameter OPCODE_REG_MINUS = 'h15; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
 
-parameter OPCODE_REG2RAM16 = 'hf; //15 //start register num, how many registers, register num with target addr (we read one reg), //reg -> ram
-//  parameter OPCODE_REG2RAM32 = 16; //start register num, how many registers, first register num with target addr (we read two reg), //reg -> ram
-//  parameter OPCODE_REG2RAM64 = 17; //start register num, how many registers, first register num with target addr (we read four reg), //reg -> ram
 parameter OPCODE_REG_MUL = 'h16; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
 parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
 parameter OPCODE_EXIT = 'h18;  //exit process
@@ -44,15 +41,14 @@ parameter OPCODE_LOOP = 25;  //x, x, how many instructions (8 bit value) //for..
 parameter OPCODE_FREE = 31;  //free ram pages x-y 
 parameter OPCODE_FREE_LEVEL =32; //free ram pages allocated after page x (or pages with concrete level)
 //parameter OPCODE_REG_INT_NON_BLOCKING =33; //int number (8 bit), address to jump in case of int
-
 parameter OPCODE_REG2REG = 33;
 
 parameter EXECUTE_STATE_START = 0;
 parameter EXECUTE_STATE_CONTINUE = 1;
 parameter EXECUTE_STATE_MMU = 2;
 
-
 parameter REGISTER_NUM = 26;
+parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
 
 module x_out_of_order6 (
     input clk,
@@ -62,11 +58,15 @@ module x_out_of_order6 (
 
   //------------------------------------------------------------ram---------------------------
 
+  reg [ 6:0] saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+
   bit write_enabled = 0;
   bit [15:0] write_address;
   bit [15:0] write_value;
+  
   bit [15:0] read_address;
   wire [15:0] read_value;
+  
   bit [15:0] read_address2;
   wire [15:0] read_value2;
 
@@ -80,10 +80,6 @@ module x_out_of_order6 (
       .read_value(read_value),
       .read_value2(read_value2)
   );
-
-  parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
-
-  reg [ 6:0] saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
 
   //--------------------------------------------------------- mmu ----------------------------
 
@@ -100,11 +96,11 @@ module x_out_of_order6 (
   reg decoder_inp;
   wire decoder_ready;
   wire [3:0] decoder_error_code[0:1];
-  wire [15:0] decoder_numeric[REGISTER_NUM-1:0][0:1];
-  wire decoder_do_op0[REGISTER_NUM-1:0][0:1];
   wire [7:0] decoder_in1[0:1];
   wire [3:0] decoder_in2[0:1], decoder_in3[0:1];
   wire [15:0] decoder_in4[0:1];
+  wire decoder_do_op0[REGISTER_NUM-1:0][0:1];
+  wire [15:0] decoder_numeric[REGISTER_NUM-1:0][0:1];
 
   decoder decoder (
       .clk(clk),
@@ -329,33 +325,31 @@ module x_out_of_order6 (
         pc_physical <= pc_physical + 2;
       end
 
-      /*   $display(
+         $display(
           $sformatf("%02d", $time), pc_logical, " executor slot 0 opcode %c%c%c%c",  //DEBUG info
-          decoder_instruction_state[0] / 16 >= 10 ? decoder_instruction_state[0] / 16 + 65 - 10 : decoder_instruction_state[0] / 16 + 48,  //DEBUG info
-          decoder_instruction_state[0] % 16 >= 10 ? decoder_instruction_state[0] % 16 + 65 - 10 : decoder_instruction_state[0] % 16 + 48,  //DEBUG info
-          decoder_in1_2[0] / 16 >= 10 ? decoder_in1_2[0] / 16 + 65 - 10 : decoder_in1_2[0] / 16 + 48,  //DEBUG info
-          decoder_in1_2[0] % 16 >= 10 ? decoder_in1_2[0] % 16 + 65 - 10 : decoder_in1_2[0] % 16 + 48,  //DEBUG info
+          decoder_in1[0] / 16 >= 10 ? decoder_in1[0] / 16 + 65 - 10 : decoder_in1[0] / 16 + 48,  //DEBUG info
+          decoder_in1[0] % 16 >= 10 ? decoder_in1[0] % 16 + 65 - 10 : decoder_in1[0] % 16 + 48,  //DEBUG info
+          (decoder_in2[0]*16+decoder_in3[0]) / 16 >= 10 ? (decoder_in2[0]*16+decoder_in3[0]) / 16 + 65 - 10 : (decoder_in2[0]*16+decoder_in3[0]) / 16 + 48,  //DEBUG info
+          (decoder_in2[0]*16+decoder_in3[0]) % 16 >= 10 ? (decoder_in2[0]*16+decoder_in3[0]) % 16 + 65 - 10 : (decoder_in2[0]*16+decoder_in3[0]) % 16 + 48,  //DEBUG info
           "h %c%c%c%c",  //DEBUG info
-          decoder_in2_1[0] / 16 >= 10 ? decoder_in2_1[0] / 16 + 65 - 10 : decoder_in2_1[0] / 16 + 48,  //DEBUG info
-          decoder_in2_1[0] % 16 >= 10 ? decoder_in2_1[0] % 16 + 65 - 10 : decoder_in2_1[0] % 16 + 48,  //DEBUG info
-          decoder_in2_2[0] / 16 >= 10 ? decoder_in2_2[0] / 16 + 65 - 10 : decoder_in2_2[0] / 16 + 48,  //DEBUG info
-          decoder_in2_2[0] % 16 >= 10 ? decoder_in2_2[0] % 16 + 65 - 10 : decoder_in2_2[0] % 16 + 48,  //DEBUG info
-          "h state ", decoder_instruction_state[0], " start ", decoder_start[0], " end ",
-          decoder_end[0]);
+          (decoder_in4[0] / 256) / 16 >= 10 ?  (decoder_in4[0] / 256) / 16 + 65 - 10 :  (decoder_in4[0] / 256) / 16 + 48,  //DEBUG info
+          (decoder_in4[0] / 256) % 16 >= 10 ?  (decoder_in4[0] / 256) % 16 + 65 - 10 :  (decoder_in4[0] / 256) % 16 + 48,  //DEBUG info
+          (decoder_in4[0] % 256) / 16 >= 10 ?  (decoder_in4[0] % 256) / 16 + 65 - 10 :  (decoder_in4[0] % 256) / 16 + 48,  //DEBUG info
+          (decoder_in4[0] % 256) % 16 >= 10 ?  (decoder_in4[0] % 256) % 16 + 65 - 10 :  (decoder_in4[0] % 256) % 16 + 48,  //DEBUG info
+          "h");
 
       $display(
           $sformatf("%02d", $time), pc_logical, " executor slot 1 opcode %c%c%c%c",  //DEBUG info
-          decoder_instruction_state[1] / 16 >= 10 ? decoder_instruction_state[1] / 16 + 65 - 10 : decoder_instruction_state[1] / 16 + 48,  //DEBUG info
-          decoder_instruction_state[1] % 16 >= 10 ? decoder_instruction_state[1] % 16 + 65 - 10 : decoder_instruction_state[1] % 16 + 48,  //DEBUG info
-          decoder_in1_2[1] / 16 >= 10 ? decoder_in1_2[1] / 16 + 65 - 10 : decoder_in1_2[1] / 16 + 48,  //DEBUG info
-          decoder_in1_2[1] % 16 >= 10 ? decoder_in1_2[1] % 16 + 65 - 10 : decoder_in1_2[1] % 16 + 48,  //DEBUG info
+          decoder_in1[1] / 16 >= 10 ? decoder_in1[1] / 16 + 65 - 10 : decoder_in1[1] / 16 + 48,  //DEBUG info
+          decoder_in1[1] % 16 >= 10 ? decoder_in1[1] % 16 + 65 - 10 : decoder_in1[1] % 16 + 48,  //DEBUG info
+          (decoder_in2[1]*16+decoder_in3[1]) / 16 >= 10 ? (decoder_in2[1]*16+decoder_in3[1]) / 16 + 65 - 10 : (decoder_in2[1]*16+decoder_in3[1]) / 16 + 48,  //DEBUG info
+          (decoder_in2[1]*16+decoder_in3[1]) % 16 >= 10 ? (decoder_in2[1]*16+decoder_in3[1]) % 16 + 65 - 10 : (decoder_in2[1]*16+decoder_in3[1]) % 16 + 48,  //DEBUG info
           "h %c%c%c%c",  //DEBUG info
-          decoder_in2_1[1] / 16 >= 10 ? decoder_in2_1[1] / 16 + 65 - 10 : decoder_in2_1[1] / 16 + 48,  //DEBUG info
-          decoder_in2_1[1] % 16 >= 10 ? decoder_in2_1[1] % 16 + 65 - 10 : decoder_in2_1[1] % 16 + 48,  //DEBUG info
-          decoder_in2_2[1] / 16 >= 10 ? decoder_in2_2[1] / 16 + 65 - 10 : decoder_in2_2[1] / 16 + 48,  //DEBUG info
-          decoder_in2_2[1] % 16 >= 10 ? decoder_in2_2[1] % 16 + 65 - 10 : decoder_in2_2[1] % 16 + 48,  //DEBUG info
-          "h state ", decoder_instruction_state[1], " start ", decoder_start[1], " end ",
-          decoder_end[1]);*/
+          (decoder_in4[1] / 256) / 16 >= 10 ?  (decoder_in4[1] / 256) / 16 + 65 - 10 :  (decoder_in4[1] / 256) / 16 + 48,  //DEBUG info
+          (decoder_in4[1] / 256) % 16 >= 10 ?  (decoder_in4[1] / 256) % 16 + 65 - 10 :  (decoder_in4[1] / 256) % 16 + 48,  //DEBUG info
+          (decoder_in4[1] % 256) / 16 >= 10 ?  (decoder_in4[1] % 256) / 16 + 65 - 10 :  (decoder_in4[1] % 256) / 16 + 48,  //DEBUG info
+          (decoder_in4[1] % 256) % 16 >= 10 ?  (decoder_in4[1] % 256) % 16 + 65 - 10 :  (decoder_in4[1] % 256) % 16 + 48,  //DEBUG info
+          "h");
 
       $write("numeric");
       for (i = 0; i < 20; i = i + 1) begin
@@ -515,7 +509,6 @@ module decoder (
     output bit [3:0] in2[0:1],
     in3[0:1],
     output bit [15:0] in4[0:1]
-
 );
 
   bit [ 7:0] instruction1;
@@ -533,25 +526,66 @@ module decoder (
   always @(posedge clk) begin
     if (inp) begin
       ready <= inp;
-      $write(  //DEBUG info
-          $sformatf("%02d", $time),  //DEBUG info
-          address, " decoder slot ", slot, " opcode ",  //DEBUG info
-          read1, read2, "h ");
-
-      /*   $write(  //DEBUG info
+         $write(  //DEBUG info
           $sformatf("%02d", $time),  //DEBUG info
           address, " decoder slot ", slot, " opcode %c%c%c%c",  //DEBUG info
-          read1 / 16 >= 10 ? read1 / 16 + 65 - 10 : instruction1_1 / 16 + 48,  //DEBUG info
-          read1 % 16 >= 10 ? instruction1_1 % 16 + 65 - 10 : instruction1_1 % 16 + 48,  //DEBUG info
-          read1 / 16 >= 10 ? instruction1_2 / 16 + 65 - 10 : instruction1_2 / 16 + 48,  //DEBUG info
-          read1 % 16 >= 10 ? instruction1_2 % 16 + 65 - 10 : instruction1_2 % 16 + 48,  //DEBUG info
+          (read1 / 256) / 16 >= 10 ?  (read1 / 256) / 16 + 65 - 10 :  (read1 / 256) / 16 + 48,  //DEBUG info
+          (read1 / 256) % 16 >= 10 ?  (read1 / 256) % 16 + 65 - 10 :  (read1 / 256) % 16 + 48,  //DEBUG info
+          (read1 % 256) / 16 >= 10 ?  (read1 % 256) / 16 + 65 - 10 :  (read1 % 256) / 16 + 48,  //DEBUG info
+          (read1 % 256) % 16 >= 10 ?  (read1 % 256) % 16 + 65 - 10 :  (read1 % 256) % 16 + 48,  //DEBUG info
           "h %c%c%c%c",  //DEBUG info
-          read2 / 16 >= 10 ? instruction2_1 / 16 + 65 - 10 : instruction2_1 / 16 + 48,  //DEBUG info
-          read2 % 16 >= 10 ? instruction2_1 % 16 + 65 - 10 : instruction2_1 % 16 + 48,  //DEBUG info
-          read2 / 16 >= 10 ? instruction2_2 / 16 + 65 - 10 : instruction2_2 / 16 + 48,  //DEBUG info
-          read2 % 16 >= 10 ? instruction2_2 % 16 + 65 - 10 : instruction2_2 % 16 + 48,  //DEBUG info
-          "h state ", instruction1_1);*/
-
+          (read2 / 256) / 16 >= 10 ?  (read2 / 256) / 16 + 65 - 10 :  (read2 / 256) / 16 + 48,  //DEBUG info
+          (read2 / 256) % 16 >= 10 ?  (read2 / 256) % 16 + 65 - 10 :  (read2 / 256) % 16 + 48,  //DEBUG info
+          (read2 % 256) / 16 >= 10 ?  (read2 % 256) / 16 + 65 - 10 :  (read2 % 256) / 16 + 48,  //DEBUG info
+          (read2 % 256) % 16 >= 10 ?  (read2 % 256) % 16 + 65 - 10 :  (read2 % 256) % 16 + 48,  //DEBUG info
+          "h (",read1," ",read2,")");
+          
+ case (instruction1)       
+        OPCODE_RAM2REG:
+              $write(  //DEBUG info
+                  " ram2reg read value from logical address ",  //DEBUG info
+                  instruction4,  //DEBUG info
+                  "+ to reg ",  //DEBUG info
+                  instruction2,  //DEBUG info
+                  "-",  //DEBUG info
+                  (instruction2+instruction3)  //DEBUG info
+              );  //DEBUG info
+        OPCODE_REG2RAM:
+              $write(  //DEBUG info
+                  " reg2ram save value from reg ",  //DEBUG info
+                  instruction2,  //DEBUG info
+                  "-",  //DEBUG info
+                  (instruction2+instruction3),  //DEBUG info
+                  " to logical address ",  //DEBUG info
+                  instruction4  //DEBUG info
+              );  //DEBUG info
+        OPCODE_NUM2REG:
+              $write(  //DEBUG info
+                  " num2reg save value ",instruction4," to reg ",  //DEBUG info
+                  instruction2,  //DEBUG info
+                  "-",  //DEBUG info
+                  (instruction2+instruction3)  //DEBUG info
+              );  //DEBUG info
+        OPCODE_REG_PLUS:
+              $write(  //DEBUG info
+                  " regplus add value ",instruction4," to reg ",  //DEBUG info
+                  instruction2,  //DEBUG info
+                  "-",  //DEBUG info
+                  (instruction2+instruction3)  //DEBUG info
+              );  //DEBUG info
+        OPCODE_REG_MINUS:
+              $write(  //DEBUG info
+                  " regminus minus value ",instruction4," to reg ",  //DEBUG info
+                  instruction2,  //DEBUG info
+                  "-",  //DEBUG info
+                  (instruction2+instruction3)  //DEBUG info
+              );  //DEBUG info
+        default: begin
+              $write(  //DEBUG info
+                  " unknown"
+              );  //DEBUG info
+        end
+      endcase
 
       in1[slot] <= instruction1;
       in2[slot] <= instruction2;
@@ -570,70 +604,12 @@ module decoder (
       end
 
       case (instruction1)
-        //register num (5 bits), how many-1 instcutions back (3 bits), 16 bit reg value // do..while
-        /*      OPCODE_TILL_VALUE: begin
-          $write(  //DEBUG info
-              " till_value reg ", instruction1_2_1, "=", instruction2, " jmp ",
-              instruction1_2_2  //DEBUG info
-          );  //DEBUG info
-        end
-        OPCODE_TILL_NON_VALUE: begin
-          $write(  //DEBUG info
-              " till_non_value reg ", instruction1_2_1, "=", instruction2, " jmp ",
-              instruction1_2_2  //DEBUG info
-          );  //DEBUG info
-        end*/
-        //register num (5 bits), how many-1 (3 bits), 16 bit addr
-        OPCODE_RAM2REG, OPCODE_REG2RAM: begin
+        OPCODE_RAM2REG, OPCODE_REG2RAM,
+        OPCODE_NUM2REG, 
+        OPCODE_REG_PLUS, OPCODE_REG_MINUS, 
+        OPCODE_REG_MUL, OPCODE_REG_DIV: begin
           if (instruction2 + instruction3 >= REGISTER_NUM) begin
             error_code[slot] <= ERROR_WRONG_REG_NUM;
-            // end else if (instruction2 < ADDRESS_PROGRAM) begin
-            // error_code[slot] <= ERROR_WRONG_ADDRESS;
-          end else begin
-            /*  if (instruction1 == OPCODE_RAM2REG) begin
-              $write(  //DEBUG info
-                  " ram2reg read value from logical address ",  //DEBUG info
-                  instruction2,  //DEBUG info
-                  "+ to reg ",  //DEBUG info
-                  instruction1_2_1,  //DEBUG info
-                  "-",  //DEBUG info
-                  (instruction1_2_1 + instruction1_2_2)  //DEBUG info
-              );  //DEBUG info
-            end else begin
-              $write(  //DEBUG info
-                  " reg2ram save reg ",  //DEBUG info
-                  instruction1_2_1,  //DEBUG info
-                  "-",  //DEBUG info
-                  (instruction1_2_1 + instruction1_2_2),  //DEBUG info
-                  " to ram logical address ",  //DEBUG info
-                  instruction2,  //DEBUG info
-                  "+"  //DEBUG info
-              );  //DEBUG info
-            end*/
-
-
-          end
-        end
-        //register num (5 bits), how many-1 (3 bits), 16 bit value
-        OPCODE_NUM2REG, OPCODE_REG_PLUS, OPCODE_REG_MINUS, OPCODE_REG_MUL, OPCODE_REG_DIV: begin
-          if (instruction2 + instruction3 >= REGISTER_NUM) begin
-            error_code[slot] <= ERROR_WRONG_REG_NUM;
-          end else begin
-            case (instruction1)  //DEBUG info
-              OPCODE_NUM2REG:   $write(" num2reg save");  //DEBUG info
-              OPCODE_REG_PLUS:  $write(" regplus add");  //DEBUG info
-              OPCODE_REG_MINUS: $write(" regplus minus");  //DEBUG info
-              OPCODE_REG_MUL:   $write(" regmul mul");  //DEBUG info
-              OPCODE_REG_DIV:   $write(" regdiv div");  //DEBUG info
-            endcase  //DEBUG info
-            /*   $write(" value ",  //DEBUG info
-                   instruction2,  //DEBUG info
-                   " to reg ",  //DEBUG info
-                   instruction1_2_1,  //DEBUG info
-                   "-",  //DEBUG info
-                   (instruction1_2_1 + instruction1_2_2)  //DEBUG info
-            );  //DEBUG info
-           */
           end
         end
         default: begin
