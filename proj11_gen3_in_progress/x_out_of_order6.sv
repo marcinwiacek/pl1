@@ -542,53 +542,52 @@ module decoder (
 
       case (instruction1)
         OPCODE_RAM2REG:
-        $write(  //DEBUG info
-            " ram2reg read value from logical address ",  //DEBUG info
+        $write(
+            " ram2reg read value from logical address ",
             instruction4,  //DEBUG info
-            "+ to reg ",  //DEBUG info
-            instruction2,  //DEBUG info
-            "-",  //DEBUG info
-            (instruction2 + instruction3)  //DEBUG info
+            " to reg ",
+            instruction2,
+            "-",
+            (instruction2 + instruction3)
         );  //DEBUG info
         OPCODE_REG2RAM:
-        $write(  //DEBUG info
+        $write(
             " reg2ram save value from reg ",  //DEBUG info
-            instruction2,  //DEBUG info
-            "-",  //DEBUG info
+            instruction2,
+            "-",
             (instruction2 + instruction3),  //DEBUG info
-            " to logical address ",  //DEBUG info
-            instruction4  //DEBUG info
+            " to logical address ",
+            instruction4
         );  //DEBUG info
         OPCODE_NUM2REG:
-        $write(  //DEBUG info
+        $write(
             " num2reg save value ",
-            instruction4,
-            " to reg ",  //DEBUG info
-            instruction2,  //DEBUG info
-            "-",  //DEBUG info
-            (instruction2 + instruction3)  //DEBUG info
+            instruction4,  //DEBUG info
+            " to reg ",
+            instruction2,
+            "-",
+            (instruction2 + instruction3)
         );  //DEBUG info
         OPCODE_REG_PLUS:
-        $write(  //DEBUG info
+        $write(
             " regplus add value ",
             instruction4,
-            " to reg ",  //DEBUG info
-            instruction2,  //DEBUG info
-            "-",  //DEBUG info
-            (instruction2 + instruction3)  //DEBUG info
+            " to reg ",
+            instruction2,
+            "-",
+            (instruction2 + instruction3)
         );  //DEBUG info
         OPCODE_REG_MINUS:
-        $write(  //DEBUG info
-            " regminus minus value ",
+        $write(
+            " regminus add value ",
             instruction4,
-            " to reg ",  //DEBUG info
-            instruction2,  //DEBUG info
-            "-",  //DEBUG info
-            (instruction2 + instruction3)  //DEBUG info
+            " to reg ",
+            instruction2,
+            "-",
+            (instruction2 + instruction3)
         );  //DEBUG info
         default: begin
-          $write(  //DEBUG info
-              " unknown");  //DEBUG info
+          $write(" unknown");  //DEBUG info
         end
       endcase
 
