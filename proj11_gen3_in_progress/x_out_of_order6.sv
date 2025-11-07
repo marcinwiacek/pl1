@@ -194,16 +194,10 @@ module x_out_of_order6 (
               end
               OPCODE_REG_PLUS: begin
                 decoder_do_op2[qq] <= 0;
-                $display($sformatf("%02d", $time), pc_logical, " ", register[0], " ", register[1],
-                         " ", read_value, " ", read_value2);
-                //      $display($sformatf("%02d", $time), pc_logical, " reg ", qq, " plus with value ",
-                //             decoder_start_ram_address_or_numeric, " old ", registers_value[qq]);
                 registers_value[qq] <= registers_value[qq] + decoder_in4[!decoder_slot];
               end
               OPCODE_REG_MINUS: begin
                 decoder_do_op2[qq]  <= 0;
-                //  $display($sformatf("%02d", $time), pc_logical, " reg ", qq, " minus with value ",
-                //         decoder_start_ram_address_or_numeric, " old ", registers_value[qq]);
                 registers_value[qq] <= registers_value[qq] - decoder_in4[!decoder_slot];
               end
               OPCODE_REG2RAM: begin
@@ -497,8 +491,7 @@ module decoder (
     input reg [15:0] address,
     read1,
     read2,
-    input bit inp,
-    input bit slot,
+    input bit inp, slot,
 
     output bit ready,
     output bit [3:0] error_code[0:1],
