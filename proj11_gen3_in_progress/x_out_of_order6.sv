@@ -47,7 +47,7 @@ parameter EXECUTE_STATE_START = 0;
 parameter EXECUTE_STATE_CONTINUE = 1;
 parameter EXECUTE_STATE_MMU = 2;
 
-parameter REGISTER_NUM = 26;
+parameter REGISTER_NUM = 24;
 parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
 
 module x_out_of_order6 (
@@ -141,7 +141,7 @@ module x_out_of_order6 (
   reg
       registers_init[0:REGISTER_NUM] = {
         // verilog_format:off
-        1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1
         // verilog_format:on
       },  //Read from RAM?
       registers_src_mmu_done[0:REGISTER_NUM],
@@ -171,7 +171,7 @@ module x_out_of_order6 (
             readstallavail <= 1;
             readstallindex <= zz;
             readsaveaddr   <= registers_save_address[zz];
-            $display($sformatf("%02d", $time), pc_logical, " read stall (next cycle) ", zz,
+            if (HARDWARE_DEBUG) $display($sformatf("%02d", $time), pc_logical, " read stall (next cycle) ", zz,
                      " - register, value ", registers_save_address[zz], " between ",
                      decoder_in4[!decoder_slot], " and ",
                      decoder_in3[!decoder_slot] + decoder_in4[!decoder_slot]);
@@ -207,7 +207,7 @@ module x_out_of_order6 (
               end
             endcase
           end else if (registers_src_address[qq] == readsaveaddr) begin
-            $display($sformatf("%02d", $time), " read register from read stall ", qq,
+            if (HARDWARE_DEBUG) $display($sformatf("%02d", $time), " read register from read stall ", qq,
                      " with value ", registers_save_value[readstallindex]);  //DEBUG info
             registers_value[qq] <= registers_save_value[readstallindex];
           end else if (register[0] == qq) begin
@@ -228,8 +228,8 @@ module x_out_of_order6 (
       read_address2 <= 53;
       decoder_inp <= 1;
       decoder_input_address <= 52;
-      $display($sformatf("%02d", $time), "   52 starting initial fetch ");  //DEBUG info
-      $display("");
+      if (HARDWARE_DEBUG) $display($sformatf("%02d", $time), "   52 starting initial fetch ");  //DEBUG info
+      if (HARDWARE_DEBUG) $display("");
       pc_logical <= 52;
       pc_physical <= 52;
       rst <= 0;
@@ -246,15 +246,17 @@ module x_out_of_order6 (
       readstallnotprocessed <= 1;
       decoder_slot <= 0;
     end else if (instr_num < 10) begin
-      $display("time ", $sformatf("%02d", $time), " pc ", pc_physical, ", exec_state ",
+      if (HARDWARE_DEBUG) begin
+        $display("time ", $sformatf("%02d", $time), " pc ", pc_physical, ", exec_state ",
                executor_state, " exec_slot ", !decoder_slot);
-      $write("reg");
+        $write("reg");
       for (i = 0; i < 20; i = i + 1) begin
         $write($sformatf(" %02d:%02d:%02d:%02d:%02d:%02d ", i, registers_init[i],
                          registers_src_address[i], registers_value[i], register_save_lock[i],
                          registers_save_address[i]));
       end
       $display("");
+      end
       readstallnotprocessed <= 1;
       write_enabled <= 0;
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
@@ -263,7 +265,7 @@ module x_out_of_order6 (
       for (pp = 0; pp < REGISTER_NUM; pp = pp + 1) begin
         if (!registers_init[pp]) begin
           if (registers_src_address[pp] == readsaveaddr) begin
-            $display($sformatf("%02d", $time), " read register from read stall ", pp,
+           if (HARDWARE_DEBUG)  $display($sformatf("%02d", $time), " read register from read stall ", pp,
                      " with value ", registers_save_value[readstallindex]);  //DEBUG info
             registers_init[pp] <= 1;
             registers_src_address[pp] <= 0;
@@ -278,7 +280,7 @@ module x_out_of_order6 (
         end
       end
 
-      if (register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32)
+      if (HARDWARE_DEBUG && register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32)
         $display(
             $sformatf(
                 "%02d", $time
@@ -293,7 +295,7 @@ module x_out_of_order6 (
       registers_init[register[0]] <= 1;
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
 
-      if (register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32)
+      if (HARDWARE_DEBUG && register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32)
         $display(
             $sformatf(
                 "%02d", $time
@@ -312,14 +314,15 @@ module x_out_of_order6 (
       decoder_slot <= !decoder_slot;
       read_address <= pc_physical + 2;
       read_address2 <= pc_physical + 3;
-      $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical + 2);
+      if (HARDWARE_DEBUG) $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical + 2);
       decoder_input_address <= pc_logical + 2;
       if (decoder_inp) begin
         pc_logical  <= pc_logical + 2;
         pc_physical <= pc_physical + 2;
       end
 
-      $display(
+      if (HARDWARE_DEBUG) begin
+         $display(
           $sformatf("%02d", $time), pc_logical, " executor slot 0 opcode %c%c%c%c",  //DEBUG info
           decoder_in1[0] / 16 >= 10 ? decoder_in1[0] / 16 + 65 - 10 : decoder_in1[0] / 16 + 48,  //DEBUG info
           decoder_in1[0] % 16 >= 10 ? decoder_in1[0] % 16 + 65 - 10 : decoder_in1[0] % 16 + 48,  //DEBUG info
@@ -355,6 +358,7 @@ module x_out_of_order6 (
         $write($sformatf(" %02d:%02d ", i, decoder_numeric[i][1]));
       end
       $display("");
+end
 
       instr_num <= executor_state == EXECUTE_STATE_START ? instr_num + 1 : instr_num;
       executor_state <= readstallavail ? EXECUTE_STATE_CONTINUE : EXECUTE_STATE_START;
@@ -364,7 +368,7 @@ module x_out_of_order6 (
             if (!registers_src_mmu_done[i]) begin
               if (registers_src_address[i] >= mmu_address_logical_min_in_the_same_page) begin
                 if (registers_src_address[i] <= mmu_address_logical_max_in_the_same_page) begin
-                  $display(  //DEBUG info
+                  if (HARDWARE_DEBUG) $display(  //DEBUG info
                       $sformatf("%02d", $time), pc_logical, " updating reg ", i,
                       " src address from ",  //DEBUG info
                       registers_src_address[i], " to ",
@@ -377,7 +381,7 @@ module x_out_of_order6 (
             if (register_save_lock[i]) begin
               if (registers_save_address[i] >= mmu_address_logical_min_in_the_same_page) begin
                 if (registers_save_address[i] <= mmu_address_logical_max_in_the_same_page) begin
-                  $display(  //DEBUG info
+                  if (HARDWARE_DEBUG) $display(  //DEBUG info
                       $sformatf("%02d", $time), pc_logical, " updating save ram ", i,
                       " src address from ", registers_save_address[i], " to ",
                       mmu_address_physical_min_in_the_same_page + registers_save_address[i] - mmu_address_logical_min_in_the_same_page);
@@ -417,7 +421,6 @@ module x_out_of_order6 (
                     end
                   end*/
                   OPCODE_RAM2REG: begin
-                    $display($sformatf("%02d", $time), pc_logical, " ram2reg saving ", i);
                     //this register should be read next time
                     registers_init[i] <= 0;
                     registers_src_mmu_done[i] <= 0;
@@ -437,7 +440,7 @@ module x_out_of_order6 (
                         executor_state <= EXECUTE_STATE_CONTINUE;
                       end else if (registers_src_mmu_done[i]) begin
                         executor_state <= EXECUTE_STATE_CONTINUE;
-                        $display($sformatf("%02d", $time), pc_logical, " need to fetch register ",
+                        if (HARDWARE_DEBUG) $display($sformatf("%02d", $time), pc_logical, " need to fetch register ",
                                  i, " src address ", registers_src_address2[i]);
                         if (i % 2 == 0) begin
                           read_address <= registers_src_address2[i];
@@ -447,7 +450,7 @@ module x_out_of_order6 (
                           register[1]   <= i;
                         end
                       end else begin
-                        $display($sformatf("%02d", $time), pc_logical, " starting mmu from read");
+                        if (HARDWARE_DEBUG) $display($sformatf("%02d", $time), pc_logical, " starting mmu from read");
                       end
                     end else begin
                       case (decoder_in1[!decoder_slot])
@@ -461,6 +464,7 @@ module x_out_of_order6 (
                             mmu_address_logical <= registers_save_address[i];
                             decoder_inp <= 0;
                             decoder_slot <= decoder_slot;
+                            if (HARDWARE_DEBUG) begin
                             $display($sformatf("%02d", $time), pc_logical, " write memory slot ",
                                      i, " is already filled, stall1 ", saveram_q_num, " ",
                                      register_save_lock[i]);
@@ -468,6 +472,7 @@ module x_out_of_order6 (
                               $display(
                                   $sformatf("%02d", $time), pc_logical, " starting mmu from save"
                               );
+                              end
                           end
                         end
                       endcase
@@ -519,6 +524,7 @@ module decoder (
   always @(posedge clk) begin
     if (inp) begin
       ready <= inp;
+     if (HARDWARE_DEBUG) begin 
       $write(  //DEBUG info
           $sformatf("%02d", $time),  //DEBUG info
           address, " decoder slot ", slot, " opcode %c%c%c%c",  //DEBUG info
@@ -583,6 +589,7 @@ module decoder (
           $write(" unknown");  //DEBUG info
         end
       endcase
+      end
 
       in1[slot] <= instruction1;
       in2[slot] <= instruction2;
@@ -613,7 +620,7 @@ module decoder (
           error_code[slot] <= ERROR_WRONG_OPCODE;
         end
       endcase
-      $display("");
+      if (HARDWARE_DEBUG) $display("");
     end
   end
 endmodule
@@ -848,7 +855,7 @@ module single_blockram (
 
   always @(posedge clk) begin
     if (write_enabled) begin
-      $display($sformatf("%02d", $time), " ram write ", write_address, " = ",
+      if (HARDWARE_DEBUG) $display($sformatf("%02d", $time), " ram write ", write_address, " = ",
                write_value);  //DEBUG info
       ram[write_address] <= write_value;
     end
