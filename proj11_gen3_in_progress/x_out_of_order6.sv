@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-parameter HARDWARE_DEBUG = 0;
+parameter HARDWARE_DEBUG = 1;
 parameter RAM_WRITE_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter RAM_READ_DEBUG = 0;  //1 enabled, 0 disabled //DEBUG info
 parameter ERROR_NONE = 0;
@@ -58,7 +58,7 @@ module x_out_of_order6 (
 
   //------------------------------------------------------------ram---------------------------
 
-  reg [6:0] saveram_q_num = RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+  reg [6:0] saveram_q_num;
 
   bit write_enabled = 0;
   bit [15:0] write_address;
@@ -85,9 +85,9 @@ module x_out_of_order6 (
 
   reg [15:0] mmu_address_logical;
   reg [15:0]
-      mmu_address_physical_min_in_the_same_page = 0,
-      mmu_address_logical_min_in_the_same_page = 0,
-      mmu_address_logical_max_in_the_same_page = 500;
+      mmu_address_physical_min_in_the_same_page ,
+      mmu_address_logical_min_in_the_same_page,
+      mmu_address_logical_max_in_the_same_page ;
 
   //---------------------------------------------------------decoder--------------------------
 
@@ -127,7 +127,7 @@ module x_out_of_order6 (
 
   //--------------------------------------------------------------------process------------------
 
-  reg [15:0] process_hardware_address = 0;
+//  reg [15:0] process_hardware_address = 0;
 
   reg [15:0]
       pc_logical,
@@ -152,7 +152,7 @@ module x_out_of_order6 (
   //----------------------------------------------------------------other---------------------------
 
   reg rst = 1;
-  reg [4:0] instr_num = 0;  // how many done
+  reg [4:0] instr_num;  // how many done
 
   assign x = decoder_inp;  //without this we will have empty circuit
 
@@ -222,8 +222,10 @@ module x_out_of_order6 (
 
   always @(posedge clk) begin
     if (rst) begin
+    instr_num <= 0;
       registers_value <= '{default: 0};
       registers_value[9] <= 1;
+      saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       read_address <= 52;
       read_address2 <= 53;
       decoder_inp <= 1;
@@ -232,10 +234,13 @@ module x_out_of_order6 (
       if (HARDWARE_DEBUG) $display("");
       pc_logical <= 52;
       pc_physical <= 52;
+        mmu_address_physical_min_in_the_same_page <= 0;
+      mmu_address_logical_min_in_the_same_page <= 0;
+      mmu_address_logical_max_in_the_same_page <= 500;
       rst <= 0;
       for (i = 0; i < REGISTER_NUM; i = i + 1) begin
         registers_src_mmu_done[i] <= 1;
-        registers_src_address2[i] <= process_hardware_address + ADDRESS_REG + i;
+        registers_src_address2[i] <= ADDRESS_REG + i;
         registers_save_address[i] <= 0;
         registers_save_mmu_done[i] <= 0;
         register_save_lock[i] <= 0;
@@ -484,7 +489,7 @@ end
           end
         endcase
       end
-      $display("");
+       if (HARDWARE_DEBUG) $display("");
     end else begin
       decoder_inp <= 0;
     end
