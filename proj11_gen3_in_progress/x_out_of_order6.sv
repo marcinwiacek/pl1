@@ -165,7 +165,7 @@ module x_out_of_order6 (
   reg [ 6:0] readstallindex;
   reg [15:0] readsaveaddr;
   reg readstallnotprocessed, readstallavail;
-
+  
   always @(posedge clk) begin
     readstallavail <= 0;
     for (zz = 0; zz <= REGISTER_NUM; zz = zz + 1) begin
@@ -458,10 +458,10 @@ module x_out_of_order6 (
               if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[i][!decoder_slot]:decoder_do_op2[i])) begin
                 case (decoder_in1[!decoder_slot])
                   OPCODE_JMP: begin
-                      pc_physical <= pc_physical - decoder_in4[!decoder_slot] - 2;
-                      read_address <= pc_physical - decoder_in4[!decoder_slot];
-                      read_address2 <= pc_physical - decoder_in4[!decoder_slot] + 1;
-                      decoder_input_address <= pc_physical - decoder_in4[!decoder_slot] - 2;
+                      pc_physical <= decoder_in4[!decoder_slot] - 2;
+                      read_address <= decoder_in4[!decoder_slot];
+                      read_address2 <= decoder_in4[!decoder_slot] + 1;
+                      decoder_input_address <= decoder_in4[!decoder_slot] - 2;
                 end                               
                   OPCODE_RAM2REG: begin
                     //this register should be read next time
@@ -509,18 +509,18 @@ module x_out_of_order6 (
                       case (decoder_in1[!decoder_slot])
                                       OPCODE_JMP_IF_ZERO: 
                                       if (registers_value[i] == 0) begin
-                      pc_physical <= pc_physical - decoder_in4[!decoder_slot] - 2;
-                      read_address <= pc_physical - decoder_in4[!decoder_slot];
-                      read_address2 <= pc_physical - decoder_in4[!decoder_slot] + 1;
-                      decoder_input_address <= pc_physical - decoder_in4[!decoder_slot] - 2;
+                       pc_physical <= decoder_in4[!decoder_slot] - 2;
+                      read_address <= decoder_in4[!decoder_slot];
+                      read_address2 <= decoder_in4[!decoder_slot] + 1;
+                      decoder_input_address <= decoder_in4[!decoder_slot] - 2;
                                      
                 end 
                 OPCODE_JMP_IF_NOT_ZERO: 
                                       if (registers_value[i] != 0) begin
-                      pc_physical <= pc_physical - decoder_in4[!decoder_slot] - 2;
-                      read_address <= pc_physical - decoder_in4[!decoder_slot];
-                      read_address2 <= pc_physical - decoder_in4[!decoder_slot] + 1;
-                      decoder_input_address <= pc_physical - decoder_in4[!decoder_slot] - 2;
+                       pc_physical <= decoder_in4[!decoder_slot] - 2;
+                      read_address <= decoder_in4[!decoder_slot];
+                      read_address2 <= decoder_in4[!decoder_slot] + 1;
+                      decoder_input_address <= decoder_in4[!decoder_slot] - 2;
                 end
 
                         OPCODE_REG2RAM: begin
