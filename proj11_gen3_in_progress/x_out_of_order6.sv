@@ -513,7 +513,6 @@ module x_out_of_order6 (
                           read_address <= decoder_in4[!decoder_slot];
                           read_address2 <= decoder_in4[!decoder_slot] + 1;
                           decoder_input_address <= decoder_in4[!decoder_slot] - 2;
-
                         end
                         OPCODE_JMP_IF_NOT_ZERO:
                         if (registers_value[i] != 0) begin
@@ -522,7 +521,6 @@ module x_out_of_order6 (
                           read_address2 <= decoder_in4[!decoder_slot] + 1;
                           decoder_input_address <= decoder_in4[!decoder_slot] - 2;
                         end
-
                         OPCODE_REG2RAM: begin
                           if (!register_save_lock[i] || saveram_q_num == i) begin
                             registers_save_value[i] <= registers_value[i];
@@ -678,8 +676,8 @@ module decoder (
         end
       end
 
-      case (instruction1)
-        OPCODE_JMP: do_op[0][slot] <= 1;
+      case (instruction1)   
+        OPCODE_JMP: begin end
         OPCODE_RAM2REG, OPCODE_REG2RAM,
         OPCODE_NUM2REG, 
         OPCODE_REG_PLUS, OPCODE_REG_MINUS,
