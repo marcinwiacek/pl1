@@ -106,6 +106,9 @@ module x_out_of_order6 (
   wire [3:0] decoder_error_code[0:1];
   wire [7:0] decoder_in1[0:1];
   wire [3:0] decoder_in2[0:1], decoder_in3[0:1];
+  wire [15:0] decoder_in3_4[0:1];
+  wire [15:0] decoder_in3_8[0:1];
+  wire [15:0] decoder_in3_12[0:1];
   wire [15:0] decoder_in4[0:1];
   wire decoder_do_op0[REGISTER_NUM:0][0:1];
   wire [15:0] decoder_numeric[REGISTER_NUM:0][0:1];
@@ -123,6 +126,9 @@ module x_out_of_order6 (
       .in1(decoder_in1),
       .in2(decoder_in2),
       .in3(decoder_in3),
+      .in3_4(decoder_in3_4),
+      .in3_8(decoder_in3_8),
+      .in3_12(decoder_in3_12),
       .in4(decoder_in4),
       .numeric(decoder_numeric)
   );
@@ -511,7 +517,7 @@ module x_out_of_order6 (
                       end
                     end else begin
                       case (decoder_in1[!decoder_slot])
-                        OPCODE_JMP_IF1:
+                        OPCODE_JMP_IF1:                       
                         if (registers_value[i] == decoder_in3[!decoder_slot]) begin
                           pc_physical <= decoder_in4[!decoder_slot] - 2;
                           read_address <= decoder_in4[!decoder_slot];
@@ -519,21 +525,21 @@ module x_out_of_order6 (
                           decoder_input_address <= decoder_in4[!decoder_slot] - 2;
                         end
                         OPCODE_JMP_IF2:
-                        if (registers_value[i] == decoder_in3[!decoder_slot]<<4) begin
+                        if (registers_value[i] == decoder_in3_4[!decoder_slot]) begin
                           pc_physical <= decoder_in4[!decoder_slot] - 2;
                           read_address <= decoder_in4[!decoder_slot];
                           read_address2 <= decoder_in4[!decoder_slot] + 1;
                           decoder_input_address <= decoder_in4[!decoder_slot] - 2;
                         end
                         OPCODE_JMP_IF3:
-                        if (registers_value[i] == decoder_in3[!decoder_slot]<<8) begin
+                        if (registers_value[i] == decoder_in3_8[!decoder_slot]) begin
                           pc_physical <= decoder_in4[!decoder_slot] - 2;
                           read_address <= decoder_in4[!decoder_slot];
                           read_address2 <= decoder_in4[!decoder_slot] + 1;
                           decoder_input_address <= decoder_in4[!decoder_slot] - 2;
                         end
                         OPCODE_JMP_IF4:
-                        if (registers_value[i] == decoder_in3[!decoder_slot]<<12) begin
+                        if (registers_value[i] == decoder_in3_12[!decoder_slot]) begin
                           pc_physical <= decoder_in4[!decoder_slot] - 2;
                           read_address <= decoder_in4[!decoder_slot];
                           read_address2 <= decoder_in4[!decoder_slot] + 1;
@@ -599,7 +605,7 @@ module decoder (
     output bit [7:0] in1[0:1],
     output bit [3:0] in2[0:1],
     in3[0:1],
-    output bit [15:0] in4[0:1]
+    output bit [15:0] in4[0:1], in3_4[0:1],in3_8[0:1],in3_12[0:1]
 );
 
   bit [ 7:0] instruction1;
@@ -688,6 +694,9 @@ module decoder (
       in1[slot] <= instruction1;
       in2[slot] <= instruction2;
       in3[slot] <= instruction3;
+      in3_4[slot] <= instruction3<<4+8;
+      in3_8[slot] <= instruction3<<8+256;
+      in3_12[slot] <= instruction3<<12+4096;
       in4[slot] <= instruction4;
 
       error_code[slot] <= 0;
