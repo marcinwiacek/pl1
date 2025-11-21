@@ -206,10 +206,10 @@ module x_out_of_order6 (
     if (rst) begin
       registers_value <= '{default: 0};
       registers_value[9] <= 1;
-      decoder_do_op2 <='{default: 1};
+      decoder_do_op2 <='{default: 1};   
     end else begin
       for (qq = 0; qq <= REGISTER_NUM; qq = qq + 1) begin
-        if (decoder_ready) begin         
+        if (decoder_ready) begin    
           if (decoder_do_op0[qq][!decoder_slot] && decoder_do_op2[qq]) begin
             if (registers_init[qq]) begin
               case (decoder_in1[!decoder_slot])
@@ -250,7 +250,7 @@ module x_out_of_order6 (
             end
           end
         end else begin
-             decoder_do_op2 <='{default: 1};     
+          decoder_do_op2[qq]<=1;
         end
       end
     end
