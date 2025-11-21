@@ -209,18 +209,18 @@ module x_out_of_order6 (
       //decoder_do_op2 <='{default: 1};   
     end else begin
       for (qq = 0; qq <= REGISTER_NUM; qq = qq + 1) begin
-        if (!decoder_ready) begin    
-          decoder_do_op2[qq]<=1;
-         end else if (decoder_in1[!decoder_slot]==OPCODE_NUM2REG) begin
-                  //not important if register had value earlier
-                  registers_value[qq] <= decoder_in4[!decoder_slot];                   
-         end else if (decoder_do_op0[qq][!decoder_slot]) begin
-         if ( decoder_do_op2[qq]) begin
+        if (!decoder_ready) begin
+          decoder_do_op2[qq] <= 1;
+        end else if (decoder_in1[!decoder_slot] == OPCODE_NUM2REG) begin
+          //not important if register had value earlier
+          registers_value[qq] <= decoder_in4[!decoder_slot];
+        end else if (decoder_do_op0[qq][!decoder_slot]) begin
+          if (decoder_do_op2[qq]) begin
             if (registers_init[qq]) begin
               case (decoder_in1[!decoder_slot])
                 OPCODE_NUM2REG: begin
                   //not important if register had value earlier
-                  registers_value[qq] <= decoder_in4[!decoder_slot];                   
+                  registers_value[qq] <= decoder_in4[!decoder_slot];
                 end
                 OPCODE_REG_PLUS: begin
                   decoder_do_op2[qq]  <= 0;
@@ -232,9 +232,9 @@ module x_out_of_order6 (
                 end
                 OPCODE_REG2RAM: begin
                   if (!register_save_lock[qq] || saveram_q_num == qq) begin
-                    decoder_do_op2[qq] <= 0;              
+                    decoder_do_op2[qq] <= 0;
                   end
-                end             
+                end
               endcase
             end else if (registers_src_address[qq] == readsaveaddr) begin
               if (HARDWARE_DEBUG)
@@ -253,8 +253,8 @@ module x_out_of_order6 (
             end else if (register[1] == qq) begin
               registers_value[qq] <= read_value2;
             end
-          end  
-          end           
+          end
+        end
       end
     end
   end
@@ -469,99 +469,105 @@ module x_out_of_order6 (
           end
           default: begin
             if (decoder_ready) begin
-              if (decoder_do_op0[i][!decoder_slot] ) begin
-              if ( decoder_do_op2[i]) begin
-                case (decoder_in1[!decoder_slot])
-                  OPCODE_JMP: begin
-                    pc_physical <= decoder_in4[!decoder_slot] - 2;
-                    read_address <= decoder_in4[!decoder_slot];
-                    read_address2 <= decoder_in4[!decoder_slot] + 1;
-                    decoder_input_address <= decoder_in4[!decoder_slot] - 2;
-                  end
-                  OPCODE_RAM2REG: begin
-                    //this register should be read next time
-                    registers_init[i] <= 0;
-                    registers_src_mmu_done[i] <= 0;
-                    registers_src_address[i] <= decoder_numeric[i][!decoder_slot];
-                  end
-                  OPCODE_NUM2REG: begin
-                    registers_init[i] <= 1;
-                    registers_src_mmu_done[i] <= 1;
-                  end
-                  default: begin
-                    if (!registers_init[i]) begin
-                      decoder_inp <= 0;
-                      decoder_slot <= decoder_slot;
-                      executor_state <= EXECUTE_STATE_MMU;
-                      mmu_address_logical <= registers_src_address[i];
-                      if (readstallavail) begin
-                        executor_state <= EXECUTE_STATE_CONTINUE;
-                      end else if (registers_src_mmu_done[i]) begin
-                        executor_state <= EXECUTE_STATE_CONTINUE;
-                        if (HARDWARE_DEBUG)
-                          $display(
-                              $sformatf(
-                                  "%02d", $time
-                              ),
-                              pc_logical,
-                              " need to fetch register ",
-                              i,
-                              " src address ",
-                              registers_src_address2[i]
-                          );
-                        if (i % 2 == 0) begin
-                          read_address <= registers_src_address2[i];
-                          register[0]  <= i;
+              if (decoder_do_op0[i][!decoder_slot]) begin
+                if (decoder_do_op2[i]) begin
+                  case (decoder_in1[!decoder_slot])
+                    OPCODE_JMP: begin
+                      pc_physical <= decoder_in4[!decoder_slot] - 2;
+                      read_address <= decoder_in4[!decoder_slot];
+                      read_address2 <= decoder_in4[!decoder_slot] + 1;
+                      decoder_input_address <= decoder_in4[!decoder_slot] - 2;
+                    end
+                    OPCODE_RAM2REG: begin
+                      //this register should be read next time
+                      registers_init[i] <= 0;
+                      registers_src_mmu_done[i] <= 0;
+                      registers_src_address[i] <= decoder_numeric[i][!decoder_slot];
+                    end
+                    OPCODE_NUM2REG: begin
+                      registers_init[i] <= 1;
+                      registers_src_mmu_done[i] <= 1;
+                    end
+                    default: begin
+                      if (!registers_init[i]) begin
+                        decoder_inp <= 0;
+                        decoder_slot <= decoder_slot;
+                        executor_state <= EXECUTE_STATE_MMU;
+                        mmu_address_logical <= registers_src_address[i];
+                        if (readstallavail) begin
+                          executor_state <= EXECUTE_STATE_CONTINUE;
+                        end else if (registers_src_mmu_done[i]) begin
+                          executor_state <= EXECUTE_STATE_CONTINUE;
+                          if (HARDWARE_DEBUG)
+                            $display(
+                                $sformatf(
+                                    "%02d", $time
+                                ),
+                                pc_logical,
+                                " need to fetch register ",
+                                i,
+                                " src address ",
+                                registers_src_address2[i]
+                            );
+                          if (i % 2 == 0) begin
+                            read_address <= registers_src_address2[i];
+                            register[0]  <= i;
+                          end else begin
+                            read_address2 <= registers_src_address2[i];
+                            register[1]   <= i;
+                          end
                         end else begin
-                          read_address2 <= registers_src_address2[i];
-                          register[1]   <= i;
+                          if (HARDWARE_DEBUG)
+                            $display(
+                                $sformatf("%02d", $time), pc_logical, " starting mmu from read"
+                            );
                         end
                       end else begin
-                        if (HARDWARE_DEBUG)
-                          $display($sformatf("%02d", $time), pc_logical, " starting mmu from read");
-                      end
-                    end else begin
-                      case (decoder_in1[!decoder_slot])
-                        OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4:
-                        if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
-                          pc_physical <= decoder_in4[!decoder_slot] - 2;
-                          read_address <= decoder_in4[!decoder_slot];
-                          read_address2 <= decoder_in4[!decoder_slot] + 1;
-                          decoder_input_address <= decoder_in4[!decoder_slot] - 2;
-                        end
-                        OPCODE_JMP_IF_NOT1:
-                        if (registers_value[i] != decoder_in3[!decoder_slot]) begin
-                          pc_physical <= decoder_in4[!decoder_slot] - 2;
-                          read_address <= decoder_in4[!decoder_slot];
-                          read_address2 <= decoder_in4[!decoder_slot] + 1;
-                          decoder_input_address <= decoder_in4[!decoder_slot] - 2;
-                        end
-                        OPCODE_REG2RAM: begin
-                          if (!register_save_lock[i] || saveram_q_num == i) begin
-                            registers_save_value[i] <= registers_value[i];
-                            registers_save_address[i] <= decoder_numeric[i][!decoder_slot];
-                            register_save_lock[i] <= 1;
-                          end else begin
-                            executor_state <= registers_save_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
-                            mmu_address_logical <= registers_save_address[i];
-                            decoder_inp <= 0;
-                            decoder_slot <= decoder_slot;
-                            if (HARDWARE_DEBUG) begin
-                              $display($sformatf("%02d", $time), pc_logical, " write memory slot ",
-                                       i, " is already filled, stall1 ", saveram_q_num, " ",
-                                       register_save_lock[i]);
-                              if (!registers_save_mmu_done[i])
-                                $display(
-                                    $sformatf("%02d", $time), pc_logical, " starting mmu from save"
-                                );
+                        case (decoder_in1[!decoder_slot])
+                          OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4:
+                          if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
+                            pc_physical <= decoder_in4[!decoder_slot] - 2;
+                            read_address <= decoder_in4[!decoder_slot];
+                            read_address2 <= decoder_in4[!decoder_slot] + 1;
+                            decoder_input_address <= decoder_in4[!decoder_slot] - 2;
+                          end
+                          OPCODE_JMP_IF_NOT1:
+                          if (registers_value[i] != decoder_in3[!decoder_slot]) begin
+                            pc_physical <= decoder_in4[!decoder_slot] - 2;
+                            read_address <= decoder_in4[!decoder_slot];
+                            read_address2 <= decoder_in4[!decoder_slot] + 1;
+                            decoder_input_address <= decoder_in4[!decoder_slot] - 2;
+                          end
+                          OPCODE_REG2RAM: begin
+                            if (!register_save_lock[i] || saveram_q_num == i) begin
+                              registers_save_value[i] <= registers_value[i];
+                              registers_save_address[i] <= decoder_numeric[i][!decoder_slot];
+                              register_save_lock[i] <= 1;
+                            end else begin
+                              executor_state <= registers_save_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
+                              mmu_address_logical <= registers_save_address[i];
+                              decoder_inp <= 0;
+                              decoder_slot <= decoder_slot;
+                              if (HARDWARE_DEBUG) begin
+                                $display($sformatf("%02d", $time), pc_logical,
+                                         " write memory slot ", i, " is already filled, stall1 ",
+                                         saveram_q_num, " ", register_save_lock[i]);
+                                if (!registers_save_mmu_done[i])
+                                  $display(
+                                      $sformatf(
+                                          "%02d", $time
+                                      ),
+                                      pc_logical,
+                                      " starting mmu from save"
+                                  );
+                              end
                             end
                           end
-                        end
-                      endcase
+                        endcase
+                      end
                     end
-                  end
-                endcase
-              end
+                  endcase
+                end
               end
             end
           end
