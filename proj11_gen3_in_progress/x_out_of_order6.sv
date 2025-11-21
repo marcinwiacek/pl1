@@ -206,18 +206,16 @@ module x_out_of_order6 (
     if (rst) begin
       registers_value <= '{default: 0};
       registers_value[9] <= 1;
+      decoder_do_op2 <='{default: 1};
     end else begin
       for (qq = 0; qq <= REGISTER_NUM; qq = qq + 1) begin
-        if (decoder_ready) begin
-          if (executor_state == EXECUTE_STATE_START) begin
-            decoder_do_op2[qq] <= decoder_do_op0[i][!decoder_slot];
-          end
-          if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[i][!decoder_slot]:decoder_do_op2[i])) begin
+        if (decoder_ready) begin         
+          if (decoder_do_op0[qq][!decoder_slot] && decoder_do_op2[qq]) begin
             if (registers_init[qq]) begin
               case (decoder_in1[!decoder_slot])
                 OPCODE_NUM2REG: begin
                   //not important if register had value earlier
-                  registers_value[qq] <= decoder_in4[!decoder_slot];
+                  registers_value[qq] <= decoder_in4[!decoder_slot];                   
                 end
                 OPCODE_REG_PLUS: begin
                   decoder_do_op2[qq]  <= 0;
@@ -229,10 +227,9 @@ module x_out_of_order6 (
                 end
                 OPCODE_REG2RAM: begin
                   if (!register_save_lock[qq] || saveram_q_num == qq) begin
-                    decoder_do_op2[qq] <= 0;
-                  end else begin
+                    decoder_do_op2[qq] <= 0;              
                   end
-                end
+                end             
               endcase
             end else if (registers_src_address[qq] == readsaveaddr) begin
               if (HARDWARE_DEBUG)
@@ -252,6 +249,8 @@ module x_out_of_order6 (
               registers_value[qq] <= read_value2;
             end
           end
+        end else begin
+             decoder_do_op2 <='{default: 1};     
         end
       end
     end
@@ -467,7 +466,7 @@ module x_out_of_order6 (
           end
           default: begin
             if (decoder_ready) begin
-              if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[i][!decoder_slot]:decoder_do_op2[i])) begin
+              if (decoder_do_op0[i][!decoder_slot] && decoder_do_op2[i]) begin
                 case (decoder_in1[!decoder_slot])
                   OPCODE_JMP: begin
                     pc_physical <= decoder_in4[!decoder_slot] - 2;
