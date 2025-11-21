@@ -698,7 +698,11 @@ module decoder (
            `INSTRUCTION3:
            ((`INSTRUCTION1==OPCODE_JMP_IF2 || `INSTRUCTION1==OPCODE_JMP_IF_NOT2)?`INSTRUCTION3<<4+16:
            ((`INSTRUCTION1==OPCODE_JMP_IF3 || `INSTRUCTION1==OPCODE_JMP_IF_NOT3)?`INSTRUCTION3<<8+256:`INSTRUCTION3<<12+4096));
+    end
+  end
 
+  always @(posedge clk) begin
+    if (inp) begin
       error_code[slot] <= 0;
       case (`INSTRUCTION1)
         OPCODE_JMP, OPCODE_JMP_IF1,OPCODE_JMP_IF2,OPCODE_JMP_IF3,OPCODE_JMP_IF4,
