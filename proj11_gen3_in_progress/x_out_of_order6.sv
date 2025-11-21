@@ -203,10 +203,16 @@ module x_out_of_order6 (
   end
 
   always @(posedge clk) begin
+     if (rst) begin
+      registers_value <= '{default: 0};
+      registers_value[9] <= 1;
+      end else begin
     for (qq = 0; qq <= REGISTER_NUM; qq = qq + 1) begin
       if (decoder_ready) begin
-        if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[i][!decoder_slot]:decoder_do_op2[i])) begin
-          decoder_do_op2[qq] <= 1;
+        if (executor_state == EXECUTE_STATE_START) begin
+            decoder_do_op2[qq] <= decoder_do_op0[i][!decoder_slot];
+        end              
+        if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[i][!decoder_slot]:decoder_do_op2[i])) begin        
           if (registers_init[qq]) begin
             case (decoder_in1[!decoder_slot])
               OPCODE_NUM2REG: begin
@@ -224,6 +230,7 @@ module x_out_of_order6 (
               OPCODE_REG2RAM: begin
                 if (!register_save_lock[qq] || saveram_q_num == qq) begin
                   decoder_do_op2[qq] <= 0;
+                end else begin
                 end
               end
             endcase
@@ -247,13 +254,12 @@ module x_out_of_order6 (
         end
       end
     end
+    end
   end
 
   always @(posedge clk) begin
     if (rst) begin
-      instr_num <= 0;
-      registers_value <= '{default: 0};
-      registers_value[9] <= 1;
+      instr_num <= 0;   
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       read_address <= 52;
       read_address2 <= 53;
@@ -586,15 +592,10 @@ module decoder (
     output bit [15:0] in4[0:1], in3_big[0:1]
 );
 
-  bit [ 7:0] instruction1;
-  bit [ 3:0] instruction2;
-  bit [ 3:0] instruction3;
-  bit [15:0] instruction4;
-
-  assign instruction1 = read1[15:8];
-  assign instruction2 = read1[7:4];
-  assign instruction3 = read1[3:0];
-  assign instruction4 = read2;
+  `define INSTRUCTION1 read1[15:8]
+  `define INSTRUCTION2 read1[7:4]
+  `define INSTRUCTION3 read1[3:0]
+  `define INSTRUCTION4 read2
 
   integer i;
 
@@ -616,52 +617,52 @@ module decoder (
             (read2 % 256) % 16 >= 10 ? (read2 % 256) % 16 + 65 - 10 : (read2 % 256) % 16 + 48,  //DEBUG info
             "h (", read1, " ", read2, ")");
 
-        case (instruction1)
-          OPCODE_JMP: $write(" jmp to logical address ", instruction4);  //DEBUG info          
+        case (`INSTRUCTION1)
+          OPCODE_JMP: $write(" jmp to logical address ", `INSTRUCTION4);  //DEBUG info          
           OPCODE_RAM2REG:
           $write(
               " ram2reg read value from logical address ",
-              instruction4,  //DEBUG info
+              `INSTRUCTION4,  //DEBUG info
               " to reg ",
-              instruction2,
+              `INSTRUCTION2,
               "-",
-              (instruction2 + instruction3)
+              (`INSTRUCTION2 + `INSTRUCTION3)
           );  //DEBUG info
           OPCODE_REG2RAM:
           $write(
               " reg2ram save value from reg ",  //DEBUG info
-              instruction2,
+              `INSTRUCTION2,
               "-",
-              (instruction2 + instruction3),  //DEBUG info
+              (`INSTRUCTION2 + `INSTRUCTION3),  //DEBUG info
               " to logical address ",
-              instruction4
+              `INSTRUCTION4
           );  //DEBUG info
           OPCODE_NUM2REG:
           $write(
               " num2reg save value ",
-              instruction4,  //DEBUG info
+              `INSTRUCTION4,  //DEBUG info
               " to reg ",
-              instruction2,
+              `INSTRUCTION2,
               "-",
-              (instruction2 + instruction3)
+              (`INSTRUCTION2 + `INSTRUCTION3)
           );  //DEBUG info
           OPCODE_REG_PLUS:
           $write(
               " regplus add value ",
-              instruction4,
+              `INSTRUCTION4,
               " to reg ",
-              instruction2,
+              `INSTRUCTION2,
               "-",
-              (instruction2 + instruction3)
+              (`INSTRUCTION2 + `INSTRUCTION3)
           );  //DEBUG info
           OPCODE_REG_MINUS:
           $write(
               " regminus add value ",
-              instruction4,
+              `INSTRUCTION4,
               " to reg ",
-              instruction2,
+              `INSTRUCTION2,
               "-",
-              (instruction2 + instruction3)
+              (`INSTRUCTION2 + `INSTRUCTION3)
           );  //DEBUG info
           default: begin
             $write(" unknown");  //DEBUG info
@@ -669,40 +670,36 @@ module decoder (
         endcase
       end
 
-      in1[slot] <= instruction1;
-      in2[slot] <= instruction2;
-      in3[slot] <= instruction3;     
-      in4[slot] <= instruction4;
+      in1[slot] <= `INSTRUCTION1;
+      in2[slot] <= `INSTRUCTION2;
+      in3[slot] <= `INSTRUCTION3;     
+      in4[slot] <= `INSTRUCTION4;
 
-      error_code[slot] <= 0;
       for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-        if (i >= instruction2 && i <= instruction2 + instruction3) begin
-          numeric[i][slot] <= instruction4 + i - instruction2;
+        if (i >= `INSTRUCTION2 && i <= `INSTRUCTION2 + `INSTRUCTION3) begin
+          numeric[i][slot] <= `INSTRUCTION4 + i - `INSTRUCTION3;
           do_op[i][slot]   <= 1;
         end else begin
           do_op[i][slot]   <= 0;
           numeric[i][slot] <= 0;
         end
       end
-      
-       case (instruction1)   
-        OPCODE_JMP_IF1:
-      in3_big[slot] <= instruction3;
-        OPCODE_JMP_IF2:
-      in3_big[slot] <= instruction3<<4+8;
-        OPCODE_JMP_IF3:
-      in3_big[slot] <= instruction3<<8+256;
-        OPCODE_JMP_IF4:
-      in3_big[slot] <= instruction3<<12+4096;
-        endcase
+      if (HARDWARE_DEBUG) $display("");
+   end
+  end
+   
+  always @(posedge clk) begin
+    if (inp) begin      
+       in3_big[slot] <= `INSTRUCTION1==OPCODE_JMP_IF1?`INSTRUCTION3:(`INSTRUCTION1==OPCODE_JMP_IF2?`INSTRUCTION3<<4+16:(`INSTRUCTION1==OPCODE_JMP_IF3?`INSTRUCTION3<<8+256:`INSTRUCTION3<<12+4096));
         
-      case (instruction1)   
+      error_code[slot] <= 0;
+      case (`INSTRUCTION1)   
         OPCODE_JMP, OPCODE_JMP_IF1,OPCODE_JMP_IF2,OPCODE_JMP_IF3,OPCODE_JMP_IF4,
         OPCODE_JMP_IF_NOT1,OPCODE_JMP_IF_NOT2,OPCODE_JMP_IF_NOT3,OPCODE_JMP_IF_NOT4: begin end
         OPCODE_RAM2REG, OPCODE_REG2RAM,
         OPCODE_NUM2REG, 
         OPCODE_REG_PLUS, OPCODE_REG_MINUS: begin
-          if (instruction2 + instruction3 >= REGISTER_NUM) begin
+          if (`INSTRUCTION2 + `INSTRUCTION3 >= REGISTER_NUM) begin
             error_code[slot] <= ERROR_WRONG_REG_NUM;
           end
         end
@@ -710,7 +707,6 @@ module decoder (
           error_code[slot] <= ERROR_WRONG_OPCODE;
         end
       endcase
-      if (HARDWARE_DEBUG) $display("");
     end
   end
 endmodule
