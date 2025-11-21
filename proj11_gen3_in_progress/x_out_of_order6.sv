@@ -203,63 +203,63 @@ module x_out_of_order6 (
   end
 
   always @(posedge clk) begin
-     if (rst) begin
+    if (rst) begin
       registers_value <= '{default: 0};
       registers_value[9] <= 1;
-      end else begin
-    for (qq = 0; qq <= REGISTER_NUM; qq = qq + 1) begin
-      if (decoder_ready) begin
-        if (executor_state == EXECUTE_STATE_START) begin
+    end else begin
+      for (qq = 0; qq <= REGISTER_NUM; qq = qq + 1) begin
+        if (decoder_ready) begin
+          if (executor_state == EXECUTE_STATE_START) begin
             decoder_do_op2[qq] <= decoder_do_op0[i][!decoder_slot];
-        end              
-        if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[i][!decoder_slot]:decoder_do_op2[i])) begin        
-          if (registers_init[qq]) begin
-            case (decoder_in1[!decoder_slot])
-              OPCODE_NUM2REG: begin
-                //not important if register had value earlier
-                registers_value[qq] <= decoder_in4[!decoder_slot];
-              end
-              OPCODE_REG_PLUS: begin
-                decoder_do_op2[qq]  <= 0;
-                registers_value[qq] <= registers_value[qq] + decoder_in4[!decoder_slot];
-              end
-              OPCODE_REG_MINUS: begin
-                decoder_do_op2[qq]  <= 0;
-                registers_value[qq] <= registers_value[qq] - decoder_in4[!decoder_slot];
-              end
-              OPCODE_REG2RAM: begin
-                if (!register_save_lock[qq] || saveram_q_num == qq) begin
-                  decoder_do_op2[qq] <= 0;
-                end else begin
+          end
+          if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[i][!decoder_slot]:decoder_do_op2[i])) begin
+            if (registers_init[qq]) begin
+              case (decoder_in1[!decoder_slot])
+                OPCODE_NUM2REG: begin
+                  //not important if register had value earlier
+                  registers_value[qq] <= decoder_in4[!decoder_slot];
                 end
-              end
-            endcase
-          end else if (registers_src_address[qq] == readsaveaddr) begin
-            if (HARDWARE_DEBUG)
-              $display(
-                  $sformatf(
-                      "%02d", $time
-                  ),
-                  " read register from read stall ",
-                  qq,
-                  " with value ",
-                  registers_save_value[readstallindex]
-              );  //DEBUG info
-            registers_value[qq] <= registers_save_value[readstallindex];
-          end else if (register[0] == qq) begin
-            registers_value[qq] <= read_value;
-          end else if (register[1] == qq) begin
-            registers_value[qq] <= read_value2;
+                OPCODE_REG_PLUS: begin
+                  decoder_do_op2[qq]  <= 0;
+                  registers_value[qq] <= registers_value[qq] + decoder_in4[!decoder_slot];
+                end
+                OPCODE_REG_MINUS: begin
+                  decoder_do_op2[qq]  <= 0;
+                  registers_value[qq] <= registers_value[qq] - decoder_in4[!decoder_slot];
+                end
+                OPCODE_REG2RAM: begin
+                  if (!register_save_lock[qq] || saveram_q_num == qq) begin
+                    decoder_do_op2[qq] <= 0;
+                  end else begin
+                  end
+                end
+              endcase
+            end else if (registers_src_address[qq] == readsaveaddr) begin
+              if (HARDWARE_DEBUG)
+                $display(
+                    $sformatf(
+                        "%02d", $time
+                    ),
+                    " read register from read stall ",
+                    qq,
+                    " with value ",
+                    registers_save_value[readstallindex]
+                );  //DEBUG info
+              registers_value[qq] <= registers_save_value[readstallindex];
+            end else if (register[0] == qq) begin
+              registers_value[qq] <= read_value;
+            end else if (register[1] == qq) begin
+              registers_value[qq] <= read_value2;
+            end
           end
         end
       end
-    end
     end
   end
 
   always @(posedge clk) begin
     if (rst) begin
-      instr_num <= 0;   
+      instr_num <= 0;
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       read_address <= 52;
       read_address2 <= 53;
@@ -519,10 +519,7 @@ module x_out_of_order6 (
                       end
                     end else begin
                       case (decoder_in1[!decoder_slot])
-                        OPCODE_JMP_IF1,
-                          OPCODE_JMP_IF2,
-                            OPCODE_JMP_IF3,
-                              OPCODE_JMP_IF4:                       
+                        OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4:
                         if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
                           pc_physical <= decoder_in4[!decoder_slot] - 2;
                           read_address <= decoder_in4[!decoder_slot];
@@ -589,7 +586,8 @@ module decoder (
     output bit [7:0] in1[0:1],
     output bit [3:0] in2[0:1],
     in3[0:1],
-    output bit [15:0] in4[0:1], in3_big[0:1]
+    output bit [15:0] in4[0:1],
+    in3_big[0:1]
 );
 
   `define INSTRUCTION1 read1[15:8]
@@ -672,7 +670,7 @@ module decoder (
 
       in1[slot] <= `INSTRUCTION1;
       in2[slot] <= `INSTRUCTION2;
-      in3[slot] <= `INSTRUCTION3;     
+      in3[slot] <= `INSTRUCTION3;
       in4[slot] <= `INSTRUCTION4;
 
       for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
@@ -685,20 +683,19 @@ module decoder (
         end
       end
       if (HARDWARE_DEBUG) $display("");
-   end
+    end
   end
-   
+
   always @(posedge clk) begin
-    if (inp) begin      
-       in3_big[slot] <= `INSTRUCTION1==OPCODE_JMP_IF1?`INSTRUCTION3:(`INSTRUCTION1==OPCODE_JMP_IF2?`INSTRUCTION3<<4+16:(`INSTRUCTION1==OPCODE_JMP_IF3?`INSTRUCTION3<<8+256:`INSTRUCTION3<<12+4096));
-        
+    if (inp) begin
+      in3_big[slot] <= `INSTRUCTION1==OPCODE_JMP_IF1?`INSTRUCTION3:(`INSTRUCTION1==OPCODE_JMP_IF2?`INSTRUCTION3<<4+16:(`INSTRUCTION1==OPCODE_JMP_IF3?`INSTRUCTION3<<8+256:`INSTRUCTION3<<12+4096));
+
       error_code[slot] <= 0;
-      case (`INSTRUCTION1)   
+      case (`INSTRUCTION1)
         OPCODE_JMP, OPCODE_JMP_IF1,OPCODE_JMP_IF2,OPCODE_JMP_IF3,OPCODE_JMP_IF4,
-        OPCODE_JMP_IF_NOT1,OPCODE_JMP_IF_NOT2,OPCODE_JMP_IF_NOT3,OPCODE_JMP_IF_NOT4: begin end
-        OPCODE_RAM2REG, OPCODE_REG2RAM,
-        OPCODE_NUM2REG, 
-        OPCODE_REG_PLUS, OPCODE_REG_MINUS: begin
+        OPCODE_JMP_IF_NOT1,OPCODE_JMP_IF_NOT2,OPCODE_JMP_IF_NOT3,OPCODE_JMP_IF_NOT4: begin
+        end
+        OPCODE_RAM2REG, OPCODE_REG2RAM, OPCODE_NUM2REG, OPCODE_REG_PLUS, OPCODE_REG_MINUS: begin
           if (`INSTRUCTION2 + `INSTRUCTION3 >= REGISTER_NUM) begin
             error_code[slot] <= ERROR_WRONG_REG_NUM;
           end
