@@ -203,16 +203,17 @@ module x_out_of_order6 (
   end
 
   always @(posedge clk) begin
+  
+    
+          
     if (rst) begin
       registers_value <= '{default: 0};
       registers_value[9] <= 1;
+          decoder_do_op2 <= '{default: 1};    
     end else begin
-      for (qq = 0; qq <= REGISTER_NUM; qq = qq + 1) begin
         if (decoder_ready) begin
-          if (executor_state == EXECUTE_STATE_START) begin
-            decoder_do_op2[qq] <= decoder_do_op0[i][!decoder_slot];
-          end
-          if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[i][!decoder_slot]:decoder_do_op2[i])) begin
+      for (qq = 0; qq <= REGISTER_NUM; qq = qq + 1) begin          
+          if (decoder_do_op0[i][!decoder_slot]==decoder_do_op2[i]) begin
             if (registers_init[qq]) begin
               case (decoder_in1[!decoder_slot])
                 OPCODE_NUM2REG: begin
@@ -252,8 +253,10 @@ module x_out_of_order6 (
               registers_value[qq] <= read_value2;
             end
           end
-        end
-      end
+           end
+        end else begin
+          decoder_do_op2 <= '{default: 1};    
+        end         
     end
   end
 
@@ -265,6 +268,8 @@ module x_out_of_order6 (
       read_address2 <= 53;
       decoder_inp <= 1;
       decoder_input_address <= 52;
+
+          
       if (HARDWARE_DEBUG)
         $display($sformatf("%02d", $time), "   52 starting initial fetch ");  //DEBUG info
       if (HARDWARE_DEBUG) $display("");
@@ -366,7 +371,8 @@ module x_out_of_order6 (
       if (HARDWARE_DEBUG)
         $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical + 2);
       decoder_input_address <= pc_logical + 2;
-      if (decoder_inp) begin
+      if (decoder_inp) begin       
+
         pc_logical  <= pc_logical + 2;
         pc_physical <= pc_physical + 2;
       end
@@ -467,7 +473,7 @@ module x_out_of_order6 (
           end
           default: begin
             if (decoder_ready) begin
-              if ((executor_state == EXECUTE_STATE_START ?decoder_do_op0[i][!decoder_slot]:decoder_do_op2[i])) begin
+              if (decoder_do_op0[i][!decoder_slot]==decoder_do_op2[i]) begin
                 case (decoder_in1[!decoder_slot])
                   OPCODE_JMP: begin
                     pc_physical <= decoder_in4[!decoder_slot] - 2;
