@@ -136,9 +136,7 @@ module x_out_of_order6 (
   reg decoder_do_op2[REGISTER_NUM:0];
 
   //--------------------------------------------------------------------process------------------
-
-  //  reg [15:0] process_hardware_address = 0;
-
+  
   reg [15:0]
       pc_logical,
       pc_physical,
@@ -206,7 +204,6 @@ module x_out_of_order6 (
     if (rst) begin
       registers_value <= '{default: 0};
       registers_value[9] <= 1;
-      //decoder_do_op2 <='{default: 1};   
     end else begin
       for (qq = 0; qq <= REGISTER_NUM; qq = qq + 1) begin
         if (!decoder_ready) begin
@@ -606,6 +603,17 @@ module decoder (
   always @(posedge clk) begin
     if (inp) begin
       ready <= inp;
+     
+      for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+        if (i >= `INSTRUCTION2 && i <= `INSTRUCTION2 + `INSTRUCTION3) begin
+          numeric[i][slot] <= `INSTRUCTION4 + i - `INSTRUCTION3;
+          do_op[i][slot]   <= 1;
+        end else begin
+          do_op[i][slot]   <= 0;
+          numeric[i][slot] <= 0;
+        end
+      end
+
       if (HARDWARE_DEBUG) begin
         $write(  //DEBUG info
             $sformatf("%02d", $time),  //DEBUG info
@@ -674,26 +682,16 @@ module decoder (
         endcase
       end
 
-      in1[slot] <= `INSTRUCTION1;
-      in2[slot] <= `INSTRUCTION2;
-      in3[slot] <= `INSTRUCTION3;
-      in4[slot] <= `INSTRUCTION4;
-
-      for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-        if (i >= `INSTRUCTION2 && i <= `INSTRUCTION2 + `INSTRUCTION3) begin
-          numeric[i][slot] <= `INSTRUCTION4 + i - `INSTRUCTION3;
-          do_op[i][slot]   <= 1;
-        end else begin
-          do_op[i][slot]   <= 0;
-          numeric[i][slot] <= 0;
-        end
-      end
       if (HARDWARE_DEBUG) $display("");
     end
   end
 
   always @(posedge clk) begin
     if (inp) begin
+      in1[slot] <= `INSTRUCTION1;
+      in2[slot] <= `INSTRUCTION2;
+      in3[slot] <= `INSTRUCTION3;
+      in4[slot] <= `INSTRUCTION4;
       in3_big[slot] <= (`INSTRUCTION1==OPCODE_JMP_IF1 || `INSTRUCTION1==OPCODE_JMP_IF_NOT1)?
            `INSTRUCTION3:
            ((`INSTRUCTION1==OPCODE_JMP_IF2 || `INSTRUCTION1==OPCODE_JMP_IF_NOT2)?`INSTRUCTION3<<4+16:
