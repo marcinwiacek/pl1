@@ -27,11 +27,11 @@ parameter OPCODE_JMP_IF_NOT1 = 6; //register num (5 bits), how many-1 (3 bits), 
 parameter OPCODE_JMP_IF_NOT2 = 7; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
 parameter OPCODE_JMP_IF_NOT3 = 8; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
 parameter OPCODE_JMP_IF_NOT4 = 9; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_RAM2REG = 10;  //register num (4 bits), how many (4 bits), 16 bit source addr //ram -> reg
-parameter OPCODE_REG2RAM = 11; //14 //register num (4 bits), how many-1 (4 bits), 16 bit target addr //reg -> ram
-parameter OPCODE_NUM2REG = 12; //18;  //register num (4 bits), how many-1 (4 bits), 16 bit value //value -> reg
-parameter OPCODE_REG_PLUS = 14;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
-parameter OPCODE_REG_MINUS = 15; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+parameter OPCODE_RAM2REG = 'h0a;  //register num (4 bits), how many (4 bits), 16 bit source addr //ram -> reg
+parameter OPCODE_REG2RAM = 'h0b; //14 //register num (4 bits), how many-1 (4 bits), 16 bit target addr //reg -> ram
+parameter OPCODE_NUM2REG = 'h0c; //18;  //register num (4 bits), how many-1 (4 bits), 16 bit value //value -> reg
+parameter OPCODE_REG_PLUS = 'h0e;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
+parameter OPCODE_REG_MINUS = 'h0f; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
 
 //parameter OPCODE_REG_MUL = 'h16; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
 //parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
@@ -256,15 +256,15 @@ module x_out_of_order6 (
     if (rst) begin
       instr_num <= 0;
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      read_address <= 52;
-      read_address2 <= 53;
+        pc_logical <= 50;
+      pc_physical <= 50;
+      read_address <= 50;
+      read_address2 <= 51;
       decoder_inp <= 1;
-      decoder_input_address <= 52;
+      decoder_input_address <= 50;
       if (HARDWARE_DEBUG)
         $display($sformatf("%02d", $time), "   52 starting initial fetch ");  //DEBUG info
-      if (HARDWARE_DEBUG) $display("");
-      pc_logical <= 52;
-      pc_physical <= 52;
+      if (HARDWARE_DEBUG) $display("");    
       mmu_address_physical_min_in_the_same_page <= 0;
       mmu_address_logical_min_in_the_same_page <= 0;
       mmu_address_logical_max_in_the_same_page <= 500;
@@ -287,7 +287,7 @@ module x_out_of_order6 (
                  executor_state, " exec_slot ", !decoder_slot);
         $write("reg");
         for (i = 0; i < 20; i = i + 1) begin
-          $write($sformatf(" %02d:%02d:%02d:%02d:%02d:%02d ", i, registers_init[i],
+          $write($sformatf(" %02d:i%02d:s%02d:v%02d:l%02d:d%02d ", i, registers_init[i],
                            registers_src_address[i], registers_value[i], register_save_lock[i],
                            registers_save_address[i]));
         end
@@ -459,6 +459,8 @@ module x_out_of_order6 (
               end
             end
             executor_state <= EXECUTE_STATE_CONTINUE;
+             decoder_inp <= 0;
+            decoder_slot <= decoder_slot;
           end
           default: begin
             if (decoder_ready) begin
@@ -483,6 +485,16 @@ module x_out_of_order6 (
                     end
                     default: begin
                       if (!registers_init[i]) begin
+                        $display(
+                                $sformatf(
+                                    "%02d", $time
+                                ),
+                                pc_logical,
+                                " register ",
+                                i,
+                                " not init"
+                            );
+                            
                         decoder_inp <= 0;
                         decoder_slot <= decoder_slot;
                         executor_state <= EXECUTE_STATE_MMU;
@@ -605,8 +617,8 @@ module decoder (
       ready <= inp;
      
       for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-        if (i >= `INSTRUCTION2 && i <= `INSTRUCTION2 + `INSTRUCTION3) begin
-          numeric[i][slot] <= `INSTRUCTION4 + i - `INSTRUCTION3;
+        if (i >= `INSTRUCTION2 && i <= `INSTRUCTION2 + `INSTRUCTION3-1) begin
+          numeric[i][slot] <= `INSTRUCTION4 + i - `INSTRUCTION2;
           do_op[i][slot]   <= 1;
         end else begin
           do_op[i][slot]   <= 0;
@@ -638,14 +650,14 @@ module decoder (
               " to reg ",
               `INSTRUCTION2,
               "-",
-              (`INSTRUCTION2 + `INSTRUCTION3)
+              (`INSTRUCTION2 + `INSTRUCTION3-1)
           );  //DEBUG info
           OPCODE_REG2RAM:
           $write(
               " reg2ram save value from reg ",  //DEBUG info
               `INSTRUCTION2,
               "-",
-              (`INSTRUCTION2 + `INSTRUCTION3),  //DEBUG info
+              (`INSTRUCTION2 + `INSTRUCTION3-1),  //DEBUG info
               " to logical address ",
               `INSTRUCTION4
           );  //DEBUG info
@@ -656,7 +668,7 @@ module decoder (
               " to reg ",
               `INSTRUCTION2,
               "-",
-              (`INSTRUCTION2 + `INSTRUCTION3)
+              (`INSTRUCTION2 + `INSTRUCTION3-1)
           );  //DEBUG info
           OPCODE_REG_PLUS:
           $write(
@@ -665,7 +677,7 @@ module decoder (
               " to reg ",
               `INSTRUCTION2,
               "-",
-              (`INSTRUCTION2 + `INSTRUCTION3)
+              (`INSTRUCTION2 + `INSTRUCTION3-1)
           );  //DEBUG info
           OPCODE_REG_MINUS:
           $write(
@@ -674,7 +686,7 @@ module decoder (
               " to reg ",
               `INSTRUCTION2,
               "-",
-              (`INSTRUCTION2 + `INSTRUCTION3)
+              (`INSTRUCTION2 + `INSTRUCTION3-1)
           );  //DEBUG info
           default: begin
             $write(" unknown");  //DEBUG info
@@ -761,9 +773,26 @@ module single_blockram (
       16'h0000,
       16'h0000, //next mmu address or 0 (not assigned)
 
-      16'h1209, 16'd2613, //value to reg // not used for anything usefull, just for debugging
-      16'h0e09, 16'd0212, //save to ram // not used for anything usefull, just for debugging
-      16'h090b, 16'd0212, //ram to reg // not used for anything usefull, just for debugging
+
+/*parameter OPCODE_JMP = 1;  //16 bit target address
+parameter OPCODE_JMP_IF1 = 2; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+parameter OPCODE_JMP_IF2 = 3; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+parameter OPCODE_JMP_IF3 = 4; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+parameter OPCODE_JMP_IF4 = 5; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+parameter OPCODE_JMP_IF_NOT1 = 6; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+parameter OPCODE_JMP_IF_NOT2 = 7; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+parameter OPCODE_JMP_IF_NOT3 = 8; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+parameter OPCODE_JMP_IF_NOT4 = 9; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+parameter OPCODE_RAM2REG = 'h0a;  //register num (4 bits), how many (4 bits), 16 bit source addr //ram -> reg
+parameter OPCODE_REG2RAM = 'h0b; //14 //register num (4 bits), how many-1 (4 bits), 16 bit target addr //reg -> ram
+parameter OPCODE_NUM2REG = 'h0c; //18;  //register num (4 bits), how many-1 (4 bits), 16 bit value //value -> reg
+parameter OPCODE_REG_PLUS = 'h0e;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
+parameter OPCODE_REG_MINUS = 'h0f; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+*/
+
+      16'h0a91, 16'd0112, //value to reg // not used for anything usefull, just for debugging
+      16'h0b91, 16'd0212, //save to ram // not used for anything usefull, just for debugging
+      16'h0ab1, 16'd0214, //ram to reg // not used for anything usefull, just for debugging
       16'h140b, 16'd0101, //add // not used for anything usefull, just for debugging
       16'h0e09, 16'd0290, //save to ram // not used for anything usefull, just for debugging
       16'h090a, 16'd0100, //ram to reg // not used for anything usefull, just for debugging
