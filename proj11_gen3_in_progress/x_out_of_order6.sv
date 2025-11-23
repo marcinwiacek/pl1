@@ -97,41 +97,9 @@ module x_out_of_order6 (
       mmu_address_logical_min_in_the_same_page,
       mmu_address_logical_max_in_the_same_page;
 
-  //---------------------------------------------------------decoder--------------------------
-
-  reg decoder_slot;
-  reg [15:0] decoder_input_address;
-  reg decoder_inp;
-  wire decoder_ready;
-  wire [3:0] decoder_error_code[0:1];
-  wire [7:0] decoder_in1[0:1];
-  wire [3:0] decoder_in2[0:1], decoder_in3[0:1];
-  wire [15:0] decoder_in3_big[0:1];
-  wire [15:0] decoder_in4[0:1];
-  wire decoder_do_op0[REGISTER_NUM:0][0:1];
-  wire [15:0] decoder_numeric[REGISTER_NUM:0][0:1];
-
-  decoder decoder (
-      .clk(clk),
-      .inp(decoder_inp),
-      .address(decoder_input_address),
-      .read1(read_value),
-      .read2(read_value2),
-      .slot(decoder_slot),
-      .do_op(decoder_do_op0),
-      .ready(decoder_ready),
-      .error_code(decoder_error_code),
-      .in1(decoder_in1),
-      .in2(decoder_in2),
-      .in3(decoder_in3),
-      .in3_big(decoder_in3_big),
-      .in4(decoder_in4),
-      .numeric(decoder_numeric)
-  );
-
   //--------------------------------------------------------------------executor------------------
 
-  reg [5:0] executor_state;
+  reg [5:0] executor_state, executor_state_after_mmu;
   reg [6:0] register[0:1];
   reg decoder_do_op2[REGISTER_NUM:0];
 
@@ -157,6 +125,36 @@ module x_out_of_order6 (
       registers_save_ready[0:REGISTER_NUM],
       registers_save_mmu_done[0:REGISTER_NUM];
 
+ //---------------------------------------------------------decoder--------------------------
+
+  reg decoder_slot, decoder_inp;
+  wire decoder_ready;
+  wire [3:0] decoder_error_code[0:1];
+  wire [7:0] decoder_in1[0:1];
+  wire [3:0] decoder_in2[0:1], decoder_in3[0:1];
+  wire [15:0] decoder_in3_big[0:1];
+  wire [15:0] decoder_in4[0:1];
+  wire decoder_do_op0[REGISTER_NUM:0][0:1];
+  wire [15:0] decoder_numeric[REGISTER_NUM:0][0:1];
+
+  decoder decoder (
+      .clk(clk),
+      .inp(decoder_inp),
+      .address(pc_physical),
+      .read1(read_value),
+      .read2(read_value2),
+      .slot(decoder_slot),
+      .do_op(decoder_do_op0),
+      .ready(decoder_ready),
+      .error_code(decoder_error_code),
+      .in1(decoder_in1),
+      .in2(decoder_in2),
+      .in3(decoder_in3),
+      .in3_big(decoder_in3_big),
+      .in4(decoder_in4),
+      .numeric(decoder_numeric)
+  );
+  
   //----------------------------------------------------------------other---------------------------
 
   reg rst = 1;
@@ -192,7 +190,7 @@ module x_out_of_order6 (
                   " between ",
                   decoder_in4[!decoder_slot],
                   " and ",
-                  decoder_in3[!decoder_slot] + decoder_in4[!decoder_slot]
+                  decoder_in3[!decoder_slot] + decoder_in4[!decoder_slot]-1
               );
           end
         end
@@ -204,13 +202,21 @@ module x_out_of_order6 (
     if (rst) begin
       registers_value <= '{default: 0};
       registers_value[9] <= 1;
+      registers_init <= '{default: 0};
+      registers_init[9] <= 1;
+       registers_src_address <= '{default: 0};
     end else begin
       for (qq = 0; qq <= REGISTER_NUM; qq = qq + 1) begin
         if (!decoder_ready) begin
           decoder_do_op2[qq] <= 1;
         end else if (decoder_in1[!decoder_slot] == OPCODE_NUM2REG) begin
+           registers_init[qq] <= 1;
           //not important if register had value earlier
-          registers_value[qq] <= decoder_in4[!decoder_slot];
+          registers_value[qq] <= decoder_in4[!decoder_slot];          
+        end else if (decoder_in1[!decoder_slot] == OPCODE_RAM2REG) begin
+           //this register should be read next time
+           registers_init[qq] <= 0;
+              registers_src_address[qq] <= decoder_numeric[qq][!decoder_slot];
         end else if (decoder_do_op0[qq][!decoder_slot]) begin
           if (decoder_do_op2[qq]) begin
             if (registers_init[qq]) begin
@@ -241,10 +247,22 @@ module x_out_of_order6 (
                     registers_save_value[readstallindex]
                 );  //DEBUG info
               registers_value[qq] <= registers_save_value[readstallindex];
+              registers_init[qq] <= 1;
+                registers_src_address[qq] <= 0;
             end else if (register[0] == qq) begin
+              $display($sformatf("%02d", $time),
+            " read first slot register ", qq,
+            " with address ", read_address,
+            "=", read_value);
               registers_value[qq] <= read_value;
+              registers_init[qq] <= 1;              
             end else if (register[1] == qq) begin
+              $display($sformatf("%02d", $time),
+            " read second slot register ", qq,
+            " with address ", read_address2,
+            "=", read_value2);
               registers_value[qq] <= read_value2;
+              registers_init[qq] <= 1;              
             end
           end
         end
@@ -253,15 +271,17 @@ module x_out_of_order6 (
   end
 
   always @(posedge clk) begin
+    register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
+      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;    
     if (rst) begin
       instr_num <= 0;
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-        pc_logical <= 50;
-      pc_physical <= 50;
-      read_address <= 50;
-      read_address2 <= 51;
       decoder_inp <= 1;
       decoder_input_address <= 50;
+      pc_logical <= 50;
+      pc_physical <= 50;
+      read_address <= 50;
+      read_address2 <= 51;     
       if (HARDWARE_DEBUG)
         $display($sformatf("%02d", $time), "   52 starting initial fetch ");  //DEBUG info
       if (HARDWARE_DEBUG) $display("");    
@@ -276,9 +296,7 @@ module x_out_of_order6 (
         registers_save_mmu_done[i] <= 0;
         register_save_lock[i] <= 0;
       end
-      executor_state <= EXECUTE_STATE_START;
-      register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;    
+      executor_state <= EXECUTE_STATE_START;    
       decoder_slot <= 0;
     end else if (instr_num < 10) begin
       if (HARDWARE_DEBUG) begin
@@ -297,24 +315,7 @@ module x_out_of_order6 (
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register_save_lock[saveram_q_num] <= 0;
       registers_save_ready[saveram_q_num] <= 0;
-      for (pp = 0; pp <= REGISTER_NUM; pp = pp + 1) begin
-        if (!registers_init[pp]) begin
-          if (registers_src_address[pp] == readsaveaddr) begin
-            if (HARDWARE_DEBUG)
-              $display(
-                  $sformatf(
-                      "%02d", $time
-                  ),
-                  " read register from read stall ",
-                  pp,
-                  " with value ",
-                  registers_save_value[readstallindex]
-              );  //DEBUG info
-            registers_init[pp] <= 1;
-            registers_src_address[pp] <= 0;
-         
-          end
-        end
+      for (pp = 0; pp <= REGISTER_NUM; pp = pp + 1) begin       
         if (registers_save_ready[pp]) begin
           saveram_q_num <= pp;
           write_enabled <= 1;
@@ -322,44 +323,14 @@ module x_out_of_order6 (
           write_value   <= registers_save_value[pp];
         end
       end
-
-      if (HARDWARE_DEBUG && register[0] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32)
-        $display(
-            $sformatf(
-                "%02d", $time
-            ),
-            " read first slot register ",
-            register[0],
-            " with address ",  //DEBUG info
-            read_address,
-            "=",
-            read_value
-        );  //DEBUG info
-      registers_init[register[0]] <= 1;
-      register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-
-      if (HARDWARE_DEBUG && register[1] != RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32)
-        $display(
-            $sformatf(
-                "%02d", $time
-            ),
-            " read second slot register ",
-            register[1],
-            " with address ",  //DEBUG info
-            read_address2,
-            "=",
-            read_value2
-        );  //DEBUG info
-      registers_init[register[1]] <= 1;
-      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-
+   
       decoder_inp <= 1;
       decoder_slot <= !decoder_slot;
       read_address <= pc_physical + 2;
       read_address2 <= pc_physical + 3;
       if (HARDWARE_DEBUG)
         $display($sformatf("%02d", $time), pc_logical, " starting fetch ", pc_physical + 2);
-      decoder_input_address <= pc_logical + 2;
+   
       if (decoder_inp) begin
         pc_logical  <= pc_logical + 2;
         pc_physical <= pc_physical + 2;
@@ -405,7 +376,7 @@ module x_out_of_order6 (
       end
 
       instr_num <= executor_state == EXECUTE_STATE_START ? instr_num + 1 : instr_num;
-      executor_state <= readstallavail ? EXECUTE_STATE_CONTINUE : EXECUTE_STATE_START;
+      
       for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
         case (executor_state)
           EXECUTE_STATE_MMU: begin
@@ -462,6 +433,7 @@ module x_out_of_order6 (
             decoder_slot <= decoder_slot;
           end
           default: begin
+            executor_state <= readstallavail ? EXECUTE_STATE_CONTINUE : EXECUTE_STATE_START;
             if (decoder_ready) begin
               if (decoder_do_op0[i][!decoder_slot]) begin
                 if (decoder_do_op2[i]) begin
@@ -470,16 +442,16 @@ module x_out_of_order6 (
                       pc_physical <= decoder_in4[!decoder_slot] - 2;
                       read_address <= decoder_in4[!decoder_slot];
                       read_address2 <= decoder_in4[!decoder_slot] + 1;
-                      decoder_input_address <= decoder_in4[!decoder_slot] - 2;
+                    
                     end
                     OPCODE_RAM2REG: begin
                       //this register should be read next time
-                      registers_init[i] <= 0;
+                    
                       registers_src_mmu_done[i] <= 0;
-                      registers_src_address[i] <= decoder_numeric[i][!decoder_slot];
+                   
                     end
                     OPCODE_NUM2REG: begin
-                      registers_init[i] <= 1;
+              
                       registers_src_mmu_done[i] <= 1;
                     end
                     default: begin
@@ -533,14 +505,14 @@ module x_out_of_order6 (
                             pc_physical <= decoder_in4[!decoder_slot] - 2;
                             read_address <= decoder_in4[!decoder_slot];
                             read_address2 <= decoder_in4[!decoder_slot] + 1;
-                            decoder_input_address <= decoder_in4[!decoder_slot] - 2;
+                           
                           end
                           OPCODE_JMP_IF_NOT1, OPCODE_JMP_IF_NOT2,  OPCODE_JMP_IF_NOT3,  OPCODE_JMP_IF_NOT4:
                           if (registers_value[i] != decoder_in3_big[!decoder_slot]) begin
                             pc_physical <= decoder_in4[!decoder_slot] - 2;
                             read_address <= decoder_in4[!decoder_slot];
                             read_address2 <= decoder_in4[!decoder_slot] + 1;
-                            decoder_input_address <= decoder_in4[!decoder_slot] - 2;
+                           
                           end
                           OPCODE_REG2RAM: begin
                             if (!register_save_lock[i] || saveram_q_num == i) begin
