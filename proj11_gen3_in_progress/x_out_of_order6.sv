@@ -136,7 +136,7 @@ module x_out_of_order6 (
   reg decoder_do_op2[REGISTER_NUM:0];
 
   //--------------------------------------------------------------------process------------------
-  
+
   reg [15:0]
       pc_logical,
       pc_physical,
@@ -164,7 +164,7 @@ module x_out_of_order6 (
 
   assign x = decoder_inp;  //without this we will have empty circuit
 
-  integer i, zz, pp, qq, qqq;
+  integer i, zz, pp, qq, qqq, abc;
 
   reg [ 6:0] readstallindex;
   reg [15:0] readsaveaddr;
@@ -208,28 +208,9 @@ module x_out_of_order6 (
       for (qq = 0; qq <= REGISTER_NUM; qq = qq + 1) begin
         if (!decoder_ready) begin
           decoder_do_op2[qq] <= 1;
-        end else if (decoder_in1[!decoder_slot] == OPCODE_NUM2REG) begin
-          //not important if register had value earlier
-          registers_value[qq] <= decoder_in4[!decoder_slot];
         end else if (decoder_do_op0[qq][!decoder_slot]) begin
           if (decoder_do_op2[qq]) begin
-            if (registers_init[qq]) begin
-              case (decoder_in1[!decoder_slot])               
-                OPCODE_REG_PLUS: begin
-                  decoder_do_op2[qq]  <= 0;
-                  registers_value[qq] <= registers_value[qq] + decoder_in4[!decoder_slot];
-                end
-                OPCODE_REG_MINUS: begin
-                  decoder_do_op2[qq]  <= 0;
-                  registers_value[qq] <= registers_value[qq] - decoder_in4[!decoder_slot];
-                end
-                OPCODE_REG2RAM: begin
-                  if (!register_save_lock[qq] || saveram_q_num == qq) begin
-                    decoder_do_op2[qq] <= 0;
-                  end
-                end
-              endcase
-            end else if (registers_src_address[qq] == readsaveaddr) begin
+            if (registers_src_address[qq] == readsaveaddr) begin
               if (HARDWARE_DEBUG)
                 $display(
                     $sformatf(
@@ -245,6 +226,55 @@ module x_out_of_order6 (
               registers_value[qq] <= read_value;
             end else if (register[1] == qq) begin
               registers_value[qq] <= read_value2;
+            end else if (decoder_in1[!decoder_slot] == OPCODE_NUM2REG) begin
+              //not important if register had value earlier
+              registers_value[qq] <= decoder_in4[!decoder_slot];
+            end else if (registers_init[qq]) begin
+              case (decoder_in1[!decoder_slot])
+                OPCODE_REG_PLUS: begin
+                  decoder_do_op2[qq]  <= 0;
+                  registers_value[qq] <= registers_value[qq] + decoder_in4[!decoder_slot];
+                end
+                OPCODE_REG_MINUS: begin
+                  decoder_do_op2[qq]  <= 0;
+                  registers_value[qq] <= registers_value[qq] - decoder_in4[!decoder_slot];
+                end
+                OPCODE_REG2RAM: begin
+                  if (!register_save_lock[qq] || saveram_q_num == qq) begin
+                    decoder_do_op2[qq] <= 0;
+                  end
+                end
+              endcase
+            end
+          end
+        end
+      end
+    end
+  end
+
+  always @(posedge clk) begin
+    if (rst) begin
+      decoder_inp  <= 1;
+      decoder_slot <= 0;
+    end else begin
+      if (executor_state != EXECUTE_STATE_MMU) begin
+        decoder_inp  <= 1;
+        decoder_slot <= !decoder_slot;
+        for (abc = 0; abc <= REGISTER_NUM; abc = abc + 1) begin
+          if (decoder_ready) begin
+            if (decoder_do_op0[abc][!decoder_slot]) begin
+              if (decoder_do_op2[abc]) begin
+                case (decoder_in1[!decoder_slot])
+                  OPCODE_JMP, OPCODE_RAM2REG, OPCODE_NUM2REG: begin
+                  end
+                  default: begin
+                    if (!registers_init[abc] || (decoder_in1[!decoder_slot] == OPCODE_REG2RAM && !(!register_save_lock[abc] || saveram_q_num == abc))) begin
+                      decoder_inp  <= 0;
+                      decoder_slot <= decoder_slot;
+                    end
+                  end
+                endcase
+              end
             end
           end
         end
@@ -256,15 +286,14 @@ module x_out_of_order6 (
     if (rst) begin
       instr_num <= 0;
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-        pc_logical <= 50;
+      pc_logical <= 50;
       pc_physical <= 50;
       read_address <= 50;
       read_address2 <= 51;
-      decoder_inp <= 1;
-      decoder_input_address <= 50;
+
       if (HARDWARE_DEBUG)
         $display($sformatf("%02d", $time), "   52 starting initial fetch ");  //DEBUG info
-      if (HARDWARE_DEBUG) $display("");    
+      if (HARDWARE_DEBUG) $display("");
       mmu_address_physical_min_in_the_same_page <= 0;
       mmu_address_logical_min_in_the_same_page <= 0;
       mmu_address_logical_max_in_the_same_page <= 500;
@@ -280,7 +309,6 @@ module x_out_of_order6 (
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       readstallnotprocessed <= 1;
-      decoder_slot <= 0;
     end else if (instr_num < 10) begin
       if (HARDWARE_DEBUG) begin
         $display("time ", $sformatf("%02d", $time), " pc ", pc_physical, ", exec_state ",
@@ -354,8 +382,6 @@ module x_out_of_order6 (
       registers_init[register[1]] <= 1;
       register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
 
-      decoder_inp <= 1;
-      decoder_slot <= !decoder_slot;
       read_address <= pc_physical + 2;
       read_address2 <= pc_physical + 3;
       if (HARDWARE_DEBUG)
@@ -459,8 +485,6 @@ module x_out_of_order6 (
               end
             end
             executor_state <= EXECUTE_STATE_CONTINUE;
-             decoder_inp <= 0;
-            decoder_slot <= decoder_slot;
           end
           default: begin
             if (decoder_ready) begin
@@ -485,18 +509,10 @@ module x_out_of_order6 (
                     end
                     default: begin
                       if (!registers_init[i]) begin
-                        $display(
-                                $sformatf(
-                                    "%02d", $time
-                                ),
-                                pc_logical,
-                                " register ",
-                                i,
-                                " not init"
-                            );
-                            
-                        decoder_inp <= 0;
-                        decoder_slot <= decoder_slot;
+                        $display($sformatf("%02d", $time), pc_logical, " register ", i,
+                                 " not init");
+
+
                         executor_state <= EXECUTE_STATE_MMU;
                         mmu_address_logical <= registers_src_address[i];
                         if (readstallavail) begin
@@ -551,8 +567,7 @@ module x_out_of_order6 (
                             end else begin
                               executor_state <= registers_save_mmu_done[i]?EXECUTE_STATE_CONTINUE:EXECUTE_STATE_MMU;
                               mmu_address_logical <= registers_save_address[i];
-                              decoder_inp <= 0;
-                              decoder_slot <= decoder_slot;
+
                               if (HARDWARE_DEBUG) begin
                                 $display($sformatf("%02d", $time), pc_logical,
                                          " write memory slot ", i, " is already filled, stall1 ",
@@ -579,8 +594,6 @@ module x_out_of_order6 (
         endcase
       end
       if (HARDWARE_DEBUG) $display("");
-    end else begin
-      decoder_inp <= 0;
     end
   end
 endmodule
@@ -614,18 +627,6 @@ module decoder (
 
   always @(posedge clk) begin
     if (inp) begin
-      ready <= inp;
-     
-      for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-        if (i >= `INSTRUCTION2 && i <= `INSTRUCTION2 + `INSTRUCTION3-1) begin
-          numeric[i][slot] <= `INSTRUCTION4 + i - `INSTRUCTION2;
-          do_op[i][slot]   <= 1;
-        end else begin
-          do_op[i][slot]   <= 0;
-          numeric[i][slot] <= 0;
-        end
-      end
-
       if (HARDWARE_DEBUG) begin
         $write(  //DEBUG info
             $sformatf("%02d", $time),  //DEBUG info
@@ -650,14 +651,14 @@ module decoder (
               " to reg ",
               `INSTRUCTION2,
               "-",
-              (`INSTRUCTION2 + `INSTRUCTION3-1)
+              (`INSTRUCTION2 + `INSTRUCTION3 - 1)
           );  //DEBUG info
           OPCODE_REG2RAM:
           $write(
               " reg2ram save value from reg ",  //DEBUG info
               `INSTRUCTION2,
               "-",
-              (`INSTRUCTION2 + `INSTRUCTION3-1),  //DEBUG info
+              (`INSTRUCTION2 + `INSTRUCTION3 - 1),  //DEBUG info
               " to logical address ",
               `INSTRUCTION4
           );  //DEBUG info
@@ -668,7 +669,7 @@ module decoder (
               " to reg ",
               `INSTRUCTION2,
               "-",
-              (`INSTRUCTION2 + `INSTRUCTION3-1)
+              (`INSTRUCTION2 + `INSTRUCTION3 - 1)
           );  //DEBUG info
           OPCODE_REG_PLUS:
           $write(
@@ -677,7 +678,7 @@ module decoder (
               " to reg ",
               `INSTRUCTION2,
               "-",
-              (`INSTRUCTION2 + `INSTRUCTION3-1)
+              (`INSTRUCTION2 + `INSTRUCTION3 - 1)
           );  //DEBUG info
           OPCODE_REG_MINUS:
           $write(
@@ -686,7 +687,7 @@ module decoder (
               " to reg ",
               `INSTRUCTION2,
               "-",
-              (`INSTRUCTION2 + `INSTRUCTION3-1)
+              (`INSTRUCTION2 + `INSTRUCTION3 - 1)
           );  //DEBUG info
           default: begin
             $write(" unknown");  //DEBUG info
@@ -698,6 +699,21 @@ module decoder (
     end
   end
 
+  always @(posedge clk) begin
+    if (inp) begin
+      ready <= inp;
+      for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+        if (i >= `INSTRUCTION2 && i <= `INSTRUCTION2 + `INSTRUCTION3 - 1) begin
+          numeric[i][slot] <= `INSTRUCTION4 + i - `INSTRUCTION2;
+          do_op[i][slot]   <= 1;
+        end else begin
+          do_op[i][slot]   <= 0;
+          numeric[i][slot] <= 0;
+        end
+      end
+    end
+  end
+  
   always @(posedge clk) begin
     if (inp) begin
       in1[slot] <= `INSTRUCTION1;
