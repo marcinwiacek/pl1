@@ -175,7 +175,7 @@ module x_out_of_order6 (
     for (zz = 0; zz <= REGISTER_NUM; zz = zz + 1) begin
       if (decoder_in1[!decoder_slot] == OPCODE_RAM2REG) begin
         if (registers_save_address[zz] >= decoder_in4[!decoder_slot]) begin
-          if (registers_save_address[zz] <= decoder_in3[!decoder_slot]+decoder_in4[!decoder_slot]) begin
+          if (registers_save_address[zz] <= decoder_in3[!decoder_slot]+decoder_in4[!decoder_slot]-1) begin
             readstallavail <= 1;
             readstallindex <= zz;
             readsaveaddr   <= registers_save_address[zz];
@@ -278,8 +278,7 @@ module x_out_of_order6 (
       end
       executor_state <= EXECUTE_STATE_START;
       register[0] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
-      readstallnotprocessed <= 1;
+      register[1] <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;    
       decoder_slot <= 0;
     end else if (instr_num < 10) begin
       if (HARDWARE_DEBUG) begin
@@ -293,7 +292,7 @@ module x_out_of_order6 (
         end
         $display("");
       end
-      readstallnotprocessed <= 1;
+    
       write_enabled <= 0;
       saveram_q_num <= RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32;
       register_save_lock[saveram_q_num] <= 0;
@@ -313,7 +312,7 @@ module x_out_of_order6 (
               );  //DEBUG info
             registers_init[pp] <= 1;
             registers_src_address[pp] <= 0;
-            readstallnotprocessed <= 0;
+         
           end
         end
         if (registers_save_ready[pp]) begin
@@ -614,18 +613,6 @@ module decoder (
 
   always @(posedge clk) begin
     if (inp) begin
-      ready <= inp;
-     
-      for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-        if (i >= `INSTRUCTION2 && i <= `INSTRUCTION2 + `INSTRUCTION3-1) begin
-          numeric[i][slot] <= `INSTRUCTION4 + i - `INSTRUCTION2;
-          do_op[i][slot]   <= 1;
-        end else begin
-          do_op[i][slot]   <= 0;
-          numeric[i][slot] <= 0;
-        end
-      end
-
       if (HARDWARE_DEBUG) begin
         $write(  //DEBUG info
             $sformatf("%02d", $time),  //DEBUG info
@@ -695,6 +682,22 @@ module decoder (
       end
 
       if (HARDWARE_DEBUG) $display("");
+    end
+  end
+
+  always @(posedge clk) begin
+    if (inp) begin
+      ready <= inp;
+     
+      for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+        if (i >= `INSTRUCTION2 && i <= `INSTRUCTION2 + `INSTRUCTION3-1) begin
+          numeric[i][slot] <= `INSTRUCTION4 + i - `INSTRUCTION2;
+          do_op[i][slot]   <= 1;
+        end else begin
+          do_op[i][slot]   <= 0;
+          numeric[i][slot] <= 0;
+        end
+      end
     end
   end
 
