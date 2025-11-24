@@ -239,17 +239,14 @@ module x_out_of_order7 (
                     if (!registers_init[i]) begin
                       if (i % 2 == 0) begin
                         read_address <= ADDRESS_REG + i;
-                        registers_read_now[0] <= 1;
-                        executor_state <= EXECUTE_STATE_READ_REG;
-                        registers_done_op <= registers_done_op;
-                        decoder_inp <= 0;
+                        registers_read_now[0] <= 1;                      
                       end else begin
                         read_address2 <= ADDRESS_REG + i;
                         registers_read_now[1] <= 1;
-                        executor_state <= EXECUTE_STATE_READ_REG;
-                        registers_done_op <= registers_done_op;
-                        decoder_inp <= 0;
                       end
+                      executor_state <= EXECUTE_STATE_READ_REG;
+                      registers_done_op <= registers_done_op;
+                      decoder_inp <= 0;
                     end else begin
                       registers_done_op[i] <= 1;
                       case (decoder_in1[!decoder_slot])
@@ -291,12 +288,14 @@ module x_out_of_order7 (
             $display($sformatf("%02d", $time), " slot 0: reading reg ", read_address - ADDRESS_REG);
             registers_value[read_address-ADDRESS_REG] <= read_value;
             registers_init[read_address-ADDRESS_REG]  <= 1;
+            registers_read_now[0] <= 0;    
           end
           if (registers_read_now[1]) begin
             $display($sformatf("%02d", $time), " slot 1: reading reg ",
                      read_address2 - ADDRESS_REG);
             registers_value[read_address2-ADDRESS_REG] <= read_value2;
             registers_init[read_address2-ADDRESS_REG]  <= 1;
+            registers_read_now[1] <= 0;  
           end
           executor_state <= EXECUTE_STATE_START2;
         end
