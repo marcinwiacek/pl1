@@ -157,6 +157,7 @@ module x_out_of_order7 (
       rst <= 0;
       decoder_slot <= 0;
       decoder_inp <= 1;
+      registers_init <= '{default: 0};
     end else begin
       case (executor_state)
         EXECUTE_STATE_START: begin
@@ -168,7 +169,6 @@ module x_out_of_order7 (
           executor_state <= EXECUTE_STATE_START2;
         end
         EXECUTE_STATE_START2: begin
-          //     if (decoder_ready) begin
           $display($sformatf("%02d", $time), " pc ", pc_logical, ", exec_state ", executor_state,
                    " exec_slot ", !decoder_slot);
 
@@ -209,13 +209,43 @@ module x_out_of_order7 (
               (decoder_in4[1] % 256) / 16 >= 10 ? (decoder_in4[1] % 256) / 16 + 65 - 10 : (decoder_in4[1] % 256) / 16 + 48,  //DEBUG info
               (decoder_in4[1] % 256) % 16 >= 10 ? (decoder_in4[1] % 256) % 16 + 65 - 10 : (decoder_in4[1] % 256) % 16 + 48,  //DEBUG info
               "h");
-          //   end
+
           pc_logical <= pc_logical + 2;
           read_address <= pc_logical + 2;
           read_address2 <= pc_logical + 3;
           instr_num <= instr_num + 1;
           executor_state <= instr_num == 10 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
           decoder_slot <= !decoder_slot;
+
+          for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+            case (decoder_in1[!decoder_slot])
+              OPCODE_JMP: begin
+                pc_logical <= decoder_in4[!decoder_slot];
+                read_address <= decoder_in4[!decoder_slot];
+                read_address2 <= decoder_in4[!decoder_slot] + 1;
+              end
+              OPCODE_NUM2REG: begin
+              end
+              default: begin
+                case (decoder_in1[!decoder_slot])
+                  OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
+                    if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
+                    end
+                  end
+                  OPCODE_JMP_IF_NOT1,OPCODE_JMP_IF_NOT2,OPCODE_JMP_IF_NOT3,OPCODE_JMP_IF_NOT4: begin
+                  end
+                  OPCODE_RAM2REG: begin
+                  end
+                  OPCODE_REG2RAM: begin
+                  end
+                  OPCODE_REG_PLUS: begin
+                  end
+                  OPCODE_REG_MINUS: begin
+                  end
+                endcase
+              end
+            endcase
+          end
         end
         EXECUTE_STATE_HALT: begin
           decoder_inp <= 0;
