@@ -120,7 +120,7 @@ module x_out_of_order7 (
   decoder decoder (
       .clk(clk),
       .inp(decoder_inp),
-      .address(pc_physical),
+      .address(pc_logical),
       .read1(read_value),
       .read2(read_value2),
       .slot(decoder_slot),
@@ -160,16 +160,23 @@ module x_out_of_order7 (
       case (executor_state)
         EXECUTE_STATE_START: begin
           decoder_inp <= 1;
+        
           executor_state <= EXECUTE_STATE_START2;
         end
         EXECUTE_STATE_START2: begin
           if (decoder_ready) begin
-            $display("time ", $sformatf("%02d", $time), " pc ", pc_physical, ", exec_state ",
+            $display($sformatf("%02d", $time), " pc ", pc_logical, ", exec_state ",
                      executor_state, " exec_slot ", !decoder_slot);
 
-            $display(
-                $sformatf("%02d", $time), pc_logical,
-                " executor slot 0 opcode %c%c%c%c",  //DEBUG info
+            $write(
+                $sformatf("%02d", $time), 
+                " executor slot 0 ");
+            if (!decoder_slot==0) begin
+               $write("active");
+            end else begin
+               $write("      ");
+            end
+            $display(" opcode %c%c%c%c",  //DEBUG info
                 decoder_in1[0] / 16 >= 10 ? decoder_in1[0] / 16 + 65 - 10 : decoder_in1[0] / 16 + 48,  //DEBUG info
                 decoder_in1[0] % 16 >= 10 ? decoder_in1[0] % 16 + 65 - 10 : decoder_in1[0] % 16 + 48,  //DEBUG info
                 (decoder_in2[0] * 16 + decoder_in3[0]) / 16 >= 10 ? (decoder_in2[0] * 16 + decoder_in3[0]) / 16 + 65 - 10 : (decoder_in2[0] * 16 + decoder_in3[0]) / 16 + 48,  //DEBUG info
@@ -181,9 +188,15 @@ module x_out_of_order7 (
                 (decoder_in4[0] % 256) % 16 >= 10 ? (decoder_in4[0] % 256) % 16 + 65 - 10 : (decoder_in4[0] % 256) % 16 + 48,  //DEBUG info
                 "h");
 
-            $display(
-                $sformatf("%02d", $time), pc_logical,
-                " executor slot 1 opcode %c%c%c%c",  //DEBUG info
+            $write(
+                $sformatf("%02d", $time), 
+                " executor slot 1 ");
+            if (!decoder_slot==1) begin
+               $write("active");
+            end else begin
+               $write("      ");
+            end
+            $display(" opcode %c%c%c%c",  //DEBUG info
                 decoder_in1[1] / 16 >= 10 ? decoder_in1[1] / 16 + 65 - 10 : decoder_in1[1] / 16 + 48,  //DEBUG info
                 decoder_in1[1] % 16 >= 10 ? decoder_in1[1] % 16 + 65 - 10 : decoder_in1[1] % 16 + 48,  //DEBUG info
                 (decoder_in2[1] * 16 + decoder_in3[1]) / 16 >= 10 ? (decoder_in2[1] * 16 + decoder_in3[1]) / 16 + 65 - 10 : (decoder_in2[1] * 16 + decoder_in3[1]) / 16 + 48,  //DEBUG info
@@ -242,7 +255,7 @@ module decoder (
       if (HARDWARE_DEBUG) begin
         $write(  //DEBUG info
             $sformatf("%02d", $time),  //DEBUG info
-            address, " decoder slot ", slot, " opcode %c%c%c%c",  //DEBUG info
+            " decoder slot ", slot, " pc ",address, " opcode %c%c%c%c",  //DEBUG info
             (read1 / 256) / 16 >= 10 ? (read1 / 256) / 16 + 65 - 10 : (read1 / 256) / 16 + 48,  //DEBUG info
             (read1 / 256) % 16 >= 10 ? (read1 / 256) % 16 + 65 - 10 : (read1 / 256) % 16 + 48,  //DEBUG info
             (read1 % 256) / 16 >= 10 ? (read1 % 256) / 16 + 65 - 10 : (read1 % 256) / 16 + 48,  //DEBUG info
