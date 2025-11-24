@@ -156,15 +156,19 @@ module x_out_of_order7 (
       mmu_address_logical_max_in_the_same_page <= 255;
       rst <= 0;
       decoder_slot <= 0;
+      decoder_inp <= 1;
     end else begin
       case (executor_state)
         EXECUTE_STATE_START: begin
-          decoder_inp <= 1;
-        
+         pc_logical <= pc_logical + 2;
+          read_address <= pc_logical + 2;
+          read_address2 <= pc_logical + 3;
+          instr_num <= instr_num + 1;
+          decoder_slot <= !decoder_slot;        
           executor_state <= EXECUTE_STATE_START2;
         end
         EXECUTE_STATE_START2: begin
-          if (decoder_ready) begin
+     //     if (decoder_ready) begin
             $display($sformatf("%02d", $time), " pc ", pc_logical, ", exec_state ",
                      executor_state, " exec_slot ", !decoder_slot);
 
@@ -207,7 +211,7 @@ module x_out_of_order7 (
                 (decoder_in4[1] % 256) / 16 >= 10 ? (decoder_in4[1] % 256) / 16 + 65 - 10 : (decoder_in4[1] % 256) / 16 + 48,  //DEBUG info
                 (decoder_in4[1] % 256) % 16 >= 10 ? (decoder_in4[1] % 256) % 16 + 65 - 10 : (decoder_in4[1] % 256) % 16 + 48,  //DEBUG info
                 "h");
-          end
+       //   end
           pc_logical <= pc_logical + 2;
           read_address <= pc_logical + 2;
           read_address2 <= pc_logical + 3;
