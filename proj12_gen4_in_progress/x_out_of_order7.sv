@@ -114,7 +114,7 @@ module x_out_of_order7 (
   //---------------------------------------------------------decoder--------------------------
 
   reg decoder_inp;
-  wire decoder_ready,decoder_slot;
+  wire decoder_ready, decoder_slot;
   wire [3:0] decoder_error_code[0:1];
   wire [7:0] decoder_in1[0:1];
   wire [3:0] decoder_in2[0:1], decoder_in3[0:1];
@@ -162,7 +162,7 @@ module x_out_of_order7 (
       decoder_inp <= 1;
       registers_init <= '{default: 0};
       registers_read_now <= '{default: 0};
-         $display("rst main");
+      $display("rst main");
     end else begin
       case (executor_state)
         EXECUTE_STATE_START: begin
@@ -223,65 +223,65 @@ module x_out_of_order7 (
 
           for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
             if (decoder_do_op0[i][!decoder_slot]) begin
-            case (decoder_in1[!decoder_slot])
-              OPCODE_JMP: begin
-                pc_logical <= decoder_in4[!decoder_slot];
-                read_address <= decoder_in4[!decoder_slot];
-                read_address2 <= decoder_in4[!decoder_slot] + 1;
-              end
-              OPCODE_NUM2REG: begin
-                registers_init[i]  <= 1;
-                registers_value[i] <= decoder_in4[!decoder_slot];
-              end
-              default: begin
-                if (!registers_init[i]) begin
+              case (decoder_in1[!decoder_slot])
+                OPCODE_JMP: begin
+                  pc_logical <= decoder_in4[!decoder_slot];
+                  read_address <= decoder_in4[!decoder_slot];
+                  read_address2 <= decoder_in4[!decoder_slot] + 1;
+                end
+                OPCODE_NUM2REG: begin
+                  registers_init[i]  <= 1;
+                  registers_value[i] <= decoder_in4[!decoder_slot];
+                end
+                default: begin
+                  if (!registers_init[i]) begin
                     if (i % 2 == 0) begin
-                      read_address <= ADDRESS_REG+i;
-                      registers_read_now[0]   <= 1;
+                      read_address <= ADDRESS_REG + i;
+                      registers_read_now[0] <= 1;
                       executor_state <= EXECUTE_STATE_READ_REG;
                       decoder_inp <= 0;
                     end else begin
-                      read_address2 <= ADDRESS_REG+i;
-                      registers_read_now[1]   <= 1;
+                      read_address2 <= ADDRESS_REG + i;
+                      registers_read_now[1] <= 1;
                       executor_state <= EXECUTE_STATE_READ_REG;
                       decoder_inp <= 0;
                     end
-                end else begin
-                  case (decoder_in1[!decoder_slot])
-                    OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
-                      if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
-                        pc_logical <= decoder_in4[!decoder_slot];
-                        read_address <= decoder_in4[!decoder_slot];
-                        read_address2 <= decoder_in4[!decoder_slot] + 1;
+                  end else begin
+                    case (decoder_in1[!decoder_slot])
+                      OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
+                        if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
+                          pc_logical <= decoder_in4[!decoder_slot];
+                          read_address <= decoder_in4[!decoder_slot];
+                          read_address2 <= decoder_in4[!decoder_slot] + 1;
+                        end
                       end
-                    end
-                    OPCODE_JMP_IF_NOT1,OPCODE_JMP_IF_NOT2,OPCODE_JMP_IF_NOT3,OPCODE_JMP_IF_NOT4: begin
-                    end
-                    OPCODE_RAM2REG: begin
-                    end
-                    OPCODE_REG2RAM: begin
-                    end
-                    OPCODE_REG_PLUS: begin
-                    end
-                    OPCODE_REG_MINUS: begin
-                    end
-                  endcase
+                      OPCODE_JMP_IF_NOT1,OPCODE_JMP_IF_NOT2,OPCODE_JMP_IF_NOT3,OPCODE_JMP_IF_NOT4: begin
+                      end
+                      OPCODE_RAM2REG: begin
+                      end
+                      OPCODE_REG2RAM: begin
+                      end
+                      OPCODE_REG_PLUS: begin
+                      end
+                      OPCODE_REG_MINUS: begin
+                      end
+                    endcase
+                  end
                 end
-              end
-            endcase
-              end
+              endcase
+            end
           end
         end
         EXECUTE_STATE_READ_REG: begin
           if (registers_read_now[0]) begin
-             $display($sformatf("%02d", $time), "0: reading reg ",read_address-ADDRESS_REG);
-             registers_value[read_address-ADDRESS_REG] <= read_value;
-             registers_init[read_address-ADDRESS_REG]<=1;
+            $display($sformatf("%02d", $time), "0: reading reg ", read_address - ADDRESS_REG);
+            registers_value[read_address-ADDRESS_REG] <= read_value;
+            registers_init[read_address-ADDRESS_REG]  <= 1;
           end
           if (registers_read_now[1]) begin
-             $display($sformatf("%02d", $time), "1: reading reg ",read_address2-ADDRESS_REG);
-             registers_value[read_address2-ADDRESS_REG] <= read_value2;
-             registers_init[read_address2-ADDRESS_REG]<=1;
+            $display($sformatf("%02d", $time), "1: reading reg ", read_address2 - ADDRESS_REG);
+            registers_value[read_address2-ADDRESS_REG] <= read_value2;
+            registers_init[read_address2-ADDRESS_REG]  <= 1;
           end
           executor_state <= EXECUTE_STATE_START2;
         end
@@ -295,12 +295,14 @@ endmodule
 
 module decoder (
     input clk,
-    input bit rst, inp,
+    input bit rst,
+    inp,
     input reg [15:0] address,
     read1,
     read2,
 
-    output bit slot,ready,
+    output bit slot,
+    ready,
     output bit [3:0] error_code[0:1],
 
     output bit do_op[REGISTER_NUM:0][0:1],
@@ -395,12 +397,12 @@ module decoder (
 
   always @(posedge clk) begin
     if (rst) begin
-       slot <=0;
-       $display($sformatf("%02d", $time),"rst decoder");
-end
+      slot <= 0;
+      $display($sformatf("%02d", $time), "rst decoder");
+    end
     //end else 
     if (inp) begin
-      slot<=!slot;
+      slot  <= !slot;
       ready <= inp;
 
       for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
