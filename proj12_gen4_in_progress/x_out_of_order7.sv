@@ -55,6 +55,7 @@ parameter EXECUTE_STATE_CONTINUE = 1;
 parameter EXECUTE_STATE_MMU = 2;
 parameter EXECUTE_STATE_HALT = 3;
 parameter EXECUTE_STATE_START2 = 4;
+parameter EXECUTE_STATE_READ_REG = 5;
 
 parameter REGISTER_NUM = 15;
 parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
@@ -64,6 +65,10 @@ module x_out_of_order7 (
 
     output reg x
 );
+
+  reg rst = 1;
+  reg [4:0] instr_num;  // how many done
+
 
   //------------------------------------------------------------ram---------------------------
 
@@ -104,11 +109,12 @@ module x_out_of_order7 (
 
   reg [15:0] pc_logical, registers_value[0:REGISTER_NUM];
   reg registers_init[0:REGISTER_NUM];
+  reg registers_read_now[1:0];
 
   //---------------------------------------------------------decoder--------------------------
 
-  reg decoder_slot, decoder_inp;
-  wire decoder_ready;
+  reg decoder_inp;
+  wire decoder_ready,decoder_slot;
   wire [3:0] decoder_error_code[0:1];
   wire [7:0] decoder_in1[0:1];
   wire [3:0] decoder_in2[0:1], decoder_in3[0:1];
@@ -118,6 +124,7 @@ module x_out_of_order7 (
   wire [15:0] decoder_numeric[REGISTER_NUM:0][0:1];
 
   decoder decoder (
+      .rst(rst),
       .clk(clk),
       .inp(decoder_inp),
       .address(pc_logical),
@@ -137,9 +144,6 @@ module x_out_of_order7 (
 
   //----------------------------------------------------------------other---------------------------
 
-  reg rst = 1;
-  reg [4:0] instr_num;  // how many done
-
   assign x = decoder_inp;  //without this we will have empty circuit
 
   integer i;
@@ -155,9 +159,10 @@ module x_out_of_order7 (
       mmu_address_logical_min_in_the_same_page <= 0;
       mmu_address_logical_max_in_the_same_page <= 255;
       rst <= 0;
-      decoder_slot <= 0;
       decoder_inp <= 1;
       registers_init <= '{default: 0};
+      registers_read_now <= '{default: 0};
+         $display("rst main");
     end else begin
       case (executor_state)
         EXECUTE_STATE_START: begin
@@ -165,7 +170,6 @@ module x_out_of_order7 (
           read_address <= pc_logical + 2;
           read_address2 <= pc_logical + 3;
           instr_num <= instr_num + 1;
-          decoder_slot <= !decoder_slot;
           executor_state <= EXECUTE_STATE_START2;
         end
         EXECUTE_STATE_START2: begin
@@ -215,9 +219,10 @@ module x_out_of_order7 (
           read_address2 <= pc_logical + 3;
           instr_num <= instr_num + 1;
           executor_state <= instr_num == 10 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
-          decoder_slot <= !decoder_slot;
+          decoder_inp <= 1;
 
           for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+            if (decoder_do_op0[i][!decoder_slot]) begin
             case (decoder_in1[!decoder_slot])
               OPCODE_JMP: begin
                 pc_logical <= decoder_in4[!decoder_slot];
@@ -230,6 +235,17 @@ module x_out_of_order7 (
               end
               default: begin
                 if (!registers_init[i]) begin
+                    if (i % 2 == 0) begin
+                      read_address <= ADDRESS_REG+i;
+                      registers_read_now[0]   <= 1;
+                      executor_state <= EXECUTE_STATE_READ_REG;
+                      decoder_inp <= 0;
+                    end else begin
+                      read_address2 <= ADDRESS_REG+i;
+                      registers_read_now[1]   <= 1;
+                      executor_state <= EXECUTE_STATE_READ_REG;
+                      decoder_inp <= 0;
+                    end
                 end else begin
                   case (decoder_in1[!decoder_slot])
                     OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
@@ -253,7 +269,21 @@ module x_out_of_order7 (
                 end
               end
             endcase
+              end
           end
+        end
+        EXECUTE_STATE_READ_REG: begin
+          if (registers_read_now[0]) begin
+             $display($sformatf("%02d", $time), "0: reading reg ",read_address-ADDRESS_REG);
+             registers_value[read_address-ADDRESS_REG] <= read_value;
+             registers_init[read_address-ADDRESS_REG]<=1;
+          end
+          if (registers_read_now[1]) begin
+             $display($sformatf("%02d", $time), "1: reading reg ",read_address2-ADDRESS_REG);
+             registers_value[read_address2-ADDRESS_REG] <= read_value2;
+             registers_init[read_address2-ADDRESS_REG]<=1;
+          end
+          executor_state <= EXECUTE_STATE_START2;
         end
         EXECUTE_STATE_HALT: begin
           decoder_inp <= 0;
@@ -265,13 +295,12 @@ endmodule
 
 module decoder (
     input clk,
+    input bit rst, inp,
     input reg [15:0] address,
     read1,
     read2,
-    input bit inp,
-    slot,
 
-    output bit ready,
+    output bit slot,ready,
     output bit [3:0] error_code[0:1],
 
     output bit do_op[REGISTER_NUM:0][0:1],
@@ -365,7 +394,13 @@ module decoder (
   end
 
   always @(posedge clk) begin
+    if (rst) begin
+       slot <=0;
+       $display($sformatf("%02d", $time),"rst decoder");
+end
+    //end else 
     if (inp) begin
+      slot<=!slot;
       ready <= inp;
 
       for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
