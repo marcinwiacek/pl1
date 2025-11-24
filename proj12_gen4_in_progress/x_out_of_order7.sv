@@ -261,14 +261,22 @@ module x_out_of_order7 (
                           end
                         end
                         OPCODE_JMP_IF_NOT1,OPCODE_JMP_IF_NOT2,OPCODE_JMP_IF_NOT3,OPCODE_JMP_IF_NOT4: begin
+                          if (registers_value[i] != decoder_in3_big[!decoder_slot]) begin
+                            pc_logical <= decoder_in4[!decoder_slot];
+                            read_address <= decoder_in4[!decoder_slot];
+                            read_address2 <= decoder_in4[!decoder_slot] + 1;
+                          end
                         end
                         OPCODE_RAM2REG: begin
+                          //nothing to do, yeah
                         end
                         OPCODE_REG2RAM: begin
                         end
                         OPCODE_REG_PLUS: begin
+                          registers_value[i]<=registers_value[i]+decoder_in4[!decoder_slot];
                         end
                         OPCODE_REG_MINUS: begin
+                          registers_value[i]<=registers_value[i]-decoder_in4[!decoder_slot];
                         end
                       endcase
                     end
