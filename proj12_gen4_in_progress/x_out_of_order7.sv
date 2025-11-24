@@ -225,24 +225,32 @@ module x_out_of_order7 (
                 read_address2 <= decoder_in4[!decoder_slot] + 1;
               end
               OPCODE_NUM2REG: begin
+                registers_init[i]  <= 1;
+                registers_value[i] <= decoder_in4[!decoder_slot];
               end
               default: begin
-                case (decoder_in1[!decoder_slot])
-                  OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
-                    if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
+                if (!registers_init[i]) begin
+                end else begin
+                  case (decoder_in1[!decoder_slot])
+                    OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
+                      if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
+                        pc_logical <= decoder_in4[!decoder_slot];
+                        read_address <= decoder_in4[!decoder_slot];
+                        read_address2 <= decoder_in4[!decoder_slot] + 1;
+                      end
                     end
-                  end
-                  OPCODE_JMP_IF_NOT1,OPCODE_JMP_IF_NOT2,OPCODE_JMP_IF_NOT3,OPCODE_JMP_IF_NOT4: begin
-                  end
-                  OPCODE_RAM2REG: begin
-                  end
-                  OPCODE_REG2RAM: begin
-                  end
-                  OPCODE_REG_PLUS: begin
-                  end
-                  OPCODE_REG_MINUS: begin
-                  end
-                endcase
+                    OPCODE_JMP_IF_NOT1,OPCODE_JMP_IF_NOT2,OPCODE_JMP_IF_NOT3,OPCODE_JMP_IF_NOT4: begin
+                    end
+                    OPCODE_RAM2REG: begin
+                    end
+                    OPCODE_REG2RAM: begin
+                    end
+                    OPCODE_REG_PLUS: begin
+                    end
+                    OPCODE_REG_MINUS: begin
+                    end
+                  endcase
+                end
               end
             endcase
           end
