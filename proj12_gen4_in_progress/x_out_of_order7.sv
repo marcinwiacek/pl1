@@ -56,6 +56,7 @@ parameter EXECUTE_STATE_MMU = 2;
 parameter EXECUTE_STATE_HALT = 3;
 parameter EXECUTE_STATE_START2 = 4;
 parameter EXECUTE_STATE_READ_REG = 5;
+parameter EXECUTE_STATE_START3 = 6;
 
 parameter REGISTER_NUM = 15;
 parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
@@ -161,7 +162,6 @@ module x_out_of_order7 (
       decoder_inp <= 1;
       registers_init <= '{default: 0};
       registers_read_now <= '{default: 0};
-      registers_done_op <= '{default: 0};
       $display("rst main");
     end else begin
       case (executor_state)
@@ -172,7 +172,7 @@ module x_out_of_order7 (
           instr_num <= instr_num + 1;
           executor_state <= EXECUTE_STATE_START2;
         end
-        EXECUTE_STATE_START2: begin
+        EXECUTE_STATE_START2, EXECUTE_STATE_START3: begin
           $display($sformatf("%02d", $time), " pc ", pc_logical, ", exec_state ", executor_state,
                    " exec_slot ", !decoder_slot);
 
@@ -220,11 +220,10 @@ module x_out_of_order7 (
           instr_num <= instr_num + 1;
           executor_state <= instr_num == 10 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
           decoder_inp <= 1;
-          registers_done_op <= '{default: 0};
+          if (executor_state==EXECUTE_STATE_START2) registers_done_op <= '{default: 0};
 
           for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-            if (decoder_do_op[i][!decoder_slot]) begin
-              if (!registers_done_op[i]) begin
+            if (decoder_do_op[i][!decoder_slot]) begin              
                 case (decoder_in1[!decoder_slot])
                   OPCODE_JMP: begin
                     pc_logical <= decoder_in4[!decoder_slot];
@@ -244,10 +243,9 @@ module x_out_of_order7 (
                         read_address2 <= ADDRESS_REG + i;
                         registers_read_now[1] <= 1;
                       end
-                      executor_state <= EXECUTE_STATE_READ_REG;
-                      registers_done_op <= registers_done_op;
+                      executor_state <= EXECUTE_STATE_READ_REG;                    
                       decoder_inp <= 0;
-                    end else begin
+                    end else if (!registers_done_op[i]) begin
                       registers_done_op[i] <= 1;
                       case (decoder_in1[!decoder_slot])
                         OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
@@ -276,10 +274,9 @@ module x_out_of_order7 (
                           registers_value[i]<=registers_value[i]-decoder_in4[!decoder_slot];
                         end
                       endcase
-                    end
+                    end                   
                   end
                 endcase
-              end
             end
           end
         end
@@ -297,7 +294,7 @@ module x_out_of_order7 (
             registers_init[read_address2-ADDRESS_REG]  <= 1;
             registers_read_now[1] <= 0;  
           end
-          executor_state <= EXECUTE_STATE_START2;
+          executor_state <= EXECUTE_STATE_START3;
         end
         EXECUTE_STATE_HALT: begin
           decoder_inp <= 0;
