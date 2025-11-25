@@ -22,10 +22,6 @@ parameter OPCODE_JMP_IF1 = 2; //register num (5 bits), how many-1 (3 bits), 16 b
 parameter OPCODE_JMP_IF2 = 3; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
 parameter OPCODE_JMP_IF3 = 4; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
 parameter OPCODE_JMP_IF4 = 5; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_JMP_IF_NOT1 = 6; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_JMP_IF_NOT2 = 7; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_JMP_IF_NOT3 = 8; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_JMP_IF_NOT4 = 9; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
 parameter OPCODE_RAM2REG = 'h0a;  //register num (4 bits), how many (4 bits), 16 bit source addr //ram -> reg
 parameter OPCODE_REG2RAM = 'h0b; //14 //register num (4 bits), how many-1 (4 bits), 16 bit target addr //reg -> ram
 parameter OPCODE_NUM2REG = 'h0c; //18;  //register num (4 bits), how many-1 (4 bits), 16 bit value //value -> reg
@@ -225,12 +221,8 @@ module x_out_of_order7 (
           read_address2 <= pc_logical + 3;
           if (executor_state == EXECUTE_STATE_START2) instr_num <= instr_num + 1;
           executor_state <= instr_num == 10 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
-          decoder_inp <= 1;
-          //  if (executor_state == EXECUTE_STATE_START2) begin
-          // $display("start2");
-          registers_done_op <= '{default: 0};
-          //end
-          write_enabled <= 0;
+          decoder_inp <= 1;         
+          registers_done_op <= '{default: 0};        
 
           if (decoder_error_code[!decoder_slot] == 0) begin
             for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
@@ -252,19 +244,19 @@ module x_out_of_order7 (
                   end
                   default: begin
                     if (!registers_init[i]) begin
-                      //     $display("not init ",i);
                       if (i % 2 == 0) begin
                         read_address <= ADDRESS_REG + i;
+                        registers_read_num[0] <= i;
+                        registers_read_now[0] <= 1;
                       end else begin
                         read_address2 <= ADDRESS_REG + i;
+                        registers_read_num[1] <= i;
+                        registers_read_now[1] <= 1;
                       end
-                      registers_read_num[i%2] <= i;
-                      registers_read_now[i%2] <= 1;
                       executor_state <= EXECUTE_STATE_READ_REG_RAM;
                       decoder_inp <= 0;
                       registers_done_op <= registers_done_op;
                     end else if (!registers_done_op[i]) begin
-                      //         $display("not done ",i);
                       case (decoder_in1[!decoder_slot])
                         OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
                           if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
@@ -272,22 +264,17 @@ module x_out_of_order7 (
                             read_address <= decoder_in4[!decoder_slot];
                             read_address2 <= decoder_in4[!decoder_slot] + 1;
                           end
-                        end
-                        OPCODE_JMP_IF_NOT1,OPCODE_JMP_IF_NOT2,OPCODE_JMP_IF_NOT3,OPCODE_JMP_IF_NOT4: begin
-                          if (registers_value[i] != decoder_in3_big[!decoder_slot]) begin
-                            pc_logical <= decoder_in4[!decoder_slot];
-                            read_address <= decoder_in4[!decoder_slot];
-                            read_address2 <= decoder_in4[!decoder_slot] + 1;
-                          end
-                        end
+                        end                      
                         OPCODE_RAM2REG: begin
                           if (i % 2 == 0) begin
                             read_address <= decoder_numeric[i][!decoder_slot];
+                            registers_read_num[0] <= i;
+                            registers_read_now[0] <= 1;
                           end else begin
                             read_address2 <= decoder_numeric[i][!decoder_slot];
+                            registers_read_num[1] <= i;
+                            registers_read_now[1] <= 1;
                           end
-                          registers_read_num[i%2] <= i;
-                          registers_read_now[i%2] <= 1;
                           executor_state <= EXECUTE_STATE_READ_REG_RAM;
                           decoder_inp <= 0;
                           registers_done_op <= registers_done_op;
@@ -338,6 +325,7 @@ module x_out_of_order7 (
           $display("reg to ram 2");
           registers_done_op[registers_read_num[0]] <= 1;
           executor_state <= EXECUTE_STATE_START3;
+          write_enabled <= 0;
         end
         EXECUTE_STATE_MMU: begin
         end
@@ -431,43 +419,7 @@ module decoder (
               `INSTRUCTION2,
               "=",
               (`INSTRUCTION3 << 12 + 4096)
-          );
-          OPCODE_JMP_IF_NOT1:
-          $write(
-              " jmp to address ",
-              `INSTRUCTION4,
-              " if register ",
-              `INSTRUCTION2,
-              "!=",
-              (`INSTRUCTION3)
-          );
-          OPCODE_JMP_IF_NOT2:
-          $write(
-              " jmp to address ",
-              `INSTRUCTION4,
-              " if register ",
-              `INSTRUCTION2,
-              "!=",
-              (`INSTRUCTION3 << 4 + 16)
-          );
-          OPCODE_JMP_IF_NOT3:
-          $write(
-              " jmp to address ",
-              `INSTRUCTION4,
-              " if register ",
-              `INSTRUCTION2,
-              "!=",
-              (`INSTRUCTION3 << 8 + 256)
-          );
-          OPCODE_JMP_IF_NOT4:
-          $write(
-              " jmp to address ",
-              `INSTRUCTION4,
-              " if register ",
-              `INSTRUCTION2,
-              "!=",
-              (`INSTRUCTION3 << 12 + 4096)
-          );
+          );       
           OPCODE_RAM2REG:
           $write(
               " ram2reg read value from logical address ",
@@ -533,16 +485,22 @@ module decoder (
       slot  <= !slot;
       ready <= inp;
 
+case (`INSTRUCTION1)
+        OPCODE_JMP_IF1,OPCODE_JMP_IF2,OPCODE_JMP_IF3,OPCODE_JMP_IF4: begin
+          do_op[`INSTRUCTION2][slot]   <= 1;
+        end
+        default: begin
       for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-        if (i >= `INSTRUCTION2 && i <= 
-        (`INSTRUCTION1>=OPCODE_JMP_IF1 && `INSTRUCTION1>=OPCODE_JMP_IF_NOT4?`INSTRUCTION2:`INSTRUCTION2 + `INSTRUCTION3 - 1)) begin
+        if (i >= `INSTRUCTION2 && i <= `INSTRUCTION2 + `INSTRUCTION3 - 1) begin
           numeric[i][slot] <= `INSTRUCTION4 + i - `INSTRUCTION2;
           do_op[i][slot]   <= 1;
         end else begin
-          do_op[i][slot]   <= 0;
-          numeric[i][slot] <= 0;
+          do_op[i][slot]   <= 0;         
         end
       end
+        end
+      endcase
+      
     end
   end
 
@@ -552,10 +510,10 @@ module decoder (
       in2[slot] <= `INSTRUCTION2;
       in3[slot] <= `INSTRUCTION3;
       in4[slot] <= `INSTRUCTION4;
-      in3_big[slot] <= (`INSTRUCTION1==OPCODE_JMP_IF1 || `INSTRUCTION1==OPCODE_JMP_IF_NOT1)?
+      in3_big[slot] <= (`INSTRUCTION1==OPCODE_JMP_IF1)?
            `INSTRUCTION3:
-           ((`INSTRUCTION1==OPCODE_JMP_IF2 || `INSTRUCTION1==OPCODE_JMP_IF_NOT2)?`INSTRUCTION3<<4+16:
-           ((`INSTRUCTION1==OPCODE_JMP_IF3 || `INSTRUCTION1==OPCODE_JMP_IF_NOT3)?`INSTRUCTION3<<8+256:`INSTRUCTION3<<12+4096));
+           ((`INSTRUCTION1==OPCODE_JMP_IF2)?`INSTRUCTION3<<4+16:
+           ((`INSTRUCTION1==OPCODE_JMP_IF3 )?`INSTRUCTION3<<8+256:`INSTRUCTION3<<12+4096));
     end
   end
 
@@ -563,8 +521,7 @@ module decoder (
     if (inp) begin
       error_code[slot] <= 0;
       case (`INSTRUCTION1)
-        OPCODE_JMP, OPCODE_JMP_IF1,OPCODE_JMP_IF2,OPCODE_JMP_IF3,OPCODE_JMP_IF4,
-        OPCODE_JMP_IF_NOT1,OPCODE_JMP_IF_NOT2,OPCODE_JMP_IF_NOT3,OPCODE_JMP_IF_NOT4: begin
+        OPCODE_JMP, OPCODE_JMP_IF1,OPCODE_JMP_IF2,OPCODE_JMP_IF3,OPCODE_JMP_IF4: begin
         end
         OPCODE_RAM2REG, OPCODE_REG2RAM, OPCODE_NUM2REG, OPCODE_REG_PLUS, OPCODE_REG_MINUS: begin
           if (`INSTRUCTION2 + `INSTRUCTION3 >= REGISTER_NUM) begin
