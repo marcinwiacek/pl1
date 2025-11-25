@@ -57,6 +57,7 @@ parameter EXECUTE_STATE_HALT = 3;
 parameter EXECUTE_STATE_START2 = 4;
 parameter EXECUTE_STATE_READ_REG = 5;
 parameter EXECUTE_STATE_START3 = 6;
+parameter EXECUTE_STATE_READ_RAM = 7;
 
 parameter REGISTER_NUM = 15;
 parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
@@ -110,6 +111,7 @@ module x_out_of_order7 (
 
   reg [15:0] pc_logical, registers_value[0:REGISTER_NUM];
   reg registers_init[0:REGISTER_NUM];
+  reg [5:0] registers_read_num[1:0];
   reg registers_read_now[1:0];
   reg registers_done_op[0:REGISTER_NUM];
 
@@ -230,7 +232,12 @@ module x_out_of_order7 (
                   OPCODE_JMP: begin
                     pc_logical <= decoder_in4[!decoder_slot];
                     read_address <= decoder_in4[!decoder_slot];
-                    read_address2 <= decoder_in4[!decoder_slot] + 1;
+                    read_address2 <= decoder_in4[!decoder_slot] + 1;                  
+                   // mmu_address_logical<= decoder_in4[!decoder_slot];
+                    //if (decoder_in4[!decoder_slot]<mmu_address_logical_min_in_the_same_page ||
+//                        decoder_in4[!decoder_slot]>mmu_address_logical_max_in_the_same_page) begin
+//                        executor_state<=EXECUTE_STATE_MMU;
+//                    end
                   end
                   OPCODE_NUM2REG: begin
                     registers_init[i]  <= 1;
@@ -239,12 +246,12 @@ module x_out_of_order7 (
                   default: begin
                     if (!registers_init[i]) begin
                       if (i % 2 == 0) begin
-                        read_address <= ADDRESS_REG + i;
-                        registers_read_now[0] <= 1;                      
+                        read_address <= ADDRESS_REG + i;                           
                       end else begin
                         read_address2 <= ADDRESS_REG + i;
-                        registers_read_now[1] <= 1;
                       end
+                       registers_read_num[i % 2] <= i;             
+                        registers_read_now[i % 2] <=1;     
                       executor_state <= EXECUTE_STATE_READ_REG;                    
                       decoder_inp <= 0;
                     end else if (!registers_done_op[i]) begin
@@ -265,7 +272,14 @@ module x_out_of_order7 (
                           end
                         end
                         OPCODE_RAM2REG: begin
-                          //nothing to do, yeah
+                      if (i % 2 == 0) begin
+                        read_address <= decoder_numeric[i][!decoder_slot];
+                      end else begin
+                        read_address2 <= decoder_numeric[i][!decoder_slot];
+                      end
+                       registers_read_num[i % 2] <= i;             
+                        registers_read_now[i % 2] <=1;     
+                     executor_state <= EXECUTE_STATE_READ_RAM;
                         end
                         OPCODE_REG2RAM: begin
                           write_enabled<=1;
@@ -286,21 +300,21 @@ module x_out_of_order7 (
             end
           end
         end
-        EXECUTE_STATE_READ_REG: begin
+        EXECUTE_STATE_READ_REG, EXECUTE_STATE_READ_RAM: begin
           if (registers_read_now[0]) begin
-            $display($sformatf("%02d", $time), " slot 0: reading reg ", read_address - ADDRESS_REG);
-            registers_value[read_address-ADDRESS_REG] <= read_value;
-            registers_init[read_address-ADDRESS_REG]  <= 1;
-            registers_read_now[0] <= 0;    
+            $display($sformatf("%02d", $time), " slot 0: reading reg ", registers_read_num[0]);
+            registers_value[registers_read_num[0]] <= read_value;
+            registers_init[registers_read_num[0]]  <= 1;
           end
           if (registers_read_now[1]) begin
-            $display($sformatf("%02d", $time), " slot 1: reading reg ",
-                     read_address2 - ADDRESS_REG);
-            registers_value[read_address2-ADDRESS_REG] <= read_value2;
-            registers_init[read_address2-ADDRESS_REG]  <= 1;
-            registers_read_now[1] <= 0;  
+            $display($sformatf("%02d", $time), " slot 1: reading reg ", registers_read_num[1]);
+            registers_value[registers_read_num[1]] <= read_value2;
+            registers_init[registers_read_num[1]]  <= 1;
           end
+           registers_read_now <= '{default: 0};
           executor_state <= EXECUTE_STATE_START3;
+        end
+        EXECUTE_STATE_MMU: begin
         end
         EXECUTE_STATE_HALT: begin
           decoder_inp <= 0;
