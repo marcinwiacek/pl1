@@ -164,7 +164,7 @@ module x_out_of_order7 (
       decoder_inp <= 1;
       registers_init <= '{default: 0};
       registers_read_now <= '{default: 0};
-      write_enabled<=0;
+      write_enabled <= 0;
       $display("rst main");
     end else begin
       case (executor_state)
@@ -223,80 +223,80 @@ module x_out_of_order7 (
           instr_num <= instr_num + 1;
           executor_state <= instr_num == 10 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
           decoder_inp <= 1;
-          if (executor_state==EXECUTE_STATE_START2) registers_done_op <= '{default: 0};         
-          write_enabled<=0;
-         
+          if (executor_state == EXECUTE_STATE_START2) registers_done_op <= '{default: 0};
+          write_enabled <= 0;
+
           for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-            if (decoder_do_op[i][!decoder_slot]) begin              
-                case (decoder_in1[!decoder_slot])
-                  OPCODE_JMP: begin
-                    pc_logical <= decoder_in4[!decoder_slot];
-                    read_address <= decoder_in4[!decoder_slot];
-                    read_address2 <= decoder_in4[!decoder_slot] + 1;                  
-                   // mmu_address_logical<= decoder_in4[!decoder_slot];
-                    //if (decoder_in4[!decoder_slot]<mmu_address_logical_min_in_the_same_page ||
-//                        decoder_in4[!decoder_slot]>mmu_address_logical_max_in_the_same_page) begin
-//                        executor_state<=EXECUTE_STATE_MMU;
-//                    end
-                  end
-                  OPCODE_NUM2REG: begin
-                    registers_init[i]  <= 1;
-                    registers_value[i] <= decoder_in4[!decoder_slot];
-                  end
-                  default: begin
-                    if (!registers_init[i]) begin
-                      if (i % 2 == 0) begin
-                        read_address <= ADDRESS_REG + i;                           
-                      end else begin
-                        read_address2 <= ADDRESS_REG + i;
+            if (decoder_do_op[i][!decoder_slot]) begin
+              case (decoder_in1[!decoder_slot])
+                OPCODE_JMP: begin
+                  pc_logical <= decoder_in4[!decoder_slot];
+                  read_address <= decoder_in4[!decoder_slot];
+                  read_address2 <= decoder_in4[!decoder_slot] + 1;
+                  // mmu_address_logical<= decoder_in4[!decoder_slot];
+                  //if (decoder_in4[!decoder_slot]<mmu_address_logical_min_in_the_same_page ||
+                  //                        decoder_in4[!decoder_slot]>mmu_address_logical_max_in_the_same_page) begin
+                  //                        executor_state<=EXECUTE_STATE_MMU;
+                  //                    end
+                end
+                OPCODE_NUM2REG: begin
+                  registers_init[i]  <= 1;
+                  registers_value[i] <= decoder_in4[!decoder_slot];
+                end
+                default: begin
+                  if (!registers_init[i]) begin
+                    if (i % 2 == 0) begin
+                      read_address <= ADDRESS_REG + i;
+                    end else begin
+                      read_address2 <= ADDRESS_REG + i;
+                    end
+                    registers_read_num[i%2] <= i;
+                    registers_read_now[i%2] <= 1;
+                    executor_state <= EXECUTE_STATE_READ_REG;
+                    decoder_inp <= 0;
+                  end else if (!registers_done_op[i]) begin
+                    registers_done_op[i] <= 1;
+                    case (decoder_in1[!decoder_slot])
+                      OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
+                        if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
+                          pc_logical <= decoder_in4[!decoder_slot];
+                          read_address <= decoder_in4[!decoder_slot];
+                          read_address2 <= decoder_in4[!decoder_slot] + 1;
+                        end
                       end
-                       registers_read_num[i % 2] <= i;             
-                        registers_read_now[i % 2] <=1;     
-                      executor_state <= EXECUTE_STATE_READ_REG;                    
-                      decoder_inp <= 0;
-                    end else if (!registers_done_op[i]) begin
-                      registers_done_op[i] <= 1;
-                      case (decoder_in1[!decoder_slot])
-                        OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
-                          if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
-                            pc_logical <= decoder_in4[!decoder_slot];
-                            read_address <= decoder_in4[!decoder_slot];
-                            read_address2 <= decoder_in4[!decoder_slot] + 1;
-                          end
+                      OPCODE_JMP_IF_NOT1,OPCODE_JMP_IF_NOT2,OPCODE_JMP_IF_NOT3,OPCODE_JMP_IF_NOT4: begin
+                        if (registers_value[i] != decoder_in3_big[!decoder_slot]) begin
+                          pc_logical <= decoder_in4[!decoder_slot];
+                          read_address <= decoder_in4[!decoder_slot];
+                          read_address2 <= decoder_in4[!decoder_slot] + 1;
                         end
-                        OPCODE_JMP_IF_NOT1,OPCODE_JMP_IF_NOT2,OPCODE_JMP_IF_NOT3,OPCODE_JMP_IF_NOT4: begin
-                          if (registers_value[i] != decoder_in3_big[!decoder_slot]) begin
-                            pc_logical <= decoder_in4[!decoder_slot];
-                            read_address <= decoder_in4[!decoder_slot];
-                            read_address2 <= decoder_in4[!decoder_slot] + 1;
-                          end
-                        end
-                        OPCODE_RAM2REG: begin
-                      if (i % 2 == 0) begin
-                        read_address <= decoder_numeric[i][!decoder_slot];
-                      end else begin
-                        read_address2 <= decoder_numeric[i][!decoder_slot];
                       end
-                       registers_read_num[i % 2] <= i;             
-                        registers_read_now[i % 2] <=1;     
-                     executor_state <= EXECUTE_STATE_READ_RAM;
+                      OPCODE_RAM2REG: begin
+                        if (i % 2 == 0) begin
+                          read_address <= decoder_numeric[i][!decoder_slot];
+                        end else begin
+                          read_address2 <= decoder_numeric[i][!decoder_slot];
                         end
-                        OPCODE_REG2RAM: begin
-                          write_enabled<=1;
-                          write_address<=decoder_numeric[i][!decoder_slot];
-                          write_value<=registers_value[i];
-                          executor_state <= EXECUTE_STATE_START3;
-                        end
-                        OPCODE_REG_PLUS: begin
-                          registers_value[i]<=registers_value[i]+decoder_in4[!decoder_slot];
-                        end
-                        OPCODE_REG_MINUS: begin
-                          registers_value[i]<=registers_value[i]-decoder_in4[!decoder_slot];
-                        end
-                      endcase
-                    end                   
+                        registers_read_num[i%2] <= i;
+                        registers_read_now[i%2] <= 1;
+                        executor_state <= EXECUTE_STATE_READ_RAM;
+                      end
+                      OPCODE_REG2RAM: begin
+                        write_enabled <= 1;
+                        write_address <= decoder_numeric[i][!decoder_slot];
+                        write_value <= registers_value[i];
+                        executor_state <= EXECUTE_STATE_START3;
+                      end
+                      OPCODE_REG_PLUS: begin
+                        registers_value[i] <= registers_value[i] + decoder_in4[!decoder_slot];
+                      end
+                      OPCODE_REG_MINUS: begin
+                        registers_value[i] <= registers_value[i] - decoder_in4[!decoder_slot];
+                      end
+                    endcase
                   end
-                endcase
+                end
+              endcase
             end
           end
         end
@@ -311,7 +311,7 @@ module x_out_of_order7 (
             registers_value[registers_read_num[1]] <= read_value2;
             registers_init[registers_read_num[1]]  <= 1;
           end
-           registers_read_now <= '{default: 0};
+          registers_read_now <= '{default: 0};
           executor_state <= EXECUTE_STATE_START3;
         end
         EXECUTE_STATE_MMU: begin
