@@ -162,6 +162,7 @@ module x_out_of_order7 (
       decoder_inp <= 1;
       registers_init <= '{default: 0};
       registers_read_now <= '{default: 0};
+      write_enabled<=0;
       $display("rst main");
     end else begin
       case (executor_state)
@@ -220,8 +221,9 @@ module x_out_of_order7 (
           instr_num <= instr_num + 1;
           executor_state <= instr_num == 10 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
           decoder_inp <= 1;
-          if (executor_state==EXECUTE_STATE_START2) registers_done_op <= '{default: 0};
-
+          if (executor_state==EXECUTE_STATE_START2) registers_done_op <= '{default: 0};         
+          write_enabled<=0;
+         
           for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
             if (decoder_do_op[i][!decoder_slot]) begin              
                 case (decoder_in1[!decoder_slot])
@@ -266,6 +268,10 @@ module x_out_of_order7 (
                           //nothing to do, yeah
                         end
                         OPCODE_REG2RAM: begin
+                          write_enabled<=1;
+                          write_address<=decoder_numeric[i][!decoder_slot];
+                          write_value<=registers_value[i];
+                          executor_state <= EXECUTE_STATE_START3;
                         end
                         OPCODE_REG_PLUS: begin
                           registers_value[i]<=registers_value[i]+decoder_in4[!decoder_slot];
