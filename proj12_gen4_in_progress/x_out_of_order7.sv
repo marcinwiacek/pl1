@@ -221,8 +221,8 @@ module x_out_of_order7 (
           read_address2 <= pc_logical + 3;
           if (executor_state == EXECUTE_STATE_START2) instr_num <= instr_num + 1;
           executor_state <= instr_num == 10 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
-          decoder_inp <= 1;         
-          registers_done_op <= '{default: 0};        
+          decoder_inp <= 1;
+          registers_done_op <= '{default: 0};
 
           if (decoder_error_code[!decoder_slot] == 0) begin
             for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
@@ -264,7 +264,7 @@ module x_out_of_order7 (
                             read_address <= decoder_in4[!decoder_slot];
                             read_address2 <= decoder_in4[!decoder_slot] + 1;
                           end
-                        end                      
+                        end
                         OPCODE_RAM2REG: begin
                           if (i % 2 == 0) begin
                             read_address <= decoder_numeric[i][!decoder_slot];
@@ -419,7 +419,7 @@ module decoder (
               `INSTRUCTION2,
               "=",
               (`INSTRUCTION3 << 12 + 4096)
-          );       
+          );
           OPCODE_RAM2REG:
           $write(
               " ram2reg read value from logical address ",
@@ -485,22 +485,22 @@ module decoder (
       slot  <= !slot;
       ready <= inp;
 
-case (`INSTRUCTION1)
-        OPCODE_JMP_IF1,OPCODE_JMP_IF2,OPCODE_JMP_IF3,OPCODE_JMP_IF4: begin
-          do_op[`INSTRUCTION2][slot]   <= 1;
+      case (`INSTRUCTION1)
+        OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
+          do_op[`INSTRUCTION2][slot] <= 1;
         end
         default: begin
-      for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-        if (i >= `INSTRUCTION2 && i <= `INSTRUCTION2 + `INSTRUCTION3 - 1) begin
-          numeric[i][slot] <= `INSTRUCTION4 + i - `INSTRUCTION2;
-          do_op[i][slot]   <= 1;
-        end else begin
-          do_op[i][slot]   <= 0;         
-        end
-      end
+          for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+            if (i >= `INSTRUCTION2 && i <= `INSTRUCTION2 + `INSTRUCTION3 - 1) begin
+              numeric[i][slot] <= `INSTRUCTION4 + i - `INSTRUCTION2;
+              do_op[i][slot]   <= 1;
+            end else begin
+              do_op[i][slot] <= 0;
+            end
+          end
         end
       endcase
-      
+
     end
   end
 
@@ -521,7 +521,7 @@ case (`INSTRUCTION1)
     if (inp) begin
       error_code[slot] <= 0;
       case (`INSTRUCTION1)
-        OPCODE_JMP, OPCODE_JMP_IF1,OPCODE_JMP_IF2,OPCODE_JMP_IF3,OPCODE_JMP_IF4: begin
+        OPCODE_JMP, OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
         end
         OPCODE_RAM2REG, OPCODE_REG2RAM, OPCODE_NUM2REG, OPCODE_REG_PLUS, OPCODE_REG_MINUS: begin
           if (`INSTRUCTION2 + `INSTRUCTION3 >= REGISTER_NUM) begin
