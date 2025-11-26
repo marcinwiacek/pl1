@@ -158,7 +158,7 @@ module x_out_of_order7 (
       executor_state <= EXECUTE_STATE_START;
       mmu_address_physical_min_in_the_same_page <= 0;
       mmu_address_logical_min_in_the_same_page <= 0;
-      mmu_address_logical_max_in_the_same_page <= 255;
+      mmu_address_logical_max_in_the_same_page <= 1024-1; //2^10-1
       rst <= 0;
       decoder_inp <= 1;
       registers_init <= '{default: 0};
@@ -184,7 +184,7 @@ module x_out_of_order7 (
           end else begin
             $write("      ");
           end
-          $display(
+          $write(
               " opcode %c%c%c%c",  //DEBUG info
               decoder_in1[0] / 16 >= 10 ? decoder_in1[0] / 16 + 65 - 10 : decoder_in1[0] / 16 + 48,  //DEBUG info
               decoder_in1[0] % 16 >= 10 ? decoder_in1[0] % 16 + 65 - 10 : decoder_in1[0] % 16 + 48,  //DEBUG info
@@ -195,7 +195,11 @@ module x_out_of_order7 (
               (decoder_in4[0] / 256) % 16 >= 10 ? (decoder_in4[0] / 256) % 16 + 65 - 10 : (decoder_in4[0] / 256) % 16 + 48,  //DEBUG info
               (decoder_in4[0] % 256) / 16 >= 10 ? (decoder_in4[0] % 256) / 16 + 65 - 10 : (decoder_in4[0] % 256) / 16 + 48,  //DEBUG info
               (decoder_in4[0] % 256) % 16 >= 10 ? (decoder_in4[0] % 256) % 16 + 65 - 10 : (decoder_in4[0] % 256) % 16 + 48,  //DEBUG info
-              "h");
+              "h ");
+      for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+        $write(i,":",decoder_do_op[i][0]," ");
+      end
+        $display("");
 
           $write($sformatf("%02d", $time), " executor slot 1 ");
           if (!decoder_slot == 1) begin
@@ -203,7 +207,7 @@ module x_out_of_order7 (
           end else begin
             $write("      ");
           end
-          $display(
+          $write(
               " opcode %c%c%c%c",  //DEBUG info
               decoder_in1[1] / 16 >= 10 ? decoder_in1[1] / 16 + 65 - 10 : decoder_in1[1] / 16 + 48,  //DEBUG info
               decoder_in1[1] % 16 >= 10 ? decoder_in1[1] % 16 + 65 - 10 : decoder_in1[1] % 16 + 48,  //DEBUG info
@@ -214,17 +218,28 @@ module x_out_of_order7 (
               (decoder_in4[1] / 256) % 16 >= 10 ? (decoder_in4[1] / 256) % 16 + 65 - 10 : (decoder_in4[1] / 256) % 16 + 48,  //DEBUG info
               (decoder_in4[1] % 256) / 16 >= 10 ? (decoder_in4[1] % 256) / 16 + 65 - 10 : (decoder_in4[1] % 256) / 16 + 48,  //DEBUG info
               (decoder_in4[1] % 256) % 16 >= 10 ? (decoder_in4[1] % 256) % 16 + 65 - 10 : (decoder_in4[1] % 256) % 16 + 48,  //DEBUG info
-              "h");
-
-          pc_logical <= pc_logical + 2;
-          read_address <= pc_logical + 2;
-          read_address2 <= pc_logical + 3;
-          if (executor_state == EXECUTE_STATE_START2) instr_num <= instr_num + 1;
+              "h ");
+      for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+        $write(i,":",decoder_do_op[i][1]," ");
+      end
+        $display("");
+         
+          if (executor_state == EXECUTE_STATE_START2) begin
+             instr_num <= instr_num + 1;
+             pc_logical <= pc_logical + 2;
+             read_address <= mmu_address_physical_min_in_the_same_page+pc_logical[9:0] + 2;
+             read_address2 <= mmu_address_physical_min_in_the_same_page+pc_logical[9:0] + 3;
+          end else begin
+            read_address <= mmu_address_physical_min_in_the_same_page+pc_logical[9:0] ;
+            read_address2 <= mmu_address_physical_min_in_the_same_page+pc_logical[9:0] + 1;
+          
+          end
           executor_state <= instr_num == 10 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
           decoder_inp <= 1;
           registers_done_op <= '{default: 0};
 
           if (decoder_error_code[!decoder_slot] == 0) begin
+          
             for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
               if (decoder_do_op[i][!decoder_slot]) begin
                 case (decoder_in1[!decoder_slot])
@@ -363,7 +378,7 @@ module decoder (
   `define INSTRUCTION3 read1[3:0]
   `define INSTRUCTION4 read2
 
-  integer i;
+  integer j;
 
   always @(posedge clk) begin
     if (inp) begin
@@ -490,12 +505,12 @@ module decoder (
           do_op[`INSTRUCTION2][slot] <= 1;
         end
         default: begin
-          for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-            if (i >= `INSTRUCTION2 && i <= `INSTRUCTION2 + `INSTRUCTION3 - 1) begin
-              numeric[i][slot] <= `INSTRUCTION4 + i - `INSTRUCTION2;
-              do_op[i][slot]   <= 1;
+          for (j = 0; j <= REGISTER_NUM; j = j + 1) begin
+            if (j >= `INSTRUCTION2 && j <= `INSTRUCTION2 + `INSTRUCTION3 - 1) begin
+              numeric[j][slot] <= `INSTRUCTION4 + j - `INSTRUCTION2;
+              do_op[j][slot]   <= 1;
             end else begin
-              do_op[i][slot] <= 0;
+              do_op[j][slot] <= 0;
             end
           end
         end
