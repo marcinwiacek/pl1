@@ -92,7 +92,7 @@ module x_out_of_order7 (
 
   //--------------------------------------------------------- mmu ----------------------------
 
-  reg [15:0] mmu_address_logical;
+  reg [15:0] mmu_read_logical;
   reg [15:0]
       mmu_address_physical_min_in_the_same_page,
       mmu_address_logical_min_in_the_same_page,
@@ -147,7 +147,10 @@ module x_out_of_order7 (
 
   assign x = decoder_inp;  //without this we will have empty circuit
 
-  integer i;
+  integer i,j;
+  
+  reg mmu_miss1;
+  assign mmu_miss1 = mmu_read_logical<mmu_address_logical_min_in_the_same_page || mmu_read_logical>mmu_address_logical_max_in_the_same_page;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -166,6 +169,11 @@ module x_out_of_order7 (
       write_enabled <= 0;
       $display("rst main");
     end else begin
+    
+    
+        if (mmu_miss1) begin
+         end else begin
+         
       case (executor_state)
         EXECUTE_STATE_START: begin
           pc_logical <= pc_logical + 2;
@@ -224,15 +232,17 @@ module x_out_of_order7 (
       end
         $display("");
          
+     
           if (executor_state == EXECUTE_STATE_START2) begin
              instr_num <= instr_num + 1;
              pc_logical <= pc_logical + 2;
+             mmu_read_logical<=pc_logical + 2;
              read_address <= mmu_address_physical_min_in_the_same_page+pc_logical[9:0] + 2;
              read_address2 <= mmu_address_physical_min_in_the_same_page+pc_logical[9:0] + 3;
           end else begin
+             mmu_read_logical<=pc_logical;
             read_address <= mmu_address_physical_min_in_the_same_page+pc_logical[9:0] ;
-            read_address2 <= mmu_address_physical_min_in_the_same_page+pc_logical[9:0] + 1;
-          
+            read_address2 <= mmu_address_physical_min_in_the_same_page+pc_logical[9:0] + 1;          
           end
           executor_state <= instr_num == 10 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
           decoder_inp <= 1;
@@ -319,6 +329,7 @@ module x_out_of_order7 (
               end
             end
           end
+         
         end
         EXECUTE_STATE_READ_REG_RAM: begin
           if (registers_read_now[0]) begin
@@ -347,7 +358,9 @@ module x_out_of_order7 (
         EXECUTE_STATE_HALT: begin
           decoder_inp <= 0;
         end
+    
       endcase
+      end
     end
   end
 endmodule
