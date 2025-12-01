@@ -196,14 +196,14 @@ module x_out_of_order7 (
       if (mmu_miss1) $display($sformatf("%02d", $time), " mmu miss 1");
       if (mmu_miss2) $display($sformatf("%02d", $time), " mmu miss 2");
     end else begin
-     if (HARDWARE_DEBUG) begin
-        $write($sformatf("%02d", $time)," reg ");
+      if (HARDWARE_DEBUG) begin
+        $write($sformatf("%02d", $time), " reg ");
         for (i = 0; i < 20; i = i + 1) begin
           $write($sformatf(" %02d:%02d:%02d ", i, registers_init[i], registers_value[i]));
         end
         $display("");
       end
-      
+
       case (executor_state)
         EXECUTE_STATE_START: begin
           pc_logical <= pc_logical + 2;
@@ -235,7 +235,7 @@ module x_out_of_order7 (
               (decoder_in4[0] % 256) % 16 >= 10 ? (decoder_in4[0] % 256) % 16 + 65 - 10 : (decoder_in4[0] % 256) % 16 + 48,  //DEBUG info
               "h ");
           for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-            $write($sformatf("%02d:%02d ",i, decoder_do_op[i][0]));
+            $write($sformatf("%02d:%02d ", i, decoder_do_op[i][0]));
           end
           $display("");
 
@@ -257,8 +257,8 @@ module x_out_of_order7 (
               (decoder_in4[1] % 256) / 16 >= 10 ? (decoder_in4[1] % 256) / 16 + 65 - 10 : (decoder_in4[1] % 256) / 16 + 48,  //DEBUG info
               (decoder_in4[1] % 256) % 16 >= 10 ? (decoder_in4[1] % 256) % 16 + 65 - 10 : (decoder_in4[1] % 256) % 16 + 48,  //DEBUG info
               "h ");
-           for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-            $write($sformatf("%02d:%02d ",i, decoder_do_op[i][1]));
+          for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+            $write($sformatf("%02d:%02d ", i, decoder_do_op[i][1]));
           end
           $display("");
 
