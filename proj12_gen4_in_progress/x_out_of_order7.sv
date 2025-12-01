@@ -196,7 +196,7 @@ module x_out_of_order7 (
       if (mmu_miss1) $display($sformatf("%02d", $time), " mmu miss 1");
       if (mmu_miss2) $display($sformatf("%02d", $time), " mmu miss 2");
     end else begin
-      if (HARDWARE_DEBUG) begin
+      if (HARDWARE_DEBUG && executor_state != EXECUTE_STATE_HALT) begin
         $write($sformatf("%02d", $time), " reg ");
         for (i = 0; i < 20; i = i + 1) begin
           $write($sformatf(" %02d:%02d:%02d ", i, registers_init[i], registers_value[i]));
@@ -384,8 +384,9 @@ module x_out_of_order7 (
         EXECUTE_STATE_HALT: begin
           decoder_inp <= 0;
         end
-      endcase
+      endcase      
     end
+    $display("");
   end
 endmodule
 
@@ -552,7 +553,6 @@ module decoder (
           end
         end
       endcase
-
     end
   end
 
