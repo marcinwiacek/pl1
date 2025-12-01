@@ -103,7 +103,7 @@ module x_out_of_order7 (
 
   //--------------------------------------------------------------------executor------------------
 
-  reg [5:0] executor_state;
+  reg [5:0] executor_state, executor_state2;
 
   //--------------------------------------------------------------------process------------------
 
@@ -176,10 +176,23 @@ module x_out_of_order7 (
       registers_read_now <= '{default: 0};
       write_enabled <= 0;
       $display("rst main");
-    end else begin
-    
-    
+    end else if (executor_state==EXECUTE_STATE_MMU) begin
+      mmu_address_physical_min_in_the_same_page <= read_value*1024;
+      mmu_address_logical_min_in_the_same_page <= mmu_read_logical[9:0];
+      mmu_address_logical_max_in_the_same_page <= mmu_read_logical[9:0]+1024-1;
+      mmu_address_physical_min_in_the_same_page2 <= read_value2*1024;
+      mmu_address_logical_min_in_the_same_page2 <= mmu_read_logical2[9:0];
+      mmu_address_logical_max_in_the_same_page2 <= mmu_read_logical2[9:0]+1024-1;
+
+             read_address <= read_value*1024+mmu_read_logical[9:0];
+             read_address2 <= read_value2*1024+mmu_read_logical2[9:0];;
+            executor_state<=executor_state2;      
+    end else begin        
         if (mmu_miss1 || mmu_miss2) begin
+            executor_state2<=executor_state;
+            executor_state<=EXECUTE_STATE_MMU;
+              read_address <= ADDRESS_MMU_LEN+1+mmu_read_logical[9:0];
+          read_address2 <= ADDRESS_MMU_LEN+1+mmu_read_logical2[9:0];
          end else begin
          
       case (executor_state)
@@ -239,8 +252,7 @@ module x_out_of_order7 (
         $write(i,":",decoder_do_op[i][1]," ");
       end
         $display("");
-         
-     
+
           if (executor_state == EXECUTE_STATE_START2) begin
              instr_num <= instr_num + 1;
              pc_logical <= pc_logical + 2;
@@ -359,9 +371,7 @@ module x_out_of_order7 (
           registers_done_op[registers_read_num[0]] <= 1;
           executor_state <= EXECUTE_STATE_START3;
           write_enabled <= 0;
-        end
-        EXECUTE_STATE_MMU: begin
-        end
+        end       
         EXECUTE_STATE_HALT: begin
           decoder_inp <= 0;
         end    
