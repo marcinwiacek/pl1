@@ -92,11 +92,14 @@ module x_out_of_order7 (
 
   //--------------------------------------------------------- mmu ----------------------------
 
-  reg [15:0] mmu_read_logical;
+  reg [15:0] mmu_read_logical,mmu_read_logical2;
   reg [15:0]
       mmu_address_physical_min_in_the_same_page,
       mmu_address_logical_min_in_the_same_page,
-      mmu_address_logical_max_in_the_same_page;
+      mmu_address_logical_max_in_the_same_page,
+       mmu_address_physical_min_in_the_same_page2,
+      mmu_address_logical_min_in_the_same_page2,
+      mmu_address_logical_max_in_the_same_page2;
 
   //--------------------------------------------------------------------executor------------------
 
@@ -151,6 +154,8 @@ module x_out_of_order7 (
   
   reg mmu_miss1;
   assign mmu_miss1 = mmu_read_logical<mmu_address_logical_min_in_the_same_page || mmu_read_logical>mmu_address_logical_max_in_the_same_page;
+ reg mmu_miss2;
+  assign mmu_miss2 = mmu_read_logical2<mmu_address_logical_min_in_the_same_page2 || mmu_read_logical2>mmu_address_logical_max_in_the_same_page2;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -162,6 +167,9 @@ module x_out_of_order7 (
       mmu_address_physical_min_in_the_same_page <= 0;
       mmu_address_logical_min_in_the_same_page <= 0;
       mmu_address_logical_max_in_the_same_page <= 1024-1; //2^10-1
+       mmu_address_physical_min_in_the_same_page2 <= 0;
+      mmu_address_logical_min_in_the_same_page2 <= 0;
+      mmu_address_logical_max_in_the_same_page2 <= 1024-1; //2^10-1
       rst <= 0;
       decoder_inp <= 1;
       registers_init <= '{default: 0};
@@ -171,7 +179,7 @@ module x_out_of_order7 (
     end else begin
     
     
-        if (mmu_miss1) begin
+        if (mmu_miss1 || mmu_miss2) begin
          end else begin
          
       case (executor_state)
@@ -238,30 +246,28 @@ module x_out_of_order7 (
              pc_logical <= pc_logical + 2;
              mmu_read_logical<=pc_logical + 2;
              read_address <= mmu_address_physical_min_in_the_same_page+pc_logical[9:0] + 2;
+             mmu_read_logical2<=pc_logical + 3;
              read_address2 <= mmu_address_physical_min_in_the_same_page+pc_logical[9:0] + 3;
           end else begin
              mmu_read_logical<=pc_logical;
             read_address <= mmu_address_physical_min_in_the_same_page+pc_logical[9:0] ;
+              mmu_read_logical2<=pc_logical+1;
             read_address2 <= mmu_address_physical_min_in_the_same_page+pc_logical[9:0] + 1;          
           end
           executor_state <= instr_num == 10 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
           decoder_inp <= 1;
           registers_done_op <= '{default: 0};
 
-          if (decoder_error_code[!decoder_slot] == 0) begin
-          
+          if (decoder_error_code[!decoder_slot] == 0) begin          
             for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
               if (decoder_do_op[i][!decoder_slot]) begin
                 case (decoder_in1[!decoder_slot])
                   OPCODE_JMP: begin
                     pc_logical <= decoder_in4[!decoder_slot];
-                    read_address <= decoder_in4[!decoder_slot];
-                    read_address2 <= decoder_in4[!decoder_slot] + 1;
-                    // mmu_address_logical<= decoder_in4[!decoder_slot];
-                    //if (decoder_in4[!decoder_slot]<mmu_address_logical_min_in_the_same_page ||
-                    //                        decoder_in4[!decoder_slot]>mmu_address_logical_max_in_the_same_page) begin
-                    //                        executor_state<=EXECUTE_STATE_MMU;
-                    //                    end
+                     mmu_read_logical<=decoder_in4[!decoder_slot];
+                            read_address <= mmu_address_physical_min_in_the_same_page+decoder_in4[!decoder_slot][9:0];
+                     mmu_read_logical2<=decoder_in4[!decoder_slot]+1;
+                            read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_in4[!decoder_slot][9:0]+1;
                   end
                   OPCODE_NUM2REG: begin
                     registers_init[i]  <= 1;
@@ -285,9 +291,11 @@ module x_out_of_order7 (
                       case (decoder_in1[!decoder_slot])
                         OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
                           if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
-                            pc_logical <= decoder_in4[!decoder_slot];
-                            read_address <= decoder_in4[!decoder_slot];
-                            read_address2 <= decoder_in4[!decoder_slot] + 1;
+                            pc_logical <= decoder_in4[!decoder_slot];                                                        
+                     mmu_read_logical<=decoder_in4[!decoder_slot];
+                            read_address <= mmu_address_physical_min_in_the_same_page+decoder_in4[!decoder_slot][9:0];
+                     mmu_read_logical2<=decoder_in4[!decoder_slot]+1;
+                            read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_in4[!decoder_slot][9:0]+1;
                           end
                         end
                         OPCODE_RAM2REG: begin
@@ -328,8 +336,7 @@ module x_out_of_order7 (
                 endcase
               end
             end
-          end
-         
+          end         
         end
         EXECUTE_STATE_READ_REG_RAM: begin
           if (registers_read_now[0]) begin
@@ -357,8 +364,7 @@ module x_out_of_order7 (
         end
         EXECUTE_STATE_HALT: begin
           decoder_inp <= 0;
-        end
-    
+        end    
       endcase
       end
     end
