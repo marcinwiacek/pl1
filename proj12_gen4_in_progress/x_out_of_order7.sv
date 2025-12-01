@@ -152,10 +152,29 @@ module x_out_of_order7 (
 
   integer i, j;
 
-  reg mmu_miss1;
-  assign mmu_miss1 = mmu_read_logical!=0 && (mmu_read_logical<mmu_address_logical_min_in_the_same_page || mmu_read_logical>mmu_address_logical_max_in_the_same_page);
-  reg mmu_miss2;
-  assign mmu_miss2 = mmu_read_logical2!=0 && (mmu_read_logical2<mmu_address_logical_min_in_the_same_page2 || mmu_read_logical2>mmu_address_logical_max_in_the_same_page2);
+  reg mmu_miss;
+  assign mmu_miss = mmu_read_logical!=0 && (mmu_read_logical<mmu_address_logical_min_in_the_same_page || mmu_read_logical>mmu_address_logical_max_in_the_same_page || 
+       mmu_read_logical2<mmu_address_logical_min_in_the_same_page2 || mmu_read_logical2>mmu_address_logical_max_in_the_same_page2);
+
+always @(posedge clk) begin
+    if (rst) begin
+       mmu_address_physical_min_in_the_same_page <= 0;
+      mmu_address_logical_min_in_the_same_page <= 0;
+      mmu_address_logical_max_in_the_same_page <= 1024 - 1;  //2^10-1
+
+      mmu_address_physical_min_in_the_same_page2 <= 0;
+      mmu_address_logical_min_in_the_same_page2 <= 0;
+      mmu_address_logical_max_in_the_same_page2 <= 1024 - 1;  //2^10-1
+    end else if (executor_state == EXECUTE_STATE_MMU) begin
+     mmu_address_physical_min_in_the_same_page <= read_value *1024;
+      mmu_address_logical_min_in_the_same_page <= mmu_read_logical[9:0];
+      mmu_address_logical_max_in_the_same_page <= mmu_read_logical[9:0] + 1024 - 1;
+
+      mmu_address_physical_min_in_the_same_page2 <= read_value2 *1024;
+      mmu_address_logical_min_in_the_same_page2 <= mmu_read_logical2[9:0];
+      mmu_address_logical_max_in_the_same_page2 <= mmu_read_logical2[9:0] + 1024 - 1;
+    end
+end
 
   always @(posedge clk) begin
     if (rst) begin
@@ -165,13 +184,7 @@ module x_out_of_order7 (
       mmu_read_logical<=0;
       read_address2 <= ADDRESS_PROGRAM + 1;
       mmu_read_logical2<=0;
-      executor_state <= EXECUTE_STATE_START;
-      mmu_address_physical_min_in_the_same_page <= 0;
-      mmu_address_logical_min_in_the_same_page <= 0;
-      mmu_address_logical_max_in_the_same_page <= 1024 - 1;  //2^10-1
-      mmu_address_physical_min_in_the_same_page2 <= 0;
-      mmu_address_logical_min_in_the_same_page2 <= 0;
-      mmu_address_logical_max_in_the_same_page2 <= 1024 - 1;  //2^10-1
+      executor_state <= EXECUTE_STATE_START;   
       rst <= 0;
       decoder_inp <= 1;
       registers_init <= '{default: 0};
@@ -179,24 +192,15 @@ module x_out_of_order7 (
       write_enabled <= 0;
       $display("rst main");
     end else if (executor_state == EXECUTE_STATE_MMU) begin
-      mmu_address_physical_min_in_the_same_page <= read_value * 1024;
-      mmu_address_logical_min_in_the_same_page <= mmu_read_logical[9:0];
-      mmu_address_logical_max_in_the_same_page <= mmu_read_logical[9:0] + 1024 - 1;
       read_address <= read_value * 1024 + mmu_read_logical[9:0];
-
-      mmu_address_physical_min_in_the_same_page2 <= read_value2 * 1024;
-      mmu_address_logical_min_in_the_same_page2 <= mmu_read_logical2[9:0];
-      mmu_address_logical_max_in_the_same_page2 <= mmu_read_logical2[9:0] + 1024 - 1;
       read_address2 <= read_value2 * 1024 + mmu_read_logical2[9:0];
-
       executor_state <= executor_state2;
-    end else if (mmu_miss1 || mmu_miss2) begin
+    end else if (mmu_miss) begin
       executor_state2 <= executor_state;
       executor_state <= EXECUTE_STATE_MMU;
       read_address <= ADDRESS_MMU_LEN + 1 + mmu_read_logical[9:0];
       read_address2 <= ADDRESS_MMU_LEN + 1 + mmu_read_logical2[9:0];
-      if (mmu_miss1) $display($sformatf("%02d", $time), " mmu miss 1");
-      if (mmu_miss2) $display($sformatf("%02d", $time), " mmu miss 2");
+      if (mmu_miss) $display($sformatf("%02d", $time), " mmu miss");
     end else begin
       if (HARDWARE_DEBUG && executor_state != EXECUTE_STATE_HALT) begin
         $write($sformatf("%02d", $time), " reg ");
@@ -299,16 +303,15 @@ module x_out_of_order7 (
                   default: begin
                     if (!registers_init[i]) begin
                       if (i % 2 == 0) begin
-                        read_address <= ADDRESS_REG + i;
-                              mmu_read_logical<=0;
+                        read_address <= ADDRESS_REG + i;                             
                         registers_read_num[0] <= i;
                         registers_read_now[0] <= 1;
                       end else begin
                         read_address2 <= ADDRESS_REG + i;
-                              mmu_read_logical2<=0;
                         registers_read_num[1] <= i;
                         registers_read_now[1] <= 1;
                       end
+                       mmu_read_logical<=0;
                       executor_state <= EXECUTE_STATE_READ_REG_RAM;
                       decoder_inp <= 0;
                       registers_done_op <= registers_done_op;
