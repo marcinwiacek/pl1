@@ -110,7 +110,7 @@ module x_out_of_order7 (
 
   reg [15:0] pc_logical, registers_value[0:REGISTER_NUM];
   reg registers_init[0:REGISTER_NUM];
-  reg [5:0] registers_read_num[1:0];
+  reg [6:0] registers_read_num[1:0];
   reg registers_done_op[0:REGISTER_NUM];
 
   //---------------------------------------------------------decoder--------------------------
@@ -183,13 +183,13 @@ end
       pc_logical <= ADDRESS_PROGRAM;
       read_address <= ADDRESS_PROGRAM;
       mmu_read_logical<=0;
-      read_address2 <= ADDRESS_PROGRAM + 1;
-      
+      read_address2 <= ADDRESS_PROGRAM + 1;     
       executor_state <= EXECUTE_STATE_START;   
       rst <= 0;
       decoder_inp <= 1;
       registers_init <= '{default: 0};
       write_enabled <= 0;
+             registers_done_op <= '{default: 0};
       $display($sformatf("%02d", $time)," rst main");
     end else if (executor_state == EXECUTE_STATE_MMU) begin
       read_address <= read_value *1024 + mmu_read_logical[9:0];
@@ -283,7 +283,9 @@ end
           executor_state <= instr_num == 0 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
           decoder_inp <= 1;
           registers_done_op <= '{default: 0};
-
+ registers_read_num[0]<=64;
+  registers_read_num[1]<=64;
+  
           if (decoder_error_code[!decoder_slot] == 0) begin
             for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
               if (decoder_do_op[i][!decoder_slot]) begin
@@ -299,17 +301,33 @@ end
                     registers_init[i]  <= 1;
                     registers_value[i] <= decoder_in4[!decoder_slot];
                   end
+                  OPCODE_RAM2REG: begin
+                      $display("ram2reg");
+                  if (!registers_done_op[i]) begin
+                          if (i % 2) begin
+                            mmu_read_logical <= decoder_numeric[i][!decoder_slot];
+                            read_address <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][!decoder_slot][9:0];
+                            registers_read_num[0] <= i;           
+                          end else begin
+                            mmu_read_logical2 <= decoder_numeric[i][!decoder_slot];
+                            read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][!decoder_slot][9:0];
+                            registers_read_num[1] <= i;                         
+                          end
+                          executor_state <= EXECUTE_STATE_READ_REG_RAM;
+                          decoder_inp <= 0;
+                          registers_done_op <= registers_done_op;
+                        end                  
+                        end
                   default: begin
-                    if (!registers_init[i]) begin  
-                     mmu_read_logical<=0;    
+                    if (!registers_init[i]) begin                      
                       if (i % 2) begin
                         read_address <= ADDRESS_REG + i;                             
                         registers_read_num[0] <= i;                                          
                       end else begin
                         read_address2 <= ADDRESS_REG + i;
                         registers_read_num[1] <= i;
-                        mmu_read_logical2<=0;
                       end                     
+                        mmu_read_logical<=0;
                       executor_state <= EXECUTE_STATE_READ_REG_RAM;
                       decoder_inp <= 0;
                       registers_done_op <= registers_done_op;
@@ -323,21 +341,7 @@ end
                             mmu_read_logical2 <= decoder_in4[!decoder_slot] + 1;
                             read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_in4[!decoder_slot][9:0]+1;
                           end
-                        end
-                        OPCODE_RAM2REG: begin
-                          if (i % 2) begin
-                            mmu_read_logical <= decoder_numeric[i][!decoder_slot];
-                            read_address <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][!decoder_slot][9:0];
-                            registers_read_num[0] <= i;           
-                          end else begin
-                            mmu_read_logical2 <= decoder_numeric[i][!decoder_slot];
-                            read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][!decoder_slot][9:0];
-                            registers_read_num[1] <= i;                         
-                          end
-                          executor_state <= EXECUTE_STATE_READ_REG_RAM;
-                          decoder_inp <= 0;
-                          registers_done_op <= registers_done_op;
-                        end
+                        end                       
                         OPCODE_REG2RAM: begin
                           $display("reg to ram");
                           write_enabled <= 1;
@@ -365,14 +369,14 @@ end
           end
         end
         EXECUTE_STATE_READ_REG_RAM: begin
-          if (mmu_read_logical==0) begin
-            $display($sformatf("%02d", $time), " slot 0: reading reg ", registers_read_num[0]);
+          if (registers_read_num[0]!=64) begin
+            $display($sformatf("%02d", $time), " slot 0: reading reg ", registers_read_num[0], " src ",read_address);
             registers_value[registers_read_num[0]] <= read_value;
             registers_init[registers_read_num[0]] <= 1;
-            registers_done_op[registers_read_num[0]] <= 1;
+            registers_done_op[registers_read_num[0]] <= 1;           
           end
-          if (mmu_read_logical2==0) begin
-            $display($sformatf("%02d", $time), " slot 1: reading reg ", registers_read_num[1]);
+          if (registers_read_num[1]!=64) begin
+            $display($sformatf("%02d", $time), " slot 1: reading reg ", registers_read_num[1], " src ",read_address2);
             registers_value[registers_read_num[1]] <= read_value2;
             registers_init[registers_read_num[1]] <= 1;
             registers_done_op[registers_read_num[1]] <= 1;
