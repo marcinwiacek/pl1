@@ -304,29 +304,26 @@ module x_out_of_order7 (
                     end
                     OPCODE_RAM2REG: begin
                       $display("ram2reg");
-
-                      if (i % 2) begin
+                      if (i % 2 == 0) begin
                         mmu_read_logical <= decoder_numeric[i][!decoder_slot];
                         read_address <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][!decoder_slot][9:0];
-                        registers_read_num[0] <= i;
                       end else begin
                         mmu_read_logical2 <= decoder_numeric[i][!decoder_slot];
                         read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][!decoder_slot][9:0];
-                        registers_read_num[1] <= i;
                       end
+                      registers_read_num[i%2] <= i;
                       executor_state <= EXECUTE_STATE_READ_REG_RAM;
                       decoder_inp <= 0;
                       registers_done_op <= registers_done_op;
                     end
                     default: begin
                       if (!registers_init[i]) begin
-                        if (i % 2) begin
+                        if (i % 2 == 0) begin
                           read_address <= ADDRESS_REG + i;
-                          registers_read_num[0] <= i;
                         end else begin
                           read_address2 <= ADDRESS_REG + i;
-                          registers_read_num[1] <= i;
                         end
+                        registers_read_num[i%2] <= i;
                         mmu_read_logical <= 0;
                         executor_state <= EXECUTE_STATE_READ_REG_RAM;
                         decoder_inp <= 0;
