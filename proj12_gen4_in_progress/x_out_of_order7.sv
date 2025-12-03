@@ -93,7 +93,7 @@ module x_out_of_order7 (
 
   //--------------------------------------------------------- mmu ----------------------------
 
-  reg [15:0] mmu_read_logical, mmu_read_logical2;
+  reg [15:0] mmu_read_logical[1:0];
   reg [15:0]
       mmu_address_physical_min_in_the_same_page,
       mmu_address_logical_min_in_the_same_page,
@@ -153,9 +153,9 @@ module x_out_of_order7 (
   integer i, j;
 
   reg mmu_miss;
-  assign mmu_miss = mmu_read_logical!=0 && 
-       (mmu_read_logical<mmu_address_logical_min_in_the_same_page || mmu_read_logical>mmu_address_logical_max_in_the_same_page || 
-       mmu_read_logical2<mmu_address_logical_min_in_the_same_page2 || mmu_read_logical2>mmu_address_logical_max_in_the_same_page2);
+  assign mmu_miss = mmu_read_logical[0]!=0 && 
+       (mmu_read_logical[0]<mmu_address_logical_min_in_the_same_page || mmu_read_logical[0]>mmu_address_logical_max_in_the_same_page || 
+       mmu_read_logical[1]<mmu_address_logical_min_in_the_same_page2 || mmu_read_logical[1]>mmu_address_logical_max_in_the_same_page2);
 
   always @(posedge clk) begin
     if (rst) begin
@@ -168,12 +168,12 @@ module x_out_of_order7 (
       mmu_address_logical_max_in_the_same_page2  <= 1024 - 1;  //2^10-1
     end else if (executor_state == EXECUTE_STATE_MMU) begin
       mmu_address_physical_min_in_the_same_page  <= read_value[15:10] * 1024;
-      mmu_address_logical_min_in_the_same_page   <= mmu_read_logical[15:10] * 1024;
-      mmu_address_logical_max_in_the_same_page   <= mmu_read_logical[15:10] * 1024 + 1024 - 1;
+      mmu_address_logical_min_in_the_same_page   <= mmu_read_logical[0][15:10] * 1024;
+      mmu_address_logical_max_in_the_same_page   <= mmu_read_logical[0][15:10] * 1024 + 1024 - 1;
 
       mmu_address_physical_min_in_the_same_page2 <= read_value2[15:10] * 1024;
-      mmu_address_logical_min_in_the_same_page2  <= mmu_read_logical2[15:10] * 1024;
-      mmu_address_logical_max_in_the_same_page2  <= mmu_read_logical2[15:10] * 1024 + 1024 - 1;
+      mmu_address_logical_min_in_the_same_page2  <= mmu_read_logical[1][15:10] * 1024;
+      mmu_address_logical_max_in_the_same_page2  <= mmu_read_logical[1][15:10] * 1024 + 1024 - 1;
     end
   end
 
@@ -182,7 +182,7 @@ module x_out_of_order7 (
       instr_num <= 10;
       pc_logical <= ADDRESS_PROGRAM;
       read_address <= ADDRESS_PROGRAM;
-      mmu_read_logical <= 0;
+      mmu_read_logical[0] <= 0;
       read_address2 <= ADDRESS_PROGRAM + 1;
       executor_state <= EXECUTE_STATE_START;
       rst <= 0;
@@ -192,14 +192,14 @@ module x_out_of_order7 (
       registers_done_op <= '{default: 0};
       $display($sformatf("%02d", $time), " rst main");
     end else if (executor_state == EXECUTE_STATE_MMU) begin
-      read_address   <= read_value * 1024 + mmu_read_logical[9:0];
-      read_address2  <= read_value2 * 1024 + mmu_read_logical2[9:0];
+      read_address   <= read_value * 1024 + mmu_read_logical[0][9:0];
+      read_address2  <= read_value2 * 1024 + mmu_read_logical[1][9:0];
       executor_state <= executor_state2;
     end else if (mmu_miss) begin
       executor_state2 <= executor_state;
       executor_state <= EXECUTE_STATE_MMU;
-      read_address <= ADDRESS_MMU_ADDR + mmu_read_logical[15:10];
-      read_address2 <= ADDRESS_MMU_ADDR + mmu_read_logical2[15:10];
+      read_address <= ADDRESS_MMU_ADDR + mmu_read_logical[0][15:10];
+      read_address2 <= ADDRESS_MMU_ADDR + mmu_read_logical[1][15:10];
       if (mmu_miss) $display($sformatf("%02d", $time), " mmu miss");
     end else begin
       if (HARDWARE_DEBUG && executor_state != EXECUTE_STATE_HALT) begin
@@ -270,14 +270,14 @@ module x_out_of_order7 (
           if (executor_state == EXECUTE_STATE_START2) begin
             instr_num <= instr_num - 1;
             pc_logical <= pc_logical + 2;
-            mmu_read_logical <= pc_logical + 2;
+            mmu_read_logical[0] <= pc_logical + 2;
             read_address <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0] + 2;
-            mmu_read_logical2 <= pc_logical + 3;
+            mmu_read_logical[1] <= pc_logical + 3;
             read_address2 <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0] + 3;
           end else begin
-            mmu_read_logical <= pc_logical;
+            mmu_read_logical[0] <= pc_logical;
             read_address <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0];
-            mmu_read_logical2 <= pc_logical + 1;
+            mmu_read_logical[1] <= pc_logical + 1;
             read_address2 <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0] + 1;
           end
           executor_state <= instr_num == 0 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
@@ -293,9 +293,9 @@ module x_out_of_order7 (
                   case (decoder_in1[!decoder_slot])
                     OPCODE_JMP: begin
                       pc_logical <= decoder_in4[!decoder_slot];
-                      mmu_read_logical <= decoder_in4[!decoder_slot];
+                      mmu_read_logical[0] <= decoder_in4[!decoder_slot];
                       read_address <= mmu_address_physical_min_in_the_same_page+decoder_in4[!decoder_slot][9:0];
-                      mmu_read_logical2 <= decoder_in4[!decoder_slot] + 1;
+                      mmu_read_logical[1] <= decoder_in4[!decoder_slot] + 1;
                       read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_in4[!decoder_slot][9:0]+1;
                     end
                     OPCODE_NUM2REG: begin
@@ -305,12 +305,11 @@ module x_out_of_order7 (
                     OPCODE_RAM2REG: begin
                       $display("ram2reg");
                       if (i % 2 == 0) begin
-                        mmu_read_logical <= decoder_numeric[i][!decoder_slot];
                         read_address <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][!decoder_slot][9:0];
                       end else begin
-                        mmu_read_logical2 <= decoder_numeric[i][!decoder_slot];
                         read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][!decoder_slot][9:0];
                       end
+                        mmu_read_logical[i%2] <= decoder_numeric[i][!decoder_slot];
                       registers_read_num[i%2] <= i;
                       executor_state <= EXECUTE_STATE_READ_REG_RAM;
                       decoder_inp <= 0;
@@ -324,7 +323,7 @@ module x_out_of_order7 (
                           read_address2 <= ADDRESS_REG + i;
                         end
                         registers_read_num[i%2] <= i;
-                        mmu_read_logical <= 0;
+                        mmu_read_logical[0] <= 0;
                         executor_state <= EXECUTE_STATE_READ_REG_RAM;
                         decoder_inp <= 0;
                         registers_done_op <= registers_done_op;
@@ -333,9 +332,9 @@ module x_out_of_order7 (
                           OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
                             if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
                               pc_logical <= decoder_in4[!decoder_slot];
-                              mmu_read_logical <= decoder_in4[!decoder_slot];
+                              mmu_read_logical[0] <= decoder_in4[!decoder_slot];
                               read_address <= mmu_address_physical_min_in_the_same_page+decoder_in4[!decoder_slot][9:0];
-                              mmu_read_logical2 <= decoder_in4[!decoder_slot] + 1;
+                              mmu_read_logical[1] <= decoder_in4[!decoder_slot] + 1;
                               read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_in4[!decoder_slot][9:0]+1;
                             end
                           end
