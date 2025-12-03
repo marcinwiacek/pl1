@@ -289,6 +289,7 @@ module x_out_of_order7 (
           if (decoder_error_code[!decoder_slot] == 0) begin
             for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
               if (decoder_do_op[i][!decoder_slot]) begin
+              if (!registers_done_op[i]) begin
                 case (decoder_in1[!decoder_slot])
                   OPCODE_JMP: begin
                     pc_logical <= decoder_in4[!decoder_slot];
@@ -303,7 +304,7 @@ module x_out_of_order7 (
                   end
                   OPCODE_RAM2REG: begin
                     $display("ram2reg");
-                    if (!registers_done_op[i]) begin
+                    
                       if (i % 2) begin
                         mmu_read_logical <= decoder_numeric[i][!decoder_slot];
                         read_address <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][!decoder_slot][9:0];
@@ -315,8 +316,7 @@ module x_out_of_order7 (
                       end
                       executor_state <= EXECUTE_STATE_READ_REG_RAM;
                       decoder_inp <= 0;
-                      registers_done_op <= registers_done_op;
-                    end
+                      registers_done_op <= registers_done_op;                 
                   end
                   default: begin
                     if (!registers_init[i]) begin
@@ -331,7 +331,7 @@ module x_out_of_order7 (
                       executor_state <= EXECUTE_STATE_READ_REG_RAM;
                       decoder_inp <= 0;
                       registers_done_op <= registers_done_op;
-                    end else if (!registers_done_op[i]) begin
+                    end else  begin
                       case (decoder_in1[!decoder_slot])
                         OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
                           if (registers_value[i] == decoder_in3_big[!decoder_slot]) begin
@@ -364,6 +364,7 @@ module x_out_of_order7 (
                     end
                   end
                 endcase
+              end
               end
             end
           end
