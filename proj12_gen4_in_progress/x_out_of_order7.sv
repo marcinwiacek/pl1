@@ -127,6 +127,9 @@ module x_out_of_order7 (
 
   assign decoder_slot = executor_state == EXECUTE_STATE_START2 ? !decoder_slot0:decoder_slot0 ;
 
+reg[2:0] offset;
+assign offset = executor_state == EXECUTE_STATE_START2 ?2:0;
+
   decoder decoder (
       .rst(rst),
       .clk(clk),
@@ -271,21 +274,15 @@ module x_out_of_order7 (
           end
           $display("");
 
-          if (executor_state == EXECUTE_STATE_START2) begin
-            instr_num <= instr_num - 1;
-            pc_logical <= pc_logical + 2;
-            mmu_read_logical[0] <= pc_logical + 2;
-            read_address <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0] + 2;
-            mmu_read_logical[1] <= pc_logical + 3;
-            read_address2 <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0] + 3;
+        
+            instr_num <= instr_num +offset;
+            pc_logical <= pc_logical + offset;
+            mmu_read_logical[0] <= pc_logical + offset;
+            read_address <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0] + offset;
+            mmu_read_logical[1] <= pc_logical + offset+1;
+            read_address2 <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0] + offset+1;
             
-          end else begin
-            mmu_read_logical[0] <= pc_logical;
-            read_address <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0];
-            mmu_read_logical[1] <= pc_logical + 1;
-            read_address2 <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0] + 1;
-          end
-          executor_state <= instr_num == 0 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
+          executor_state <= instr_num == 20 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
           decoder_inp <= 1;
          
           registers_read_num[0] <= 64;
