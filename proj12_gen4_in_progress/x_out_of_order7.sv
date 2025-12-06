@@ -116,7 +116,7 @@ module x_out_of_order7 (
   //---------------------------------------------------------decoder--------------------------
 
   reg decoder_inp;
-  wire decoder_ready, decoder_slot0;
+  wire decoder_ready22222, decoder_slot0;
   wire [3:0] decoder_error_code[0:1], decoder_in2[0:1], decoder_in3[0:1];
   wire [7:0] decoder_in1[0:1];
   wire [15:0] decoder_in3_big[0:1], decoder_in4[0:1], decoder_numeric[REGISTER_NUM:0][0:1];
@@ -139,7 +139,7 @@ assign offset = executor_state == EXECUTE_STATE_START2 ?2:0;
       .read2(read_value2),
       .slot(decoder_slot0),
       .do_op(decoder_do_op),
-      .ready(decoder_ready),
+     // .ready(decoder_ready),
       .error_code(decoder_error_code),
       .in1(decoder_in1),
       .in2(decoder_in2),
@@ -160,7 +160,7 @@ assign offset = executor_state == EXECUTE_STATE_START2 ?2:0;
   //assign execute_start = executor_state == EXECUTE_STATE_START2;
 
   reg mmu_miss;
-  assign mmu_miss = mmu_read_logical[0]!=0 && 
+  assign mmu_miss = mmu_read_logical[0]>0 && 
        (mmu_read_logical[0]<mmu_address_logical_min_in_the_same_page || mmu_read_logical[0]>mmu_address_logical_max_in_the_same_page || 
        mmu_read_logical[1]<mmu_address_logical_min_in_the_same_page2 || mmu_read_logical[1]>mmu_address_logical_max_in_the_same_page2);
 
@@ -543,11 +543,9 @@ module decoder (
     if (rst) begin
       slot <= 0;
       $display($sformatf("%02d", $time), " rst decoder");
-    end
-    //end else 
-    if (inp) begin
+    end else if (inp) begin
       slot  <= !slot;
-      ready <= inp;
+    //  ready <= inp;
 
       case (`INSTRUCTION1)
         OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
