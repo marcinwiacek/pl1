@@ -125,10 +125,10 @@ module x_out_of_order7 (
 
   reg  decoder_slot;
 
-  assign decoder_slot = executor_state == EXECUTE_STATE_START2 ? !decoder_slot0:decoder_slot0 ;
+  assign decoder_slot = executor_state == EXECUTE_STATE_START2 ? !decoder_slot0 : decoder_slot0;
 
-reg[2:0] offset;
-assign offset = executor_state == EXECUTE_STATE_START2 ?2:0;
+  reg [2:0] offset;
+  assign offset = executor_state == EXECUTE_STATE_START2 ? 2 : 0;
 
   decoder decoder (
       .rst(rst),
@@ -139,7 +139,7 @@ assign offset = executor_state == EXECUTE_STATE_START2 ?2:0;
       .read2(read_value2),
       .slot(decoder_slot0),
       .do_op(decoder_do_op),
-     // .ready(decoder_ready),
+      // .ready(decoder_ready),
       .error_code(decoder_error_code),
       .in1(decoder_in1),
       .in2(decoder_in2),
@@ -154,9 +154,9 @@ assign offset = executor_state == EXECUTE_STATE_START2 ?2:0;
   assign x = decoder_inp;  //without this we will have empty circuit
 
   integer i, j;
-  
+
   //reg execute_start;
-  
+
   //assign execute_start = executor_state == EXECUTE_STATE_START2;
 
   reg mmu_miss;
@@ -197,7 +197,7 @@ assign offset = executor_state == EXECUTE_STATE_START2 ?2:0;
       registers_init <= '{default: 0};
       write_enabled <= 0;
       registers_done_op <= '{default: 0};
-      $display($sformatf("%02d", $time), " rst main");
+    //  $display($sformatf("%02d", $time), " rst main");
     end else if (executor_state == EXECUTE_STATE_MMU) begin
       read_address   <= read_value * 1024 + mmu_read_logical[0][9:0];
       read_address2  <= read_value2 * 1024 + mmu_read_logical[1][9:0];
@@ -274,50 +274,65 @@ assign offset = executor_state == EXECUTE_STATE_START2 ?2:0;
           end
           $display("");
 
-        
-            instr_num <= instr_num +offset;
-            pc_logical <= pc_logical + offset;
-            mmu_read_logical[0] <= pc_logical + offset;
-            read_address <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0] + offset;
-            mmu_read_logical[1] <= pc_logical + offset+1;
-            read_address2 <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0] + offset+1;
-            
+
+          instr_num <= instr_num + offset;
+          pc_logical <= pc_logical + offset;
+          mmu_read_logical[0] <= pc_logical + offset;
+          read_address <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0] + offset;
+          mmu_read_logical[1] <= pc_logical + offset + 1;
+          read_address2 <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0] + offset + 1;
+
           executor_state <= instr_num == 20 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
           decoder_inp <= 1;
-         
+
           registers_read_num[0] <= 64;
           registers_read_num[1] <= 64;
 
           if (decoder_error_code[decoder_slot] == 0) begin
-            for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-              if (decoder_do_op[i][decoder_slot]) begin
-                if (registers_done_op[i] == decoder_slot) begin
-                  case (decoder_in1[decoder_slot])
-                    OPCODE_JMP: begin
-                      pc_logical <= decoder_in4[decoder_slot];
-                      mmu_read_logical[0] <= decoder_in4[decoder_slot];
-                      read_address <= mmu_address_physical_min_in_the_same_page+decoder_in4[decoder_slot][9:0];
-                      mmu_read_logical[1] <= decoder_in4[decoder_slot] + 1;
-                      read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_in4[decoder_slot][9:0]+1;
+            case (decoder_in1[decoder_slot])
+              OPCODE_JMP: begin
+                pc_logical <= decoder_in4[decoder_slot];
+                mmu_read_logical[0] <= decoder_in4[decoder_slot];
+                read_address <= mmu_address_physical_min_in_the_same_page+decoder_in4[decoder_slot][9:0];
+                mmu_read_logical[1] <= decoder_in4[decoder_slot] + 1;
+                read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_in4[decoder_slot][9:0]+1;
+                for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+                    registers_done_op[i] <= decoder_slot;
+                end
+              end
+              OPCODE_NUM2REG: begin
+                for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+                  if (decoder_do_op[i][decoder_slot]) begin
+                    registers_init[i]  <= 1;
+                    registers_value[i] <= decoder_in4[decoder_slot];
+                  end
+                    registers_done_op[i] <= decoder_slot;
+                end
+              end
+              OPCODE_RAM2REG: begin
+                for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+                  if (decoder_do_op[i][decoder_slot]) begin
+                  if (registers_done_op[i] == decoder_slot) begin
+                    $display("ram2reg");
+                    if (i % 2 == 0) begin
+                      read_address <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][decoder_slot][9:0];
+                    end else begin
+                      read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][decoder_slot][9:0];
                     end
-                    OPCODE_NUM2REG: begin
-                      registers_init[i]  <= 1;
-                      registers_value[i] <= decoder_in4[decoder_slot];
-                    end
-                    OPCODE_RAM2REG: begin
-                      $display("ram2reg");
-                      if (i % 2 == 0) begin
-                        read_address <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][decoder_slot][9:0];
-                      end else begin
-                        read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][decoder_slot][9:0];
-                      end
-                        mmu_read_logical[i%2] <= decoder_numeric[i][decoder_slot];
-                      registers_read_num[i%2] <= i;
-                      executor_state <= EXECUTE_STATE_READ_REG_RAM;
-                      decoder_inp <= 0;
-                   
-                    end
-                    default: begin
+                    mmu_read_logical[i%2] <= decoder_numeric[i][decoder_slot];
+                    registers_read_num[i%2] <= i;
+                    executor_state <= EXECUTE_STATE_READ_REG_RAM;
+                    decoder_inp <= 0;
+                  end
+                  end else begin
+                    registers_done_op[i] <= decoder_slot;
+                  end
+                end
+              end
+              default: begin
+                for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+                  if (decoder_do_op[i][decoder_slot]) begin
+                    if (registers_done_op[i] == decoder_slot) begin
                       if (!registers_init[i]) begin
                         if (i % 2 == 0) begin
                           read_address <= ADDRESS_REG + i;
@@ -328,7 +343,6 @@ assign offset = executor_state == EXECUTE_STATE_START2 ?2:0;
                         mmu_read_logical[0] <= 0;
                         executor_state <= EXECUTE_STATE_READ_REG_RAM;
                         decoder_inp <= 0;
-                     
                       end else begin
                         case (decoder_in1[decoder_slot])
                           OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
@@ -348,7 +362,7 @@ assign offset = executor_state == EXECUTE_STATE_START2 ?2:0;
                             registers_read_num[0] <= i;
                             executor_state <= EXECUTE_STATE_SAVE_RAM;
                             decoder_inp <= 0;
-                         
+
                           end
                           OPCODE_REG_PLUS: begin
                             registers_value[i]   <= registers_value[i] + decoder_in4[decoder_slot];
@@ -361,12 +375,12 @@ assign offset = executor_state == EXECUTE_STATE_START2 ?2:0;
                         endcase
                       end
                     end
-                  endcase
+                  end else begin
+                    registers_done_op[i] <= decoder_slot;
+                  end
                 end
-              end else begin
-                 registers_done_op[i] <= decoder_slot;
               end
-            end
+            endcase
           end
         end
         EXECUTE_STATE_READ_REG_RAM: begin
@@ -388,7 +402,7 @@ assign offset = executor_state == EXECUTE_STATE_START2 ?2:0;
         end
         EXECUTE_STATE_SAVE_RAM: begin
           $display("reg to ram 2");
-            registers_done_op[registers_read_num[0]] <= !registers_done_op[registers_read_num[0]];
+          registers_done_op[registers_read_num[0]] <= !registers_done_op[registers_read_num[0]];
           executor_state <= EXECUTE_STATE_START3;
           write_enabled <= 0;
         end
@@ -542,10 +556,10 @@ module decoder (
   always @(posedge clk) begin
     if (rst) begin
       slot <= 0;
-      $display($sformatf("%02d", $time), " rst decoder");
+   //   $display($sformatf("%02d", $time), " rst decoder");
     end else if (inp) begin
-      slot  <= !slot;
-    //  ready <= inp;
+      slot <= !slot;
+      //  ready <= inp;
 
       case (`INSTRUCTION1)
         OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
