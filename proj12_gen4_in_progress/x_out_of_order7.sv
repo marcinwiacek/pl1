@@ -383,19 +383,19 @@ module x_out_of_order7 (
             $display($sformatf("%02d", $time), " slot 0: reading reg ", registers_read_num[0],
                      " src ", read_address);
             registers_value[registers_read_num[0]] <= read_value;
-            registers_init[registers_read_num[0]] <= 1;                         
-            if (decoder_in1[decoder_slot]==OPCODE_RAM2REG) begin                
-              registers_done_op[registers_read_num[0]] <= 1;      
-            end  
+            registers_init[registers_read_num[0]]  <= 1;
+            if (decoder_in1[decoder_slot] == OPCODE_RAM2REG) begin
+              registers_done_op[registers_read_num[0]] <= 1;
+            end
           end
           if (registers_read_num[1] != 64) begin
             $display($sformatf("%02d", $time), " slot 1: reading reg ", registers_read_num[1],
                      " src ", read_address2);
             registers_value[registers_read_num[1]] <= read_value2;
-            registers_init[registers_read_num[1]] <= 1;
-            if (decoder_in1[decoder_slot]==OPCODE_RAM2REG) begin                
+            registers_init[registers_read_num[1]]  <= 1;
+            if (decoder_in1[decoder_slot] == OPCODE_RAM2REG) begin
               registers_done_op[registers_read_num[1]] <= 1;
-            end           
+            end
           end
           executor_state <= EXECUTE_STATE_START3;
         end
