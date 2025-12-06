@@ -186,7 +186,7 @@ module x_out_of_order7 (
 
   always @(posedge clk) begin
     if (rst) begin
-      instr_num <= 10;
+      instr_num <= 0;
       pc_logical <= ADDRESS_PROGRAM;
       read_address <= ADDRESS_PROGRAM;
       mmu_read_logical[0] <= 0;
@@ -321,7 +321,6 @@ module x_out_of_order7 (
                     registers_read_num[i%2] <= i;
                     executor_state <= EXECUTE_STATE_READ_REG_RAM;
                     decoder_inp <= 0;
-
                   end
                 end
               end
@@ -362,10 +361,12 @@ module x_out_of_order7 (
                           decoder_inp <= 0;
                         end
                         OPCODE_REG_PLUS: begin
+                          $display("regplus");
                           registers_value[i]   <= registers_value[i] + decoder_in4[decoder_slot];
                           registers_done_op[i] <= 1;
                         end
                         OPCODE_REG_MINUS: begin
+                          $display("regminus");
                           registers_value[i]   <= registers_value[i] - decoder_in4[decoder_slot];
                           registers_done_op[i] <= 1;
                         end
@@ -382,15 +383,19 @@ module x_out_of_order7 (
             $display($sformatf("%02d", $time), " slot 0: reading reg ", registers_read_num[0],
                      " src ", read_address);
             registers_value[registers_read_num[0]] <= read_value;
-            registers_init[registers_read_num[0]] <= 1;
-            registers_done_op[registers_read_num[0]] <= 1;
+            registers_init[registers_read_num[0]] <= 1;                         
+            if (decoder_in1[decoder_slot]==OPCODE_RAM2REG) begin                
+              registers_done_op[registers_read_num[0]] <= 1;      
+            end  
           end
           if (registers_read_num[1] != 64) begin
             $display($sformatf("%02d", $time), " slot 1: reading reg ", registers_read_num[1],
                      " src ", read_address2);
             registers_value[registers_read_num[1]] <= read_value2;
             registers_init[registers_read_num[1]] <= 1;
-            registers_done_op[registers_read_num[1]] <= 1;
+            if (decoder_in1[decoder_slot]==OPCODE_RAM2REG) begin                
+              registers_done_op[registers_read_num[1]] <= 1;
+            end           
           end
           executor_state <= EXECUTE_STATE_START3;
         end
