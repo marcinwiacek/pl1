@@ -52,8 +52,11 @@ parameter EXECUTE_STATE_MMU = 1;
 parameter EXECUTE_STATE_HALT = 2;
 parameter EXECUTE_STATE_START2 = 3;
 parameter EXECUTE_STATE_START3 = 4;
-parameter EXECUTE_STATE_READ_REG_RAM = 5;
-parameter EXECUTE_STATE_SAVE_RAM = 6;
+parameter EXECUTE_STATE_READ_REG_FROM_RAM = 5;
+parameter EXECUTE_STATE_SAVE_REG_TO_RAM = 6;
+parameter EXECUTE_STATE_SWITCH = 7;
+parameter EXECUTE_STATE_SWITCH2 = 8;
+parameter EXECUTE_STATE_SWITCH3 = 9;
 
 parameter REGISTER_NUM = 15;
 parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
@@ -152,6 +155,7 @@ module x_out_of_order7 (
   //----------------------------------------------------------------other---------------------------
 
 reg [15:0] process_start;
+reg[7:0] reg_nr;
 
   assign x = decoder_inp;  //without this we will have empty circuit
 
@@ -284,7 +288,7 @@ reg [15:0] process_start;
           mmu_read_logical[1] <= pc_logical + offset + 1;
           read_address2 <= mmu_address_physical_min_in_the_same_page + pc_logical[9:0] + offset + 1;
 
-          executor_state <= instr_num == 20 ? EXECUTE_STATE_HALT : EXECUTE_STATE_START2;
+          executor_state <= instr_num == 20 ? EXECUTE_STATE_SWITCH : EXECUTE_STATE_START2;
           decoder_inp <= 1;
 
           registers_read_num[0] <= 64;
@@ -321,7 +325,7 @@ reg [15:0] process_start;
                     end
                     mmu_read_logical[i%2] <= decoder_numeric[i][decoder_slot];
                     registers_read_num[i%2] <= i;
-                    executor_state <= EXECUTE_STATE_READ_REG_RAM;
+                    executor_state <= EXECUTE_STATE_READ_REG_FROM_RAM;
                     decoder_inp <= 0;
                   end
                 end
@@ -340,7 +344,7 @@ reg [15:0] process_start;
                       end
                       registers_read_num[i%2] <= i;
                       mmu_read_logical[0] <= 0;
-                      executor_state <= EXECUTE_STATE_READ_REG_RAM;
+                      executor_state <= EXECUTE_STATE_READ_REG_FROM_RAM;
                       decoder_inp <= 0;
                     end else begin
                       case (decoder_in1[decoder_slot])
@@ -359,7 +363,7 @@ reg [15:0] process_start;
                           write_address <= decoder_numeric[i][decoder_slot];
                           write_value <= registers_value[i];
                           registers_read_num[0] <= i;
-                          executor_state <= EXECUTE_STATE_SAVE_RAM;
+                          executor_state <= EXECUTE_STATE_SAVE_REG_TO_RAM;
                           decoder_inp <= 0;
                         end
                         OPCODE_REG_PLUS: begin
@@ -380,7 +384,7 @@ reg [15:0] process_start;
             endcase
           end
         end
-        EXECUTE_STATE_READ_REG_RAM: begin
+        EXECUTE_STATE_READ_REG_FROM_RAM: begin
           if (registers_read_num[0] != 64) begin
             $display($sformatf("%02d", $time), " slot 0: reading reg ", registers_read_num[0],
                      " src ", read_address);
@@ -401,11 +405,28 @@ reg [15:0] process_start;
           end
           executor_state <= EXECUTE_STATE_START3;
         end
-        EXECUTE_STATE_SAVE_RAM: begin
+        EXECUTE_STATE_SAVE_REG_TO_RAM: begin
           $display("reg to ram 2");
           registers_done_op[registers_read_num[0]] <= 1;
           executor_state <= EXECUTE_STATE_START3;
           write_enabled <= 0;
+        end
+        EXECUTE_STATE_SWITCH: begin
+          decoder_inp <= 0;
+          reg_nr<=0;
+                 executor_state <= EXECUTE_STATE_SWITCH2;           
+           write_enabled <= 1;
+            read_address <= process_start +ADDRESS_NEXT_PROCESS;
+                      mmu_read_logical[0] <= 0;
+        end
+        EXECUTE_STATE_SWITCH2: begin
+                          write_address <= process_start +ADDRESS_REG+reg_nr;
+                          write_value <= registers_value[reg_nr];
+                          registers_init[reg_nr]<=0;
+                          reg_nr<=reg_nr+1;
+                            process_start<=read_value;
+                           write_enabled <= reg_nr!=31;
+                 executor_state <= reg_nr==31?EXECUTE_STATE_START:EXECUTE_STATE_SWITCH2;           
         end
         EXECUTE_STATE_HALT: begin
           decoder_inp <= 0;
