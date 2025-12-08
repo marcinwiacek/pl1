@@ -151,6 +151,8 @@ module x_out_of_order7 (
 
   //----------------------------------------------------------------other---------------------------
 
+reg [15:0] process_start;
+
   assign x = decoder_inp;  //without this we will have empty circuit
 
   integer i, j;
@@ -197,6 +199,7 @@ module x_out_of_order7 (
       registers_init <= '{default: 0};
       write_enabled <= 0;
       registers_done_op <= '{default: 0};
+      process_start <= 0;
       //  $display($sformatf("%02d", $time), " rst main");
     end else if (executor_state == EXECUTE_STATE_MMU) begin
       read_address   <= read_value * 1024 + mmu_read_logical[0][9:0];
@@ -205,8 +208,8 @@ module x_out_of_order7 (
     end else if (mmu_miss) begin
       executor_state2 <= executor_state;
       executor_state <= EXECUTE_STATE_MMU;
-      read_address <= ADDRESS_MMU_ADDR + mmu_read_logical[0][15:10];
-      read_address2 <= ADDRESS_MMU_ADDR + mmu_read_logical[1][15:10];
+      read_address <= process_start + ADDRESS_MMU_ADDR + mmu_read_logical[0][15:10];
+      read_address2 <= process_start + ADDRESS_MMU_ADDR + mmu_read_logical[1][15:10];
       if (mmu_miss) $display($sformatf("%02d", $time), " mmu miss");
     end else begin
       if (HARDWARE_DEBUG && executor_state != EXECUTE_STATE_HALT) begin
@@ -274,7 +277,6 @@ module x_out_of_order7 (
           end
           $display("");
 
-
           instr_num <= instr_num + offset;
           pc_logical <= pc_logical + offset;
           mmu_read_logical[0] <= pc_logical + offset;
@@ -332,9 +334,9 @@ module x_out_of_order7 (
                   if (executor_state == EXECUTE_STATE_START2?decoder_do_op[i][decoder_slot]:!registers_done_op[i]) begin
                     if (!registers_init[i]) begin
                       if (i % 2 == 0) begin
-                        read_address <= ADDRESS_REG + i;
+                        read_address <= process_start +ADDRESS_REG + i;
                       end else begin
-                        read_address2 <= ADDRESS_REG + i;
+                        read_address2 <= process_start +ADDRESS_REG + i;
                       end
                       registers_read_num[i%2] <= i;
                       mmu_read_logical[0] <= 0;
