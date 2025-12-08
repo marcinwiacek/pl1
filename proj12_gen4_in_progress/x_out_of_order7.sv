@@ -154,8 +154,8 @@ module x_out_of_order7 (
 
   //----------------------------------------------------------------other---------------------------
 
-reg [15:0] process_start;
-reg[7:0] reg_nr;
+  reg [15:0] process_start;
+  reg [ 7:0] reg_nr;
 
   assign x = decoder_inp;  //without this we will have empty circuit
 
@@ -174,19 +174,19 @@ reg[7:0] reg_nr;
     if (rst) begin
       mmu_address_physical_min_in_the_same_page  <= 0;
       mmu_address_logical_min_in_the_same_page   <= 0;
-      mmu_address_logical_max_in_the_same_page   <= 1024 - 1;  //2^10-1
+      mmu_address_logical_max_in_the_same_page   <= 256 - 1;  //2^8-1
 
       mmu_address_physical_min_in_the_same_page2 <= 0;
       mmu_address_logical_min_in_the_same_page2  <= 0;
-      mmu_address_logical_max_in_the_same_page2  <= 1024 - 1;  //2^10-1
+      mmu_address_logical_max_in_the_same_page2  <= 256 - 1;  //2^8-1
     end else if (executor_state == EXECUTE_STATE_MMU) begin
-      mmu_address_physical_min_in_the_same_page  <= read_value[15:10] * 1024;
-      mmu_address_logical_min_in_the_same_page   <= mmu_read_logical[0][15:10] * 1024;
-      mmu_address_logical_max_in_the_same_page   <= mmu_read_logical[0][15:10] * 1024 + 1024 - 1;
+      mmu_address_physical_min_in_the_same_page  <= read_value[15:8] * 256;
+      mmu_address_logical_min_in_the_same_page   <= mmu_read_logical[0][15:8] * 256;
+      mmu_address_logical_max_in_the_same_page   <= mmu_read_logical[0][15:8] * 256 + 256 - 1;
 
-      mmu_address_physical_min_in_the_same_page2 <= read_value2[15:10] * 1024;
-      mmu_address_logical_min_in_the_same_page2  <= mmu_read_logical[1][15:10] * 1024;
-      mmu_address_logical_max_in_the_same_page2  <= mmu_read_logical[1][15:10] * 1024 + 1024 - 1;
+      mmu_address_physical_min_in_the_same_page2 <= read_value2[15:8] * 256;
+      mmu_address_logical_min_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256;
+      mmu_address_logical_max_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256 + 256 - 1;
     end
   end
 
@@ -206,14 +206,14 @@ reg[7:0] reg_nr;
       process_start <= 0;
       //  $display($sformatf("%02d", $time), " rst main");
     end else if (executor_state == EXECUTE_STATE_MMU) begin
-      read_address   <= read_value * 1024 + mmu_read_logical[0][9:0];
-      read_address2  <= read_value2 * 1024 + mmu_read_logical[1][9:0];
+      read_address   <= read_value * 256 + mmu_read_logical[0][7:0];
+      read_address2  <= read_value2 * 256 + mmu_read_logical[1][7:0];
       executor_state <= executor_state2;
     end else if (mmu_miss) begin
       executor_state2 <= executor_state;
       executor_state <= EXECUTE_STATE_MMU;
-      read_address <= process_start + ADDRESS_MMU_ADDR + mmu_read_logical[0][15:10];
-      read_address2 <= process_start + ADDRESS_MMU_ADDR + mmu_read_logical[1][15:10];
+      read_address <= process_start + ADDRESS_MMU_ADDR + mmu_read_logical[0][15:8];
+      read_address2 <= process_start + ADDRESS_MMU_ADDR + mmu_read_logical[1][15:8];
       if (mmu_miss) $display($sformatf("%02d", $time), " mmu miss");
     end else begin
       if (HARDWARE_DEBUG && executor_state != EXECUTE_STATE_HALT) begin
@@ -338,9 +338,9 @@ reg[7:0] reg_nr;
                   if (executor_state == EXECUTE_STATE_START2?decoder_do_op[i][decoder_slot]:!registers_done_op[i]) begin
                     if (!registers_init[i]) begin
                       if (i % 2 == 0) begin
-                        read_address <= process_start +ADDRESS_REG + i;
+                        read_address <= process_start + ADDRESS_REG + i;
                       end else begin
-                        read_address2 <= process_start +ADDRESS_REG + i;
+                        read_address2 <= process_start + ADDRESS_REG + i;
                       end
                       registers_read_num[i%2] <= i;
                       mmu_read_logical[0] <= 0;
@@ -413,20 +413,20 @@ reg[7:0] reg_nr;
         end
         EXECUTE_STATE_SWITCH: begin
           decoder_inp <= 0;
-          reg_nr<=0;
-                 executor_state <= EXECUTE_STATE_SWITCH2;           
-           write_enabled <= 1;
-            read_address <= process_start +ADDRESS_NEXT_PROCESS;
-                      mmu_read_logical[0] <= 0;
+          reg_nr <= 0;
+          executor_state <= EXECUTE_STATE_SWITCH2;
+          write_enabled <= 1;
+          read_address <= process_start + ADDRESS_NEXT_PROCESS;
+          mmu_read_logical[0] <= 0;
         end
         EXECUTE_STATE_SWITCH2: begin
-                          write_address <= process_start +ADDRESS_REG+reg_nr;
-                          write_value <= registers_value[reg_nr];
-                          registers_init[reg_nr]<=0;
-                          reg_nr<=reg_nr+1;
-                            process_start<=read_value;
-                           write_enabled <= reg_nr!=31;
-                 executor_state <= reg_nr==31?EXECUTE_STATE_START:EXECUTE_STATE_SWITCH2;           
+          write_address <= process_start + ADDRESS_REG + reg_nr;
+          write_value <= registers_value[reg_nr];
+          registers_init[reg_nr] <= 0;
+          reg_nr <= reg_nr + 1;
+          process_start <= read_value;
+          write_enabled <= reg_nr != 31;
+          executor_state <= reg_nr == 31 ? EXECUTE_STATE_START : EXECUTE_STATE_SWITCH2;
         end
         EXECUTE_STATE_HALT: begin
           decoder_inp <= 0;
@@ -647,11 +647,11 @@ module single_blockram (
 
   // verilog_format:off
    //(* ram_style = "block" *)
-   bit [15:0] ram  [0:699]= {  // in Vivado (required by board)
+   bit [15:0] ram  [0:511]= {  // in Vivado (required by board)
   //  reg [0:559] [15:0] ram = {  // in iVerilog
 
-      //first process - 2 pages (200 elements)
-      //page 1 (100 elements)
+      //first process - 1 page (256 elements)
+      //page 1 (256 elements)
       16'd0200, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
       16'd0050, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
 
@@ -674,23 +674,6 @@ module single_blockram (
       16'h0000,
       16'h0000,
       16'h0000, //next mmu address or 0 (not assigned)
-
-
-/*parameter OPCODE_JMP = 1;  //16 bit target address
-parameter OPCODE_JMP_IF1 = 2; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_JMP_IF2 = 3; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_JMP_IF3 = 4; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_JMP_IF4 = 5; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_JMP_IF_NOT1 = 6; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_JMP_IF_NOT2 = 7; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_JMP_IF_NOT3 = 8; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_JMP_IF_NOT4 = 9; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_RAM2REG = 'h0a;  //register num (4 bits), how many (4 bits), 16 bit source addr //ram -> reg
-parameter OPCODE_REG2RAM = 'h0b; //14 //register num (4 bits), how many-1 (4 bits), 16 bit target addr //reg -> ram
-parameter OPCODE_NUM2REG = 'h0c; //18;  //register num (4 bits), how many-1 (4 bits), 16 bit value //value -> reg
-parameter OPCODE_REG_PLUS = 'h0e;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
-parameter OPCODE_REG_MINUS = 'h0f; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-*/
 
       16'h0a91, 16'd0112, //value to reg // not used for anything usefull, just for debugging
       16'h0b91, 16'd0212, //save to ram // not used for anything usefull, just for debugging
@@ -717,8 +700,8 @@ parameter OPCODE_REG_MINUS = 'h0f; //register num (5 bits), how many-1 (3 bits),
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
-
-      //page 2 (100 elements)
+      
+      //100 elements
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
@@ -730,89 +713,18 @@ parameter OPCODE_REG_MINUS = 'h0f; //register num (5 bits), how many-1 (3 bits),
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
 
-      //second process - 3 pages (300 elements) + 2 pages (200 elements) new process nr 3
-      //page 3 (100 elements)
-      16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only
-      16'd0050, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
+ //56 elements
+16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
 
-      16'h0000, 16'h0000,  //registers used
-
-      16'h0000, 16'h0000, 16'h0000, 16'h0000, //registers taken "as is"
-      16'h0000, 16'h0000, 16'h0000, 16'h0000,
-      16'h0000, 16'h0000, 16'h0000, 16'h0000,
-      16'h0000, 16'h0000, 16'h0000, 16'h0000,
-      16'h0000, 16'h0000, 16'h0000, 16'h0000,
-      16'h0000, 16'h0000, 16'h0000, 16'h0000,
-      16'h0000, 16'h0000, 16'h0000, 16'h0000,
-      16'h0000, 16'h0000, 16'h0000, 16'h0000, 
-
-      16'd0006, //mmu segment length
-      16'h0003, //physical segment address for mmu logical page 1 or 0 (not assigned)
-      16'h0004, //physical segment address for mmu logical page 2 or 0 (not assigned)
-      16'h0005,
-      16'h0006,
-      16'h0000,
-      16'h0000,
-      16'h0000, //next mmu address or 0 (not assigned)
-
-      16'h1210, 16'd2612, //value to reg // not used for anything usefull, just for debugging
-      16'h1902, 16'h0003, //split process process pages 3-4 (page 6 & 7)
-      //16'h0000, 16'h0000,
-      //16'h0000, 16'h0000,
-       16'h0911, 16'd0101, //ram to reg // not used for anything usefull, just for debugging
-       16'h0911, 16'd0102, //ram to reg // not used for anything usefull, just for debugging
-    //  16'h1210, 16'd2615, //value to reg // not used for anything usefull, just for debugging
-//      16'h0e10, 16'd0100, //save to ram // not used for anything usefull, just for debugging
-      16'h1b37, 16'h0101, //int
-      16'h1e00, 16'd0201, //in2ram
-      16'h1b37, 16'h0202, //int
-      16'h1f00, 16'd0002, //ret in2ram
-      16'hfe00, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-
-      //page 4 (100 elements)
-      16'h0000,"Po",    "zd",    "ro",    "wi",    "en",    "ia",    " z"    ," p",    "ly",
-      "ty",    " d",    "la",    " M",    "ic",    "ha",    "la",    16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-
-      //page 5 (100 elements)
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-
-      //third process - 2 pages (200 elements)
-      //page 6 (100 elements)
-      16'h0000, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only
-      16'd0050, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)
+      //first process - 1 page (256 elements)
+      //page 1 (256 elements)
+      16'd0200, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
+      16'd0050, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
 
       16'h0000, 16'h0000,  //registers used
 
@@ -826,7 +738,7 @@ parameter OPCODE_REG_MINUS = 'h0f; //register num (5 bits), how many-1 (3 bits),
       16'h0000, 16'h0000, 16'h0000, 16'h0000,
 
       16'd0006, //mmu segment length
-      16'h0000, //physical segment address for mmu logical page 1 or 0 (not assigned)
+      16'h0001, //physical segment address for mmu logical page 1 or 0 (not assigned)
       16'h0000, //physical segment address for mmu logical page 2 or 0 (not assigned)
       16'h0000,
       16'h0000,
@@ -834,12 +746,18 @@ parameter OPCODE_REG_MINUS = 'h0f; //register num (5 bits), how many-1 (3 bits),
       16'h0000,
       16'h0000, //next mmu address or 0 (not assigned)
 
-      16'h1a37, 16'h0101, //reg int
-      16'h0911, 16'd0150, //ram to reg // not used for anything usefull, just for debugging
-      16'h1210, 16'h0a35, //value to reg // not used for anything usefull, just for debugging
-      16'h1d10, 16'd0101, //ram2out
-      16'h1c37, 16'd0000, //int ret
-      16'hff00, 16'h0000,
+      16'h0a91, 16'd0112, //value to reg // not used for anything usefull, just for debugging
+      16'h0b91, 16'd0212, //save to ram // not used for anything usefull, just for debugging
+      16'h0ab1, 16'd0214, //ram to reg // not used for anything usefull, just for debugging
+      16'h140b, 16'd0101, //add // not used for anything usefull, just for debugging
+      16'h0e09, 16'd0290, //save to ram // not used for anything usefull, just for debugging
+      16'h090a, 16'd0100, //ram to reg // not used for anything usefull, just for debugging
+      16'h160a, 16'd0101, //mul // not used for anything usefull, just for debugging
+      16'h0c01, 16'h0001, //unknown // not used for anything usefull, just for debugging
+      16'h0c01, 16'h0002, //unknown // not used for anything usefull, just for debugging
+      16'h1202, 16'h0003, //num2reg // not used for anything usefull, just for debugging
+      16'h1800, 16'h0007, //process end
+      16'hfb00, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
@@ -853,24 +771,28 @@ parameter OPCODE_REG_MINUS = 'h0f; //register num (5 bits), how many-1 (3 bits),
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
       16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
-      16'h0000, 16'h0000,
+      
+      //100 elements
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
 
-      //page 7 (100 elements)
-      "AB",        "CD",16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000
+ //56 elements
+16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000
+
+
     };
 
   // verilog_format:on
