@@ -233,8 +233,8 @@ module x_out_of_order7 (
           executor_state <= EXECUTE_STATE_START2;
         end
         EXECUTE_STATE_START2, EXECUTE_STATE_START3: begin
-          $display($sformatf("%02d", $time), " process ",process_start," pc ", pc_logical, ", exec_state ", executor_state,
-                   " exec_slot ", decoder_slot);
+          $display($sformatf("%02d", $time), " process ", process_start, " pc ", pc_logical,
+                   ", exec_state ", executor_state, " exec_slot ", decoder_slot);
 
           $write($sformatf("%02d", $time), " executor slot 0 ");
           if (decoder_slot == 0) begin
@@ -423,28 +423,28 @@ module x_out_of_order7 (
           mmu_read_logical[0] <= 0;
         end
         EXECUTE_STATE_SWITCH2: begin
-          $display("switch 2 ",process_start, " ",ADDRESS_REG," ",reg_nr);
+          $display("switch 2 ", process_start, " ", ADDRESS_REG, " ", reg_nr);
           write_address <= process_start + ADDRESS_REG + reg_nr;
-          write_value <= registers_value[reg_nr];          
-         
+          write_value <= registers_value[reg_nr];
+
           registers_init[reg_nr] <= 0;
           reg_nr <= reg_nr + 1;
           executor_state <= reg_nr == REGISTER_NUM-1 ? EXECUTE_STATE_SWITCH3 : EXECUTE_STATE_SWITCH2;
         end
         EXECUTE_STATE_SWITCH3: begin
-          process_start <= read_value;
-           read_address<= read_value+ ADDRESS_PC;   
+          process_start  <= read_value;
+          read_address   <= read_value + ADDRESS_PC;
           executor_state <= EXECUTE_STATE_SWITCH4;
-          write_enabled<=0;
-            for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-              registers_init[i]<=0;
-            end
-           instr_num <= 0;
-        end
-          EXECUTE_STATE_SWITCH4: begin
-          pc_logical<=read_value;
-          executor_state <= EXECUTE_STATE_START;
+          write_enabled  <= 0;
+          for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+            registers_init[i] <= 0;
           end
+          instr_num <= 0;
+        end
+        EXECUTE_STATE_SWITCH4: begin
+          pc_logical <= read_value;
+          executor_state <= EXECUTE_STATE_START;
+        end
         EXECUTE_STATE_HALT: begin
           decoder_inp <= 0;
         end
