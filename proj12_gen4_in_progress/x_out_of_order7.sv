@@ -57,6 +57,7 @@ parameter EXECUTE_STATE_SAVE_REG_TO_RAM = 6;
 parameter EXECUTE_STATE_SWITCH = 7;
 parameter EXECUTE_STATE_SWITCH2 = 8;
 parameter EXECUTE_STATE_SWITCH3 = 9;
+parameter EXECUTE_STATE_SWITCH4 = 10;
 
 parameter REGISTER_NUM = 15;
 parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
@@ -232,7 +233,7 @@ module x_out_of_order7 (
           executor_state <= EXECUTE_STATE_START2;
         end
         EXECUTE_STATE_START2, EXECUTE_STATE_START3: begin
-          $display($sformatf("%02d", $time), " pc ", pc_logical, ", exec_state ", executor_state,
+          $display($sformatf("%02d", $time), " process ",process_start," pc ", pc_logical, ", exec_state ", executor_state,
                    " exec_slot ", decoder_slot);
 
           $write($sformatf("%02d", $time), " executor slot 0 ");
@@ -425,20 +426,25 @@ module x_out_of_order7 (
           $display("switch 2 ",process_start, " ",ADDRESS_REG," ",reg_nr);
           write_address <= process_start + ADDRESS_REG + reg_nr;
           write_value <= registers_value[reg_nr];          
-          read_address<= reg_nr == 0?read_value+ ADDRESS_PC:read_address;  
+         
           registers_init[reg_nr] <= 0;
           reg_nr <= reg_nr + 1;
           executor_state <= reg_nr == REGISTER_NUM-1 ? EXECUTE_STATE_SWITCH3 : EXECUTE_STATE_SWITCH2;
         end
         EXECUTE_STATE_SWITCH3: begin
-          process_start <= read_value; 
-          executor_state <= EXECUTE_STATE_START;
-          pc_logical<=read_value;
+          process_start <= read_value;
+           read_address<= read_value+ ADDRESS_PC;   
+          executor_state <= EXECUTE_STATE_SWITCH4;
           write_enabled<=0;
             for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
               registers_init[i]<=0;
             end
+           instr_num <= 0;
         end
+          EXECUTE_STATE_SWITCH4: begin
+          pc_logical<=read_value;
+          executor_state <= EXECUTE_STATE_START;
+          end
         EXECUTE_STATE_HALT: begin
           decoder_inp <= 0;
         end
@@ -663,7 +669,7 @@ module single_blockram (
 
       //first process - 1 page (256 elements)
       //page 1 (256 elements)
-      16'd0200, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
+      16'd0100, 16'h0000,  16'h0000, 16'h0000, //next process address (no MMU) overwritten by CPU, we use first bytes only      
       16'd0050, 16'h0000,  16'h0000, 16'h0000, //PC for this process (overwritten by CPU, we use first bytes only)       
 
       16'h0000, 16'h0000,  //registers used
