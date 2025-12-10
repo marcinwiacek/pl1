@@ -113,7 +113,7 @@ module x_out_of_order7 (
   //--------------------------------------------------------------------process------------------
 
   reg [15:0] pc_logical, registers_value[0:REGISTER_NUM];
-  reg registers_init[0:REGISTER_NUM];
+  reg registers_init[0:REGISTER_NUM],registers_changed[0:REGISTER_NUM];
   reg [6:0] registers_read_num[1:0];
   reg registers_done_op[0:REGISTER_NUM];
 
@@ -192,6 +192,7 @@ module x_out_of_order7 (
       mmu_address_physical_min_in_the_same_page  <= 0;
       mmu_address_logical_min_in_the_same_page   <= read_value;
       mmu_address_logical_max_in_the_same_page   <= read_value + 256 - 1;
+      
       mmu_address_physical_min_in_the_same_page2 <= 0;
       mmu_address_logical_min_in_the_same_page2  <= read_value;
       mmu_address_logical_max_in_the_same_page2  <= read_value + 256 - 1;
@@ -209,6 +210,7 @@ module x_out_of_order7 (
       rst <= 0;
       decoder_inp <= 1;
       registers_init <= '{default: 0};
+       registers_changed <= '{default: 0};
       write_enabled <= 0;
       registers_done_op <= '{default: 0};
       process_start <= 0;
@@ -315,6 +317,7 @@ module x_out_of_order7 (
                 for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
                   if (decoder_do_op[i][decoder_slot]) begin
                     registers_init[i]  <= 1;
+                    registers_changed[i]  <= 1;
                     registers_value[i] <= decoder_in4[decoder_slot];
                   end
                 end
@@ -376,11 +379,13 @@ module x_out_of_order7 (
                         end
                         OPCODE_REG_PLUS: begin
                           $display("regplus");
+                          registers_changed[i] <=1;
                           registers_value[i]   <= registers_value[i] + decoder_in4[decoder_slot];
                           registers_done_op[i] <= 1;
                         end
                         OPCODE_REG_MINUS: begin
                           $display("regminus");
+                          registers_changed[i] <=1;
                           registers_value[i]   <= registers_value[i] - decoder_in4[decoder_slot];
                           registers_done_op[i] <= 1;
                         end
@@ -397,6 +402,7 @@ module x_out_of_order7 (
             $display($sformatf("%02d", $time), " slot 0: reading reg ", registers_read_num[0],
                      " src ", read_address);
             registers_value[registers_read_num[0]] <= read_value;
+                          registers_changed[registers_read_num[0]] <=1;
             registers_init[registers_read_num[0]]  <= 1;
             if (decoder_in1[decoder_slot] == OPCODE_RAM2REG) begin
               registers_done_op[registers_read_num[0]] <= 1;
@@ -407,6 +413,7 @@ module x_out_of_order7 (
                      " src ", read_address2);
             registers_value[registers_read_num[1]] <= read_value2;
             registers_init[registers_read_num[1]]  <= 1;
+                          registers_changed[registers_read_num[1]] <=1;
             if (decoder_in1[decoder_slot] == OPCODE_RAM2REG) begin
               registers_done_op[registers_read_num[1]] <= 1;
             end
@@ -433,10 +440,13 @@ module x_out_of_order7 (
           executor_state <= EXECUTE_STATE_SWITCH3;
           read_address2  <= read_value + ADDRESS_PC;
           write_enabled  <= 0;
-          if (reg_nr != 64) registers_init[reg_nr] <= 0;
+          if (reg_nr != 64) begin
+             registers_changed[reg_nr] <= 0;
+             registers_init[reg_nr] <= 0;
+          end
           for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
             if (reg_nr != i) begin
-              if (registers_init[i]) begin
+              if (registers_changed[i]) begin
                 executor_state <= EXECUTE_STATE_SWITCH2;
                 write_address <= process_start + ADDRESS_REG + i;
                 write_value <= registers_value[i];
@@ -447,7 +457,10 @@ module x_out_of_order7 (
           end
         end
         EXECUTE_STATE_SWITCH3: begin
-          if (reg_nr != 64) registers_init[reg_nr] <= 0;
+          if (reg_nr != 64) begin
+             registers_changed[reg_nr] <= 0;
+             registers_init[reg_nr] <= 0;
+          end
           process_start <= read_value;
           pc_logical <= read_value2;
           read_address <= read_value + ADDRESS_PC;
