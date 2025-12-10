@@ -188,6 +188,13 @@ module x_out_of_order7 (
       mmu_address_physical_min_in_the_same_page2 <= read_value2[15:8] * 256;
       mmu_address_logical_min_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256;
       mmu_address_logical_max_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256 + 256 - 1;
+    end else if (executor_state == EXECUTE_STATE_SWITCH3) begin
+      mmu_address_physical_min_in_the_same_page  <= 0;
+       mmu_address_logical_min_in_the_same_page   <= read_value;
+      mmu_address_logical_max_in_the_same_page   <= read_value+256-1;
+      mmu_address_physical_min_in_the_same_page2  <= 0;
+       mmu_address_logical_min_in_the_same_page2   <= read_value;
+      mmu_address_logical_max_in_the_same_page2  <= read_value+256-1;
     end
   end
 
@@ -414,31 +421,35 @@ module x_out_of_order7 (
         end
         EXECUTE_STATE_SWITCH: begin
           decoder_inp <= 0;
-          reg_nr <= 0;
           executor_state <= EXECUTE_STATE_SWITCH2;
+          read_address <= process_start + ADDRESS_NEXT_PROCESS;
           write_address <= process_start + ADDRESS_PC;
           write_value <= pc_logical;
           write_enabled <= 1;
-          read_address <= process_start + ADDRESS_NEXT_PROCESS;
           mmu_read_logical[0] <= 0;
+          reg_nr<=64;
         end
         EXECUTE_STATE_SWITCH2: begin
-          $display("switch 2 ", process_start, " ", ADDRESS_REG, " ", reg_nr);
-          write_address <= process_start + ADDRESS_REG + reg_nr;
-          write_value <= registers_value[reg_nr];
-
-          registers_init[reg_nr] <= 0;
-          reg_nr <= reg_nr + 1;
-          executor_state <= reg_nr == REGISTER_NUM-1 ? EXECUTE_STATE_SWITCH3 : EXECUTE_STATE_SWITCH2;
+          executor_state <= EXECUTE_STATE_SWITCH3;
+            write_enabled  <= 0;     
+          if (reg_nr!=64) registers_init[reg_nr] <= 0;
+           for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+             if (reg_nr!=i) begin
+             if (registers_init[i]) begin
+          executor_state <= EXECUTE_STATE_SWITCH2;
+                write_address <= process_start + ADDRESS_REG + i;
+                write_value <= registers_value[i];
+                  write_enabled  <= 1;    
+                reg_nr<=i;
+             end
+             end
+          end    
         end
         EXECUTE_STATE_SWITCH3: begin
+          if (reg_nr!=64) registers_init[reg_nr] <= 0;
           process_start  <= read_value;
           read_address   <= read_value + ADDRESS_PC;
-          executor_state <= EXECUTE_STATE_SWITCH4;
-          write_enabled  <= 0;
-          for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-            registers_init[i] <= 0;
-          end
+          executor_state <= EXECUTE_STATE_SWITCH4;         
           instr_num <= 0;
         end
         EXECUTE_STATE_SWITCH4: begin
