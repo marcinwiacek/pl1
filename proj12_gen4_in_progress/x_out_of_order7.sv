@@ -190,11 +190,11 @@ module x_out_of_order7 (
       mmu_address_logical_max_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256 + 256 - 1;
     end else if (executor_state == EXECUTE_STATE_SWITCH3) begin
       mmu_address_physical_min_in_the_same_page  <= 0;
-       mmu_address_logical_min_in_the_same_page   <= read_value;
-      mmu_address_logical_max_in_the_same_page   <= read_value+256-1;
-      mmu_address_physical_min_in_the_same_page2  <= 0;
-       mmu_address_logical_min_in_the_same_page2   <= read_value;
-      mmu_address_logical_max_in_the_same_page2  <= read_value+256-1;
+      mmu_address_logical_min_in_the_same_page   <= read_value;
+      mmu_address_logical_max_in_the_same_page   <= read_value + 256 - 1;
+      mmu_address_physical_min_in_the_same_page2 <= 0;
+      mmu_address_logical_min_in_the_same_page2  <= read_value;
+      mmu_address_logical_max_in_the_same_page2  <= read_value + 256 - 1;
     end
   end
 
@@ -427,29 +427,29 @@ module x_out_of_order7 (
           write_value <= pc_logical;
           write_enabled <= 1;
           mmu_read_logical[0] <= 0;
-          reg_nr<=64;
+          reg_nr <= 64;
         end
         EXECUTE_STATE_SWITCH2: begin
           executor_state <= EXECUTE_STATE_SWITCH3;
-            write_enabled  <= 0;     
-          if (reg_nr!=64) registers_init[reg_nr] <= 0;
-           for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-             if (reg_nr!=i) begin
-             if (registers_init[i]) begin
-          executor_state <= EXECUTE_STATE_SWITCH2;
+          write_enabled  <= 0;
+          if (reg_nr != 64) registers_init[reg_nr] <= 0;
+          for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+            if (reg_nr != i) begin
+              if (registers_init[i]) begin
+                executor_state <= EXECUTE_STATE_SWITCH2;
                 write_address <= process_start + ADDRESS_REG + i;
                 write_value <= registers_value[i];
-                  write_enabled  <= 1;    
-                reg_nr<=i;
-             end
-             end
-          end    
+                write_enabled <= 1;
+                reg_nr <= i;
+              end
+            end
+          end
         end
         EXECUTE_STATE_SWITCH3: begin
-          if (reg_nr!=64) registers_init[reg_nr] <= 0;
-          process_start  <= read_value;
-          read_address   <= read_value + ADDRESS_PC;
-          executor_state <= EXECUTE_STATE_SWITCH4;         
+          if (reg_nr != 64) registers_init[reg_nr] <= 0;
+          process_start <= read_value;
+          read_address <= read_value + ADDRESS_PC;
+          executor_state <= EXECUTE_STATE_SWITCH4;
           instr_num <= 0;
         end
         EXECUTE_STATE_SWITCH4: begin
