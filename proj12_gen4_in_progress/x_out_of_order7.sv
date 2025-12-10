@@ -233,7 +233,7 @@ module x_out_of_order7 (
       end
 
       case (executor_state)
-        EXECUTE_STATE_START: begin        
+        EXECUTE_STATE_START: begin
           pc_logical <= pc_logical + 2;
           read_address <= pc_logical + 2;
           read_address2 <= pc_logical + 3;
@@ -431,7 +431,7 @@ module x_out_of_order7 (
         end
         EXECUTE_STATE_SWITCH2: begin
           executor_state <= EXECUTE_STATE_SWITCH3;
-          read_address2 <= read_value + ADDRESS_PC;
+          read_address2  <= read_value + ADDRESS_PC;
           write_enabled  <= 0;
           if (reg_nr != 64) registers_init[reg_nr] <= 0;
           for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
@@ -449,13 +449,13 @@ module x_out_of_order7 (
         EXECUTE_STATE_SWITCH3: begin
           if (reg_nr != 64) registers_init[reg_nr] <= 0;
           process_start <= read_value;
-          pc_logical <= read_value2;          
+          pc_logical <= read_value2;
           read_address <= read_value + ADDRESS_PC;
           executor_state <= EXECUTE_STATE_START;
           instr_num <= 0;
         end
         EXECUTE_STATE_HALT: begin
-          $display(" pc logical ",pc_logical);
+          $display(" pc logical ", pc_logical);
           decoder_inp <= 0;
         end
       endcase
@@ -836,11 +836,11 @@ module single_blockram (
       ram[write_address] <= write_value;
     end
 
-       //  $display(
-//                $sformatf("%02d", $time), " ram read ", read_address, " = ", ram[read_address]
-//            );  //DEBUG info
-//           $display(
-//                $sformatf("%02d", $time), " ram read ", read_address2, " = ", ram[read_address2]
-//            );  //DEBUG info
+    //  $display(
+    //                $sformatf("%02d", $time), " ram read ", read_address, " = ", ram[read_address]
+    //            );  //DEBUG info
+    //           $display(
+    //                $sformatf("%02d", $time), " ram read ", read_address2, " = ", ram[read_address2]
+    //            );  //DEBUG info
   end
 endmodule
