@@ -54,13 +54,11 @@ parameter EXECUTE_STATE_START2 = 3;
 parameter EXECUTE_STATE_START3 = 4;
 parameter EXECUTE_STATE_READ_REG_FROM_RAM = 5;
 parameter EXECUTE_STATE_SAVE_REG_TO_RAM = 6;
-parameter EXECUTE_STATE_SWITCH = 7;
-parameter EXECUTE_STATE_SWITCH2 = 8;
-parameter EXECUTE_STATE_SWITCH3 = 9;
-parameter EXECUTE_STATE_SWITCH4 = 10;
+parameter EXECUTE_STATE_SAVE_REG_TO_RAM2 = 7;
+parameter EXECUTE_STATE_SWITCH = 8;
+parameter EXECUTE_STATE_SWITCH2 = 9;
+parameter EXECUTE_STATE_SWITCH3 = 10;
 parameter EXECUTE_STATE_MMU_SAVE_MISS = 11;
-parameter EXECUTE_STATE_MMU_SAVE_MISS2 = 12;
-parameter EXECUTE_STATE_SAVE_REG_TO_RAM2 = 14;
 
 parameter REGISTER_NUM = 15;
 parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
@@ -106,30 +104,26 @@ module x_out_of_order7 (
 
   //--------------------------------------------------------------------executor------------------
 
-  integer i, j;
+  integer i;
 
   reg [7:0] reg_nr;
-
   reg [5:0] executor_state, executor_state2;
-
   reg [4:0] instr_num;  // how many done
+
+  reg [2:0] offset;
+  assign offset = executor_state == EXECUTE_STATE_START2 ? 2 : 0;
 
   //---------------------------------------------------------decoder--------------------------
 
   reg decoder_inp;
-  wire decoder_ready22222, decoder_slot0;
+  wire decoder_slot0;
   wire [3:0] decoder_error_code[0:1], decoder_in2[0:1], decoder_in3[0:1];
   wire [7:0] decoder_in1[0:1];
   wire [15:0] decoder_in3_big[0:1], decoder_in4[0:1], decoder_numeric[REGISTER_NUM:0][0:1];
-
   wire decoder_do_op[REGISTER_NUM:0][0:1];
 
-  reg  decoder_slot;
-
+  reg decoder_slot;
   assign decoder_slot = executor_state == EXECUTE_STATE_START2 ? !decoder_slot0 : decoder_slot0;
-
-  reg [2:0] offset;
-  assign offset = executor_state == EXECUTE_STATE_START2 ? 2 : 0;
 
   decoder decoder (
       .rst(rst),
@@ -139,8 +133,7 @@ module x_out_of_order7 (
       .read1(read_value),
       .read2(read_value2),
       .slot(decoder_slot0),
-      .do_op(decoder_do_op),
-      // .ready(decoder_ready),
+      .do_op(decoder_do_op),      
       .error_code(decoder_error_code),
       .in1(decoder_in1),
       .in2(decoder_in2),
@@ -444,7 +437,6 @@ module x_out_of_order7 (
             write_enabled <= 1;
             write_address <= mmu_address_physical_min_in_the_same_page3 + mmu_save_logical[9:0];
             write_value <= registers_value[registers_read_num[0]];
-
             executor_state <= EXECUTE_STATE_SAVE_REG_TO_RAM2;
           end
         end
@@ -781,13 +773,13 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
 
- //56 elements
-16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      //56 elements
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
 
       //first process - 1 page (256 elements)
       //page 1 (256 elements)
@@ -852,15 +844,13 @@ module single_blockram (
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
       16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
 
- //56 elements
-16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
-16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000
-
-
+      //56 elements
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,
+      16'h0000,16'h0000,16'h0000,16'h0000,16'h0000,16'h0000
     };
 
   // verilog_format:on
