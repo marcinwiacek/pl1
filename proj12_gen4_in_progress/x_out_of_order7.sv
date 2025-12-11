@@ -59,7 +59,7 @@ parameter EXECUTE_STATE_SWITCH2 = 8;
 parameter EXECUTE_STATE_SWITCH3 = 9;
 parameter EXECUTE_STATE_SWITCH4 = 10;
 parameter EXECUTE_STATE_MMU_SAVE_MISS = 11;
-
+parameter EXECUTE_STATE_MMU_SAVE_MISS2 = 12;
 
 parameter REGISTER_NUM = 15;
 parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
@@ -193,7 +193,7 @@ module x_out_of_order7 (
       mmu_address_physical_min_in_the_same_page2 <= read_value2[15:8] * 256;
       mmu_address_logical_min_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256;
       mmu_address_logical_max_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256 + 256 - 1;
-    end else if (executor_state == EXECUTE_STATE_MMU_SAVE_MISS) begin
+    end else if (executor_state == EXECUTE_STATE_MMU_SAVE_MISS2) begin
       mmu_address_physical_min_in_the_same_page3  <= read_value[15:8] * 256;
       mmu_address_logical_min_in_the_same_page3   <= mmu_save_logical[15:8] * 256;
       mmu_address_logical_max_in_the_same_page3   <= mmu_save_logical[15:8] * 256 + 256 - 1;    
@@ -255,6 +255,10 @@ module x_out_of_order7 (
           executor_state <= pc_logical<ADDRESS_PROGRAM?EXECUTE_STATE_HALT:EXECUTE_STATE_START2;
         end
         EXECUTE_STATE_MMU_SAVE_MISS: begin
+          read_address <= process_start + ADDRESS_MMU_ADDR + decoder_numeric[i][decoder_slot][15:8];
+           executor_state <= EXECUTE_STATE_MMU_SAVE_MISS2;
+        end
+        EXECUTE_STATE_MMU_SAVE_MISS2: begin
            executor_state <= EXECUTE_STATE_START3;
         end
         EXECUTE_STATE_START2, EXECUTE_STATE_START3: begin
@@ -389,8 +393,7 @@ module x_out_of_order7 (
                           if (decoder_numeric[i][decoder_slot]<mmu_address_logical_min_in_the_same_page3 || 
                               decoder_numeric[i][decoder_slot]>mmu_address_logical_max_in_the_same_page3) begin
                               executor_state <= EXECUTE_STATE_MMU_SAVE_MISS;
-                               mmu_save_logical<=decoder_numeric[i][decoder_slot];
-                              read_address <= process_start + ADDRESS_MMU_ADDR + decoder_numeric[i][decoder_slot][15:8];
+                               mmu_save_logical<=decoder_numeric[i][decoder_slot];                            
                           end else begin
                             write_enabled <= 1;
                             write_address <= mmu_address_physical_min_in_the_same_page3+decoder_numeric[i][decoder_slot][9:0];
