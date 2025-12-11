@@ -189,7 +189,7 @@ module x_out_of_order7 (
       mmu_address_logical_min_in_the_same_page2  <= read_value;
       mmu_address_logical_max_in_the_same_page2  <= read_value + 256 - 1;
     end
-  end
+  end 
 
   always @(posedge clk) begin
     if (rst) begin
@@ -306,7 +306,7 @@ module x_out_of_order7 (
                 read_address2 <= mmu_address_physical_min_in_the_same_page2+decoder_in4[decoder_slot][9:0]+1;
               end
               OPCODE_NUM2REG: begin
-                for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+                for (i = REGISTER_NUM-1; i >=0 ; i = i - 1) begin
                   if (decoder_do_op[i][decoder_slot]) begin
                     registers_init[i] <= 1;
                     registers_changed[i] <= 1;
@@ -315,7 +315,7 @@ module x_out_of_order7 (
                 end
               end
               OPCODE_RAM2REG: begin
-                for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+                for (i = REGISTER_NUM-1; i >=0 ; i = i - 1) begin
                   if (executor_state == EXECUTE_STATE_START2) begin
                     registers_done_op[i] <= !decoder_do_op[i][decoder_slot];
                   end
@@ -334,7 +334,7 @@ module x_out_of_order7 (
                 end
               end
               default: begin
-                for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+                for (i = REGISTER_NUM-1; i >=0 ; i = i - 1) begin
                   if (executor_state == EXECUTE_STATE_START2) begin
                     registers_done_op[i] <= !decoder_do_op[i][decoder_slot];
                   end
@@ -389,6 +389,7 @@ module x_out_of_order7 (
           end
         end
         EXECUTE_STATE_READ_REG_FROM_RAM: begin
+         executor_state <= EXECUTE_STATE_START3;  
           if (registers_read_num[0] != 64) begin
             $display($sformatf("%02d", $time), " slot 0: reading reg ", registers_read_num[0],
                      " src ", read_address);
@@ -398,6 +399,13 @@ module x_out_of_order7 (
             if (mmu_read_logical[0] !=0) begin
               registers_done_op[registers_read_num[0]] <= 1;
             end
+//            if (registers_read_num[0]>1) begin
+//               if (!registers_done_op[registers_read_num[0]-2]) begin
+//                   if (mmu_read_logical[0] !=0) begin
+//                   end else begin
+//                   end                   
+//               end
+//            end
           end
           if (registers_read_num[1] != 64) begin
             $display($sformatf("%02d", $time), " slot 1: reading reg ", registers_read_num[1],
@@ -409,7 +417,7 @@ module x_out_of_order7 (
               registers_done_op[registers_read_num[1]] <= 1;
             end
           end
-          executor_state <= EXECUTE_STATE_START3;         
+                
         end
         EXECUTE_STATE_SAVE_REG_TO_RAM: begin
             write_enabled <= 1;
