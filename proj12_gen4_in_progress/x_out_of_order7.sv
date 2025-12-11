@@ -115,6 +115,7 @@ module x_out_of_order7 (
   //---------------------------------------------------------decoder--------------------------
 
   reg decoder_inp;
+  
   wire decoder_slot0;
   wire [3:0] decoder_error_code[0:1], decoder_in2[0:1], decoder_in3[0:1];
   wire [7:0] decoder_in1[0:1];
@@ -144,8 +145,8 @@ module x_out_of_order7 (
 
   //--------------------------------------------------------- mmu ----------------------------
 
-  reg [15:0] mmu_read_logical[1:0];
-  reg [15:0]
+  reg [15:0] 
+      mmu_read_logical[1:0],
       mmu_address_physical_min_in_the_same_page,
       mmu_address_logical_min_in_the_same_page,
       mmu_address_logical_max_in_the_same_page,
@@ -178,8 +179,7 @@ module x_out_of_order7 (
 
       mmu_address_physical_min_in_the_same_page2 <= read_value2[15:8] * 256;
       mmu_address_logical_min_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256;
-      mmu_address_logical_max_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256 + 256 - 1;
-   
+      mmu_address_logical_max_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256 + 256 - 1;   
     end else if (executor_state == EXECUTE_STATE_SWITCH3) begin
       mmu_address_physical_min_in_the_same_page  <= 0;
       mmu_address_logical_min_in_the_same_page   <= read_value;
@@ -303,7 +303,7 @@ module x_out_of_order7 (
                 mmu_read_logical[0] <= decoder_in4[decoder_slot];
                 read_address <= mmu_address_physical_min_in_the_same_page+decoder_in4[decoder_slot][9:0];
                 mmu_read_logical[1] <= decoder_in4[decoder_slot] + 1;
-                read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_in4[decoder_slot][9:0]+1;
+                read_address2 <= mmu_address_physical_min_in_the_same_page2+decoder_in4[decoder_slot][9:0]+1;
               end
               OPCODE_NUM2REG: begin
                 for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
@@ -324,7 +324,7 @@ module x_out_of_order7 (
                     if (i % 2 == 0) begin
                       read_address <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][decoder_slot][9:0];
                     end else begin
-                      read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][decoder_slot][9:0];
+                      read_address2 <= mmu_address_physical_min_in_the_same_page2+decoder_numeric[i][decoder_slot][9:0];
                     end
                     mmu_read_logical[i%2] <= decoder_numeric[i][decoder_slot];
                     registers_read_num[i%2] <= i;
@@ -357,7 +357,7 @@ module x_out_of_order7 (
                             mmu_read_logical[0] <= decoder_in4[decoder_slot];
                             read_address <= mmu_address_physical_min_in_the_same_page+decoder_in4[decoder_slot][9:0];
                             mmu_read_logical[1] <= decoder_in4[decoder_slot] + 1;
-                            read_address2 <= mmu_address_physical_min_in_the_same_page+decoder_in4[decoder_slot][9:0]+1;
+                            read_address2 <= mmu_address_physical_min_in_the_same_page2+decoder_in4[decoder_slot][9:0]+1;
                           end
                         end
                         OPCODE_REG2RAM: begin
@@ -395,7 +395,7 @@ module x_out_of_order7 (
             registers_value[registers_read_num[0]] <= read_value;
             registers_changed[registers_read_num[0]] <= 1;
             registers_init[registers_read_num[0]] <= 1;
-            if (decoder_in1[decoder_slot] == OPCODE_RAM2REG) begin
+            if (mmu_read_logical[0] !=0) begin
               registers_done_op[registers_read_num[0]] <= 1;
             end
           end
@@ -405,11 +405,42 @@ module x_out_of_order7 (
             registers_value[registers_read_num[1]] <= read_value2;
             registers_init[registers_read_num[1]] <= 1;
             registers_changed[registers_read_num[1]] <= 1;
-            if (decoder_in1[decoder_slot] == OPCODE_RAM2REG) begin
+            if (mmu_read_logical[0] !=0) begin
               registers_done_op[registers_read_num[1]] <= 1;
             end
           end
           executor_state <= EXECUTE_STATE_START3;
+         
+            for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
+              if (i!=registers_read_num[0]) begin
+              if ( i!=registers_read_num[1]) begin
+              if (!registers_done_op[i]) begin
+          if (mmu_read_logical[0] ==0) begin
+         
+                    if (!registers_init[i]) begin
+                      if (i % 2 == 0) begin
+                        read_address <= process_start + ADDRESS_REG + i;
+                      end else begin
+                        read_address2 <= process_start + ADDRESS_REG + i;
+                      end
+                      registers_read_num[i%2] <= i;
+                      executor_state <= EXECUTE_STATE_READ_REG_FROM_RAM;
+                    end
+               end else begin
+                    if (i % 2 == 0) begin
+                      read_address <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][decoder_slot][9:0];
+                    end else begin
+                      read_address2 <= mmu_address_physical_min_in_the_same_page2+decoder_numeric[i][decoder_slot][9:0];
+                    end
+                    mmu_read_logical[i%2] <= decoder_numeric[i][decoder_slot];
+                    registers_read_num[i%2] <= i;
+                    executor_state <= EXECUTE_STATE_READ_REG_FROM_RAM;
+               end
+               end
+               end
+               end
+             end
+
         end
         EXECUTE_STATE_SAVE_REG_TO_RAM: begin
             write_enabled <= 1;
