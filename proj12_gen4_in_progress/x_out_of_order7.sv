@@ -48,10 +48,10 @@ parameter OPCODE_REG_MINUS = 'h0f; //register num (5 bits), how many-1 (3 bits),
 //parameter OPCODE_REG2REG = 33;
 
 parameter EXECUTE_STATE_START = 0;
-parameter EXECUTE_STATE_MMU = 1;
-parameter EXECUTE_STATE_HALT = 2;
-parameter EXECUTE_STATE_START2 = 3;
-parameter EXECUTE_STATE_START3 = 4;
+parameter EXECUTE_STATE_START2 = 1;
+parameter EXECUTE_STATE_START3 = 2;
+parameter EXECUTE_STATE_MMU = 3;
+parameter EXECUTE_STATE_HALT = 4;
 parameter EXECUTE_STATE_READ_REG_FROM_RAM = 5;
 parameter EXECUTE_STATE_SAVE_REG_TO_RAM = 6;
 parameter EXECUTE_STATE_SAVE_REG_TO_RAM2 = 7;
@@ -60,7 +60,6 @@ parameter EXECUTE_STATE_SWITCH2 = 9;
 parameter EXECUTE_STATE_SWITCH3 = 10;
 
 parameter REGISTER_NUM = 15;
-parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
 
 module x_out_of_order7 (
     input clk,
@@ -398,19 +397,7 @@ module x_out_of_order7 (
             registers_init[registers_read_num[0]] <= 1;
             if (mmu_read_logical[0] !=0) begin
               registers_done_op[registers_read_num[0]] <= 1;
-            end
-           if (registers_read_num[0]<REGISTER_NUM-3) begin
-               if (!registers_done_op[registers_read_num[0]+2]) begin
-                   if (mmu_read_logical[0] !=0 || !registers_init[registers_read_num[0]+2]) begin
-                   
-                     read_address <= read_address+2;
-                     mmu_read_logical[0] <= mmu_read_logical[0]+2;
-                     registers_read_num[0] <= registers_read_num[0]+2;
-                     
-                     executor_state <= EXECUTE_STATE_READ_REG_FROM_RAM;  
-                   end                   
-               end
-            end
+            end          
           end
           if (registers_read_num[1] != 64) begin
             $display($sformatf("%02d", $time), " slot 1: reading reg ", registers_read_num[1],
@@ -421,8 +408,7 @@ module x_out_of_order7 (
             if (mmu_read_logical[0] !=0) begin
               registers_done_op[registers_read_num[1]] <= 1;
             end
-          end
-                
+          end                
         end
         EXECUTE_STATE_SAVE_REG_TO_RAM: begin
             write_enabled <= 1;
