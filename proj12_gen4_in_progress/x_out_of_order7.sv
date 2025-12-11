@@ -100,18 +100,18 @@ module x_out_of_order7 (
 
   reg [15:0] process_start;
   reg [15:0] pc_logical, registers_value[0:REGISTER_NUM];
-  reg registers_init[0:REGISTER_NUM],registers_changed[0:REGISTER_NUM];
+  reg registers_init[0:REGISTER_NUM], registers_changed[0:REGISTER_NUM];
   reg [6:0] registers_read_num[1:0];
   reg registers_done_op[0:REGISTER_NUM];
 
-   //--------------------------------------------------------------------executor------------------
+  //--------------------------------------------------------------------executor------------------
 
   integer i, j;
- 
-  reg [ 7:0] reg_nr;
+
+  reg [7:0] reg_nr;
 
   reg [5:0] executor_state, executor_state2;
-  
+
   reg [4:0] instr_num;  // how many done
 
   //---------------------------------------------------------decoder--------------------------
@@ -152,7 +152,7 @@ module x_out_of_order7 (
 
   //--------------------------------------------------------- mmu ----------------------------
 
-  reg [15:0] mmu_read_logical[1:0],  mmu_save_logical;
+  reg [15:0] mmu_read_logical[1:0], mmu_save_logical;
   reg [15:0]
       mmu_address_physical_min_in_the_same_page,
       mmu_address_logical_min_in_the_same_page,
@@ -160,7 +160,7 @@ module x_out_of_order7 (
       mmu_address_physical_min_in_the_same_page2,
       mmu_address_logical_min_in_the_same_page2,
       mmu_address_logical_max_in_the_same_page2,
-       mmu_address_physical_min_in_the_same_page3,
+      mmu_address_physical_min_in_the_same_page3,
       mmu_address_logical_min_in_the_same_page3,
       mmu_address_logical_max_in_the_same_page3;
 
@@ -170,7 +170,7 @@ module x_out_of_order7 (
        mmu_read_logical[1]<mmu_address_logical_min_in_the_same_page2 || mmu_read_logical[1]>mmu_address_logical_max_in_the_same_page2);
 
   //---------------------------------------------------------- other -------------------------
-  
+
   assign x = decoder_inp;  //without this we will have empty circuit
 
   always @(posedge clk) begin
@@ -182,8 +182,8 @@ module x_out_of_order7 (
       mmu_address_physical_min_in_the_same_page2 <= 0;
       mmu_address_logical_min_in_the_same_page2  <= 0;
       mmu_address_logical_max_in_the_same_page2  <= 256 - 1;  //2^8-1
-      
-       mmu_address_physical_min_in_the_same_page3 <= 0;
+
+      mmu_address_physical_min_in_the_same_page3 <= 0;
       mmu_address_logical_min_in_the_same_page3  <= 0;
       mmu_address_logical_max_in_the_same_page3  <= 256 - 1;  //2^8-1
     end else if (executor_state == EXECUTE_STATE_MMU) begin
@@ -195,19 +195,19 @@ module x_out_of_order7 (
       mmu_address_logical_min_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256;
       mmu_address_logical_max_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256 + 256 - 1;
     end else if (executor_state == EXECUTE_STATE_MMU_SAVE_MISS) begin
-      mmu_address_physical_min_in_the_same_page3  <= read_value[15:8] * 256;
-      mmu_address_logical_min_in_the_same_page3   <= mmu_save_logical[15:8] * 256;
-      mmu_address_logical_max_in_the_same_page3   <= mmu_save_logical[15:8] * 256 + 256 - 1;    
+      mmu_address_physical_min_in_the_same_page3 <= read_value[15:8] * 256;
+      mmu_address_logical_min_in_the_same_page3  <= mmu_save_logical[15:8] * 256;
+      mmu_address_logical_max_in_the_same_page3  <= mmu_save_logical[15:8] * 256 + 256 - 1;
     end else if (executor_state == EXECUTE_STATE_SWITCH3) begin
       mmu_address_physical_min_in_the_same_page  <= 0;
       mmu_address_logical_min_in_the_same_page   <= read_value;
       mmu_address_logical_max_in_the_same_page   <= read_value + 256 - 1;
-      
+
       mmu_address_physical_min_in_the_same_page2 <= 0;
       mmu_address_logical_min_in_the_same_page2  <= read_value;
       mmu_address_logical_max_in_the_same_page2  <= read_value + 256 - 1;
-      
-       mmu_address_physical_min_in_the_same_page3 <= 0;
+
+      mmu_address_physical_min_in_the_same_page3 <= 0;
       mmu_address_logical_min_in_the_same_page3  <= read_value;
       mmu_address_logical_max_in_the_same_page3  <= read_value + 256 - 1;
     end
@@ -224,7 +224,7 @@ module x_out_of_order7 (
       rst <= 0;
       decoder_inp <= 1;
       registers_init <= '{default: 0};
-       registers_changed <= '{default: 0};
+      registers_changed <= '{default: 0};
       write_enabled <= 0;
       registers_done_op <= '{default: 0};
       process_start <= 0;
@@ -330,8 +330,8 @@ module x_out_of_order7 (
               OPCODE_NUM2REG: begin
                 for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
                   if (decoder_do_op[i][decoder_slot]) begin
-                    registers_init[i]  <= 1;
-                    registers_changed[i]  <= 1;
+                    registers_init[i] <= 1;
+                    registers_changed[i] <= 1;
                     registers_value[i] <= decoder_in4[decoder_slot];
                   end
                 end
@@ -384,20 +384,20 @@ module x_out_of_order7 (
                         end
                         OPCODE_REG2RAM: begin
                           $display("reg to ram");
-                              executor_state <= EXECUTE_STATE_SAVE_REG_TO_RAM;
-                               mmu_save_logical<=decoder_numeric[i][decoder_slot];                            
+                          executor_state <= EXECUTE_STATE_SAVE_REG_TO_RAM;
+                          mmu_save_logical <= decoder_numeric[i][decoder_slot];
                           registers_read_num[0] <= i;
-                          decoder_inp <= 0;                          
+                          decoder_inp <= 0;
                         end
                         OPCODE_REG_PLUS: begin
                           $display("regplus");
-                          registers_changed[i] <=1;
+                          registers_changed[i] <= 1;
                           registers_value[i]   <= registers_value[i] + decoder_in4[decoder_slot];
                           registers_done_op[i] <= 1;
                         end
                         OPCODE_REG_MINUS: begin
                           $display("regminus");
-                          registers_changed[i] <=1;
+                          registers_changed[i] <= 1;
                           registers_value[i]   <= registers_value[i] - decoder_in4[decoder_slot];
                           registers_done_op[i] <= 1;
                         end
@@ -414,8 +414,8 @@ module x_out_of_order7 (
             $display($sformatf("%02d", $time), " slot 0: reading reg ", registers_read_num[0],
                      " src ", read_address);
             registers_value[registers_read_num[0]] <= read_value;
-                          registers_changed[registers_read_num[0]] <=1;
-            registers_init[registers_read_num[0]]  <= 1;
+            registers_changed[registers_read_num[0]] <= 1;
+            registers_init[registers_read_num[0]] <= 1;
             if (decoder_in1[decoder_slot] == OPCODE_RAM2REG) begin
               registers_done_op[registers_read_num[0]] <= 1;
             end
@@ -424,8 +424,8 @@ module x_out_of_order7 (
             $display($sformatf("%02d", $time), " slot 1: reading reg ", registers_read_num[1],
                      " src ", read_address2);
             registers_value[registers_read_num[1]] <= read_value2;
-            registers_init[registers_read_num[1]]  <= 1;
-                          registers_changed[registers_read_num[1]] <=1;
+            registers_init[registers_read_num[1]] <= 1;
+            registers_changed[registers_read_num[1]] <= 1;
             if (decoder_in1[decoder_slot] == OPCODE_RAM2REG) begin
               registers_done_op[registers_read_num[1]] <= 1;
             end
@@ -433,21 +433,21 @@ module x_out_of_order7 (
           executor_state <= EXECUTE_STATE_START3;
         end
         EXECUTE_STATE_MMU_SAVE_MISS: begin
-                            executor_state <= EXECUTE_STATE_SAVE_REG_TO_RAM;
+          executor_state <= EXECUTE_STATE_SAVE_REG_TO_RAM;
         end
         EXECUTE_STATE_SAVE_REG_TO_RAM: begin
-        if (mmu_save_logical<mmu_address_logical_min_in_the_same_page3 || 
+          if (mmu_save_logical<mmu_address_logical_min_in_the_same_page3 || 
                               mmu_save_logical>mmu_address_logical_max_in_the_same_page3) begin
-          read_address <= process_start + ADDRESS_MMU_ADDR + mmu_save_logical[15:8];
-           executor_state <= EXECUTE_STATE_MMU_SAVE_MISS;
-         end else begin         
-             write_enabled <= 1;
-                            write_address <= mmu_address_physical_min_in_the_same_page3+mmu_save_logical[9:0];
-                            write_value <= registers_value[registers_read_num[0]];
-                          
-                            executor_state <= EXECUTE_STATE_SAVE_REG_TO_RAM2;
-                          end
-         end
+            read_address   <= process_start + ADDRESS_MMU_ADDR + mmu_save_logical[15:8];
+            executor_state <= EXECUTE_STATE_MMU_SAVE_MISS;
+          end else begin
+            write_enabled <= 1;
+            write_address <= mmu_address_physical_min_in_the_same_page3 + mmu_save_logical[9:0];
+            write_value <= registers_value[registers_read_num[0]];
+
+            executor_state <= EXECUTE_STATE_SAVE_REG_TO_RAM2;
+          end
+        end
         EXECUTE_STATE_SAVE_REG_TO_RAM2: begin
           $display("reg to ram 2");
           registers_done_op[registers_read_num[0]] <= 1;
@@ -469,8 +469,8 @@ module x_out_of_order7 (
           read_address2  <= read_value + ADDRESS_PC;
           write_enabled  <= 0;
           if (reg_nr != 64) begin
-             registers_changed[reg_nr] <= 0;
-             registers_init[reg_nr] <= 0;
+            registers_changed[reg_nr] <= 0;
+            registers_init[reg_nr] <= 0;
           end
           for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
             if (reg_nr != i) begin
@@ -486,8 +486,8 @@ module x_out_of_order7 (
         end
         EXECUTE_STATE_SWITCH3: begin
           if (reg_nr != 64) begin
-             registers_changed[reg_nr] <= 0;
-             registers_init[reg_nr] <= 0;
+            registers_changed[reg_nr] <= 0;
+            registers_init[reg_nr] <= 0;
           end
           process_start <= read_value;
           pc_logical <= read_value2;
