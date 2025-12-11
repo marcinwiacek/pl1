@@ -409,38 +409,7 @@ module x_out_of_order7 (
               registers_done_op[registers_read_num[1]] <= 1;
             end
           end
-          executor_state <= EXECUTE_STATE_START3;
-         
-            for (i = 0; i <= REGISTER_NUM; i = i + 1) begin
-              if (i!=registers_read_num[0]) begin
-              if ( i!=registers_read_num[1]) begin
-              if (!registers_done_op[i]) begin
-          if (mmu_read_logical[0] ==0) begin
-         
-                    if (!registers_init[i]) begin
-                      if (i % 2 == 0) begin
-                        read_address <= process_start + ADDRESS_REG + i;
-                      end else begin
-                        read_address2 <= process_start + ADDRESS_REG + i;
-                      end
-                      registers_read_num[i%2] <= i;
-                      executor_state <= EXECUTE_STATE_READ_REG_FROM_RAM;
-                    end
-               end else begin
-                    if (i % 2 == 0) begin
-                      read_address <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][decoder_slot][9:0];
-                    end else begin
-                      read_address2 <= mmu_address_physical_min_in_the_same_page2+decoder_numeric[i][decoder_slot][9:0];
-                    end
-                    mmu_read_logical[i%2] <= decoder_numeric[i][decoder_slot];
-                    registers_read_num[i%2] <= i;
-                    executor_state <= EXECUTE_STATE_READ_REG_FROM_RAM;
-               end
-               end
-               end
-               end
-             end
-
+          executor_state <= EXECUTE_STATE_START3;         
         end
         EXECUTE_STATE_SAVE_REG_TO_RAM: begin
             write_enabled <= 1;
