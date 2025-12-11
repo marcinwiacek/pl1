@@ -58,7 +58,6 @@ parameter EXECUTE_STATE_SAVE_REG_TO_RAM2 = 7;
 parameter EXECUTE_STATE_SWITCH = 8;
 parameter EXECUTE_STATE_SWITCH2 = 9;
 parameter EXECUTE_STATE_SWITCH3 = 10;
-parameter EXECUTE_STATE_MMU_SAVE_MISS = 11;
 
 parameter REGISTER_NUM = 15;
 parameter RANDOM_SELECTED_EMPTY_VALUE_HIGHER_THAN_32 = REGISTER_NUM + 1;
@@ -145,17 +144,14 @@ module x_out_of_order7 (
 
   //--------------------------------------------------------- mmu ----------------------------
 
-  reg [15:0] mmu_read_logical[1:0], mmu_save_logical;
+  reg [15:0] mmu_read_logical[1:0];
   reg [15:0]
       mmu_address_physical_min_in_the_same_page,
       mmu_address_logical_min_in_the_same_page,
       mmu_address_logical_max_in_the_same_page,
       mmu_address_physical_min_in_the_same_page2,
       mmu_address_logical_min_in_the_same_page2,
-      mmu_address_logical_max_in_the_same_page2,
-      mmu_address_physical_min_in_the_same_page3,
-      mmu_address_logical_min_in_the_same_page3,
-      mmu_address_logical_max_in_the_same_page3;
+      mmu_address_logical_max_in_the_same_page2;
 
   reg mmu_miss;
   assign mmu_miss = mmu_read_logical[0]>0 && 
@@ -175,10 +171,6 @@ module x_out_of_order7 (
       mmu_address_physical_min_in_the_same_page2 <= 0;
       mmu_address_logical_min_in_the_same_page2  <= 0;
       mmu_address_logical_max_in_the_same_page2  <= 256 - 1;  //2^8-1
-
-      mmu_address_physical_min_in_the_same_page3 <= 0;
-      mmu_address_logical_min_in_the_same_page3  <= 0;
-      mmu_address_logical_max_in_the_same_page3  <= 256 - 1;  //2^8-1
     end else if (executor_state == EXECUTE_STATE_MMU) begin
       mmu_address_physical_min_in_the_same_page  <= read_value[15:8] * 256;
       mmu_address_logical_min_in_the_same_page   <= mmu_read_logical[0][15:8] * 256;
@@ -187,10 +179,7 @@ module x_out_of_order7 (
       mmu_address_physical_min_in_the_same_page2 <= read_value2[15:8] * 256;
       mmu_address_logical_min_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256;
       mmu_address_logical_max_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256 + 256 - 1;
-    end else if (executor_state == EXECUTE_STATE_MMU_SAVE_MISS) begin
-      mmu_address_physical_min_in_the_same_page3 <= read_value[15:8] * 256;
-      mmu_address_logical_min_in_the_same_page3  <= mmu_save_logical[15:8] * 256;
-      mmu_address_logical_max_in_the_same_page3  <= mmu_save_logical[15:8] * 256 + 256 - 1;
+   
     end else if (executor_state == EXECUTE_STATE_SWITCH3) begin
       mmu_address_physical_min_in_the_same_page  <= 0;
       mmu_address_logical_min_in_the_same_page   <= read_value;
@@ -199,10 +188,6 @@ module x_out_of_order7 (
       mmu_address_physical_min_in_the_same_page2 <= 0;
       mmu_address_logical_min_in_the_same_page2  <= read_value;
       mmu_address_logical_max_in_the_same_page2  <= read_value + 256 - 1;
-
-      mmu_address_physical_min_in_the_same_page3 <= 0;
-      mmu_address_logical_min_in_the_same_page3  <= read_value;
-      mmu_address_logical_max_in_the_same_page3  <= read_value + 256 - 1;
     end
   end
 
@@ -378,8 +363,9 @@ module x_out_of_order7 (
                         OPCODE_REG2RAM: begin
                           $display("reg to ram");
                           executor_state <= EXECUTE_STATE_SAVE_REG_TO_RAM;
-                          mmu_save_logical <= decoder_numeric[i][decoder_slot];
                           registers_read_num[0] <= i;
+                          read_address <= mmu_address_physical_min_in_the_same_page+decoder_numeric[i][decoder_slot][9:0];
+                          mmu_read_logical[0] <= decoder_numeric[i][decoder_slot];
                           decoder_inp <= 0;
                         end
                         OPCODE_REG_PLUS: begin
@@ -425,20 +411,11 @@ module x_out_of_order7 (
           end
           executor_state <= EXECUTE_STATE_START3;
         end
-        EXECUTE_STATE_MMU_SAVE_MISS: begin
-          executor_state <= EXECUTE_STATE_SAVE_REG_TO_RAM;
-        end
         EXECUTE_STATE_SAVE_REG_TO_RAM: begin
-          if (mmu_save_logical<mmu_address_logical_min_in_the_same_page3 || 
-                              mmu_save_logical>mmu_address_logical_max_in_the_same_page3) begin
-            read_address   <= process_start + ADDRESS_MMU_ADDR + mmu_save_logical[15:8];
-            executor_state <= EXECUTE_STATE_MMU_SAVE_MISS;
-          end else begin
             write_enabled <= 1;
-            write_address <= mmu_address_physical_min_in_the_same_page3 + mmu_save_logical[9:0];
+            write_address <= mmu_address_physical_min_in_the_same_page + mmu_read_logical[0][9:0];
             write_value <= registers_value[registers_read_num[0]];
             executor_state <= EXECUTE_STATE_SAVE_REG_TO_RAM2;
-          end
         end
         EXECUTE_STATE_SAVE_REG_TO_RAM2: begin
           $display("reg to ram 2");
