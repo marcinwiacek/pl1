@@ -28,6 +28,7 @@ parameter OPCODE_REG2RAM = 'h0b; //14 //register num (4 bits), how many-1 (4 bit
 parameter OPCODE_NUM2REG = 'h0c; //18;  //register num (4 bits), how many-1 (4 bits), 16 bit value //value -> reg
 parameter OPCODE_REG_PLUS = 'h0e;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
 parameter OPCODE_REG_MINUS = 'h0f; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
+parameter OPCODE_REG2OUT = 'h10; //register num (4 bits)
 
 //parameter OPCODE_REG_MUL = 'h16; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
 //parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
@@ -63,11 +64,43 @@ parameter REGISTER_NUM = 15;
 
 module x_out_of_order7 (
     input clk,
-
-    output reg x
+    input bit uart_tx_in,
+ 
+    output reg x,
+    output bit uart_rx_out
 );
 
   reg rst = 1;
+  
+  //--------------------------------------------- screen ---------------------------------
+  
+  bit [7:0] uart_tx_buffer[0:100];
+  bit [6:0] uart_tx_buffer_available;
+  wire reset_uart_tx_buffer_available;
+  wire uart_tx_buffer_full;
+
+  uartx_tx_with_buffer uartx_tx_with_buffer (
+      .clk(clk),
+      .uart_buffer(uart_tx_buffer),
+      .uart_buffer_available(uart_tx_buffer_available),
+      .reset_uart_buffer_available(reset_uart_tx_buffer_available),
+      .uart_buffer_full(uart_tx_buffer_full),
+      .tx(uart_rx_out)
+  );
+
+//----------------------------------------------------keyboard---------------------------------
+
+/*  wire [7:0] uart_bb;
+  wire uart_bb_ready;
+  bit uart_bb_processed = 0;
+
+  uart_rx uart_rx (
+      .clk(clk),
+      .bb_processed(uart_bb_processed),
+      .uartrx(uart_tx_in),
+      .bb(uart_bb),
+      .bb_ready(uart_bb_ready)
+  );*/
 
   //------------------------------------------------------------ram---------------------------
 
@@ -206,6 +239,7 @@ module x_out_of_order7 (
       registers_done_op <= '{default: 0};
       process_start <= 0;
       //  $display($sformatf("%02d", $time), " rst main");
+      uart_tx_buffer_available <= 0;
     end else if (executor_state == EXECUTE_STATE_MMU) begin
       read_address   <= read_value * 256 + mmu_read_logical[0][7:0];
       read_address2  <= read_value2 * 256 + mmu_read_logical[1][7:0];
@@ -601,6 +635,15 @@ module decoder (
               "-",
               (`INSTRUCTION2 + `INSTRUCTION3 - 1)
           );  //DEBUG info
+          OPCODE_REG2OUT:
+          $write(
+              " save reg ",
+              `INSTRUCTION2,
+              "-",
+              (`INSTRUCTION2 + `INSTRUCTION3 - 1),
+              " to screen"
+          );  //DEBUG info
+          
           default: begin
             $write(" unknown");  //DEBUG info
           end
@@ -656,7 +699,7 @@ module decoder (
       case (`INSTRUCTION1)
         OPCODE_JMP, OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
         end
-        OPCODE_RAM2REG, OPCODE_REG2RAM, OPCODE_NUM2REG, OPCODE_REG_PLUS, OPCODE_REG_MINUS: begin
+        OPCODE_RAM2REG, OPCODE_REG2RAM, OPCODE_NUM2REG, OPCODE_REG_PLUS, OPCODE_REG_MINUS, OPCODE_REG2OUT: begin
           if (`INSTRUCTION2 + `INSTRUCTION3 >= REGISTER_NUM) begin
             error_code[slot] <= ERROR_WRONG_REG_NUM;
           end
@@ -851,3 +894,152 @@ module single_blockram (
     //            );  //DEBUG info
   end
 endmodule
+
+
+module uartx_tx_with_buffer (
+    input clk,
+    input [7:0] uart_buffer[0:100],
+    input [6:0] uart_buffer_available,
+    output bit reset_uart_buffer_available,
+    output bit uart_buffer_full,
+    output bit tx
+);
+
+  bit [7:0] input_data;
+  bit [6:0] uart_buffer_processed = 0;
+  bit [3:0] uart_buffer_state = 0;
+  bit start;
+  wire complete;
+
+//  assign reset_uart_buffer_available = uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
+//  assign uart_buffer_full = uart_buffer_available == 99 ? 1 : 0;
+  assign start = uart_buffer_state == 1;
+
+  uart_tx uart_tx (
+      .clk(clk),
+      .start(start),
+      .input_data(input_data),
+      .complete(complete),
+      .uarttx(tx)
+  );
+
+  always @(posedge clk) begin
+    if (uart_buffer_state == 0) begin
+      if (uart_buffer_available > 0 && uart_buffer_processed < uart_buffer_available) begin
+        input_data <= uart_buffer[uart_buffer_processed];
+        uart_buffer_state <= 1;
+        uart_buffer_processed <= uart_buffer_processed + 1;
+      end else if (uart_buffer_processed > uart_buffer_available) begin
+        uart_buffer_processed <= 0;
+      end
+    end else if (uart_buffer_state == 1) begin
+      if (!complete) uart_buffer_state <= 2;
+    end else if (uart_buffer_state == 2) begin
+      if (complete) uart_buffer_state <= 0;
+    end
+  end
+endmodule
+
+
+//115200, 8 bits (LSB first), 1 stop, no parity
+//values on tx: ...1, 0 (start bit), (8 data bits), 1 (stop bit), 1... 
+//(we make some delay in the end before next seq; every bit is sent CLK_PER_BIT cycles)
+module uart_tx (
+    input clk,
+    input start,
+    input [7:0] input_data,
+    output bit complete,
+    output bit uarttx
+);
+
+  parameter CLK_PER_BIT = 100000000 / 115200;  //100 Mhz / transmission speed in bits per second
+
+  parameter STATE_IDLE = 0;  //1
+  parameter STATE_START_BIT = 1;  //0
+  parameter STATE_DATA_BIT_0 = 2;
+  //...
+  parameter STATE_DATA_BIT_7 = 9;
+  parameter STATE_STOP_BIT = 10;  //1
+
+  bit [ 5:0] uart_tx_state = STATE_IDLE;
+  bit [10:0] counter = CLK_PER_BIT;
+
+  assign uarttx = uart_tx_state == STATE_IDLE || uart_tx_state == STATE_STOP_BIT ? 1:(uart_tx_state == STATE_START_BIT ? 0:input_data[uart_tx_state-STATE_DATA_BIT_0]);
+  assign complete = uart_tx_state == STATE_IDLE;
+
+  always @(negedge clk) begin
+    if (uart_tx_state == STATE_IDLE) begin
+      uart_tx_state <= start ? STATE_START_BIT : STATE_IDLE;
+    end else begin
+      uart_tx_state <= counter == 0 ? (uart_tx_state== STATE_STOP_BIT? STATE_IDLE : uart_tx_state + 1) : uart_tx_state;
+      counter <= counter == 0 ? CLK_PER_BIT : counter - 1;
+    end
+  end
+endmodule
+
+/*
+module uart_rx (
+    input clk,
+    input uartrx,
+    input bb_processed,
+    output logic [7:0] bb,
+    output logic bb_ready = 0
+);
+
+  parameter CLK_PER_BYTE = 100000000 / 115200;  //100 Mhz / transmission speed in bps (bits per second)
+
+  parameter STATE_IDLE = 0;  //1
+  parameter STATE_START_BIT = 1;  //0
+  parameter STATE_DATA_BIT_0 = 2;
+  //...
+  parameter STATE_DATA_BIT_7 = 9;
+  parameter STATE_STOP_BIT = 10;  //1
+
+  reg [ 5:0] uart_tx_state = STATE_IDLE;
+  reg [10:0] counter = 0;
+  reg uartrxreg, inp;
+
+  //double buffering to avoid metastability
+  always @(posedge clk) begin
+    uartrxreg <= uartrx;
+    inp <= uartrxreg;
+  end
+
+  always @(posedge clk) begin
+    if (uart_tx_state == STATE_IDLE) begin
+      if (bb_processed) bb_ready <= 0;
+      if (inp == 0) begin
+        counter <= 0;
+        uart_tx_state <= uart_tx_state + 1;
+      end
+    end else if (uart_tx_state == STATE_START_BIT) begin
+      if (counter == (CLK_PER_BYTE - 1) / 2) begin
+        if (inp == 1) begin
+          uart_tx_state <= STATE_IDLE;
+        end else begin
+          //starting from this point we will be checking RS input value in the middle of the cycle
+          uart_tx_state <= uart_tx_state + 1;
+          counter <= 0;
+        end
+      end else begin
+        counter <= counter + 1;
+      end
+    end else if (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) begin
+      if (counter == CLK_PER_BYTE) begin
+        bb[uart_tx_state-STATE_DATA_BIT_0] <= inp;
+        uart_tx_state <= uart_tx_state + 1;
+        counter <= 0;
+      end else begin
+        counter <= counter + 1;
+      end
+    end else if (uart_tx_state == STATE_STOP_BIT) begin
+      if (counter == CLK_PER_BYTE) begin
+        bb_ready <= inp;
+        uart_tx_state <= STATE_IDLE;
+      end else begin
+        counter <= counter + 1;
+      end
+    end
+  end
+endmodule
+*/
