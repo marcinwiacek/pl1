@@ -413,6 +413,11 @@ module x_out_of_order7 (
                           registers_value[i]   <= registers_value[i] - decoder_in4[decoder_slot];
                           registers_done_op[i] <= 1;
                         end
+                        OPCODE_REG2OUT: begin
+                          uart_tx_buffer[uart_tx_buffer_available]<= registers_value[i][7:0];
+                          uart_tx_buffer[uart_tx_buffer_available+1]<= registers_value[i][15:8];
+                          uart_tx_buffer_available<=uart_tx_buffer_available+2;
+                        end
                       endcase
                     end
                   end
