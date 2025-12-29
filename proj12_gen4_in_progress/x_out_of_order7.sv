@@ -73,20 +73,17 @@ module x_out_of_order7 (
   reg rst = 1;
   
   //--------------------------------------------- screen ---------------------------------
-  
-  bit [7:0] uart_tx_buffer[0:100];
-  bit [6:0] uart_tx_buffer_available;
-  wire reset_uart_tx_buffer_available;
-  wire uart_tx_buffer_full;
 
-  uartx_tx_with_buffer uartx_tx_with_buffer (
-      .clk(clk),
-      .uart_buffer(uart_tx_buffer),
-      .uart_buffer_available(uart_tx_buffer_available),
-      .reset_uart_buffer_available(reset_uart_tx_buffer_available),
-      .uart_buffer_full(uart_tx_buffer_full),
-      .tx(uart_rx_out)
-  );
+    bit [15:0] uart_transmit_bit;
+    bit uart_new_bit;
+
+  
+ uartx_tx_with_buffer1 uartx_tx_with_buffer1 (
+    .clk(clk),    
+    .transmit_bit (uart_transmit_bit),
+    
+.new_bit (uart_new_bit)
+); 
 
 //----------------------------------------------------keyboard---------------------------------
 
@@ -224,6 +221,7 @@ module x_out_of_order7 (
   end 
 
   always @(posedge clk) begin
+                          uart_new_bit<=0;
     if (rst) begin
       instr_num <= 0;
       pc_logical <= ADDRESS_PROGRAM;
@@ -239,7 +237,6 @@ module x_out_of_order7 (
       registers_done_op <= '{default: 0};
       process_start <= 0;
       //  $display($sformatf("%02d", $time), " rst main");
-      uart_tx_buffer_available <= 0;
     end else if (executor_state == EXECUTE_STATE_MMU) begin
       read_address   <= read_value * 256 + mmu_read_logical[0][7:0];
       read_address2  <= read_value2 * 256 + mmu_read_logical[1][7:0];
@@ -414,9 +411,8 @@ module x_out_of_order7 (
                           registers_done_op[i] <= 1;
                         end
                         OPCODE_REG2OUT: begin
-                          uart_tx_buffer[uart_tx_buffer_available]<= registers_value[i][7:0];
-                          uart_tx_buffer[uart_tx_buffer_available+1]<= registers_value[i][15:8];
-                          uart_tx_buffer_available<=uart_tx_buffer_available+2;
+                          uart_transmit_bit<=registers_value[i];
+                          uart_new_bit<=1;
                         end
                       endcase
                     end
@@ -900,6 +896,36 @@ module single_blockram (
   end
 endmodule
 
+
+module uartx_tx_with_buffer1 (
+    input clk,
+    input [15:0] transmit_bit,
+    input new_bit
+);
+
+ bit [7:0] uart_tx_buffer[0:100];
+  bit [6:0] uart_tx_buffer_available;
+  wire reset_uart_tx_buffer_available;
+  wire uart_tx_buffer_full;
+
+  uartx_tx_with_buffer uartx_tx_with_buffer (
+      .clk(clk),
+      .uart_buffer(uart_tx_buffer),
+      .uart_buffer_available(uart_tx_buffer_available),
+      .reset_uart_buffer_available(reset_uart_tx_buffer_available),
+      .uart_buffer_full(uart_tx_buffer_full),
+      .tx(uart_rx_out)
+  );
+
+
+  always @(posedge clk) begin
+    if (new_bit) begin
+        uart_tx_buffer[uart_tx_buffer_available]<= transmit_bit[7:0];
+        uart_tx_buffer[uart_tx_buffer_available+1]<= transmit_bit[15:8];
+        uart_tx_buffer_available<=uart_tx_buffer_available+2;
+    end
+  end
+endmodule
 
 module uartx_tx_with_buffer (
     input clk,
