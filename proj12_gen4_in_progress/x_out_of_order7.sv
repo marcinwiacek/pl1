@@ -28,7 +28,7 @@ parameter OPCODE_REG2RAM = 'h0b; //14 //register num (4 bits), how many-1 (4 bit
 parameter OPCODE_NUM2REG = 'h0c; //18;  //register num (4 bits), how many-1 (4 bits), 16 bit value //value -> reg
 parameter OPCODE_REG_PLUS = 'h0e;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
 parameter OPCODE_REG_MINUS = 'h0f; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
-parameter OPCODE_REG2OUT = 'h10; //register num (4 bits)
+parameter OPCODE_REG2OUT = 'h10;  //register num (4 bits)
 
 //parameter OPCODE_REG_MUL = 'h16; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
 //parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
@@ -65,29 +65,29 @@ parameter REGISTER_NUM = 15;
 module x_out_of_order7 (
     input clk,
     input bit uart_tx_in,
- 
+
     output reg x,
     output bit uart_rx_out
 );
 
   reg rst = 1;
-  
+
   //--------------------------------------------- screen ---------------------------------
 
-    bit [15:0] uart_transmit_bit;
-    bit uart_new_bit;
+  bit [15:0] uart_transmit_bit;
+  bit uart_new_bit;
 
-  
- uartx_tx_with_buffer1 uartx_tx_with_buffer1 (
-    .clk(clk),    
-    .transmit_bit (uart_transmit_bit),
-    
-.new_bit (uart_new_bit)
-); 
 
-//----------------------------------------------------keyboard---------------------------------
+  uartx_tx_with_buffer1 uartx_tx_with_buffer1 (
+      .clk(clk),
+      .transmit_bit(uart_transmit_bit),
 
-/*  wire [7:0] uart_bb;
+      .new_bit(uart_new_bit)
+  );
+
+  //----------------------------------------------------keyboard---------------------------------
+
+  /*  wire [7:0] uart_bb;
   wire uart_bb_ready;
   bit uart_bb_processed = 0;
 
@@ -143,15 +143,15 @@ module x_out_of_order7 (
 
   //---------------------------------------------------------decoder--------------------------
 
-  reg decoder_inp;
-  
+  reg  decoder_inp;
+
   wire decoder_slot0;
   wire [3:0] decoder_error_code[0:1], decoder_in2[0:1], decoder_in3[0:1];
   wire [7:0] decoder_in1[0:1];
   wire [15:0] decoder_in3_big[0:1], decoder_in4[0:1], decoder_numeric[REGISTER_NUM:0][0:1];
   wire decoder_do_op[REGISTER_NUM:0][0:1];
 
-  reg decoder_slot;
+  reg  decoder_slot;
   assign decoder_slot = executor_state == EXECUTE_STATE_START2 ? !decoder_slot0 : decoder_slot0;
 
   decoder decoder (
@@ -162,7 +162,7 @@ module x_out_of_order7 (
       .read1(read_value),
       .read2(read_value2),
       .slot(decoder_slot0),
-      .do_op(decoder_do_op),      
+      .do_op(decoder_do_op),
       .error_code(decoder_error_code),
       .in1(decoder_in1),
       .in2(decoder_in2),
@@ -174,7 +174,7 @@ module x_out_of_order7 (
 
   //--------------------------------------------------------- mmu ----------------------------
 
-  reg [15:0] 
+  reg [15:0]
       mmu_read_logical[1:0],
       mmu_address_physical_min_in_the_same_page,
       mmu_address_logical_min_in_the_same_page,
@@ -208,7 +208,7 @@ module x_out_of_order7 (
 
       mmu_address_physical_min_in_the_same_page2 <= read_value2[15:8] * 256;
       mmu_address_logical_min_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256;
-      mmu_address_logical_max_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256 + 256 - 1;   
+      mmu_address_logical_max_in_the_same_page2  <= mmu_read_logical[1][15:8] * 256 + 256 - 1;
     end else if (executor_state == EXECUTE_STATE_SWITCH3) begin
       mmu_address_physical_min_in_the_same_page  <= 0;
       mmu_address_logical_min_in_the_same_page   <= read_value;
@@ -218,10 +218,10 @@ module x_out_of_order7 (
       mmu_address_logical_min_in_the_same_page2  <= read_value;
       mmu_address_logical_max_in_the_same_page2  <= read_value + 256 - 1;
     end
-  end 
+  end
 
   always @(posedge clk) begin
-                          uart_new_bit<=0;
+    uart_new_bit <= 0;
     if (rst) begin
       instr_num <= 0;
       pc_logical <= ADDRESS_PROGRAM;
@@ -336,7 +336,7 @@ module x_out_of_order7 (
                 read_address2 <= mmu_address_physical_min_in_the_same_page2+decoder_in4[decoder_slot][9:0]+1;
               end
               OPCODE_NUM2REG: begin
-                for (i = REGISTER_NUM-1; i >=0 ; i = i - 1) begin
+                for (i = REGISTER_NUM - 1; i >= 0; i = i - 1) begin
                   if (decoder_do_op[i][decoder_slot]) begin
                     registers_init[i] <= 1;
                     registers_changed[i] <= 1;
@@ -345,7 +345,7 @@ module x_out_of_order7 (
                 end
               end
               OPCODE_RAM2REG: begin
-                for (i = REGISTER_NUM-1; i >=0 ; i = i - 1) begin
+                for (i = REGISTER_NUM - 1; i >= 0; i = i - 1) begin
                   if (executor_state == EXECUTE_STATE_START2) begin
                     registers_done_op[i] <= !decoder_do_op[i][decoder_slot];
                   end
@@ -364,7 +364,7 @@ module x_out_of_order7 (
                 end
               end
               default: begin
-                for (i = REGISTER_NUM-1; i >=0 ; i = i - 1) begin
+                for (i = REGISTER_NUM - 1; i >= 0; i = i - 1) begin
                   if (executor_state == EXECUTE_STATE_START2) begin
                     registers_done_op[i] <= !decoder_do_op[i][decoder_slot];
                   end
@@ -411,8 +411,8 @@ module x_out_of_order7 (
                           registers_done_op[i] <= 1;
                         end
                         OPCODE_REG2OUT: begin
-                          uart_transmit_bit<=registers_value[i];
-                          uart_new_bit<=1;
+                          uart_transmit_bit <= registers_value[i];
+                          uart_new_bit <= 1;
                         end
                       endcase
                     end
@@ -423,16 +423,16 @@ module x_out_of_order7 (
           end
         end
         EXECUTE_STATE_READ_REG_FROM_RAM: begin
-         executor_state <= EXECUTE_STATE_START3;  
+          executor_state <= EXECUTE_STATE_START3;
           if (registers_read_num[0] != 64) begin
             $display($sformatf("%02d", $time), " slot 0: reading reg ", registers_read_num[0],
                      " src ", read_address);
             registers_value[registers_read_num[0]] <= read_value;
             registers_changed[registers_read_num[0]] <= 1;
             registers_init[registers_read_num[0]] <= 1;
-            if (mmu_read_logical[0] !=0) begin
+            if (mmu_read_logical[0] != 0) begin
               registers_done_op[registers_read_num[0]] <= 1;
-            end          
+            end
           end
           if (registers_read_num[1] != 64) begin
             $display($sformatf("%02d", $time), " slot 1: reading reg ", registers_read_num[1],
@@ -440,16 +440,16 @@ module x_out_of_order7 (
             registers_value[registers_read_num[1]] <= read_value2;
             registers_init[registers_read_num[1]] <= 1;
             registers_changed[registers_read_num[1]] <= 1;
-            if (mmu_read_logical[0] !=0) begin
+            if (mmu_read_logical[0] != 0) begin
               registers_done_op[registers_read_num[1]] <= 1;
             end
-          end                
+          end
         end
         EXECUTE_STATE_SAVE_REG_TO_RAM: begin
-            write_enabled <= 1;
-            write_address <= mmu_address_physical_min_in_the_same_page + mmu_read_logical[0][9:0];
-            write_value <= registers_value[registers_read_num[0]];
-            executor_state <= EXECUTE_STATE_SAVE_REG_TO_RAM2;
+          write_enabled <= 1;
+          write_address <= mmu_address_physical_min_in_the_same_page + mmu_read_logical[0][9:0];
+          write_value <= registers_value[registers_read_num[0]];
+          executor_state <= EXECUTE_STATE_SAVE_REG_TO_RAM2;
         end
         EXECUTE_STATE_SAVE_REG_TO_RAM2: begin
           $display("reg to ram 2");
@@ -638,13 +638,9 @@ module decoder (
           );  //DEBUG info
           OPCODE_REG2OUT:
           $write(
-              " save reg ",
-              `INSTRUCTION2,
-              "-",
-              (`INSTRUCTION2 + `INSTRUCTION3 - 1),
-              " to screen"
+              " save reg ", `INSTRUCTION2, "-", (`INSTRUCTION2 + `INSTRUCTION3 - 1), " to screen"
           );  //DEBUG info
-          
+
           default: begin
             $write(" unknown");  //DEBUG info
           end
@@ -903,7 +899,7 @@ module uartx_tx_with_buffer1 (
     input new_bit
 );
 
- bit [7:0] uart_tx_buffer[0:100];
+  bit [7:0] uart_tx_buffer[0:100];
   bit [6:0] uart_tx_buffer_available;
   wire reset_uart_tx_buffer_available;
   wire uart_tx_buffer_full;
@@ -920,9 +916,9 @@ module uartx_tx_with_buffer1 (
 
   always @(posedge clk) begin
     if (new_bit) begin
-        uart_tx_buffer[uart_tx_buffer_available]<= transmit_bit[7:0];
-        uart_tx_buffer[uart_tx_buffer_available+1]<= transmit_bit[15:8];
-        uart_tx_buffer_available<=uart_tx_buffer_available+2;
+      uart_tx_buffer[uart_tx_buffer_available] <= transmit_bit[7:0];
+      uart_tx_buffer[uart_tx_buffer_available+1] <= transmit_bit[15:8];
+      uart_tx_buffer_available <= uart_tx_buffer_available + 2;
     end
   end
 endmodule
@@ -942,8 +938,8 @@ module uartx_tx_with_buffer (
   bit start;
   wire complete;
 
-//  assign reset_uart_buffer_available = uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
-//  assign uart_buffer_full = uart_buffer_available == 99 ? 1 : 0;
+  //  assign reset_uart_buffer_available = uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
+  //  assign uart_buffer_full = uart_buffer_available == 99 ? 1 : 0;
   assign start = uart_buffer_state == 1;
 
   uart_tx uart_tx (
