@@ -76,13 +76,14 @@ module x_out_of_order7 (
 
   bit [15:0] uart_transmit_bit;
   bit uart_new_bit;
-
+  wire uart_full;
 
   uartx_tx_with_buffer1 uartx_tx_with_buffer1 (
       .clk(clk),
       .transmit_bit(uart_transmit_bit),
-
-      .new_bit(uart_new_bit)
+      .uart_full(uart_full),
+      .new_bit(uart_new_bit),
+      .tx(uart_rx_out)
   );
 
   //----------------------------------------------------keyboard---------------------------------
@@ -255,7 +256,6 @@ module x_out_of_order7 (
         end
         $display("");
       end
-
       case (executor_state)
         EXECUTE_STATE_START: begin
           pc_logical <= pc_logical + 2;
@@ -412,7 +412,8 @@ module x_out_of_order7 (
                         end
                         OPCODE_REG2OUT: begin
                           uart_transmit_bit <= registers_value[i];
-                          uart_new_bit <= 1;
+                          uart_new_bit <= !uart_full;
+                          executor_state <= uart_full?EXECUTE_STATE_START3:EXECUTE_STATE_START2;
                         end
                       endcase
                     end
@@ -896,26 +897,31 @@ endmodule
 module uartx_tx_with_buffer1 (
     input clk,
     input [15:0] transmit_bit,
-    input new_bit
+    input new_bit,
+    output bit uart_full,
+    output bit tx
 );
 
-  bit [7:0] uart_tx_buffer[0:100];
+  bit [7:0] uart_tx_buffer[0:50];
   bit [6:0] uart_tx_buffer_available;
   wire reset_uart_tx_buffer_available;
-  wire uart_tx_buffer_full;
+  
 
   uartx_tx_with_buffer uartx_tx_with_buffer (
       .clk(clk),
       .uart_buffer(uart_tx_buffer),
       .uart_buffer_available(uart_tx_buffer_available),
       .reset_uart_buffer_available(reset_uart_tx_buffer_available),
-      .uart_buffer_full(uart_tx_buffer_full),
-      .tx(uart_rx_out)
+      .uart_buffer_full(uart_full),
+      .tx(tx)
+      
   );
 
 
   always @(posedge clk) begin
-    if (new_bit) begin
+    if (reset_uart_tx_buffer_available) begin
+      uart_tx_buffer_available <= 0;
+    end else if (new_bit) begin
       uart_tx_buffer[uart_tx_buffer_available] <= transmit_bit[7:0];
       uart_tx_buffer[uart_tx_buffer_available+1] <= transmit_bit[15:8];
       uart_tx_buffer_available <= uart_tx_buffer_available + 2;
@@ -925,7 +931,7 @@ endmodule
 
 module uartx_tx_with_buffer (
     input clk,
-    input [7:0] uart_buffer[0:100],
+    input [7:0] uart_buffer[0:50],
     input [6:0] uart_buffer_available,
     output bit reset_uart_buffer_available,
     output bit uart_buffer_full,
@@ -938,8 +944,8 @@ module uartx_tx_with_buffer (
   bit start;
   wire complete;
 
-  //  assign reset_uart_buffer_available = uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
-  //  assign uart_buffer_full = uart_buffer_available == 99 ? 1 : 0;
+  assign reset_uart_buffer_available = uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
+  assign uart_buffer_full = uart_buffer_available == 49 ? 1 : 0;
   assign start = uart_buffer_state == 1;
 
   uart_tx uart_tx (
