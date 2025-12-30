@@ -414,7 +414,7 @@ module x_out_of_order7 (
                         OPCODE_REG2OUT: begin
                           uart_transmit_bit <= registers_value[i];
                           uart_new_bit <= 1;
-                          executor_state <= uart_full?EXECUTE_STATE_START3:EXECUTE_STATE_START2;
+                          executor_state <= uart_full ? EXECUTE_STATE_START3 : EXECUTE_STATE_START2;
                         end
                       endcase
                     end
@@ -907,29 +907,29 @@ module uartx_tx_with_buffer1 (
   bit [7:0] uart_tx_buffer[0:50];
   bit [6:0] uart_tx_buffer_available;
   wire reset_uart_tx_buffer_available;
-  
+
   uartx_tx_with_buffer uartx_tx_with_buffer (
       .rst(rst),
       .clk(clk),
       .uart_buffer(uart_tx_buffer),
       .uart_buffer_available(uart_tx_buffer_available),
-      .reset_uart_buffer_available(reset_uart_tx_buffer_available),     
-      .tx(tx)    
+      .reset_uart_buffer_available(reset_uart_tx_buffer_available),
+      .tx(tx)
   );
 
 
   always @(posedge clk) begin
-    uart_full<=0;
+    uart_full <= 0;
     if (rst || reset_uart_tx_buffer_available) begin
       uart_tx_buffer_available <= 0;
     end else if (uart_tx_buffer_available != 49) begin
       if (new_bit) begin
-      uart_tx_buffer[uart_tx_buffer_available] <= transmit_bit[7:0];
-      uart_tx_buffer[uart_tx_buffer_available+1] <= transmit_bit[15:8];
-      uart_tx_buffer_available <= uart_tx_buffer_available + 2;
+        uart_tx_buffer[uart_tx_buffer_available] <= transmit_bit[7:0];
+        uart_tx_buffer[uart_tx_buffer_available+1] <= transmit_bit[15:8];
+        uart_tx_buffer_available <= uart_tx_buffer_available + 2;
       end
     end else begin
-      uart_full<=1;      
+      uart_full <= 1;
     end
   end
 endmodule
@@ -939,7 +939,7 @@ module uartx_tx_with_buffer (
     input clk,
     input [7:0] uart_buffer[0:50],
     input [6:0] uart_buffer_available,
-    output bit reset_uart_buffer_available,    
+    output bit reset_uart_buffer_available,
     output bit tx
 );
 
@@ -960,26 +960,26 @@ module uartx_tx_with_buffer (
 
   always @(posedge clk) begin
     if (rst) begin
-        uart_buffer_processed <= 0;
-  uart_buffer_state <= 0;
+      uart_buffer_processed <= 0;
+      uart_buffer_state <= 0;
 
     end else begin
-  reset_uart_buffer_available <= uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;  
-  start <= uart_buffer_state == 1;
-    if (uart_buffer_state == 0) begin
-      if (uart_buffer_available > 0 && uart_buffer_processed < uart_buffer_available) begin
-        input_data <= uart_buffer[uart_buffer_processed];
-        uart_buffer_state <= 1;
-        uart_buffer_processed <= uart_buffer_processed + 1;
-      end else if (uart_buffer_processed > uart_buffer_available) begin
-        uart_buffer_processed <= 0;
+      reset_uart_buffer_available <= uart_buffer_available != 0 && uart_buffer_available == uart_buffer_processed && uart_buffer_state == 2 && complete?1:0;
+      start <= uart_buffer_state == 1;
+      if (uart_buffer_state == 0) begin
+        if (uart_buffer_available > 0 && uart_buffer_processed < uart_buffer_available) begin
+          input_data <= uart_buffer[uart_buffer_processed];
+          uart_buffer_state <= 1;
+          uart_buffer_processed <= uart_buffer_processed + 1;
+        end else if (uart_buffer_processed > uart_buffer_available) begin
+          uart_buffer_processed <= 0;
+        end
+      end else if (uart_buffer_state == 1) begin
+        if (!complete) uart_buffer_state <= 2;
+      end else if (uart_buffer_state == 2) begin
+        if (complete) uart_buffer_state <= 0;
       end
-    end else if (uart_buffer_state == 1) begin
-      if (!complete) uart_buffer_state <= 2;
-    end else if (uart_buffer_state == 2) begin
-      if (complete) uart_buffer_state <= 0;
     end
-  end
   end
 endmodule
 
@@ -1006,21 +1006,21 @@ module uart_tx (
   parameter STATE_STOP_BIT = 10;  //1
 
   bit [ 5:0] uart_tx_state;
-  bit [10:0] counter ;
+  bit [10:0] counter;
 
   always @(negedge clk) begin
     if (rst) begin
-   uart_tx_state <= STATE_IDLE;
-  counter <= CLK_PER_BIT;
-  end else begin
-    uarttx <= uart_tx_state == STATE_IDLE || uart_tx_state == STATE_STOP_BIT ? 1:(uart_tx_state == STATE_START_BIT ? 0:input_data[uart_tx_state-STATE_DATA_BIT_0]);
-    complete <= uart_tx_state == STATE_IDLE;
-    if (uart_tx_state == STATE_IDLE) begin
-      uart_tx_state <= start ? STATE_START_BIT : STATE_IDLE;
+      uart_tx_state <= STATE_IDLE;
+      counter <= CLK_PER_BIT;
     end else begin
-      uart_tx_state <= counter == 0 ? (uart_tx_state== STATE_STOP_BIT? STATE_IDLE : uart_tx_state + 1) : uart_tx_state;
-      counter <= counter == 0 ? CLK_PER_BIT : counter - 1;
-    end
+      uarttx <= uart_tx_state == STATE_IDLE || uart_tx_state == STATE_STOP_BIT ? 1:(uart_tx_state == STATE_START_BIT ? 0:input_data[uart_tx_state-STATE_DATA_BIT_0]);
+      complete <= uart_tx_state == STATE_IDLE;
+      if (uart_tx_state == STATE_IDLE) begin
+        uart_tx_state <= start ? STATE_START_BIT : STATE_IDLE;
+      end else begin
+        uart_tx_state <= counter == 0 ? (uart_tx_state== STATE_STOP_BIT? STATE_IDLE : uart_tx_state + 1) : uart_tx_state;
+        counter <= counter == 0 ? CLK_PER_BIT : counter - 1;
+      end
     end
   end
 endmodule
