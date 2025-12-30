@@ -413,7 +413,7 @@ module x_out_of_order7 (
                         end
                         OPCODE_REG2OUT: begin
                           uart_transmit_bit <= registers_value[i];
-                          uart_new_bit <= 1;
+                          uart_new_bit <= !uart_full;
                           executor_state <= uart_full ? EXECUTE_STATE_START3 : EXECUTE_STATE_START2;
                         end
                       endcase
@@ -917,18 +917,15 @@ module uartx_tx_with_buffer1 (
       .tx(tx)
   );
 
-  always @(posedge clk) begin
-    uart_full <= 0;
+  always @(posedge clk) begin    
     if (rst || reset_uart_tx_buffer_available) begin
+      uart_full <= 0;
       uart_tx_buffer_available <= 0;
-    end else if (uart_tx_buffer_available != 49) begin
-      if (new_bit) begin
+    end else if (new_bit) begin
         uart_tx_buffer[uart_tx_buffer_available] <= transmit_bit[7:0];
-        uart_tx_buffer[uart_tx_buffer_available+1] <= transmit_bit[15:8];
-        uart_tx_buffer_available <= uart_tx_buffer_available + 2;
-      end
-    end else begin
-      uart_full <= 1;
+     //   uart_tx_buffer[uart_tx_buffer_available+1] <= transmit_bit[15:8];
+        uart_tx_buffer_available <= uart_tx_buffer_available + 1;
+        uart_full <= uart_tx_buffer_available != 48;
     end
   end
 endmodule
@@ -969,19 +966,25 @@ module uartx_tx_with_buffer (
     if (rst) begin
       uart_buffer_processed <= 0;
       uart_buffer_state <= 0;
-    end else if (uart_buffer_state == 0) begin
-        if (uart_buffer_available > 0 && uart_buffer_processed < uart_buffer_available) begin
+    end else begin
+      case (uart_buffer_state)
+      0: begin      
+       if (uart_buffer_available > 0) begin
+          if (uart_buffer_processed < uart_buffer_available) begin
           input_data <= uart_buffer[uart_buffer_processed];
           uart_buffer_state <= 1;
-          uart_buffer_processed <= uart_buffer_processed + 1;
-        end else if (uart_buffer_processed > uart_buffer_available) begin
-          uart_buffer_processed <= 0;
+          uart_buffer_processed <= uart_buffer_processed == uart_buffer_available-1?0: uart_buffer_processed + 1;       
         end
-      end else if (uart_buffer_state == 1) begin
+        end        
+      end
+      1: begin
         if (!complete) uart_buffer_state <= 2;
-      end else if (uart_buffer_state == 2) begin
+      end
+      2: begin
         if (complete) uart_buffer_state <= 0;
       end
+      endcase
+    end    
   end
 endmodule
 
