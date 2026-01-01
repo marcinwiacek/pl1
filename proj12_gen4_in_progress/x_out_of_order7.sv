@@ -962,8 +962,8 @@ module uartx_tx_with_buffer (
     end else begin
       case (uart_buffer_state)
         0: begin
-          start <=0;
-          reset_uart_buffer_available <=0;
+          start <= 0;
+          reset_uart_buffer_available <= 0;
           if (uart_buffer_available > 0) begin
             if (uart_buffer_processed < uart_buffer_available) begin
               input_data <= uart_buffer[uart_buffer_processed];
@@ -973,14 +973,14 @@ module uartx_tx_with_buffer (
           end
         end
         1: begin
-          start <=1;
+          start <= 1;
           if (!complete) uart_buffer_state <= 2;
         end
         2: begin
-          start <=0;
+          start <= 0;
           if (complete) begin
-             uart_buffer_state <= 0;
-             reset_uart_buffer_available <= uart_buffer_available == uart_buffer_processed;
+            uart_buffer_state <= 0;
+            reset_uart_buffer_available <= uart_buffer_available == uart_buffer_processed;
           end
         end
       endcase
@@ -1023,20 +1023,20 @@ module uart_tx (
       counter <= CLK_PER_BIT;
     end else begin
       case (uart_tx_state)
-      STATE_IDLE: begin
-        complete <= 1;
-        if (start) uart_tx_state <= STATE_START_BIT;
-      end
-      default: begin
-        complete <= 0;
-        if (counter == 0) begin
-          counter <= CLK_PER_BIT;
-          uart_tx_state <= uart_tx_state== STATE_STOP_BIT? STATE_IDLE : uart_tx_state + 1;
-        end else begin
-          counter <= counter - 1;
+        STATE_IDLE: begin
+          complete <= 1;
+          if (start) uart_tx_state <= STATE_START_BIT;
         end
-      end
-      endcase   
+        default: begin
+          complete <= 0;
+          if (counter == 0) begin
+            counter <= CLK_PER_BIT;
+            uart_tx_state <= uart_tx_state == STATE_STOP_BIT ? STATE_IDLE : uart_tx_state + 1;
+          end else begin
+            counter <= counter - 1;
+          end
+        end
+      endcase
     end
   end
 endmodule
