@@ -1065,6 +1065,7 @@ module uart_rx (
 );
 
   parameter CLK_PER_BYTE = 100000000 / 115200;  //100 Mhz / transmission speed in bps (bits per second)
+parameter CLK_PER_BYTE_HALF = (CLK_PER_BYTE - 1) / 2;
 
   parameter STATE_IDLE = 0;  //1
   parameter STATE_START_BIT = 1;  //0
@@ -1092,39 +1093,38 @@ module uart_rx (
         STATE_IDLE: begin
           if (bb_processed) bb_ready <= 0;
           if (inp == 0) begin
-            counter <= 0;
-            uart_tx_state <= uart_tx_state + 1;
+            counter <= CLK_PER_BYTE;
+            uart_tx_state <= STATE_START_BIT;
           end
         end
         STATE_START_BIT: begin
-          if (counter == (CLK_PER_BYTE - 1) / 2) begin
+          if (counter == CLK_PER_BYTE_HALF) begin
             if (inp == 1) begin
               uart_tx_state <= STATE_IDLE;
             end else begin
               //starting from this point we will be checking RS input value in the middle of the cycle
-              uart_tx_state <= uart_tx_state + 1;
-              counter <= 0;
+              uart_tx_state <= STATE_DATA_BIT_0;
+              counter <= CLK_PER_BYTE;
             end
           end else begin
-            counter <= counter + 1;
+            counter <= counter - 1;
           end
         end
         STATE_STOP_BIT: begin
-          if (counter == CLK_PER_BYTE) begin
-            bb_ready <= inp;
+          if (counter == 0) begin
+            bb_ready <= 1;
             uart_tx_state <= STATE_IDLE;
           end else begin
-            counter <= counter + 1;
+            counter <= counter - 1;
           end
         end
-        default: //    (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) 
-      begin
-          if (counter == CLK_PER_BYTE) begin
+        default: begin //    (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) 
+          if (counter == 0) begin
             bb[uart_tx_state-STATE_DATA_BIT_0] <= inp;
             uart_tx_state <= uart_tx_state + 1;
-            counter <= 0;
+            counter <= CLK_PER_BYTE;
           end else begin
-            counter <= counter + 1;
+            counter <= counter - 1;
           end
         end
       endcase
