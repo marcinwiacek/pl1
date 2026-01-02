@@ -29,6 +29,8 @@ parameter OPCODE_NUM2REG = 'h0c; //18;  //register num (4 bits), how many-1 (4 b
 parameter OPCODE_REG_PLUS = 'h0e;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
 parameter OPCODE_REG_MINUS = 'h0f; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
 parameter OPCODE_REG2OUT = 'h10;  //register num (4 bits)
+parameter OPCODE_NEW_PROC = 'h11;  //register num (4 bits), how many-1 (4 bits)
+
 
 //parameter OPCODE_REG_MUL = 'h16; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
 //parameter OPCODE_REG_DIV ='h17; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg /= value
@@ -364,6 +366,8 @@ module x_out_of_order7 (
                   end
                 end
               end
+              OPCODE_NEW_PROC: begin
+              end
               default: begin
                 for (i = REGISTER_NUM - 1; i >= 0; i = i - 1) begin
                   if (executor_state == EXECUTE_STATE_START2) begin
@@ -642,7 +646,13 @@ module decoder (
           $write(
               " save reg ", `INSTRUCTION2, "-", (`INSTRUCTION2 + `INSTRUCTION3 - 1), " to screen"
           );  //DEBUG info
-
+          OPCODE_NEW_PROC:
+          $write(
+              " new process pages ",
+              `INSTRUCTION2,
+              "-",
+              (`INSTRUCTION2 + `INSTRUCTION3 - 1)
+          );  //DEBUG info
           default: begin
             $write(" unknown");  //DEBUG info
           end
@@ -696,7 +706,7 @@ module decoder (
     if (inp) begin
       error_code[slot] <= 0;
       case (`INSTRUCTION1)
-        OPCODE_JMP, OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4: begin
+        OPCODE_JMP, OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4, OPCODE_NEW_PROC: begin
         end
         OPCODE_RAM2REG, OPCODE_REG2RAM, OPCODE_NUM2REG, OPCODE_REG_PLUS, OPCODE_REG_MINUS, OPCODE_REG2OUT: begin
           if (`INSTRUCTION2 + `INSTRUCTION3 >= REGISTER_NUM) begin
