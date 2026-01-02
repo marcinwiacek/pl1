@@ -649,16 +649,13 @@ module decoder (
           $write(
               " save reg ", `INSTRUCTION2, "-", (`INSTRUCTION2 + `INSTRUCTION3 - 1), " to screen"
           );  //DEBUG info
-           OPCODE_IN2REG:
+          OPCODE_IN2REG:
           $write(
               " read keyboard to ", `INSTRUCTION2, "-", (`INSTRUCTION2 + `INSTRUCTION3 - 1)
           );  //DEBUG info
           OPCODE_NEW_PROC:
           $write(
-              " new process pages ",
-              `INSTRUCTION2,
-              "-",
-              (`INSTRUCTION2 + `INSTRUCTION3 - 1)
+              " new process pages ", `INSTRUCTION2, "-", (`INSTRUCTION2 + `INSTRUCTION3 - 1)
           );  //DEBUG info
           default: begin
             $write(" unknown");  //DEBUG info
@@ -1089,48 +1086,48 @@ module uart_rx (
   always @(posedge clk) begin
     if (rst) begin
       uart_tx_state <= STATE_IDLE;
-      bb_ready<=0;
+      bb_ready <= 0;
     end else begin
-        case (uart_tx_state)
- STATE_IDLE: begin
-      if (bb_processed) bb_ready <= 0;
-      if (inp == 0) begin
-        counter <= 0;
-        uart_tx_state <= uart_tx_state + 1;
-      end
-    end
- STATE_START_BIT: begin
-      if (counter == (CLK_PER_BYTE - 1) / 2) begin
-        if (inp == 1) begin
-          uart_tx_state <= STATE_IDLE;
-        end else begin
-          //starting from this point we will be checking RS input value in the middle of the cycle
-          uart_tx_state <= uart_tx_state + 1;
-          counter <= 0;
+      case (uart_tx_state)
+        STATE_IDLE: begin
+          if (bb_processed) bb_ready <= 0;
+          if (inp == 0) begin
+            counter <= 0;
+            uart_tx_state <= uart_tx_state + 1;
+          end
         end
-      end else begin
-        counter <= counter + 1;
-      end
-    end 
-    STATE_STOP_BIT: begin
-      if (counter == CLK_PER_BYTE) begin
-        bb_ready <= inp;
-        uart_tx_state <= STATE_IDLE;
-      end else begin
-        counter <= counter + 1;
-      end
-    end
-    default: //    (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) 
+        STATE_START_BIT: begin
+          if (counter == (CLK_PER_BYTE - 1) / 2) begin
+            if (inp == 1) begin
+              uart_tx_state <= STATE_IDLE;
+            end else begin
+              //starting from this point we will be checking RS input value in the middle of the cycle
+              uart_tx_state <= uart_tx_state + 1;
+              counter <= 0;
+            end
+          end else begin
+            counter <= counter + 1;
+          end
+        end
+        STATE_STOP_BIT: begin
+          if (counter == CLK_PER_BYTE) begin
+            bb_ready <= inp;
+            uart_tx_state <= STATE_IDLE;
+          end else begin
+            counter <= counter + 1;
+          end
+        end
+        default: //    (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) 
       begin
-      if (counter == CLK_PER_BYTE) begin
-        bb[uart_tx_state-STATE_DATA_BIT_0] <= inp;
-        uart_tx_state <= uart_tx_state + 1;
-        counter <= 0;
-      end else begin
-        counter <= counter + 1;
-      end
-end
-        endcase
+          if (counter == CLK_PER_BYTE) begin
+            bb[uart_tx_state-STATE_DATA_BIT_0] <= inp;
+            uart_tx_state <= uart_tx_state + 1;
+            counter <= 0;
+          end else begin
+            counter <= counter + 1;
+          end
+        end
+      endcase
     end
   end
 endmodule
