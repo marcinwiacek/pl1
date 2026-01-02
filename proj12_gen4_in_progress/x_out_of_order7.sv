@@ -1091,10 +1091,12 @@ parameter CLK_PER_BYTE_HALF = (CLK_PER_BYTE - 1) / 2;
     end else begin
       case (uart_tx_state)
         STATE_IDLE: begin
-          if (bb_processed) bb_ready <= 0;
-          if (inp == 0) begin
-            counter <= CLK_PER_BYTE;
-            uart_tx_state <= STATE_START_BIT;
+          if (bb_processed) begin
+             bb_ready <= 0;
+             if (inp == 0) begin
+               counter <= CLK_PER_BYTE;
+               uart_tx_state <= STATE_START_BIT;
+             end
           end
         end
         STATE_START_BIT: begin
