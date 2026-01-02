@@ -29,7 +29,8 @@ parameter OPCODE_NUM2REG = 'h0c; //18;  //register num (4 bits), how many-1 (4 b
 parameter OPCODE_REG_PLUS = 'h0e;//20; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg += value
 parameter OPCODE_REG_MINUS = 'h0f; //register num (5 bits), how many-1 (3 bits), 16 bit value  //reg -= value
 parameter OPCODE_REG2OUT = 'h10;  //register num (4 bits)
-parameter OPCODE_NEW_PROC = 'h11;  //register num (4 bits), how many-1 (4 bits)
+parameter OPCODE_IN2REG = 'h11;  //register num (4 bits)
+parameter OPCODE_NEW_PROC = 'h12;  //register num (4 bits), how many-1 (4 bits)
 
 
 //parameter OPCODE_REG_MUL = 'h16; //register num (5 bits), how many-1 (3 bits), 16 bit value // reg *= value
@@ -91,17 +92,18 @@ module x_out_of_order7 (
 
   //----------------------------------------------------keyboard---------------------------------
 
-  /*  wire [7:0] uart_bb;
+  wire [7:0] uart_bb;
   wire uart_bb_ready;
-  bit uart_bb_processed = 0;
+  bit uart_bb_processed;
 
   uart_rx uart_rx (
+      .rst(rst),
       .clk(clk),
       .bb_processed(uart_bb_processed),
       .uartrx(uart_tx_in),
       .bb(uart_bb),
       .bb_ready(uart_bb_ready)
-  );*/
+  );
 
   //------------------------------------------------------------ram---------------------------
 
@@ -240,6 +242,7 @@ module x_out_of_order7 (
       write_enabled <= 0;
       registers_done_op <= '{default: 0};
       process_start <= 0;
+      uart_bb_processed <= 0;
       //  $display($sformatf("%02d", $time), " rst main");
     end else if (executor_state == EXECUTE_STATE_MMU) begin
       read_address   <= read_value * 256 + mmu_read_logical[0][7:0];
@@ -646,6 +649,10 @@ module decoder (
           $write(
               " save reg ", `INSTRUCTION2, "-", (`INSTRUCTION2 + `INSTRUCTION3 - 1), " to screen"
           );  //DEBUG info
+           OPCODE_IN2REG:
+          $write(
+              " read keyboard to ", `INSTRUCTION2, "-", (`INSTRUCTION2 + `INSTRUCTION3 - 1)
+          );  //DEBUG info
           OPCODE_NEW_PROC:
           $write(
               " new process pages ",
@@ -708,7 +715,7 @@ module decoder (
       case (`INSTRUCTION1)
         OPCODE_JMP, OPCODE_JMP_IF1, OPCODE_JMP_IF2, OPCODE_JMP_IF3, OPCODE_JMP_IF4, OPCODE_NEW_PROC: begin
         end
-        OPCODE_RAM2REG, OPCODE_REG2RAM, OPCODE_NUM2REG, OPCODE_REG_PLUS, OPCODE_REG_MINUS, OPCODE_REG2OUT: begin
+        OPCODE_RAM2REG, OPCODE_REG2RAM, OPCODE_NUM2REG, OPCODE_REG_PLUS, OPCODE_REG_MINUS, OPCODE_REG2OUT, OPCODE_IN2REG: begin
           if (`INSTRUCTION2 + `INSTRUCTION3 >= REGISTER_NUM) begin
             error_code[slot] <= ERROR_WRONG_REG_NUM;
           end
@@ -1051,13 +1058,13 @@ module uart_tx (
   end
 endmodule
 
-/*
 module uart_rx (
     input clk,
+    input rst,
     input uartrx,
     input bb_processed,
     output logic [7:0] bb,
-    output logic bb_ready = 0
+    output logic bb_ready
 );
 
   parameter CLK_PER_BYTE = 100000000 / 115200;  //100 Mhz / transmission speed in bps (bits per second)
@@ -1069,8 +1076,8 @@ module uart_rx (
   parameter STATE_DATA_BIT_7 = 9;
   parameter STATE_STOP_BIT = 10;  //1
 
-  reg [ 5:0] uart_tx_state = STATE_IDLE;
-  reg [10:0] counter = 0;
+  reg [ 5:0] uart_tx_state;
+  reg [10:0] counter;
   reg uartrxreg, inp;
 
   //double buffering to avoid metastability
@@ -1080,13 +1087,19 @@ module uart_rx (
   end
 
   always @(posedge clk) begin
-    if (uart_tx_state == STATE_IDLE) begin
+    if (rst) begin
+      uart_tx_state <= STATE_IDLE;
+      bb_ready<=0;
+    end else begin
+        case (uart_tx_state)
+ STATE_IDLE: begin
       if (bb_processed) bb_ready <= 0;
       if (inp == 0) begin
         counter <= 0;
         uart_tx_state <= uart_tx_state + 1;
       end
-    end else if (uart_tx_state == STATE_START_BIT) begin
+    end
+ STATE_START_BIT: begin
       if (counter == (CLK_PER_BYTE - 1) / 2) begin
         if (inp == 1) begin
           uart_tx_state <= STATE_IDLE;
@@ -1098,15 +1111,8 @@ module uart_rx (
       end else begin
         counter <= counter + 1;
       end
-    end else if (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) begin
-      if (counter == CLK_PER_BYTE) begin
-        bb[uart_tx_state-STATE_DATA_BIT_0] <= inp;
-        uart_tx_state <= uart_tx_state + 1;
-        counter <= 0;
-      end else begin
-        counter <= counter + 1;
-      end
-    end else if (uart_tx_state == STATE_STOP_BIT) begin
+    end 
+    STATE_STOP_BIT: begin
       if (counter == CLK_PER_BYTE) begin
         bb_ready <= inp;
         uart_tx_state <= STATE_IDLE;
@@ -1114,6 +1120,18 @@ module uart_rx (
         counter <= counter + 1;
       end
     end
+    default: //    (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) 
+      begin
+      if (counter == CLK_PER_BYTE) begin
+        bb[uart_tx_state-STATE_DATA_BIT_0] <= inp;
+        uart_tx_state <= uart_tx_state + 1;
+        counter <= 0;
+      end else begin
+        counter <= counter + 1;
+      end
+end
+        endcase
+    end
   end
 endmodule
-*/
+
