@@ -1065,7 +1065,7 @@ module uart_rx (
 );
 
   parameter CLK_PER_BYTE = 100000000 / 115200;  //100 Mhz / transmission speed in bps (bits per second)
-  parameter CLK_PER_BYTE_HALF = (CLK_PER_BYTE - 1) / 2;
+parameter CLK_PER_BYTE_HALF = (CLK_PER_BYTE - 1) / 2;
 
   parameter STATE_IDLE = 0;  //1
   parameter STATE_START_BIT = 1;  //0
@@ -1076,83 +1076,57 @@ module uart_rx (
 
   reg [ 5:0] uart_tx_state;
   reg [10:0] counter;
-//  reg uartrxreg, inp;
+  reg uartrxreg, inp;
 
   //double buffering to avoid metastability
- // always @(posedge clk) begin
- //   uartrxreg <= uartrx;
- //   inp <= uartrxreg;
-//  end
+  always @(posedge clk) begin
+    uartrxreg <= uartrx;
+    inp <= uartrxreg;
+  end
 
   always @(posedge clk) begin
-    if (rst) begin    
+    if (rst) begin
+      uart_tx_state <= STATE_IDLE;
       bb_ready <= 0;
     end else begin
       case (uart_tx_state)
         STATE_IDLE: begin
           if (bb_processed) begin
-             bb_ready <= 0;            
-          end
-        end        
-        STATE_STOP_BIT: begin
-          if (counter == 0) begin
-            bb_ready <= 1;                    
-          end
-        end        
-      endcase
-    end
-    end
-    
-    always @(posedge clk) begin
-    if (!rst) begin  
-      case (uart_tx_state)
-        STATE_IDLE: begin
-          if (bb_processed) begin             
-             if (uartrx == 0) begin
+             bb_ready <= 0;
+             if (inp == 0) begin
                counter <= CLK_PER_BYTE;
-             end
-          end
-        end
-        STATE_START_BIT: begin
-          //starting from this point we will be checking RS input value in the middle of the cycle
-              counter <= counter == CLK_PER_BYTE_HALF?CLK_PER_BYTE:counter - 1;
-        end
-        STATE_STOP_BIT: begin
-            counter <= counter - 1;
-        end
-        default: begin //    (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) 
-            counter <= counter == 0?CLK_PER_BYTE:counter - 1;
-        end
-      endcase
-    end
-    end
-    
-    always @(posedge clk) begin
-    if (rst) begin
-      uart_tx_state <= STATE_IDLE;    
-    end else begin
-      case (uart_tx_state)
-        STATE_IDLE: begin
-          if (bb_processed) begin             
-             if (uartrx == 0) begin
                uart_tx_state <= STATE_START_BIT;
              end
           end
         end
         STATE_START_BIT: begin
-          //starting from this point we will be checking RS input value in the middle of the cycle
           if (counter == CLK_PER_BYTE_HALF) begin
-            uart_tx_state <= uartrx == 1?STATE_IDLE:STATE_DATA_BIT_0;
+            if (inp == 1) begin
+              uart_tx_state <= STATE_IDLE;
+            end else begin
+              //starting from this point we will be checking RS input value in the middle of the cycle
+              uart_tx_state <= STATE_DATA_BIT_0;
+              counter <= CLK_PER_BYTE;
+            end
+          end else begin
+            counter <= counter - 1;
           end
         end
         STATE_STOP_BIT: begin
-          if (counter == 0) begin         
+          if (counter == 0) begin
+            bb_ready <= 1;
             uart_tx_state <= STATE_IDLE;
+          end else begin
+            counter <= counter - 1;
           end
         end
         default: begin //    (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) 
-          if (counter == 0) begin         
+          if (counter == 0) begin
+            bb[uart_tx_state-STATE_DATA_BIT_0] <= inp;
             uart_tx_state <= uart_tx_state + 1;
+            counter <= CLK_PER_BYTE;
+          end else begin
+            counter <= counter - 1;
           end
         end
       endcase
