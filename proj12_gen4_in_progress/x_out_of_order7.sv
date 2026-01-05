@@ -1093,41 +1093,34 @@ parameter CLK_PER_BYTE_HALF = (CLK_PER_BYTE - 1) / 2;
         STATE_IDLE: begin
           if (bb_processed) begin
              bb_ready <= 0;
-             if (inp == 0) begin
                counter <= CLK_PER_BYTE;
-               uart_tx_state <= STATE_START_BIT;
-             end
+               uart_tx_state <= inp == 0?STATE_START_BIT:STATE_IDLE;
           end
         end
         STATE_START_BIT: begin
-          if (counter == CLK_PER_BYTE_HALF) begin
-            if (inp == 1) begin
-              uart_tx_state <= STATE_IDLE;
-            end else begin
-              //starting from this point we will be checking RS input value in the middle of the cycle
-              uart_tx_state <= STATE_DATA_BIT_0;
+          case(counter)
+          CLK_PER_BYTE_HALF: begin
+            uart_tx_state <= inp == 1?STATE_IDLE:STATE_DATA_BIT_0;
               counter <= CLK_PER_BYTE;
-            end
-          end else begin
-            counter <= counter - 1;
           end
+          default:
+            counter <= counter - 1;
+          endcase
         end
-        STATE_STOP_BIT: begin
-          if (counter == 0) begin
+        default: begin 
+          case(counter)
+          0: begin
+            if (uart_tx_state==STATE_STOP_BIT) begin
             bb_ready <= 1;
-            uart_tx_state <= STATE_IDLE;
-          end else begin
-            counter <= counter - 1;
-          end
-        end
-        default: begin //    (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) 
-          if (counter == 0) begin
+            end else begin
             bb[uart_tx_state-STATE_DATA_BIT_0] <= inp;
+            end
             uart_tx_state <= uart_tx_state + 1;
             counter <= CLK_PER_BYTE;
-          end else begin
-            counter <= counter - 1;
           end
+          default: 
+            counter <= counter - 1;
+          endcase
         end
       endcase
     end
