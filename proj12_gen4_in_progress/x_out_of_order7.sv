@@ -67,10 +67,10 @@ parameter REGISTER_NUM = 15;
 
 module x_out_of_order7 (
     input clk,
-    input bit uart_tx_in,
+    //input bit uart_tx_in,
 
     output reg x,
-    output bit uart_rx_out
+    output  uart_rx_out
 );
 
   reg rst = 1;
@@ -92,7 +92,7 @@ module x_out_of_order7 (
 
   //----------------------------------------------------keyboard---------------------------------
 
-  wire [7:0] uart_bb;
+ /* wire [7:0] uart_bb;
   wire uart_bb_ready;
   bit uart_bb_processed;
 
@@ -103,7 +103,7 @@ module x_out_of_order7 (
       .uartrx(uart_tx_in),
       .bb(uart_bb),
       .bb_ready(uart_bb_ready)
-  );
+  );*/
 
   //------------------------------------------------------------ram---------------------------
 
@@ -242,7 +242,7 @@ module x_out_of_order7 (
       write_enabled <= 0;
       registers_done_op <= '{default: 0};
       process_start <= 0;
-      uart_bb_processed <= 0;
+   //   uart_bb_processed <= 0;
       //  $display($sformatf("%02d", $time), " rst main");
     end else if (executor_state == EXECUTE_STATE_MMU) begin
       read_address   <= read_value * 256 + mmu_read_logical[0][7:0];
@@ -1055,6 +1055,7 @@ module uart_tx (
   end
 endmodule
 
+/*
 module uart_rx (
     input clk,
     input rst,
@@ -1083,6 +1084,14 @@ parameter CLK_PER_BYTE_HALF = (CLK_PER_BYTE - 1) / 2;
     uartrxreg <= uartrx;
     inp <= uartrxreg;
   end
+  
+  always @(posedge clk) begin
+    if (counter == 0) begin
+      if (uart_tx_state > STATE_START_BIT && uart_tx_state < STATE_STOP_BIT) begin
+        bb[uart_tx_state-STATE_DATA_BIT_0] <= inp;
+      end 
+    end
+  end
 
   always @(posedge clk) begin
     if (rst) begin
@@ -1093,37 +1102,22 @@ parameter CLK_PER_BYTE_HALF = (CLK_PER_BYTE - 1) / 2;
         STATE_IDLE: begin
           if (bb_processed) begin
              bb_ready <= 0;
-             if (inp == 0) begin
-               counter <= CLK_PER_BYTE;
-               uart_tx_state <= STATE_START_BIT;
-             end
+             counter <= CLK_PER_BYTE;
+               uart_tx_state <= inp == 0?STATE_START_BIT:STATE_IDLE;
           end
         end
         STATE_START_BIT: begin
           if (counter == CLK_PER_BYTE_HALF) begin
-            if (inp == 1) begin
-              uart_tx_state <= STATE_IDLE;
-            end else begin
-              //starting from this point we will be checking RS input value in the middle of the cycle
-              uart_tx_state <= STATE_DATA_BIT_0;
-              counter <= CLK_PER_BYTE;
-            end
+            uart_tx_state <= inp == 0?STATE_DATA_BIT_0:STATE_IDLE;
+            counter <= CLK_PER_BYTE;
           end else begin
             counter <= counter - 1;
           end
         end
-        STATE_STOP_BIT: begin
-          if (counter == 0) begin
-            bb_ready <= 1;
-            uart_tx_state <= STATE_IDLE;
-          end else begin
-            counter <= counter - 1;
-          end
-        end
-        default: begin //    (uart_tx_state >= STATE_DATA_BIT_0 && uart_tx_state <= STATE_DATA_BIT_7) 
-          if (counter == 0) begin
-            bb[uart_tx_state-STATE_DATA_BIT_0] <= inp;
-            uart_tx_state <= uart_tx_state + 1;
+        default: begin 
+          if (counter == 0) begin            
+            bb_ready <= uart_tx_state==STATE_STOP_BIT;
+            uart_tx_state <= uart_tx_state==STATE_STOP_BIT?STATE_IDLE:uart_tx_state + 1;
             counter <= CLK_PER_BYTE;
           end else begin
             counter <= counter - 1;
@@ -1133,4 +1127,4 @@ parameter CLK_PER_BYTE_HALF = (CLK_PER_BYTE - 1) / 2;
     end
   end
 endmodule
-
+*/
